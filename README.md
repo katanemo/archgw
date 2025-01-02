@@ -59,6 +59,25 @@ $ python -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
 $ pip install archgw==0.1.7
 ```
+### Docker Setup Troubleshooting
+If you encounter issues while setting up Docker, here are some troubleshooting steps:
+
+1. Enable Docker Socket: Ensure that the default Docker socket is enabled in Docker Desktop. This can be done by enabling an "advanced" option in Docker Desktop settings.
+
+2. Check Docker Socket: Verify if the Docker socket exists:
+```sh
+ls -la ~/Library/Containers/com.docker.docker/Data/docker.sock
+```
+3. If the socket is missing, Docker Desktop may not be running correctly. Restart Docker Desktop.
+
+Install Docker Credential Helper: If you encounter a credentials store error, install the Docker credential helper:
+```sh
+brew install docker-credential-helper
+```
+4. Create a Symlink for Docker Socket: If the Docker socket is missing, you can create a symlink to the backend socket:
+```sh
+ln -s ~/Library/Containers/com.docker.docker/Data/backend.sock ~/Library/Containers/com.docker.docker/Data/docker.sock
+```
 
 ### Build AI Agent with Arch Gateway
 

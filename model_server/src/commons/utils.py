@@ -1,10 +1,8 @@
 import os
-import sys
-import time
+import torch
 import logging
-import requests
-import subprocess
-import importlib
+
+from datetime import datetime
 
 
 PROJ_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -12,7 +10,7 @@ PROJ_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 
 # Default log directory and file
 DEFAULT_LOG_DIR = os.path.join(PROJ_DIR, ".logs")
-DEFAULT_LOG_FILE = "modelserver.log"
+DEFAULT_LOG_FILE = "model_server.log"
 
 
 def get_model_server_logger(log_dir=None, log_file=None):
@@ -31,7 +29,7 @@ def get_model_server_logger(log_dir=None, log_file=None):
     log_file_path = os.path.join(log_dir, log_file)
 
     # Check if the logger is already configured
-    logger = logging.getLogger("model_server_logger")
+    logger = logging.getLogger("model_server")
     if logger.hasHandlers():
         # Return existing logger instance if already configured
         return logger
@@ -43,27 +41,23 @@ def get_model_server_logger(log_dir=None, log_file=None):
 
         # Check for write permissions
         if not os.access(log_dir, os.W_OK):
-            raise PermissionError(f"No write permission for the directory: {log_dir}")
+            raise PermissionError(
+                f"[Logger]: No write permission for the directory: {log_dir}"
+            )
     except (PermissionError, OSError) as e:
-        raise RuntimeError(f"Failed to initialize logger: {e}")
+        raise RuntimeError(f"[Logger]: Failed to initialize logger: {e}")
 
     # Configure logging to file
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            # logging.FileHandler(log_file_path, mode="w"),  # Overwrite logs in the file
+            logging.FileHandler(log_file_path, mode="w"),  # Overwrite logs in the file
             logging.StreamHandler(),  # Also log to console
         ],
     )
 
     return logger
-
-
-logger = get_model_server_logger()
-
-logging.info("initializing torch device ...")
-import torch
 
 
 def get_device():
@@ -85,3 +79,13 @@ def get_device():
         device = "cpu"
 
     return device
+
+
+def get_today_date():
+    # Get today's date
+    today = datetime.now()
+
+    # Get full date with day of week
+    full_date = today.strftime("%Y-%m-%d")
+
+    return full_date

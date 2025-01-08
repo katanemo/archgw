@@ -14,8 +14,8 @@ class Message(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    messages: list[Message]
-    tools: List[Dict[str, Any]]
+    messages: List[Message] = []
+    tools: List[Dict[str, Any]] = []
 
 
 class Choice(BaseModel):
@@ -28,8 +28,8 @@ class ChatCompletionResponse(BaseModel):
     id: Optional[int] = 0
     object: Optional[str] = "chat_completion"
     created: Optional[str] = ""
-    choices: List[Choice]
-    model: str
+    choices: List[Choice] = []
+    model: str = ""
     metadata: Optional[Dict[str, str]] = {}
 
 
@@ -39,10 +39,11 @@ class GuardRequest(BaseModel):
 
 
 class GuardResponse(BaseModel):
-    prob: List
-    verdict: bool
-    sentence: List
+    prob: List = []
+    verdict: bool = False
+    sentence: List = []
     latency: float = 0
+    metadata: Optional[Dict[str, str]] = {}
 
 
 # ================================================================================================
@@ -149,7 +150,7 @@ class ArchBaseHandler:
             )
 
             if tool_calls:
-                # [TODO] Extend to support multiple function calls
+                # TODO: Extend to support multiple function calls
                 role = "assistant"
                 content = f"<tool_call>\n{json.dumps(tool_calls[0]['function'])}\n</tool_call>"
             elif message.role == "tool":

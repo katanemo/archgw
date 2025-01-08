@@ -15,7 +15,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function": {
             "name": "get_current_weather",
@@ -53,37 +52,36 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
-        "type": "function",
-        "function": {
-            "name": "get_current_weather",
-            "description": "Get current weather at a location.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "str",
-                        "description": "The location to get the weather for",
-                        "format": "City, State"
-                    },
-                    "unit": {
-                        "type": "str",
-                        "description": "The unit to return the weather in.",
-                        "enum": ["celsius", "fahrenheit"],
-                        "default": "celsius"
-                    },
-                    "days": {
-                        "type": "str",
-                        "description": "the number of days for the request."
-                    }
-                },
-                "required": ["location", "days"]
+      "type": "function",
+      "function": {
+        "name": "get_current_weather",
+        "description": "Get current weather at a location.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "The location to get the weather for",
+              "format": "City, State"
+            },
+            "unit": {
+              "type": "string",
+              "description": "The unit to return the weather in.",
+              "enum": ["celsius", "fahrenheit"],
+              "default": "celsius"
+            },
+            "days": {
+              "type": "string",
+              "description": "The number of days for the request."
             }
+          },
+          "required": ["location", "days"]
         }
       }
     }
   ]
 }
+
 
 
 
@@ -121,7 +119,7 @@ Content-Type: application/json
 }
 
 ### talk to Arch-Intent directly for completion
-POST https://api.fc.archgw.com/v1/chat/completions HTTP/1.1
+POST {{archfc_endpoint}}/v1/chat/completions HTTP/1.1
 Content-Type: application/json
 
 {
@@ -212,7 +210,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function": {
             "name": "weather_forecast",

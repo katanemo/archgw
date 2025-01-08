@@ -1,22 +1,17 @@
 import importlib
-import logging
-from os import path
 import os
-from signal import SIGKILL
 import sys
 import subprocess
 import argparse
+import signal
 import tempfile
 import time
-
 import requests
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+import src.commons.utils as utils
 
-logger = logging.getLogger(__name__)
+
+logger = utils.get_model_server_logger()
 
 
 def get_version():
@@ -70,25 +65,25 @@ def parse_args():
 
 def get_pid_file():
     temp_dir = tempfile.gettempdir()
-    return path.join(temp_dir, "model_server.pid")
+    return os.path.join(temp_dir, "model_server.pid")
 
 
 def stop_server():
     """Stop the Uvicorn server."""
     pid_file = get_pid_file()
     if os.path.exists(pid_file):
-        logger.info(f"PID file found, shutting down the server.")
+        logger.info("[CLI] - PID file found, shutting down the server.")
         # read pid from file
         with open(pid_file, "r") as f:
             pid = int(f.read())
-            logger.info(f"Killing model server {pid}")
+            logger.info(f"[CLI] - Killing model server {pid}")
             try:
-                os.kill(pid, SIGKILL)
+                os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
-                logger.info(f"Process {pid} not found")
+                logger.info(f"[CLI] - Process {pid} not found")
         os.remove(pid_file)
     else:
-        logger.info("No PID file found, server is not running.")
+        logger.info("[CLI] - No PID file found, server is not running.")
 
 
 def restart_server(port=51000, foreground=False):
@@ -110,7 +105,7 @@ def run_server():
     elif action == "restart":
         restart_server(args.port, args.foreground)
     else:
-        logger.info(f"Unknown action: {action}")
+        logger.info(f"[CLI] - Unknown action: {action}")
         sys.exit(1)
 
 
@@ -124,19 +119,19 @@ def ensure_killed(process):
             break
         time.sleep(1)
     if process.poll() is None:
-        logger.info("Killing model server")
+        logger.info("[CLI] - Killing model server")
         process.kill()
 
 
 def start_server(port=51000, foreground=False):
     """Start the Uvicorn server."""
 
-    logging.info("model server version: %s", get_version())
+    logger.info("model server version: %s", get_version())
 
     stop_server()
 
     logger.info(
-        "starting model server, port: %s, foreground: %s. Please wait ...",
+        "[CLI] - starting model server, port: %s, foreground: %s. Please wait ...",
         port,
         foreground,
     )
@@ -173,18 +168,18 @@ def start_server(port=51000, foreground=False):
     try:
         if wait_for_health_check(f"http://0.0.0.0:{port}/healthz"):
             logger.info(
-                f"model server health check passed, port {port}, pid: {process.pid}"
+                f"[CLI] - model server health check passed, port {port}, pid: {process.pid}"
             )
         else:
-            logger.error("health check failed, shutting it down.")
+            logger.error("[CLI] - health check failed, shutting it down.")
             process.terminate()
     except KeyboardInterrupt:
-        logger.info("model server stopped by user during initialization.")
+        logger.info("[CLI] - model server stopped by user during initialization.")
         ensure_killed(process)
 
     # write process id to temp file in temp folder
     pid_file = get_pid_file()
-    logger.info(f"writing pid {process.pid} to {pid_file}")
+    logger.info(f"[CLI] - writing pid {process.pid} to {pid_file}")
     with open(pid_file, "w") as f:
         f.write(str(process.pid))
 
@@ -192,7 +187,7 @@ def start_server(port=51000, foreground=False):
         try:
             process.wait()
         except KeyboardInterrupt:
-            logger.info("model server stopped by user.")
+            logger.info("[CLI] - model server stopped by user.")
             ensure_killed(process)
 
 
@@ -210,5 +205,5 @@ def main():
     elif args.action == "restart":
         restart_server(args.port)
     else:
-        logger.error(f"Unknown action: {args.action}")
+        logger.error(f"[CLI] - Unknown action: {args.action}")
         sys.exit(1)

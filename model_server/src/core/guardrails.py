@@ -2,11 +2,12 @@ import time
 import torch
 import numpy as np
 import src.commons.utils as utils
-from transformers import AutoTokenizer
-from src.core.model_utils import GuardRequest, GuardResponse
 
-# from optimum.intel import OVModelForSequenceClassification
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from src.core.utils.model_utils import GuardRequest, GuardResponse
+
+
+logger = utils.get_model_server_logger()
 
 
 class ArchGuardHanlder:
@@ -115,9 +116,15 @@ class ArchGuardHanlder:
         if req.task not in self.support_tasks:
             raise NotImplementedError(f"{req.task} is not supported!")
 
+        handler_log = "*" * 30 + "  [Arch-Guard] - Prediction  " + "*" * 30
+
+        handler_log += f"\n  - [request]: {req.input}"
+
         if len(req.input.split()) < max_num_words:
-            return self._predict_text(req.task, req.input)
+            result = self._predict_text(req.task, req.input)
         else:
+            handler_log += f"\n  - [request]: {req.input}"
+
             # split into chunks if text is long
             text_chunks = self._split_text_into_chunks(req.input)
 
@@ -132,12 +139,17 @@ class ArchGuardHanlder:
                     sentence.append(chunk_result.sentence[0])
                     latency += chunk_result.latency
 
-            return GuardResponse(
+            result = GuardResponse(
                 prob=prob, verdict=verdict, sentence=sentence, latency=latency
             )
 
+        handler_log += f"\n  - [response]: {'True' if result.verdict else 'False'}, prob: {result.prob[-1]:.3f}"
+        logger.info(handler_log)
 
-def get_guardrail_handler(device: str = None):
+        return result
+
+
+def get_guardrail_handler(model_name: str = "katanemo/Arch-Guard", device: str = None):
     """
     Initializes and returns an instance of ArchGuardHanlder based on the specified device.
 
@@ -151,19 +163,11 @@ def get_guardrail_handler(device: str = None):
     if device is None:
         device = utils.get_device()
 
-    model_class, model_name = None, None
-    # if device == "cpu":
-    #     model_class = OVModelForSequenceClassification
-    #     model_name = "katanemo/Arch-Guard-cpu"
-    # else:
-    model_class = AutoModelForSequenceClassification
-    model_name = "katanemo/Arch-Guard"
-
     guardrail_dict = {
         "device": device,
         "model_name": model_name,
         "tokenizer": AutoTokenizer.from_pretrained(model_name, trust_remote_code=True),
-        "model": model_class.from_pretrained(
+        "model": AutoModelForSequenceClassification.from_pretrained(
             model_name, device_map=device, low_cpu_mem_usage=True
         ),
     }

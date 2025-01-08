@@ -1,22 +1,24 @@
+import ast
 import json
 import random
 import builtins
 import textwrap
+import src.commons.utils as utils
 
 from openai import OpenAI
 from typing import Any, Dict, List
 from overrides import override
-from src.commons.utils import get_model_server_logger
-from src.core.model_utils import (
+from src.core.utils.hallucination_utils import HallucinationState
+from src.core.utils.model_utils import (
     Message,
     ChatMessage,
     Choice,
     ChatCompletionResponse,
     ArchBaseHandler,
 )
-from src.core.hallucination import HallucinationStateHandler
 
-logger = get_model_server_logger()
+
+logger = utils.get_model_server_logger()
 
 
 class ArchIntentConfig:
@@ -74,7 +76,6 @@ class ArchIntentHandler(ArchBaseHandler):
         )
 
         self.extra_instruction = config.EXTRA_INSTRUCTION
-        self.prompt_prefilling = False
 
     @override
     def _convert_tools(self, tools: List[Dict[str, Any]]) -> str:
@@ -122,14 +123,20 @@ class ArchIntentHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
+        handler_logs = "*" * 30 + "  [Arch-Intent] - ChatCompletion  " + "*" * 30
 
         # In the case that no tools are available, simply return `No` to avoid making a call
         if len(req.tools) == 0:
             model_response = Message(content="No", tool_calls=[])
+            handler_logs += (
+                "\n  - [Info]: No tools found, return `No` as the model response."
+            )
         else:
             messages = self._process_messages(
                 req.messages, req.tools, self.extra_instruction
             )
+
+            handler_logs += f"\n  - [request]: {json.dumps(messages)}"
 
             model_response = self.client.chat.completions.create(
                 messages=messages,
@@ -138,13 +145,15 @@ class ArchIntentHandler(ArchBaseHandler):
                 extra_body=self.generation_params,
             )
 
-            logger.info(
-                "arch_intent response: %s", json.dumps(model_response.model_dump())
+            handler_logs += (
+                f"\n  - [response]: {json.dumps(model_response.model_dump())}"
             )
 
             model_response = Message(
                 content=model_response.choices[0].message.content, tool_calls=[]
             )
+
+            logger.info(handler_logs)
 
         chat_completion_response = ChatCompletionResponse(
             choices=[Choice(message=model_response)], model=self.model_name
@@ -160,7 +169,11 @@ class ArchFunctionConfig:
     TASK_PROMPT = textwrap.dedent(
         """
     You are a helpful assistant.
-    """
+
+    Today's date: {}
+    """.format(
+            utils.get_today_date()
+        )
     ).strip()
 
     TOOL_PROMPT_TEMPLATE = textwrap.dedent(
@@ -189,7 +202,7 @@ class ArchFunctionConfig:
         "temperature": 0.6,
         "top_p": 1.0,
         "top_k": 10,
-        "max_tokens": 512,
+        "max_tokens": 1024,
         "stop_token_ids": [151645],
         "logprobs": True,
         "top_logprobs": 10,
@@ -241,10 +254,11 @@ class ArchFunctionHandler(ArchBaseHandler):
 
         self.prefill_params = config.PREFILL_CONFIG["prefill_params"]
         self.prefill_prefix = config.PREFILL_CONFIG["prefill_prefix"]
-        self.prompt_prefilling = False
+
+        self.hallucination_state = None
 
         # Predefine data types for verification. Only support Python for now.
-        # [TODO] Extend the list of support data types
+        # TODO: Extend the list of support data types
         self.support_data_types = {
             type_name: getattr(builtins, type_name)
             for type_name in config.SUPPORT_DATA_TYPES
@@ -365,15 +379,15 @@ class ArchFunctionHandler(ArchBaseHandler):
 
         return {"result": tool_calls, "status": is_valid, "message": error_message}
 
-    def _correcting_type(self, value, target_type):
+    def _correcting_type(self, value: str, target_type: str):
+        # TODO: Add more conversion rules as needed
         try:
-            if target_type == float and isinstance(value, int):
+            if target_type == "float" and isinstance(value, int):
                 return float(value)
-            elif target_type == list and isinstance(value, str):
+            elif target_type == "list" and isinstance(value, str):
                 return ast.literal_eval(value)
-            elif target_type == str and not isinstance(value, str):
+            elif target_type == "str" and not isinstance(value, str):
                 return str(value)
-            # Add more conversion rules as needed
         except (ValueError, TypeError, json.JSONDecodeError):
             pass
         return value
@@ -426,17 +440,17 @@ class ArchFunctionHandler(ArchBaseHandler):
                         break
 
                 # Verify the data type of each parameter in the tool calls
+                function_properties = functions[func_name]["properties"]
+
                 for param_name in func_args:
-                    if param_name not in functions[func_name]["properties"]:
+                    if param_name not in function_properties:
                         is_valid = False
                         invalid_tool_call = tool_call
                         error_message = f"Parameter `{param_name}` is not defined in the function `{func_name}`."
                         break
                     else:
                         param_value = func_args[param_name]
-                        data_type = functions[func_name]["properties"][param_name][
-                            "type"
-                        ]
+                        data_type = function_properties[param_name]["type"]
 
                         if data_type in self.support_data_types:
                             if not isinstance(
@@ -491,7 +505,6 @@ class ArchFunctionHandler(ArchBaseHandler):
                 **self.prefill_params,
             },
         )
-        self.prompt_prefilling = True
         return prefill_response
 
     def _check_length_and_pop_messages(self, messages, max_tokens=4096):
@@ -550,13 +563,12 @@ class ArchFunctionHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
-
-        logger.info(
-            f"model_server => arch_function: request body: {json.dumps(req.model_dump())}"
-        )
+        handler_logs = "*" * 30 + "  [Arch-Function] - ChatCompletion  " + "*" * 30
 
         messages = self._process_messages(req.messages, req.tools)
         messages = self._check_length_and_pop_messages(messages)
+
+        handler_logs += f"\n  - [request]: {json.dumps(messages)}"
 
         # always enable `stream=True` to collect model responses
         response = self.client.chat.completions.create(
@@ -567,45 +579,44 @@ class ArchFunctionHandler(ArchBaseHandler):
         )
 
         # initialize the hallucination handler, which is an iterator
-        self.hallu_handler = HallucinationStateHandler(
+        self.hallucination_state = HallucinationState(
             response_iterator=response, function=req.tools
         )
 
-        model_response, self.has_tool_call = "", None
-        self.hallucination = False
-        for _ in self.hallu_handler:
+        model_response = ""
+
+        has_tool_calls, has_hallucination = None, False
+        for _ in self.hallucination_state:
             # check if the first token is <tool_call>
-            if len(self.hallu_handler.tokens) > 0 and self.has_tool_call is None:
-                if self.hallu_handler.tokens[0] == "<tool_call>":
-                    self.has_tool_call = True
+            if len(self.hallucination_state.tokens) > 0 and has_tool_calls is None:
+                if self.hallucination_state.tokens[0] == "<tool_call>":
+                    has_tool_calls = True
                 else:
-                    self.has_tool_call = False
+                    has_tool_calls = False
                     break
 
             # if the model is hallucinating, start parameter gathering
-            if self.hallu_handler.hallucination is True:
-                self.hallucination = True
-                logger.info(
-                    f"{self.hallu_handler.error_message} - start parameter gathering"
+            if self.hallucination_state.hallucination is True:
+                has_hallucination = True
+                handler_logs += (
+                    f"\n  - [Hallucinated]: {''.join(self.hallucination_state.tokens)}"
                 )
-                logger.info(
-                    f"Hallucinated response : {''.join(self.hallu_handler.tokens)}"
-                )
-                # [TODO] - add break when hallucination is detected
                 break
-        if self.hallucination is True:
-            prefill_response = self._engage_parameter_gathering(messages)
-            model_response = prefill_response.choices[0].message.content
 
-        if self.has_tool_call and self.hallucination is False:
-            # [TODO] - Review: remove the following code
-
-            model_response = "".join(self.hallu_handler.tokens)
-            logger.info(f"Tool call found, no hallucination detected {model_response}!")
-        # start parameter gathering if the model is not generating tool calls
-        if self.has_tool_call is False:
-            # [TODO] - Review: remove the following code
-            logger.info("No tool call found, start parameter gathering")
+        if has_tool_calls:
+            if has_hallucination:
+                # start prompt prefilling if hallcuination is found in tool calls
+                handler_logs += f"\n  - [Info]: {self.hallucination_state.error_message}, start prompt prefilling."
+                prefill_response = self._engage_parameter_gathering(messages)
+                model_response = prefill_response.choices[0].message.content
+            else:
+                handler_logs += f"\n  - [Info]: Tool call found, no hallucination detected {model_response}."
+                model_response = "".join(self.hallucination_state.tokens)
+        else:
+            # start parameter gathering if the model is not generating tool calls
+            handler_logs += (
+                "\n  - [Info]: No tool call found, start parameter gathering."
+            )
             prefill_response = self._engage_parameter_gathering(messages)
             model_response = prefill_response.choices[0].message.content
 
@@ -613,21 +624,20 @@ class ArchFunctionHandler(ArchBaseHandler):
         extracted = self._extract_tool_calls(model_response)
 
         if len(extracted["result"]) and extracted["status"]:
-            # [TODO] Review: define the behavior in the case that tool call extraction fails
-            # if not extracted["status"]:
             verified = self._verify_tool_calls(
                 tools=req.tools, tool_calls=extracted["result"]
             )
-            # [TODO] - Review: remvoe the following code
-            # print(f"[Verified] - {verified}")
 
-            # [TODO] Review: In the case that tool calls are invalid, define the protocol to collect debugging output and the behavior to handle it appropriately
             if verified["status"]:
+                handler_logs += f"\n  - [Info]: Tool calls - {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
                 model_response = Message(content="", tool_calls=extracted["result"])
-                log_message = f"model_server <= arch_function: (tool_calls): {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
-                logger.info(log_message)
             else:
-                raise ValueError(f"Invalid tool call: {verified['message']}")
+                handler_logs += (
+                    f"\n  - [Info]: Invalid tool call - {verified['message']}"
+                )
+                raise ValueError(
+                    f"[Arch-Function] - [Info]: Invalid tool call - {verified['message']}"
+                )
         else:
             model_response = Message(content=model_response, tool_calls=[])
 
@@ -635,10 +645,10 @@ class ArchFunctionHandler(ArchBaseHandler):
             choices=[Choice(message=model_response)], model=self.model_name
         )
 
-        # [TODO] Review: define the protocol to collect debugging output
-
-        logger.info(
-            f"model_server <= arch_function: response body: {json.dumps(chat_completion_response.model_dump())}"
+        handler_logs += (
+            f"\n  - [response]: {json.dumps(chat_completion_response.model_dump())}"
         )
+
+        logger.info(handler_logs)
 
         return chat_completion_response

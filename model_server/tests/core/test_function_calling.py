@@ -1,12 +1,8 @@
-import os
+import pytest
 
 from src.commons.globals import handler_map
-from src.core.model_utils import ChatMessage, Message
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
-from src.main import app
-from src.commons.globals import handler_map
+from src.core.utils.model_utils import ChatMessage, Message
+
 
 # define function
 get_weather_api = {
@@ -163,7 +159,10 @@ async def test_function_calling(get_data_func):
         function_calling_response = await handler_map["Arch-Function"].chat_completion(
             req
         )
-        assert handler_map["Arch-Function"].hallu_handler.hallucination == hallucination
+        assert (
+            handler_map["Arch-Function"].hallucination_state.hallucination
+            == hallucination
+        )
         response_txt = function_calling_response.choices[0].message.content
 
         if parameter_gathering:

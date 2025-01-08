@@ -1,4 +1,3 @@
-import json
 import math
 import torch
 import itertools
@@ -127,7 +126,7 @@ def is_parameter_property(
     return property_name in parameter_info
 
 
-class HallucinationStateHandler:
+class HallucinationState:
     """
     A class to handle the state of hallucination detection in token processing.
 
@@ -145,7 +144,7 @@ class HallucinationStateHandler:
 
     def __init__(self, response_iterator=None, function=None):
         """
-        Initializes the HallucinationStateHandler with default values.
+        Initializes the HallucinationState with default values.
         """
         self.tokens: List[str] = []
         self.logprobs: List[float] = []
@@ -173,7 +172,7 @@ class HallucinationStateHandler:
 
     def _reset_parameters(self):
         """
-        Resets all parameters in the HallucinationStateHandler to their default values.
+        Resets all parameters in the HallucinationState to their default values.
         """
         self.state = None
         self.parameter_name_done = False
@@ -268,7 +267,7 @@ class HallucinationStateHandler:
         # if the parameter name is done and the token is a parameter name start token, change the state
         elif (
             self.parameter_name_done
-            and self.open_bracket == False
+            and not self.open_bracket
             and content.endswith(PARAMETER_NAME_START_PATTERN)
         ):
             self.state = "parameter_name"
@@ -324,7 +323,7 @@ class HallucinationStateHandler:
         # if the state is parameter value and the token is an end token, change the state
         elif (
             self.state == "parameter_value"
-            and self.open_bracket == False
+            and not self.open_bracket
             and content.endswith(PARAMETER_VALUE_END_TOKEN)
         ):
             self.state = None
@@ -354,7 +353,7 @@ class HallucinationStateHandler:
             self.HALLUCINATION_THRESHOLD_DICT[self.mask[-1].value],
         ):
             self.hallucination = True
-            self.error_message = f"Hallucination: token '{self.tokens[-1]}' is uncertain. {self.token_probs_map}"
+            self.error_message = f"Hallucination found: token '{self.tokens[-1]}' is uncertain. {self.token_probs_map}"
 
     def _count_consecutive_token(self, token=MaskToken.PARAMETER_VALUE) -> int:
         """

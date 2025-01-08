@@ -1,9 +1,9 @@
 {
 	"folders": [
-		{
+    {
       "name": "root",
-			"path": "."
-		},
+      "path": "."
+    },
     {
       "name": "crates",
       "path": "crates"

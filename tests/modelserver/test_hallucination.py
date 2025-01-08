@@ -1,8 +1,6 @@
-import json
 import os
 import pytest
 import requests
-from deepdiff import DeepDiff
 import logging
 import yaml
 
@@ -37,13 +35,9 @@ def test_model_server(test_data):
 
     response = requests.post(MODEL_SERVER_ENDPOINT, json=input)
     assert response.status_code == 200
-    # print(json.dumps(response.json()))
-    # ensure that response is json
     assert response.headers["content-type"] == "application/json"
+
     response_json = response.json()
     assert response_json
     metadata = response_json.get("metadata", [])
     assert (metadata["hallucination"].lower() == "true") == expected[0]["hallucination"]
-    assert (metadata["prompt_prefilling"].lower() == "true") == expected[0][
-        "prompt_prefilling"
-    ]

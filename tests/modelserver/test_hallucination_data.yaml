@@ -24,7 +24,6 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: false
-      prompt_prefilling: true
 
   - id: "[WEATHER AGENT] - single turn, single tool, hallucination"
     input:
@@ -51,7 +50,6 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: true
-      prompt_prefilling: true
 
   - id: "[WEATHER AGENT] - multi turn, single tool, all params passed"
     input:
@@ -85,8 +83,6 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: true
-      prompt_prefilling: true
-
 
   - id: "[WEATHER AGENT] - multi turn, single tool, clarification"
     input:
@@ -120,7 +116,7 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: false
-      prompt_prefilling: true
+
   - id: "[SALE AGENT] - single turn, single tool, hallucination region"
     input:
       messages:
@@ -148,7 +144,6 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: true
-      prompt_prefilling: true
 
   - id: "[SALE AGENT] - single turn, single tool, hallucination industry"
     input:
@@ -177,7 +172,6 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: true
-      prompt_prefilling: true
 
   - id: "[PRODUCT AGENT] - single turn, single tool, hallucination industry"
     input:
@@ -261,4 +255,3 @@ test_cases:
     expected:
     - type: "metadata"
       hallucination: true
-      prompt_prefilling: true

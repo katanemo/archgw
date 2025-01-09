@@ -123,20 +123,20 @@ class ArchIntentHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
-        handler_logs = "*" * 30 + "  [Arch-Intent] - ChatCompletion  " + "*" * 30
+        logger.info("*" * 30 + "  [Arch-Intent] - ChatCompletion  " + "*" * 30)
 
         # In the case that no tools are available, simply return `No` to avoid making a call
         if len(req.tools) == 0:
             model_response = Message(content="No", tool_calls=[])
-            handler_logs += (
-                "\n  - [Info]: No tools found, return `No` as the model response."
+            logger.info(
+                "  - [Info]: No tools found, return `No` as the model response."
             )
         else:
             messages = self._process_messages(
                 req.messages, req.tools, self.extra_instruction
             )
 
-            handler_logs += f"\n  - [request]: {json.dumps(messages)}"
+            logger.info(f"  - [request]: {json.dumps(messages)}")
 
             model_response = self.client.chat.completions.create(
                 messages=messages,
@@ -145,15 +145,11 @@ class ArchIntentHandler(ArchBaseHandler):
                 extra_body=self.generation_params,
             )
 
-            handler_logs += (
-                f"\n  - [response]: {json.dumps(model_response.model_dump())}"
-            )
+            logger.info(f"\n  - [response]: {json.dumps(model_response.model_dump())}")
 
             model_response = Message(
                 content=model_response.choices[0].message.content, tool_calls=[]
             )
-
-            logger.info(handler_logs)
 
         chat_completion_response = ChatCompletionResponse(
             choices=[Choice(message=model_response)], model=self.model_name
@@ -563,12 +559,12 @@ class ArchFunctionHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
-        handler_logs = "*" * 30 + "  [Arch-Function] - ChatCompletion  " + "*" * 30
+        logger.info("*" * 30 + "  [Arch-Function] - ChatCompletion  " + "*" * 30)
 
         messages = self._process_messages(req.messages, req.tools)
         messages = self._check_length_and_pop_messages(messages)
 
-        handler_logs += f"\n  - [request]: {json.dumps(messages)}"
+        logger.info(f"  - [request]: {json.dumps(messages)}")
 
         # always enable `stream=True` to collect model responses
         response = self.client.chat.completions.create(
@@ -598,25 +594,27 @@ class ArchFunctionHandler(ArchBaseHandler):
             # if the model is hallucinating, start parameter gathering
             if self.hallucination_state.hallucination is True:
                 has_hallucination = True
-                handler_logs += (
-                    f"\n  - [Hallucinated]: {''.join(self.hallucination_state.tokens)}"
+                logger.info(
+                    f"  - [Hallucinated]: {''.join(self.hallucination_state.tokens)}"
                 )
                 break
 
         if has_tool_calls:
             if has_hallucination:
                 # start prompt prefilling if hallcuination is found in tool calls
-                handler_logs += f"\n  - [Info]: {self.hallucination_state.error_message}, start prompt prefilling."
+                logger.info(
+                    f"  - [Info]: {self.hallucination_state.error_message}, start prompt prefilling."
+                )
                 prefill_response = self._engage_parameter_gathering(messages)
                 model_response = prefill_response.choices[0].message.content
             else:
-                handler_logs += f"\n  - [Info]: Tool call found, no hallucination detected {model_response}."
+                logger.info(
+                    f"  - [Info]: Tool call found, no hallucination detected {model_response}."
+                )
                 model_response = "".join(self.hallucination_state.tokens)
         else:
             # start parameter gathering if the model is not generating tool calls
-            handler_logs += (
-                "\n  - [Info]: No tool call found, start parameter gathering."
-            )
+            logger.info("  - [Info]: No tool call found, start parameter gathering.")
             prefill_response = self._engage_parameter_gathering(messages)
             model_response = prefill_response.choices[0].message.content
 
@@ -629,12 +627,12 @@ class ArchFunctionHandler(ArchBaseHandler):
             )
 
             if verified["status"]:
-                handler_logs += f"\n  - [Info]: Tool calls - {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
+                logger.info(
+                    f"  - [Info]: Tool calls - {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
+                )
                 model_response = Message(content="", tool_calls=extracted["result"])
             else:
-                handler_logs += (
-                    f"\n  - [Info]: Invalid tool call - {verified['message']}"
-                )
+                logger.info(f"\n  - [Info]: Invalid tool call - {verified['message']}")
                 raise ValueError(
                     f"[Arch-Function] - [Info]: Invalid tool call - {verified['message']}"
                 )
@@ -645,10 +643,8 @@ class ArchFunctionHandler(ArchBaseHandler):
             choices=[Choice(message=model_response)], model=self.model_name
         )
 
-        handler_logs += (
-            f"\n  - [response]: {json.dumps(chat_completion_response.model_dump())}"
+        logger.info(
+            f"  - [response]: {json.dumps(chat_completion_response.model_dump())}"
         )
-
-        logger.info(handler_logs)
 
         return chat_completion_response

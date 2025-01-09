@@ -67,11 +67,10 @@ async def models():
 
 @app.post("/function_calling")
 async def function_calling(req: ChatMessage, res: Response):
-    endpoint_logs = "=" * 30 + "  [Endpoint: /function_calling]  " + "=" * 30
-    endpoint_logs += f"\n  - [request body]: {json.dumps(req.model_dump())}"
-    logger.info(endpoint_logs)
+    logger.info("=" * 30 + "  [Endpoint: /function_calling]  " + "=" * 30)
+    logger.info(f"  - [request body]: {json.dumps(req.model_dump())}")
 
-    final_response = ChatCompletionResponse()
+    final_response: ChatCompletionResponse = None
     error_messages = None
 
     try:
@@ -118,18 +117,17 @@ async def function_calling(req: ChatMessage, res: Response):
 
     if error_messages is not None:
         logger.error(error_messages)
-        final_response.metadata["error"] = error_messages
+        final_response = ChatCompletionResponse(metadata={"error": error_messages})
 
     return final_response
 
 
 @app.post("/guardrails")
 async def guardrails(req: GuardRequest, res: Response, max_num_words=300):
-    endpoint_logs = "=" * 30 + "  [Endpoint: /guardrails] - Gateway  " + "=" * 30
-    endpoint_logs += f"\n  - [request body]: {json.dumps(req.model_dump())}"
-    logger.info(endpoint_logs)
+    logger.info("=" * 30 + "  [Endpoint: /guardrails] - Gateway  " + "=" * 30)
+    logger.info(f"  - [request body]: {json.dumps(req.model_dump())}")
 
-    final_response = GuardResponse()
+    final_response: GuardResponse = None
     error_messages = None
 
     try:
@@ -146,6 +144,6 @@ async def guardrails(req: GuardRequest, res: Response, max_num_words=300):
 
     if error_messages is not None:
         logger.error(error_messages)
-        final_response.metadata["error"] = error_messages
+        final_response = ChatCompletionResponse(metadata={"error": error_messages})
 
     return final_response

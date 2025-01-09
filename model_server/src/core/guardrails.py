@@ -116,14 +116,14 @@ class ArchGuardHanlder:
         if req.task not in self.support_tasks:
             raise NotImplementedError(f"{req.task} is not supported!")
 
-        handler_log = "*" * 30 + "  [Arch-Guard] - Prediction  " + "*" * 30
+        logger.info("*" * 30 + "  [Arch-Guard] - Prediction  " + "*" * 30)
 
-        handler_log += f"\n  - [request]: {req.input}"
+        logger.info(f"  - [request]: {req.input}")
 
         if len(req.input.split()) < max_num_words:
             result = self._predict_text(req.task, req.input)
         else:
-            handler_log += f"\n  - [request]: {req.input}"
+            logger.info(f"  - [request]: {req.input}")
 
             # split into chunks if text is long
             text_chunks = self._split_text_into_chunks(req.input)
@@ -143,8 +143,9 @@ class ArchGuardHanlder:
                 prob=prob, verdict=verdict, sentence=sentence, latency=latency
             )
 
-        handler_log += f"\n  - [response]: {'True' if result.verdict else 'False'}, prob: {result.prob[-1]:.3f}"
-        logger.info(handler_log)
+        logger.info(
+            f"  - [response]: {'True' if result.verdict else 'False'}, prob: {result.prob[-1]:.3f}"
+        )
 
         return result
 

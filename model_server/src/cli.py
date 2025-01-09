@@ -126,7 +126,7 @@ def ensure_killed(process):
 def start_server(port=51000, foreground=False):
     """Start the Uvicorn server."""
 
-    logger.info("model server version: %s", get_version())
+    logger.info("[CLI] - model server version: %s", get_version())
 
     stop_server()
 

@@ -52,7 +52,7 @@ def get_model_server_logger(log_dir=None, log_file=None):
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler(log_file_path, mode="w"),  # Overwrite logs in the file
+            # logging.FileHandler(log_file_path, mode="w"),  # Overwrite logs in the file
             logging.StreamHandler(),  # Also log to console
         ],
     )

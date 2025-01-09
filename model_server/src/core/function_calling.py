@@ -373,14 +373,14 @@ class ArchFunctionHandler(ArchBaseHandler):
 
         return {"result": tool_calls, "status": is_valid, "message": error_message}
 
-    def _correcting_type(self, value: str, target_type: str):
+    def _convert_data_type(self, value: str, target_type: str):
         # TODO: Add more conversion rules as needed
         try:
-            if target_type == "float" and isinstance(value, int):
+            if target_type is float and isinstance(value, int):
                 return float(value)
-            elif target_type == "list" and isinstance(value, str):
+            elif target_type is list and isinstance(value, str):
                 return ast.literal_eval(value)
-            elif target_type == "str" and not isinstance(value, str):
+            elif target_type is str and not isinstance(value, str):
                 return str(value)
         except (ValueError, TypeError, json.JSONDecodeError):
             pass
@@ -444,22 +444,24 @@ class ArchFunctionHandler(ArchBaseHandler):
                         break
                     else:
                         param_value = func_args[param_name]
-                        data_type = function_properties[param_name]["type"]
+                        target_type = function_properties[param_name]["type"]
 
-                        if data_type in self.support_data_types:
-                            if not isinstance(
-                                param_value,
-                                self.support_data_types[data_type],
-                            ) and not isinstance(
-                                self._correcting_type(
-                                    param_value, self.support_data_types[data_type]
-                                ),
-                                self.support_data_types[data_type],
-                            ):
-                                is_valid = False
-                                invalid_tool_call = tool_call
-                                error_message = f"Parameter `{param_name}` is expected to have the data type `{self.support_data_types[data_type]}`, but got `{type(param_value)}`."
-                                break
+                        if target_type in self.support_data_types:
+                            data_type = self.support_data_types[target_type]
+
+                            if not isinstance(param_value, data_type):
+                                param_value = self._convert_data_type(
+                                    param_value, data_type
+                                )
+                                if not isinstance(param_value, data_type):
+                                    is_valid = False
+                                    invalid_tool_call = tool_call
+                                    error_message = f"Parameter `{param_name}` is expected to have the data type `{data_type}`, got `{type(param_value)}`."
+                                    break
+                        else:
+                            error_message = (
+                                f"Data type `{target_type}` is not supported."
+                            )
 
         return {
             "status": is_valid,
@@ -581,9 +583,9 @@ class ArchFunctionHandler(ArchBaseHandler):
                 model_response = Message(content="", tool_calls=extracted["result"])
             else:
                 logger.error(f"Invalid tool call - {verified['message']}")
-                raise ValueError(
-                    f"[Arch-Function]: Invalid tool call - {verified['message']}"
-                )
+                # raise ValueError(
+                #     f"[Arch-Function]: Invalid tool call - {verified['message']}"
+                # )
         else:
             model_response = Message(content=model_response, tool_calls=[])
 

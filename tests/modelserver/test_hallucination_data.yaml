@@ -5,7 +5,6 @@ test_cases:
         - role: "user"
           content: "what is the weather forecast for seattle?"
       tools:
-        - id: "weather-112"
           type: "function"
           function:
             name: "get_current_weather"
@@ -31,7 +30,6 @@ test_cases:
         - role: "user"
           content: "what is the weather in Seattle in days?"
       tools:
-        - id: "weather-112"
           type: "function"
           function:
             name: "get_current_weather"

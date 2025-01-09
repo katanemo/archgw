@@ -4,8 +4,6 @@ import requests
 import logging
 import yaml
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 MODEL_SERVER_ENDPOINT = os.getenv(
     "MODEL_SERVER_ENDPOINT", "http://localhost:51000/function_calling"
@@ -39,5 +37,5 @@ def test_model_server(test_data):
 
     response_json = response.json()
     assert response_json
-    metadata = response_json.get("metadata", [])
+    metadata = response_json.get("metadata", {})
     assert (metadata["hallucination"].lower() == "true") == expected[0]["hallucination"]

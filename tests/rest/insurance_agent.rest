@@ -31,7 +31,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function": {
             "name": "get_current_weather",
@@ -103,7 +102,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function": {
             "name": "get_current_weather",
@@ -172,7 +170,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function":
         {
@@ -374,7 +371,6 @@ Content-Type: application/json
   ],
   "tools": [
     {
-        "id": "weather-112",
         "type": "function",
         "function":
           {

@@ -1,13 +1,10 @@
-import json
 import os
 import pytest
 import requests
-from deepdiff import DeepDiff
-import logging
 import yaml
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from deepdiff import DeepDiff
+
 
 MODEL_SERVER_ENDPOINT = os.getenv(
     "MODEL_SERVER_ENDPOINT", "http://localhost:51000/function_calling"

@@ -31,7 +31,7 @@ pytest-retry = "^1.6.3"
 pytest-httpserver = "^1.1.0"
 
 [tool.poetry.scripts]
-archgw_modelserver = "src.cli:run_server"
+archgw_modelserver = "src.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

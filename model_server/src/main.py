@@ -102,10 +102,10 @@ async def function_calling(req: ChatMessage, res: Response):
                 res.status_code = 500
                 error_messages = f"[Arch-Function] - Error in ChatCompletion: {e}"
         else:
-            final_response.metadata = {
-                "result": "No intent matched",
-                "intent_latency": round(intent_latency * 1000, 3),
+            intent_response.metadata = {
+                "intent_latency": str(round(intent_latency * 1000, 3)),
             }
+            final_response = intent_response
 
     except Exception as e:
         res.status_code = 500

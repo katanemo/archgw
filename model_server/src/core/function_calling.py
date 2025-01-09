@@ -123,20 +123,18 @@ class ArchIntentHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
-        logger.info("*" * 30 + "  [Arch-Intent] - ChatCompletion  " + "*" * 30)
+        logger.info("[Arch-Intent] - ChatCompletion")
 
         # In the case that no tools are available, simply return `No` to avoid making a call
         if len(req.tools) == 0:
             model_response = Message(content="No", tool_calls=[])
-            logger.info(
-                "  - [Info]: No tools found, return `No` as the model response."
-            )
+            logger.info("No tools found, return `No` as the model response.")
         else:
             messages = self._process_messages(
                 req.messages, req.tools, self.extra_instruction
             )
 
-            logger.info(f"  - [request]: {json.dumps(messages)}")
+            logger.info(f"[request]: {json.dumps(messages)}")
 
             model_response = self.client.chat.completions.create(
                 messages=messages,
@@ -145,7 +143,7 @@ class ArchIntentHandler(ArchBaseHandler):
                 extra_body=self.generation_params,
             )
 
-            logger.info(f"\n  - [response]: {json.dumps(model_response.model_dump())}")
+            logger.info(f"[response]: {json.dumps(model_response.model_dump())}")
 
             model_response = Message(
                 content=model_response.choices[0].message.content, tool_calls=[]
@@ -503,48 +501,6 @@ class ArchFunctionHandler(ArchBaseHandler):
         )
         return prefill_response
 
-    def _check_length_and_pop_messages(self, messages, max_tokens=4096):
-        """
-        Trims the `messages` list to ensure the total token count does not exceed `max_tokens`.
-
-        Args:
-            messages (list): List of message dictionaries.
-            max_tokens (int): Maximum allowed token count.
-
-        Returns:
-            list: Trimmed list of messages.
-        """
-
-        def estimate_token_length(messages):
-            """Estimate the total token length of the messages."""
-            total_tokens = 0
-            for message in messages:
-                # Approximate token length: assuming ~4 characters per token on average
-                total_tokens += len(message["content"]) // 4
-            return total_tokens
-
-        # Calculate initial token length
-        total_tokens = estimate_token_length(messages)
-
-        # Trim messages if token count exceeds the limit
-        while total_tokens > max_tokens and len(messages) >= 3:
-            # Find the first non-system message pair
-            for i in range(len(messages)):
-                if messages[i]["role"] != "system":
-                    # Remove the 'user'/'assistant' pair
-                    if i + 1 < len(messages) and messages[i + 1]["role"] in [
-                        "user",
-                        "assistant",
-                    ]:
-                        del messages[i : i + 2]
-                    else:
-                        del messages[i]
-                    break
-            # Recalculate token length
-            total_tokens = estimate_token_length(messages)
-
-        return messages
-
     @override
     async def chat_completion(self, req: ChatMessage) -> ChatCompletionResponse:
         """
@@ -559,12 +515,11 @@ class ArchFunctionHandler(ArchBaseHandler):
         Note:
             Currently only support vllm inference
         """
-        logger.info("*" * 30 + "  [Arch-Function] - ChatCompletion  " + "*" * 30)
+        logger.info("[Arch-Function] - ChatCompletion")
 
         messages = self._process_messages(req.messages, req.tools)
-        messages = self._check_length_and_pop_messages(messages)
 
-        logger.info(f"  - [request]: {json.dumps(messages)}")
+        logger.info(f"[request]: {json.dumps(messages)}")
 
         # always enable `stream=True` to collect model responses
         response = self.client.chat.completions.create(
@@ -594,27 +549,20 @@ class ArchFunctionHandler(ArchBaseHandler):
             # if the model is hallucinating, start parameter gathering
             if self.hallucination_state.hallucination is True:
                 has_hallucination = True
-                logger.info(
-                    f"  - [Hallucinated]: {''.join(self.hallucination_state.tokens)}"
-                )
                 break
 
         if has_tool_calls:
             if has_hallucination:
                 # start prompt prefilling if hallcuination is found in tool calls
                 logger.info(
-                    f"  - [Info]: {self.hallucination_state.error_message}, start prompt prefilling."
+                    f"[Hallucination]: {self.hallucination_state.error_message}"
                 )
                 prefill_response = self._engage_parameter_gathering(messages)
                 model_response = prefill_response.choices[0].message.content
             else:
-                logger.info(
-                    f"  - [Info]: Tool call found, no hallucination detected {model_response}."
-                )
                 model_response = "".join(self.hallucination_state.tokens)
         else:
             # start parameter gathering if the model is not generating tool calls
-            logger.info("  - [Info]: No tool call found, start parameter gathering.")
             prefill_response = self._engage_parameter_gathering(messages)
             model_response = prefill_response.choices[0].message.content
 
@@ -628,13 +576,13 @@ class ArchFunctionHandler(ArchBaseHandler):
 
             if verified["status"]:
                 logger.info(
-                    f"  - [Info]: Tool calls - {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
+                    f"[Tool calls]: {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
                 )
                 model_response = Message(content="", tool_calls=extracted["result"])
             else:
-                logger.info(f"\n  - [Info]: Invalid tool call - {verified['message']}")
+                logger.error(f"Invalid tool call - {verified['message']}")
                 raise ValueError(
-                    f"[Arch-Function] - [Info]: Invalid tool call - {verified['message']}"
+                    f"[Arch-Function]: Invalid tool call - {verified['message']}"
                 )
         else:
             model_response = Message(content=model_response, tool_calls=[])
@@ -643,8 +591,6 @@ class ArchFunctionHandler(ArchBaseHandler):
             choices=[Choice(message=model_response)], model=self.model_name
         )
 
-        logger.info(
-            f"  - [response]: {json.dumps(chat_completion_response.model_dump())}"
-        )
+        logger.info(f"[response]: {json.dumps(chat_completion_response.model_dump())}")
 
         return chat_completion_response

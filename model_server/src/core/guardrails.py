@@ -1,4 +1,3 @@
-import time
 import torch
 import numpy as np
 import src.commons.utils as utils
@@ -77,26 +76,15 @@ class ArchGuardHanlder:
             text, truncation=True, max_length=max_length, return_tensors="pt"
         ).to(self.device)
 
-        start_time = time.perf_counter()
-
         with torch.no_grad():
             logits = self.model(**inputs).logits.cpu().detach().numpy()[0]
             prob = ArchGuardHanlder.softmax(logits)[
                 self.support_tasks[task]["positive_class"]
-            ]
+            ].item()
 
-        latency = time.perf_counter() - start_time
+        verdict = prob > self.support_tasks[task]["threshold"]
 
-        if prob > self.support_tasks[task]["threshold"]:
-            verdict = True
-            sentence = text
-        else:
-            verdict = False
-            sentence = None
-
-        return GuardResponse(
-            prob=[prob.item()], verdict=verdict, sentence=[sentence], latency=latency
-        )
+        return GuardResponse(task=task, input=text, prob=prob, verdict=verdict)
 
     def predict(self, req: GuardRequest, max_num_words=300) -> GuardResponse:
         """
@@ -116,35 +104,31 @@ class ArchGuardHanlder:
         if req.task not in self.support_tasks:
             raise NotImplementedError(f"{req.task} is not supported!")
 
-        logger.info("*" * 30 + "  [Arch-Guard] - Prediction  " + "*" * 30)
-
-        logger.info(f"  - [request]: {req.input}")
+        logger.info("[Arch-Guard] - Prediction")
+        logger.info(f"[request]: {req.input}")
 
         if len(req.input.split()) < max_num_words:
             result = self._predict_text(req.task, req.input)
         else:
-            logger.info(f"  - [request]: {req.input}")
+            prob, verdict = 0.0, False
 
             # split into chunks if text is long
             text_chunks = self._split_text_into_chunks(req.input)
-
-            prob, verdict, sentence, latency = [], False, [], 0
 
             for chunk in text_chunks:
                 chunk_result = self._predict_text(req.task, chunk)
 
                 if chunk_result.verdict:
-                    prob.append(chunk_result.prob[0])
+                    prob = chunk_result.prob
                     verdict = True
-                    sentence.append(chunk_result.sentence[0])
-                    latency += chunk_result.latency
+                    break
 
             result = GuardResponse(
-                prob=prob, verdict=verdict, sentence=sentence, latency=latency
+                task=req.task, input=req.input, prob=prob, verdict=verdict
             )
 
         logger.info(
-            f"  - [response]: {'True' if result.verdict else 'False'}, prob: {result.prob[-1]:.3f}"
+            f"[response]: {req.task}: {'True' if result.verdict else 'False'} (prob: {result.prob:.2f})"
         )
 
         return result

@@ -21,9 +21,6 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
 
-logger = utils.get_model_server_logger()
-
-
 resource = Resource.create(
     {
         "service.name": "model-server",
@@ -43,10 +40,13 @@ otlp_exporter = OTLPSpanExporter(
 )
 
 trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+
+logger = utils.get_model_server_logger()
+logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("opentelemetry.exporter.otlp.proto.grpc.exporter").setLevel(
     logging.ERROR
 )
-
 
 app = FastAPI()
 FastAPIInstrumentor().instrument_app(app)
@@ -67,8 +67,8 @@ async def models():
 
 @app.post("/function_calling")
 async def function_calling(req: ChatMessage, res: Response):
-    logger.info("=" * 30 + "  [Endpoint: /function_calling]  " + "=" * 30)
-    logger.info(f"  - [request body]: {json.dumps(req.model_dump())}")
+    logger.info("[Endpoint: /function_calling]")
+    logger.info(f"[request body]: {json.dumps(req.model_dump())}")
 
     final_response: ChatCompletionResponse = None
     error_messages = None
@@ -94,17 +94,13 @@ async def function_calling(req: ChatMessage, res: Response):
                 }
             except ValueError as e:
                 res.statuscode = 503
-                error_messages = (
-                    f"\n  - [Arch-Function] - Error in tool call extraction: {e}"
-                )
+                error_messages = f"[Arch-Function] - Error in tool call extraction: {e}"
             except StopIteration as e:
                 res.statuscode = 500
-                error_messages = (
-                    f"\n  - [Arch-Function] - Error in hallucination check: {e}"
-                )
+                error_messages = f"[Arch-Function] - Error in hallucination check: {e}"
             except Exception as e:
                 res.status_code = 500
-                error_messages = f"\n  - [Arch-Function] - Error in ChatCompletion: {e}"
+                error_messages = f"[Arch-Function] - Error in ChatCompletion: {e}"
         else:
             final_response.metadata = {
                 "result": "No intent matched",
@@ -113,7 +109,7 @@ async def function_calling(req: ChatMessage, res: Response):
 
     except Exception as e:
         res.status_code = 500
-        error_messages = f"\n  - [Arch-Intent] - Error in ChatCompletion: {e}"
+        error_messages = f"[Arch-Intent] - Error in ChatCompletion: {e}"
 
     if error_messages is not None:
         logger.error(error_messages)
@@ -124,26 +120,25 @@ async def function_calling(req: ChatMessage, res: Response):
 
 @app.post("/guardrails")
 async def guardrails(req: GuardRequest, res: Response, max_num_words=300):
-    logger.info("=" * 30 + "  [Endpoint: /guardrails] - Gateway  " + "=" * 30)
-    logger.info(f"  - [request body]: {json.dumps(req.model_dump())}")
+    logger.info("[Endpoint: /guardrails] - Gateway")
+    logger.info(f"[request body]: {json.dumps(req.model_dump())}")
 
     final_response: GuardResponse = None
     error_messages = None
 
     try:
         guard_start_time = time.perf_counter()
-        guard_result = handler_map["Arch-Guard"].predict(req)
+        final_response = handler_map["Arch-Guard"].predict(req)
         guard_latency = time.perf_counter() - guard_start_time
         final_response.metadata = {
-            "response": guard_result,
             "guard_latency": round(guard_latency * 1000, 3),
         }
     except Exception as e:
         res.status_code = 500
-        error_messages = f"\n  - [Arch-Guard]: {e}"
+        error_messages = f"[Arch-Guard]: {e}"
 
     if error_messages is not None:
         logger.error(error_messages)
-        final_response = ChatCompletionResponse(metadata={"error": error_messages})
+        final_response = GuardResponse(metadata={"error": error_messages})
 
     return final_response

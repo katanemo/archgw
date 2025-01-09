@@ -1,3 +1,4 @@
+import json
 import math
 import torch
 import itertools
@@ -353,7 +354,7 @@ class HallucinationState:
             self.HALLUCINATION_THRESHOLD_DICT[self.mask[-1].value],
         ):
             self.hallucination = True
-            self.error_message = f"Hallucination found: token '{self.tokens[-1]}' is uncertain. {self.token_probs_map}"
+            self.error_message = f"token '{self.tokens[-1]}' is uncertain. Generated response:\n{''.join(self.tokens)}"
 
     def _count_consecutive_token(self, token=MaskToken.PARAMETER_VALUE) -> int:
         """

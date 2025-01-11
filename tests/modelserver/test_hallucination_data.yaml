@@ -5,7 +5,7 @@ test_cases:
         - role: "user"
           content: "what is the weather forecast for seattle?"
       tools:
-          type: "function"
+        - type: "function"
           function:
             name: "get_current_weather"
             description: "Get current weather at a location."
@@ -13,16 +13,18 @@ test_cases:
               type: "object"
               properties:
                 location:
-                  type: "str"
+                  type: "string"
                   description: "The location to get the weather for"
                   format: "City, State"
                 days:
-                  type: "int"
-                  description: "the number of days for the request."
-              required: ["location", "days"]
+                  type: "integer"
+                  description: "The number of days for the request."
+              required:
+                - location
+                - days
     expected:
-    - type: "metadata"
-      hallucination: false
+      - type: "metadata"
+        hallucination: false
 
   - id: "[WEATHER AGENT] - single turn, single tool, hallucination"
     input:
@@ -30,7 +32,7 @@ test_cases:
         - role: "user"
           content: "what is the weather in Seattle in days?"
       tools:
-          type: "function"
+        - type: "function"
           function:
             name: "get_current_weather"
             description: "Get current weather at a location."

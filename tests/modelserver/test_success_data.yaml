@@ -119,7 +119,7 @@ test_cases:
               function:
                 name: "get_current_weather"
                 arguments:
-                  city: "Chicago, IL"
+                  location: "Chicago, IL"
                   days: 5
         - role: "tool"
           content: "--"

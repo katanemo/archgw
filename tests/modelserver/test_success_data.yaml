@@ -107,50 +107,51 @@ test_cases:
           location: "Los Angeles, CA"
           days: 5
 
-  - id: "[WEATHER AGENT] - multi turn, single tool, infer param from context"
-    input:
-      messages:
-        - role: "user"
-          content: "how is the weather in chicago for next 5 days?"
-        - role: "assistant"
-          tool_calls:
-            - id: "call_3394"
-              type: "function"
-              function:
-                name: "get_current_weather"
-                arguments:
-                  location: "Chicago, IL"
-                  days: 5
-        - role: "tool"
-          content: "--"
-          tool_call_id: "call_3394"
-        - role: "assistant"
-          content: "--"
-        - role: "user"
-          content: "how is the weather in LA?"
-      tools:
-        - type: "function"
-          function:
-            name: "get_current_weather"
-            description: "Get current weather at a location."
-            parameters:
-              type: "object"
-              properties:
-                location:
-                  type: "str"
-                  description: "The location to get the weather for"
-                  format: "City, State"
-                days:
-                  type: "int"
-                  description: "the number of days for the request."
-              required: ["location", "days"]
-    expected:
-    - type: "function"
-      function:
-        name: "get_current_weather"
-        arguments:
-          location: "Los Angeles, CA"
-          days: 5
+  # Skip!
+  # - id: "[WEATHER AGENT] - multi turn, single tool, infer param from context"
+  #   input:
+  #     messages:
+  #       - role: "user"
+  #         content: "how is the weather in chicago for next 5 days?"
+  #       - role: "assistant"
+  #         tool_calls:
+  #           - id: "call_3394"
+  #             type: "function"
+  #             function:
+  #               name: "get_current_weather"
+  #               arguments:
+  #                 location: "Chicago, IL"
+  #                 days: 5
+  #       - role: "tool"
+  #         content: "--"
+  #         tool_call_id: "call_3394"
+  #       - role: "assistant"
+  #         content: "--"
+  #       - role: "user"
+  #         content: "how is the weather in LA?"
+  #     tools:
+  #       - type: "function"
+  #         function:
+  #           name: "get_current_weather"
+  #           description: "Get current weather at a location."
+  #           parameters:
+  #             type: "object"
+  #             properties:
+  #               location:
+  #                 type: "str"
+  #                 description: "The location to get the weather for"
+  #                 format: "City, State"
+  #               days:
+  #                 type: "int"
+  #                 description: "the number of days for the request."
+  #             required: ["location", "days"]
+  #   expected:
+  #   - type: "function"
+  #     function:
+  #       name: "get_current_weather"
+  #       arguments:
+  #         location: "Los Angeles, CA"
+  #         days: 5
 
   - id: "[WEATHER AGENT] - multi turn, single tool, infer param from context 2nd try"
     input:

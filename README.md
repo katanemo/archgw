@@ -7,9 +7,9 @@
 [![e2e tests](https://github.com/katanemo/arch/actions/workflows/e2e_tests.yml/badge.svg)](https://github.com/katanemo/arch/actions/workflows/e2e_tests.yml)
 [![Build and Deploy Documentation](https://github.com/katanemo/arch/actions/workflows/static.yml/badge.svg)](https://github.com/katanemo/arch/actions/workflows/static.yml)
 
-## Fast, observable, and personalized agentic applciations.
+## Ship fast, observable and personalized agentic apps.
 
-Arch is an intelligent proxy server designed for prompts - to help you protect, observe, and build fully agentic experiences by simply writing APIs. Built on (and by the contributors of) [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:
+Arch is an intelligent proxy server designed for prompts - to help you protect, observe, and build fully agentic apps, simply by writing APIs. Built on (and by the contributors of) [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:
 
 >Prompts are nuanced and opaque user requests, which require the same capabilities as traditional HTTP requests including secure handling, intelligent routing, robust observability, and integration with backend (API) systems for personalization – outside core business logic.*
 

@@ -289,6 +289,51 @@ To send tracing data to `Datadog <https://docs.datadoghq.com/getting_started/tra
 3. **Deploy the Collector**: Run the collector in your environment.
 4. **Verify Traces**: Access the Datadog APM dashboard to view your traces.
 
+Langtrace
+~~~~~~~~~
+
+Langtrace is an observability tool designed specifically for large language models (LLMs). It helps you capture, analyze, and understand how LLMs are used in your applications including those built using Arch.
+
+To send tracing data to `Langtrace <https://docs.langtrace.ai/supported-integrations/llm-tools/arch>`_:
+
+1. **Install Langtrace**: Install the Langtrace SDK.:
+
+   .. code-block:: console
+
+        $ pip install langtrace-python-sdk
+
+2. **Set Environment Variables**: Provide your Langtrace API key.
+
+   .. code-block:: console
+
+        $ export LANGTRACE_API_KEY=<Your-Langtrace-Api-Key>
+
+3. **Trace Requests**: Once you have Langtrace set up, you can start tracing requests.
+
+   Here's an example of how to trace a request using the Langtrace Python SDK:
+
+   .. code-block:: python
+
+      import os
+      from langtrace_python_sdk import langtrace  # Must precede any llm module imports
+      from openai import OpenAI
+
+      langtrace.init(api_key=os.environ['LANGTRACE_API_KEY'])
+
+      client = OpenAI(api_key=os.environ['OPENAI_API_KEY'], base_url="http://localhost:12000/v1")
+
+      response = client.chat.completions.create(
+          model="gpt-4o-mini",
+          messages=[
+              {"role": "system", "content": "You are a helpful assistant"},
+              {"role": "user", "content": "Hello"},
+          ]
+      )
+
+      print(chat_completion.choices[0].message.content)
+
+4. **Verify Traces**: Access the Langtrace dashboard to view your traces.
+
 
 Best Practices
 --------------
@@ -312,6 +357,7 @@ Additional Resources
 - `W3C Trace Context Specification <https://www.w3.org/TR/trace-context/>`_
 - `AWS X-Ray Exporter <https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/awsxrayexporter>`_
 - `Datadog Exporter <https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/datadogexporter>`_
+- `Langtrace Documentation <https://docs.langtrace.ai/introduction>`_
 
 .. Note::
    Replace placeholders such as ``<Your-Aws-Region>`` and ``<Your-Datadog-Api-Key>`` with your actual configurations.

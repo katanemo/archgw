@@ -22,7 +22,7 @@ start_demo() {
   echo "Starting Arch with arch_config.yaml..."
   archgw up arch_config.yaml
 
-  # Step 4: Start Network Agent
+  # Step 4: Start LLM Routing
   echo "Starting LLM Routing using Docker Compose..."
   docker compose up -d  # Run in detached mode
 }

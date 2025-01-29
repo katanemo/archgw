@@ -296,19 +296,21 @@ Langtrace is an observability tool designed specifically for large language mode
 
 To send tracing data to `Langtrace <https://docs.langtrace.ai/supported-integrations/llm-tools/arch>`_:
 
-1. **Install Langtrace**: Install the Langtrace SDK.:
+1. **Configure Arch**: Make sure Arch is installed and setup correctly. For more information, refer to the `installation guide <https://github.com/katanemo/archgw?tab=readme-ov-file#prerequisites>`_.
+
+2. **Install Langtrace**: Install the Langtrace SDK.:
 
    .. code-block:: console
 
         $ pip install langtrace-python-sdk
 
-2. **Set Environment Variables**: Provide your Langtrace API key.
+3. **Set Environment Variables**: Provide your Langtrace API key.
 
    .. code-block:: console
 
         $ export LANGTRACE_API_KEY=<Your-Langtrace-Api-Key>
 
-3. **Trace Requests**: Once you have Langtrace set up, you can start tracing requests.
+4. **Trace Requests**: Once you have Langtrace set up, you can start tracing requests.
 
    Here's an example of how to trace a request using the Langtrace Python SDK:
 
@@ -332,7 +334,7 @@ To send tracing data to `Langtrace <https://docs.langtrace.ai/supported-integrat
 
       print(chat_completion.choices[0].message.content)
 
-4. **Verify Traces**: Access the Langtrace dashboard to view your traces.
+5. **Verify Traces**: Access the Langtrace dashboard to view your traces.
 
 
 Best Practices

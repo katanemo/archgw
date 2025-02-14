@@ -15,12 +15,15 @@ from cli.consts import (
 )
 from huggingface_hub import snapshot_download
 from dotenv import dotenv_values
+import yaml
 
 
 log = getLogger(__name__)
 
 
-def start_archgw_docker(client, arch_config_file, env):
+def start_archgw_docker(
+    client, arch_config_file, env, prompt_gateway_port, llm_gateway_port
+):
     logs_path = "~/archgw_logs"
     logs_path_abs = os.path.expanduser(logs_path)
 
@@ -29,10 +32,10 @@ def start_archgw_docker(client, arch_config_file, env):
         image=ARCHGW_DOCKER_IMAGE,
         detach=True,  # Run in detached mode
         ports={
-            "10000/tcp": 10000,
+            f"{prompt_gateway_port}/tcp": prompt_gateway_port,
             "10001/tcp": 10001,
             "11000/tcp": 11000,
-            "12000/tcp": 12000,
+            f"{llm_gateway_port}/tcp": llm_gateway_port,
             "9901/tcp": 19901,
         },
         volumes={
@@ -50,7 +53,12 @@ def start_archgw_docker(client, arch_config_file, env):
         },
         extra_hosts={"host.docker.internal": "host-gateway"},
         healthcheck={
-            "test": ["CMD", "curl", "-f", "http://localhost:10000/healthz"],
+            "test": [
+                "CMD",
+                "curl",
+                "-f",
+                f"http://localhost:{prompt_gateway_port}/healthz",
+            ],
             "interval": 5000000000,  # 5 seconds
             "timeout": 1000000000,  # 1 seconds
             "retries": 3,
@@ -128,7 +136,25 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
         except docker.errors.NotFound as e:
             pass
 
-        container = start_archgw_docker(client, arch_config_file, env)
+        # parse arch_config_file yaml file and get prompt_gateway_port
+        arch_config_dict = {}
+        with open(arch_config_file) as f:
+            arch_config_dict = yaml.safe_load(f)
+
+        prompt_gateway_port = (
+            arch_config_dict.get("listeners", {})
+            .get("prompt_gateway", {})
+            .get("port", 10000)
+        )
+        llm_gateway_port = (
+            arch_config_dict.get("listeners", {})
+            .get("llm_gateway", {})
+            .get("port", 12000)
+        )
+
+        container = start_archgw_docker(
+            client, arch_config_file, env, prompt_gateway_port, llm_gateway_port
+        )
 
         start_time = time.time()
 

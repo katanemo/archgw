@@ -6,9 +6,9 @@ use common::api::open_ai::{
 };
 use common::configuration::{Overrides, PromptTarget, Tracing};
 use common::consts::{
-    ARCH_FC_MODEL_NAME, ARCH_FC_REQUEST_TIMEOUT_MS, ARCH_INTERNAL_CLUSTER_NAME,
-    ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, MESSAGES_KEY, REQUEST_ID_HEADER, SYSTEM_ROLE,
-    TOOL_ROLE, TRACE_PARENT_HEADER, USER_ROLE,
+    API_REQUEST_TIMEOUT_MS, ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME,
+    ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, DEFAULT_TARGET_REQUEST_TIMEOUT_MS, MESSAGES_KEY,
+    REQUEST_ID_HEADER, SYSTEM_ROLE, TOOL_ROLE, TRACE_PARENT_HEADER, USER_ROLE,
 };
 use common::errors::ServerError;
 use common::http::{CallArgs, Client};
@@ -89,7 +89,7 @@ impl StreamContext {
             streaming_response: false,
             user_prompt: None,
             is_chat_completions_request: false,
-            overrides: overrides,
+            overrides,
             request_id: None,
             traceparent: None,
             _tracing: tracing,
@@ -160,7 +160,7 @@ impl StreamContext {
                             callout_context.request_body.messages.clone(),
                         );
                         let arch_messages_json = serde_json::to_string(&params).unwrap();
-                        let timeout_str = ARCH_FC_REQUEST_TIMEOUT_MS.to_string();
+                        let timeout_str = DEFAULT_TARGET_REQUEST_TIMEOUT_MS.to_string();
 
                         let mut headers = vec![
                             (":method", "POST"),
@@ -302,6 +302,8 @@ impl StreamContext {
             }
         };
 
+        let timeout_str = API_REQUEST_TIMEOUT_MS.to_string();
+
         let http_method_str = http_method.to_string();
         let mut headers: HashMap<_, _> = [
             (ARCH_UPSTREAM_HOST_HEADER, endpoint_details.name.as_str()),
@@ -310,6 +312,7 @@ impl StreamContext {
             (":authority", endpoint_details.name.as_str()),
             ("content-type", "application/json"),
             ("x-envoy-max-retries", "3"),
+            ("x-envoy-upstream-rq-timeout-ms", timeout_str.as_str()),
         ]
         .into_iter()
         .collect();

@@ -8,7 +8,7 @@ RUN cd prompt_gateway && cargo build --release --target wasm32-wasip1
 RUN cd llm_gateway && cargo build --release --target wasm32-wasip1
 
 # copy built filter into envoy image
-FROM envoyproxy/envoy:v1.32-latest as envoy
+FROM docker.io/envoyproxy/envoy:v1.32-latest as envoy
 
 #Build config generator, so that we have a single build image for both Rust and Python
 FROM python:3.12-slim as arch

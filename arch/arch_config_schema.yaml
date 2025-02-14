@@ -3,21 +3,38 @@ type: object
 properties:
   version:
     type: string
-  listener:
+  listeners:
     type: object
     properties:
-      address:
-        type: string
-      port:
-        type: integer
-      message_format:
-        type: string
-      connect_timeout:
-        type: string
-    additionalProperties: false
-    required:
-      - address
-      - port
+      prompt_gateway:
+        type: object
+        properties:
+          address:
+            type: string
+          port:
+            type: integer
+          message_format:
+            type: string
+            enum:
+              - openai
+          timeout:
+            type: string
+        additionalProperties: false
+      llm_gateway:
+        type: object
+        properties:
+          address:
+            type: string
+          port:
+            type: integer
+          message_format:
+            type: string
+            enum:
+              - openai
+              - huggingface
+          timeout:
+            type: string
+        additionalProperties: false
   endpoints:
     type: object
     patternProperties:
@@ -224,5 +241,5 @@ properties:
 additionalProperties: false
 required:
   - version
-  - listener
+  - listeners
   - llm_providers

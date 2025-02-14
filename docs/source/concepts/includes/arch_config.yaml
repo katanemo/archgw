@@ -13,7 +13,6 @@ llm_providers:
     access_key: $OPENAI_API_KEY
     model: gpt-4o
     default: true
-    stream: true
 
 # default system prompt used by all prompt targets
 system_prompt: You are a network assistant that just offers facts; not advice on manufacturers or purchasing decisions.

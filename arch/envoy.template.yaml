@@ -32,8 +32,8 @@ static_resources:
     - name: arch_listener_http
       address:
         socket_address:
-          address: 0.0.0.0
-          port_value: 10000
+          address: {{ prompt_gateway_listener.address }}
+          port_value: {{ prompt_gateway_listener.port }}
       traffic_direction: INBOUND
       filter_chains:
         - filters:
@@ -76,7 +76,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: arch_prompt_gateway_listener
-                            timeout: 60s
+                            timeout: {{ prompt_gateway_listener.timeout }}
                 http_filters:
                   - name: envoy.filters.http.router
                     typed_config:
@@ -273,12 +273,11 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
-
     - name: arch_listener_http_llm
       address:
         socket_address:
-          address: 0.0.0.0
-          port_value: 12000
+          address: {{ llm_gateway_listener.address }}
+          port_value: {{ llm_gateway_listener.port }}
       traffic_direction: INBOUND
       filter_chains:
         - filters:
@@ -321,12 +320,11 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: arch_listener_llm
-                            timeout: 60s
+                            timeout: {{ llm_gateway_listener.timeout }}
                 http_filters:
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-
 
     - name: arch_listener_llm
       address:
@@ -443,7 +441,7 @@ static_resources:
 
   clusters:
     - name: openai
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -467,7 +465,7 @@ static_resources:
               tls_minimum_protocol_version: TLSv1_2
               tls_maximum_protocol_version: TLSv1_3
     - name: mistral
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -488,7 +486,7 @@ static_resources:
           sni: api.mistral.ai
     {% for internal_cluster in ["arch_fc", "model_server"] %}
     - name: {{ internal_cluster }}
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: STRICT_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -504,7 +502,7 @@ static_resources:
                   hostname: {{ internal_cluster }}
     {% endfor %}
     - name: mistral_7b_instruct
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: STRICT_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -523,7 +521,7 @@ static_resources:
       {% if cluster.connect_timeout -%}
       connect_timeout: {{ cluster.connect_timeout }}
       {% else -%}
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       {% endif -%}
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
@@ -557,7 +555,7 @@ static_resources:
 
 {% for local_llm_provider in local_llms %}
     - name: {{ local_llm_provider.name }}
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -589,7 +587,7 @@ static_resources:
 
 {% endfor %}
     - name: arch_internal
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -605,7 +603,7 @@ static_resources:
                   hostname: arch_internal
 
     - name: arch_prompt_gateway_listener
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
@@ -621,7 +619,7 @@ static_resources:
                   hostname: arch_prompt_gateway_listener
 
     - name: arch_listener_llm
-      connect_timeout: 5s
+      connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN

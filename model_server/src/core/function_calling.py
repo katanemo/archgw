@@ -355,7 +355,7 @@ class ArchFunctionHandler(ArchBaseHandler):
                         try:
                             tool_content = json.loads(fixed_content)
                         except Exception:
-                            tool_calls, is_valid, error_message = [], False, e
+                            is_valid, error_message = False, e
                             break
 
                     tool_calls.append(
@@ -573,23 +573,28 @@ class ArchFunctionHandler(ArchBaseHandler):
         # Extract tool calls from model response
         extracted = self._extract_tool_calls(model_response)
 
-        if len(extracted["result"]) and extracted["status"]:
-            verified = self._verify_tool_calls(
-                tools=req.tools, tool_calls=extracted["result"]
-            )
-
-            if verified["status"]:
-                logger.info(
-                    f"[Tool calls]: {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
+        if extracted["status"]:
+            # Response with tool calls
+            if len(extracted["result"]):
+                verified = self._verify_tool_calls(
+                    tools=req.tools, tool_calls=extracted["result"]
                 )
-                model_response = Message(content="", tool_calls=extracted["result"])
+
+                if verified["status"]:
+                    logger.info(
+                        f"[Tool calls]: {json.dumps([tool_call['function'] for tool_call in extracted['result']])}"
+                    )
+                    model_response = Message(content="", tool_calls=extracted["result"])
+                else:
+                    # TODO: make a call to default LLM to get responses or retry Arch-Function
+                    logger.error(f"Invalid tool call - {verified['message']}")
+            # Response without tool calls
             else:
-                logger.error(f"Invalid tool call - {verified['message']}")
-                # raise ValueError(
-                #     f"[Arch-Function]: Invalid tool call - {verified['message']}"
-                # )
+                model_response = Message(content=model_response, tool_calls=[])
+        # Response with tool calls but contain errors
         else:
-            model_response = Message(content=model_response, tool_calls=[])
+            # TODO: make a call to default LLM to get responses or retry Arch-Function
+            logger.error(f"Tool call extraction error - {extracted['message']}")
 
         chat_completion_response = ChatCompletionResponse(
             choices=[Choice(message=model_response)], model=self.model_name

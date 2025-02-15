@@ -23,7 +23,7 @@ pub fn filter_tool_params(tool_params: &HashMap<String, Value>) -> HashMap<Strin
 pub fn compute_request_path_body(
     endpoint_path: &str,
     tool_params: &HashMap<String, Value>,
-    prompt_target_params: &[Parameter],
+    prompt_target_params: &HashMap<String, Parameter>,
     http_method: &HttpMethod,
 ) -> Result<(String, Option<String>), String> {
     let tool_url_params = filter_tool_params(tool_params);
@@ -55,6 +55,8 @@ pub fn compute_request_path_body(
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+
     use common::configuration::{HttpMethod, Parameter};
 
     #[test]
@@ -76,7 +78,11 @@ mod test {
             default: Some("US".to_string()),
             in_path: None,
             format: None,
-        }];
+            url_encode: None,
+        }]
+        .into_iter()
+        .map(|param| (param.name.clone(), param))
+        .collect::<HashMap<String, Parameter>>();
         let http_method = HttpMethod::Get;
         let (path, body) = super::compute_request_path_body(
             endpoint_path,
@@ -105,7 +111,11 @@ mod test {
             default: Some("US".to_string()),
             in_path: None,
             format: None,
-        }];
+            url_encode: None,
+        }]
+        .into_iter()
+        .map(|param| (param.name.clone(), param))
+        .collect::<HashMap<String, Parameter>>();
         let http_method = HttpMethod::Get;
         let (path, body) = super::compute_request_path_body(
             endpoint_path,
@@ -139,7 +149,11 @@ mod test {
             default: Some("US".to_string()),
             in_path: None,
             format: None,
-        }];
+            url_encode: None,
+        }]
+        .into_iter()
+        .map(|param| (param.name.clone(), param))
+        .collect::<HashMap<String, Parameter>>();
         let http_method = HttpMethod::Get;
         let (path, body) = super::compute_request_path_body(
             endpoint_path,

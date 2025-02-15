@@ -7,7 +7,7 @@ use crate::configuration::Parameter;
 pub fn replace_params_in_path(
     path: &str,
     tool_params: &HashMap<String, String>,
-    prompt_target_params: &[Parameter],
+    prompt_target_params: &HashMap<String, Parameter>,
 ) -> Result<(String, String, HashMap<String, String>), String> {
     let mut query_string_replaced = String::new();
     let mut current_param = String::new();
@@ -22,8 +22,16 @@ pub fn replace_params_in_path(
             in_param = false;
             let param_name = current_param.clone();
             if let Some(value) = tool_params.get(&param_name) {
-                let value = urlencoding::encode(value);
-                query_string_replaced.push_str(value.into_owned().as_str());
+                let should_url_encode = prompt_target_params
+                    .get(&param_name)
+                    .map(|param| param.url_encode.unwrap_or_default())
+                    .unwrap_or_default();
+                if should_url_encode {
+                    let value = urlencoding::encode(value);
+                    query_string_replaced.push_str(value.into_owned().as_str());
+                } else {
+                    query_string_replaced.push_str(value);
+                }
                 vars_replaced.insert(param_name.clone());
             } else {
                 return Err(format!("Missing value for parameter `{}`", param_name));
@@ -51,7 +59,7 @@ pub fn replace_params_in_path(
     }
 
     // add default values
-    for param in prompt_target_params.iter() {
+    for param in prompt_target_params.values() {
         if !vars_replaced.contains(&param.name) && param.default.is_some() {
             params.insert(param.name.clone(), param.default.clone().unwrap());
             if query_string_replaced.contains("?") {
@@ -104,7 +112,11 @@ mod test {
             default: Some("US".to_string()),
             in_path: None,
             format: None,
-        }];
+            url_encode: None,
+        }]
+        .into_iter()
+        .map(|param| (param.name.clone(), param))
+        .collect();
 
         let out_params: HashMap<String, String> = vec![
             ("country".to_string(), "US".to_string()),
@@ -122,7 +134,7 @@ mod test {
         );
 
         let out_params = HashMap::new();
-        let prompt_target_params = vec![];
+        let prompt_target_params: HashMap<String, Parameter> = HashMap::new();
         let path = "/cluster.open-cluster-management.io/v1/managedclusters";
         let params = vec![].into_iter().collect();
         assert_eq!(

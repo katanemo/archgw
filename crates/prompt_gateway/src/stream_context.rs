@@ -4,7 +4,7 @@ use common::api::open_ai::{
     to_server_events, ArchState, ChatCompletionStreamResponse, ChatCompletionsRequest,
     ChatCompletionsResponse, Message, ModelServerResponse, ToolCall,
 };
-use common::configuration::{Overrides, PromptTarget, Tracing};
+use common::configuration::{Overrides, Parameter, PromptTarget, Tracing};
 use common::consts::{
     API_REQUEST_TIMEOUT_MS, ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME,
     ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, DEFAULT_TARGET_REQUEST_TIMEOUT_MS, MESSAGES_KEY,
@@ -191,6 +191,10 @@ impl StreamContext {
                         callout_context.response_handler_type = ResponseHandlerType::DefaultTarget;
                         callout_context.prompt_target_name =
                             Some(default_prompt_target.name.clone());
+                        debug!(
+                            "prompt target name: {}",
+                            callout_context.prompt_target_name.as_ref().unwrap()
+                        );
 
                         if let Err(e) = self.http_call(call_args, callout_context) {
                             warn!("error dispatching default prompt target request: {}", e);
@@ -267,6 +271,10 @@ impl StreamContext {
         // update prompt target name from the tool call response
         callout_context.prompt_target_name =
             Some(self.tool_calls.as_ref().unwrap()[0].function.name.clone());
+        debug!(
+            "prompt target name: {}",
+            callout_context.prompt_target_name.as_ref().unwrap()
+        );
 
         self.schedule_api_call_request(callout_context);
     }
@@ -283,7 +291,13 @@ impl StreamContext {
             .to_string();
 
         let http_method = endpoint_details.method.clone().unwrap_or_default();
-        let prompt_target_params = prompt_target.parameters.clone().unwrap_or_default();
+        let prompt_target_params: HashMap<String, Parameter> = prompt_target
+            .parameters
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|param| (param.name.clone(), param))
+            .collect();
 
         let (path, body) = match compute_request_path_body(
             &endpoint_path,

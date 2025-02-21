@@ -1,0 +1,71 @@
+version: v0.1
+listener:
+  address: 127.0.0.1
+  port: 8080 #If you configure port 443, you'll need to update the listener with tls_certificates
+  message_format: huggingface
+
+overrides:
+  optimize_context_window: true
+
+endpoints:
+  s3_endpoint:
+    endpoint: host.docker.internal:8090
+    http_host: s3.us-west-1.amazonaws.com
+
+llm_providers:
+  - name: OpenAI
+    provider_interface: openai
+    access_key: $OPENAI_API_KEY
+    model: gpt-4o
+    default: true
+
+prompt_targets:
+  - name: get_all_s3_buckets
+    description: get all s3 buckets owned by me
+    parameters:
+      - name: max-buckets
+        description: maximum number of buckets to return
+        type: integer
+        default: 5
+    endpoint:
+      name: s3_endpoint
+      path: /
+    system_prompt: |
+      You are given an xml response with s3 buckets. Your task is to prepare a markdown with following details,
+      - bucket name | creation date | region | owner
+
+  - name: get_s3_bucket_details
+    description: get details of a bucket
+    parameters:
+      - name: bucket_name
+        description: bucket name
+        required: true
+        type: string
+      - name: max-keys
+        description: maximum number of keys to return
+        type: integer
+        default: 5
+    endpoint:
+      name: s3_endpoint
+      path: /{bucket_name}
+    system_prompt: |
+      Show details of a bucket. Specifically list the objects in the bucket along with their size and last modified date in a markdown table. Take following format as reference,
+      - object name | size | last modified date
+
+  - name: get_s3_object_details
+    description: get details of a specific object
+    parameters:
+      - name: bucket_name
+        description: bucket name
+        required: true
+        type: string
+      - name: object_name
+        description: object name this could be a file or a prefix
+        type: string
+        required: true
+        url_encode: false
+    endpoint:
+      name: s3_endpoint
+      path: /{bucket_name}/{object_name}
+    system_prompt: |
+      show details of an object or a prefix

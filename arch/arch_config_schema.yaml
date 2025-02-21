@@ -143,6 +143,8 @@ properties:
                 type: boolean
               format:
                 type: string
+              url_encode:
+                type: boolean
             additionalProperties: false
             required:
               - name

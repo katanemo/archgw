@@ -104,6 +104,7 @@ async def function_calling(req: ChatMessage, res: Response):
                 res.status_code = 500
                 error_messages = f"[Arch-Function] - Error in ChatCompletion: {e}"
         else:
+            # TODO: make a call to default LLM to get responses
             intent_response.metadata = {
                 "intent_latency": str(round(intent_latency * 1000, 3)),
             }
@@ -114,6 +115,7 @@ async def function_calling(req: ChatMessage, res: Response):
         error_messages = f"[Arch-Intent] - Error in ChatCompletion: {e}"
 
     if error_messages is not None:
+        # TODO: make a call to default LLM to get responses
         logger.error(error_messages)
         final_response = ChatCompletionResponse(metadata={"error": error_messages})
 

@@ -31,6 +31,10 @@
     {
       "name": "chatbot_ui",
       "path": "demos/shared/chatbot_ui"
+    },
+    {
+      "name": "java_demo",
+      "path": "demos/samples_java/weather_forcecast_service"
     }
   ],
   "settings": {

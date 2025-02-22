@@ -14,5 +14,10 @@ WORKDIR /app
 # Copy the built jar from the previous stage
 COPY --from=build /app/target/weather-forecast-service-0.0.1-SNAPSHOT.jar app.jar
 # Expose the port on which the app runs (default Spring Boot is 8080)
+
+# Expose the application port and the debug port
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+EXPOSE 5005
+
+# Start the application with remote debugging enabled
+ENTRYPOINT ["java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", "-jar", "app.jar"]

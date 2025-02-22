@@ -45,3 +45,7 @@ prompt_targets:
       name: weather_forecast_service
       path: /weather
       http_method: POST
+
+tracing:
+  random_sampling: 100
+  trace_arch_internal: true

@@ -87,8 +87,9 @@ impl StreamContext {
         ));
 
         debug!(
-            "request received: llm provider hint: {:?}, selected llm: {}",
-            self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER),
+            "request received: llm provider hint: {}, selected llm: {}",
+            self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
+                .unwrap_or_default(),
             self.llm_provider.as_ref().unwrap().name
         );
     }

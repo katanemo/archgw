@@ -11,7 +11,7 @@ llm_providers:
   - name: OpenAI
     provider_interface: openai
     access_key: $OPENAI_API_KEY
-    model: gpt-3.5-turbo
+    model: gpt-4o
     default: true
 
 # default system prompt used by all prompt targets
@@ -26,25 +26,26 @@ prompt_targets:
       path: /agent/device_summary
       http_method: POST
     parameters:
-      - name: device_ids
-        type: list
-        description: A list of device identifiers (IDs) to retrieve statistics for.
+      - name: device_id
+        type: str
+        description: A device identifier to retrieve statistics for.
         required: true # device_ids are required to get device statistics
       - name: days
         type: int
         description: The number of days for which to gather device statistics.
-        default: "7"
-  - name: reboot_devices
-    description: Reboot a list of devices
+        default: 7
+  - name: reboot_device
+    description: Reboot a device
     endpoint:
       name: app_server
       path: /agent/device_reboot
       http_method: POST
     parameters:
-      - name: device_ids
-        type: list
-        description: A list of device identifiers (IDs).
+      - name: device_id
+        type: str
+        description: the device identifier
         required: true
+    system_prompt: You will get a status JSON object. Simply summarize it
 
 # Arch creates a round-robin load balancing between different endpoints, managed via the cluster subsystem.
 endpoints:
@@ -55,3 +56,8 @@ endpoints:
     endpoint: host.docker.internal:18083
     # max time to wait for a connection to be established
     connect_timeout: 0.005s
+
+
+tracing:
+  random_sampling: 100
+  trace_arch_internal: true

@@ -13,7 +13,7 @@ DEMO_DESCRIPTION = """This demo illustrates how **Arch** can be used to perform 
 
 # Define the request model
 class DeviceSummaryRequest(BaseModel):
-    device_ids: List[int]
+    device_id: str
     time_range: Optional[int] = Field(
         default=7, description="Time range in days, defaults to 7"
     )
@@ -21,7 +21,7 @@ class DeviceSummaryRequest(BaseModel):
 
 # Define the response model
 class DeviceStatistics(BaseModel):
-    device_id: int
+    device_id: str
     time_range: str
     data: str
 
@@ -33,7 +33,7 @@ class DeviceSummaryResponse(BaseModel):
 
 
 class DeviceRebootRequest(BaseModel):
-    device_ids: List[int]
+    device_id: str
 
 
 # Response model for the device reboot
@@ -49,24 +49,21 @@ def reboot_network_device(request_data: DeviceRebootRequest):
     """
 
     # Access data from the Pydantic model
-    device_ids = request_data.device_ids
+    device_id = request_data.device_id
 
-    # Validate 'device_ids'
+    # Validate 'device_id'
     # (This is already validated by Pydantic, but additional logic can be added if needed)
-    if not device_ids:
-        raise HTTPException(
-            status_code=400, detail="'device_ids' parameter is required"
-        )
+    if not device_id:
+        raise HTTPException(status_code=400, detail="'device_id' parameter is required")
 
     # Simulate reboot operation and return the response
     statistics = []
-    for device_id in device_ids:
-        # Placeholder for actual data retrieval or device reboot logic
-        stats = {"data": f"Device {device_id} has been successfully rebooted."}
-        statistics.append(stats)
+    # Placeholder for actual data retrieval or device reboot logic
+    stats = {"data": f"Device {device_id} has been successfully rebooted."}
+    statistics.append(stats)
 
     # Return the response with a summary
-    return CoverageResponse(status="success", summary={"device_ids": device_ids})
+    return CoverageResponse(status="success", summary={"device_id": device_id})
 
 
 # Post method for device summary
@@ -76,28 +73,20 @@ def get_device_summary(request: DeviceSummaryRequest):
     Endpoint to retrieve device statistics based on device IDs and an optional time range.
     """
 
-    # Extract 'device_ids' and 'time_range' from the request
-    device_ids = request.device_ids
+    # Extract 'device_id' and 'time_range' from the request
+    device_id = request.device_id
     time_range = request.time_range
 
     # Simulate retrieving statistics for the given device IDs and time range
     statistics = []
-    minutes = 1
-    for device_id in device_ids:
-        stats = {
-            "device_id": device_id,
-            "time_range": f"Last {time_range} days",
-            "data": f"""Device {device_id} over the last {time_range} days experienced {minutes}
-             minutes of downtime.""",
-        }
-        minutes += 1
-        statistics.append(DeviceStatistics(**stats))
+    minutes = 4
+    stats = {
+        "device_id": device_id,
+        "time_range": f"Last {time_range} days",
+        "data": f"""Device {device_id} over the last {time_range} days experienced {minutes}
+        minutes of downtime.""",
+    }
+
+    statistics.append(DeviceStatistics(**stats))
 
     return DeviceSummaryResponse(statistics=statistics)
-
-
-CHAT_COMPLETION_ENDPOINT = os.getenv("CHAT_COMPLETION_ENDPOINT")
-client = OpenAI(
-    api_key="--",
-    base_url=CHAT_COMPLETION_ENDPOINT,
-)

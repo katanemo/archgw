@@ -29,5 +29,12 @@ llm_providers:
     provider_interface: mistral
     model: ministral-3b-latest
 
+  - name: deepseek
+    access_key: $DEEPSEEK_API_KEY
+    provider_interface: openai
+    model: deepseek-reasoner
+    endpoint: api.deepseek.com
+    protocol: https
+
 tracing:
   random_sampling: 100

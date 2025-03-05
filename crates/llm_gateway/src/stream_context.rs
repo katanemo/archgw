@@ -87,9 +87,11 @@ impl StreamContext {
         ));
 
         debug!(
-            "request received: llm provider hint: {:?}, selected llm: {}",
-            self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER),
-            self.llm_provider.as_ref().unwrap().name
+            "request received: llm provider hint: {}, selected llm: {}, model: {}",
+            self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
+                .unwrap_or_default(),
+            self.llm_provider.as_ref().unwrap().name,
+            self.llm_provider.as_ref().unwrap().model
         );
     }
 
@@ -494,7 +496,7 @@ impl HttpContext for StreamContext {
             //HACK: add support for tokenizing mistral and other models
             //filed issue https://github.com/katanemo/arch/issues/222
             if !model.as_ref().unwrap().starts_with("gpt") {
-                warn!(
+                trace!(
                     "tiktoken_rs: unsupported model: {}, using gpt-4 to compute token count",
                     model.as_ref().unwrap()
                 );

@@ -1,4 +1,5 @@
-#  Contribution
+# Contribution
+
 We would love feedback on our [Roadmap](https://github.com/orgs/katanemo/projects/1) and we welcome contributions to **Arch**!
 Whether you're fixing bugs, adding new features, improving documentation, or creating tutorials, your help is much appreciated.
 
@@ -22,7 +23,9 @@ $ cd arch
 ```
 
 ### 3. Create a branch
+
 Use a descriptive name for your branch (e.g., fix-bug-123, add-feature-x).
+
 ```bash
 $ git checkout -b <your-branch-name>
 ```
@@ -32,6 +35,7 @@ $ git checkout -b <your-branch-name>
 Make your changes in the relevant files. If you're adding new features or fixing bugs, please include tests where applicable.
 
 ### 5. Test your changes
+
 ```bash
 cd arch
 cargo test
@@ -51,4 +55,4 @@ Contribution Guidelines
     Follow the existing coding style.
     Update documentation as needed.
 
-To get in touch with us, please join our [discord server](https://discord.gg/rbjqVbpa). We will be monitoring that actively and offering support there.
+To get in touch with us, please join our [discord server](https://discord.gg/pGZf2gcwEc). We will be monitoring that actively and offering support there.

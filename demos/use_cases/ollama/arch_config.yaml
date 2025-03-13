@@ -1,9 +1,9 @@
 version: v0.1
 
 listeners:
-  ingress_traffic:
+  egress_traffic:
     address: 0.0.0.0
-    port: 10000
+    port: 12000
     message_format: openai
     timeout: 30s
 

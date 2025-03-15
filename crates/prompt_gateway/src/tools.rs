@@ -4,8 +4,13 @@ use std::collections::HashMap;
 use serde_yaml::Value;
 
 // only add params that are of string, number and bool type
-pub fn filter_tool_params(tool_params: &HashMap<String, Value>) -> HashMap<String, String> {
+pub fn filter_tool_params(tool_params: &Option<HashMap<String, Value>>) -> HashMap<String, String> {
+    if tool_params.is_none() {
+        return HashMap::new();
+    }
     tool_params
+        .as_ref()
+        .unwrap()
         .iter()
         .filter(|(_, value)| value.is_number() || value.is_string() || value.is_bool())
         .map(|(key, value)| match value {
@@ -22,7 +27,7 @@ pub fn filter_tool_params(tool_params: &HashMap<String, Value>) -> HashMap<Strin
 
 pub fn compute_request_path_body(
     endpoint_path: &str,
-    tool_params: &HashMap<String, Value>,
+    tool_params: &Option<HashMap<String, Value>>,
     prompt_target_params: &[Parameter],
     http_method: &HttpMethod,
 ) -> Result<(String, Option<String>), String> {

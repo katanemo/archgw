@@ -150,6 +150,12 @@ def validate_and_render_schema():
     if llm_gateway_listener.get("timeout") == None:
         llm_gateway_listener["timeout"] = "10s"
 
+    agent_orchestrator = None
+    for name, endpoint_details in endpoints.items():
+        if endpoint_details.get("agent_orchestrator", False):
+            agent_orchestrator = name
+            break
+
     data = {
         "prompt_gateway_listener": prompt_gateway_listener,
         "llm_gateway_listener": llm_gateway_listener,
@@ -159,6 +165,7 @@ def validate_and_render_schema():
         "arch_llm_providers": config_yaml["llm_providers"],
         "arch_tracing": arch_tracing,
         "local_llms": llms_with_endpoint,
+        "agent_orchestrator": agent_orchestrator,
     }
 
     rendered = template.render(data)

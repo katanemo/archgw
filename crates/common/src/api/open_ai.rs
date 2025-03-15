@@ -189,7 +189,7 @@ pub struct ToolCall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCallDetail {
     pub name: String,
-    pub arguments: HashMap<String, Value>,
+    pub arguments: Option<HashMap<String, Value>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

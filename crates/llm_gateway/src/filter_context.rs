@@ -1,6 +1,7 @@
 use crate::metrics::Metrics;
 use crate::stream_context::StreamContext;
 use common::configuration::Configuration;
+use common::configuration::Overrides;
 use common::consts::OTEL_COLLECTOR_HTTP;
 use common::consts::OTEL_POST_PATH;
 use common::http::CallArgs;
@@ -31,6 +32,7 @@ pub struct FilterContext {
     callouts: RefCell<HashMap<u32, CallContext>>,
     llm_providers: Option<Rc<LlmProviders>>,
     traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
+    overrides: Rc<Option<Overrides>>,
 }
 
 impl FilterContext {
@@ -40,6 +42,7 @@ impl FilterContext {
             metrics: Rc::new(Metrics::new()),
             llm_providers: None,
             traces_queue: Arc::new(Mutex::new(VecDeque::new())),
+            overrides: Rc::new(None),
         }
     }
 }
@@ -69,6 +72,7 @@ impl RootContext for FilterContext {
         };
 
         ratelimit::ratelimits(Some(config.ratelimits.unwrap_or_default()));
+        self.overrides = Rc::new(config.overrides);
 
         match config.llm_providers.try_into() {
             Ok(llm_providers) => self.llm_providers = Some(Rc::new(llm_providers)),
@@ -93,6 +97,7 @@ impl RootContext for FilterContext {
                     .expect("LLM Providers must exist when Streams are being created"),
             ),
             Arc::clone(&self.traces_queue),
+            Rc::clone(&self.overrides),
         )))
     }
 

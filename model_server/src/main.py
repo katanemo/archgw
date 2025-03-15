@@ -5,6 +5,7 @@ import logging
 import src.commons.utils as utils
 
 from src.commons.globals import ARCH_ENDPOINT, handler_map
+from src.core.function_calling import ArchFunctionHandler
 from src.core.utils.model_utils import (
     ChatMessage,
     ChatCompletionResponse,
@@ -76,33 +77,51 @@ async def function_calling(req: ChatMessage, res: Response):
     error_messages = None
 
     try:
-        intent_start_time = time.perf_counter()
-        intent_response = await handler_map["Arch-Intent"].chat_completion(req)
-        intent_latency = time.perf_counter() - intent_start_time
+        intent_detected = False
+        use_agent_orchestrator = req.metadata.get("use_agent_orchestrator", False)
+        logger.info(f"Use agent orchestrator: {use_agent_orchestrator}")
+        if not use_agent_orchestrator:
+            intent_start_time = time.perf_counter()
+            intent_response = await handler_map["Arch-Intent"].chat_completion(req)
+            intent_latency = time.perf_counter() - intent_start_time
+            intent_detected = handler_map["Arch-Intent"].detect_intent(intent_response)
 
-        if handler_map["Arch-Intent"].detect_intent(intent_response):
+        if use_agent_orchestrator or intent_detected:
             # TODO: measure agreement between intent detection and function calling
             try:
                 function_start_time = time.perf_counter()
-                final_response = await handler_map["Arch-Function"].chat_completion(req)
+                handler_name = (
+                    "Arch-Agent" if use_agent_orchestrator else "Arch-Function"
+                )
+                function_calling_handler: ArchFunctionHandler = handler_map[
+                    handler_name
+                ]
+                final_response = await function_calling_handler.chat_completion(req)
                 function_latency = time.perf_counter() - function_start_time
 
                 final_response.metadata = {
-                    "intent_latency": str(round(intent_latency * 1000, 3)),
                     "function_latency": str(round(function_latency * 1000, 3)),
-                    "hallucination": str(
-                        handler_map["Arch-Function"].hallucination_state.hallucination
-                    ),
                 }
+
+                if not use_agent_orchestrator:
+                    final_response.metadata["intent_latency"] = str(
+                        round(intent_latency * 1000, 3)
+                    )
+                    final_response.metadata["hallucination"] = str(
+                        function_calling_handler.hallucination_state.hallucination
+                    )
             except ValueError as e:
                 res.statuscode = 503
-                error_messages = f"[Arch-Function] - Error in tool call extraction: {e}"
+                error_messages = (
+                    f"[{handler_name}] - Error in tool call extraction: {e}"
+                )
             except StopIteration as e:
                 res.statuscode = 500
-                error_messages = f"[Arch-Function] - Error in hallucination check: {e}"
+                error_messages = f"[{handler_name}] - Error in hallucination check: {e}"
             except Exception as e:
                 res.status_code = 500
-                error_messages = f"[Arch-Function] - Error in ChatCompletion: {e}"
+                error_messages = f"[{handler_name}] - Error in ChatCompletion: {e}"
+                raise
         else:
             # no intent matched
             intent_response.metadata = {
@@ -113,6 +132,7 @@ async def function_calling(req: ChatMessage, res: Response):
     except Exception as e:
         res.status_code = 500
         error_messages = f"[Arch-Intent] - Error in ChatCompletion: {e}"
+        raise
 
     if error_messages is not None:
         logger.error(error_messages)

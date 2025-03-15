@@ -1,6 +1,8 @@
 use crate::metrics::Metrics;
 use crate::stream_context::StreamContext;
-use common::configuration::{Configuration, Overrides, PromptGuards, PromptTarget, Tracing};
+use common::configuration::{
+    Configuration, Endpoint, Overrides, PromptGuards, PromptTarget, Tracing,
+};
 use common::http::Client;
 use common::stats::Gauge;
 use log::trace;
@@ -21,6 +23,7 @@ pub struct FilterContext {
     overrides: Rc<Option<Overrides>>,
     system_prompt: Rc<Option<String>>,
     prompt_targets: Rc<HashMap<String, PromptTarget>>,
+    endpoints: Rc<Option<HashMap<String, Endpoint>>>,
     prompt_guards: Rc<PromptGuards>,
     tracing: Rc<Option<Tracing>>,
 }
@@ -34,6 +37,7 @@ impl FilterContext {
             prompt_targets: Rc::new(HashMap::new()),
             overrides: Rc::new(None),
             prompt_guards: Rc::new(PromptGuards::default()),
+            endpoints: Rc::new(None),
             tracing: Rc::new(None),
         }
     }
@@ -73,6 +77,7 @@ impl RootContext for FilterContext {
         }
         self.system_prompt = Rc::new(config.system_prompt);
         self.prompt_targets = Rc::new(prompt_targets);
+        self.endpoints = Rc::new(config.endpoints);
 
         if let Some(prompt_guards) = config.prompt_guards {
             self.prompt_guards = Rc::new(prompt_guards)
@@ -94,6 +99,7 @@ impl RootContext for FilterContext {
             Rc::clone(&self.metrics),
             Rc::clone(&self.system_prompt),
             Rc::clone(&self.prompt_targets),
+            Rc::clone(&self.endpoints),
             Rc::clone(&self.overrides),
             Rc::clone(&self.tracing),
         )))

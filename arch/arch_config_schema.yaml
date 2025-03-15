@@ -52,6 +52,8 @@ properties:
               - https
           http_host:
             type: string
+          agent_orchestrator:
+            type: boolean
         additionalProperties: false
         required:
           - endpoint
@@ -93,13 +95,14 @@ properties:
       additionalProperties: false
       required:
         - name
-        - model
   overrides:
     type: object
     properties:
       prompt_target_intent_matching_threshold:
         type: number
       optimize_context_window:
+        type: boolean
+      use_agent_orchestrator:
         type: boolean
   system_prompt:
     type: string

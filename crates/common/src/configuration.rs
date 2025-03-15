@@ -25,6 +25,7 @@ pub struct Configuration {
 pub struct Overrides {
     pub prompt_target_intent_matching_threshold: Option<f64>,
     pub optimize_context_window: Option<bool>,
+    pub use_agent_orchestrator: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -159,7 +160,7 @@ pub struct LlmProvider {
     pub name: String,
     pub provider_interface: LlmProviderType,
     pub access_key: Option<String>,
-    pub model: String,
+    pub model: Option<String>,
     pub default: Option<bool>,
     pub stream: Option<bool>,
     pub endpoint: Option<String>,
@@ -176,6 +177,7 @@ impl Display for LlmProvider {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Endpoint {
     pub endpoint: Option<String>,
+    pub agent_orchestrator: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

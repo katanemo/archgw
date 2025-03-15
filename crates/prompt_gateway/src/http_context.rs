@@ -4,7 +4,7 @@ use common::{
         self, ArchState, ChatCompletionStreamResponse, ChatCompletionTool, ChatCompletionsRequest,
     },
     consts::{
-        ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME, ARCH_STATE_HEADER,
+        ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME, ARCH_ROUTING_HEADER, ARCH_STATE_HEADER,
         ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, CHAT_COMPLETIONS_PATH, HEALTHZ_PATH,
         MODEL_SERVER_NAME, MODEL_SERVER_REQUEST_TIMEOUT_MS, REQUEST_ID_HEADER, TOOL_ROLE,
         TRACE_PARENT_HEADER, USER_ROLE,
@@ -33,6 +33,28 @@ impl HttpContext for StreamContext {
         // manipulate the body in benign ways e.g., compression.
         self.set_http_request_header("content-length", None);
 
+        if let Some(overrides) = self.overrides.as_ref() {
+            if overrides.use_agent_orchestrator.unwrap_or_default() {
+                // get endpoint that has agent_orchestrator set to true
+                if let Some(endpoints) = self.endpoints.as_ref() {
+                    let agent_orchestrator = endpoints
+                        .iter()
+                        .find(|(_, endpoint)| endpoint.agent_orchestrator.unwrap_or_default())
+                        .map(|(name, _)| name.clone());
+                    if let Some(agent_orchestrator_name) = agent_orchestrator {
+                        debug!(
+                            "Setting ARCH_PROVIDER_HINT_HEADER to {}",
+                            agent_orchestrator_name
+                        );
+                        self.set_http_request_header(
+                            ARCH_ROUTING_HEADER,
+                            Some(&agent_orchestrator_name),
+                        );
+                    };
+                }
+            }
+        }
+
         let request_path = self.get_http_request_header(":path").unwrap_or_default();
         if request_path == HEALTHZ_PATH {
             self.send_http_response(200, vec![], None);
@@ -49,6 +71,7 @@ impl HttpContext for StreamContext {
 
         self.request_id = self.get_http_request_header(REQUEST_ID_HEADER);
         self.traceparent = self.get_http_request_header(TRACE_PARENT_HEADER);
+
         Action::Continue
     }
 
@@ -149,6 +172,18 @@ impl HttpContext for StreamContext {
                     .as_mut()
                     .unwrap()
                     .insert("optimize_context_window".to_string(), "true".to_string());
+            }
+        }
+
+        if let Some(overrides) = self.overrides.as_ref() {
+            if overrides.use_agent_orchestrator.unwrap_or_default() {
+                if metadata.is_none() {
+                    metadata = Some(HashMap::new());
+                }
+                metadata
+                    .as_mut()
+                    .unwrap()
+                    .insert("use_agent_orchestrator".to_string(), "true".to_string());
             }
         }
 

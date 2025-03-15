@@ -142,6 +142,19 @@ static_resources:
                             cluster: {{ llm_cluster_name }}
                             timeout: 60s
                       {% endfor %}
+
+                      {% if agent_orchestrator %}
+                        - match:
+                            prefix: "/"
+                            headers:
+                              - name: "x-arch-llm-provider"
+                                string_match:
+                                  exact: {{ agent_orchestrator }}
+                          route:
+                            auto_host_rewrite: true
+                            cluster: {{ agent_orchestrator }}
+                            timeout: 60s
+                      {% endif %}
                 http_filters:
                   - name: envoy.filters.http.compressor
                     typed_config:

@@ -1,4 +1,5 @@
 import ast
+import copy
 import json
 import random
 import builtins
@@ -221,6 +222,15 @@ class ArchFunctionConfig:
     SUPPORT_DATA_TYPES = ["int", "float", "bool", "str", "list", "tuple", "set", "dict"]
 
 
+class ArchAgentConfig(ArchFunctionConfig):
+    GENERATION_PARAMS = {
+        "temperature": 0.01,
+        "stop_token_ids": [151645],
+        "logprobs": True,
+        "top_logprobs": 10,
+    }
+
+
 class ArchFunctionHandler(ArchBaseHandler):
     def __init__(
         self,
@@ -358,16 +368,17 @@ class ArchFunctionHandler(ArchBaseHandler):
                             is_valid, error_message = False, e
                             break
 
-                    tool_calls.append(
-                        {
-                            "id": f"call_{random.randint(1000, 10000)}",
-                            "type": "function",
-                            "function": {
-                                "name": tool_content["name"],
-                                "arguments": tool_content["arguments"],
-                            },
-                        }
-                    )
+                    tool = {
+                        "id": f"call_{random.randint(1000, 10000)}",
+                        "type": "function",
+                        "function": {
+                            "name": tool_content["name"],
+                        },
+                    }
+                    if "arguments" in tool_content:
+                        tool["function"]["arguments"] = tool_content["arguments"]
+
+                    tool_calls.append(tool)
 
                 flag = False
 
@@ -415,7 +426,9 @@ class ArchFunctionHandler(ArchBaseHandler):
                 break
 
             func_name = tool_call["function"]["name"]
-            func_args = tool_call["function"]["arguments"]
+            func_args = tool_call["function"].get("arguments")
+            if not func_args:
+                func_args = {}
 
             # Check whether the function is available or not
             if func_name not in functions:
@@ -430,12 +443,14 @@ class ArchFunctionHandler(ArchBaseHandler):
                     if required_param not in func_args:
                         is_valid = False
                         invalid_tool_call = tool_call
-                        error_message = f"`{required_param}` is requiried by the function `{func_name}` but not found in the tool call!"
+                        error_message = f"`{required_param}` is required by the function `{func_name}` but not found in the tool call!"
                         break
 
                 # Verify the data type of each parameter in the tool calls
                 function_properties = functions[func_name]["properties"]
 
+                logger.info("== func_args ==")
+                logger.info(func_args)
                 for param_name in func_args:
                     if param_name not in function_properties:
                         is_valid = False
@@ -523,7 +538,9 @@ class ArchFunctionHandler(ArchBaseHandler):
             req.messages, req.tools, metadata=req.metadata
         )
 
-        logger.info(f"[request to arch-fc]: {json.dumps(messages)}")
+        logger.info(
+            f"[request to arch-fc]: model: {self.model_name}, extra_body: {self.generation_params}, body: {json.dumps(messages)}"
+        )
 
         # always enable `stream=True` to collect model responses
         response = self.client.chat.completions.create(
@@ -533,42 +550,48 @@ class ArchFunctionHandler(ArchBaseHandler):
             extra_body=self.generation_params,
         )
 
-        # initialize the hallucination handler, which is an iterator
-        self.hallucination_state = HallucinationState(
-            response_iterator=response, function=req.tools
-        )
-
+        use_agent_orchestrator = req.metadata.get("use_agent_orchestrator", False)
         model_response = ""
+        if use_agent_orchestrator:
+            for chunk in response:
+                if len(chunk.choices) > 0 and chunk.choices[0].delta.content:
+                    model_response += chunk.choices[0].delta.content
+            logger.info(f"[Agent Orchestrator]: response received: {model_response}")
+        else:
+            # initialize the hallucination handler, which is an iterator
+            self.hallucination_state = HallucinationState(
+                response_iterator=response, function=req.tools
+            )
 
-        has_tool_calls, has_hallucination = None, False
-        for _ in self.hallucination_state:
-            # check if the first token is <tool_call>
-            if len(self.hallucination_state.tokens) > 0 and has_tool_calls is None:
-                if self.hallucination_state.tokens[0] == "<tool_call>":
-                    has_tool_calls = True
-                else:
-                    has_tool_calls = False
+            has_tool_calls, has_hallucination = None, False
+            for _ in self.hallucination_state:
+                # check if the first token is <tool_call>
+                if len(self.hallucination_state.tokens) > 0 and has_tool_calls is None:
+                    if self.hallucination_state.tokens[0] == "<tool_call>":
+                        has_tool_calls = True
+                    else:
+                        has_tool_calls = False
+                        break
+
+                # if the model is hallucinating, start parameter gathering
+                if self.hallucination_state.hallucination is True:
+                    has_hallucination = True
                     break
 
-            # if the model is hallucinating, start parameter gathering
-            if self.hallucination_state.hallucination is True:
-                has_hallucination = True
-                break
-
-        if has_tool_calls:
-            if has_hallucination:
-                # start prompt prefilling if hallcuination is found in tool calls
-                logger.info(
-                    f"[Hallucination]: {self.hallucination_state.error_message}"
-                )
+            if has_tool_calls:
+                if has_hallucination:
+                    # start prompt prefilling if hallcuination is found in tool calls
+                    logger.info(
+                        f"[Hallucination]: {self.hallucination_state.error_message}"
+                    )
+                    prefill_response = self._engage_parameter_gathering(messages)
+                    model_response = prefill_response.choices[0].message.content
+                else:
+                    model_response = "".join(self.hallucination_state.tokens)
+            else:
+                # start parameter gathering if the model is not generating tool calls
                 prefill_response = self._engage_parameter_gathering(messages)
                 model_response = prefill_response.choices[0].message.content
-            else:
-                model_response = "".join(self.hallucination_state.tokens)
-        else:
-            # start parameter gathering if the model is not generating tool calls
-            prefill_response = self._engage_parameter_gathering(messages)
-            model_response = prefill_response.choices[0].message.content
 
         # Extract tool calls from model response
         extracted = self._extract_tool_calls(model_response)
@@ -576,9 +599,13 @@ class ArchFunctionHandler(ArchBaseHandler):
         if extracted["status"]:
             # Response with tool calls
             if len(extracted["result"]):
-                verified = self._verify_tool_calls(
-                    tools=req.tools, tool_calls=extracted["result"]
-                )
+                verified = {}
+                if use_agent_orchestrator:
+                    verified = {"status": True, "message": ""}
+                else:
+                    verified = self._verify_tool_calls(
+                        tools=req.tools, tool_calls=extracted["result"]
+                    )
 
                 if verified["status"]:
                     logger.info(
@@ -601,3 +628,35 @@ class ArchFunctionHandler(ArchBaseHandler):
         logger.info(f"[response]: {json.dumps(chat_completion_response.model_dump())}")
 
         return chat_completion_response
+
+
+class ArchAgentHandler(ArchFunctionHandler):
+    def __init__(self, client: OpenAI, model_name: str, config: ArchAgentConfig):
+        super().__init__(client, model_name, config)
+
+    @override
+    def _convert_tools(self, tools: List[Dict[str, Any]]) -> str:
+        """
+        Converts a list of tools into JSON format.
+
+        Args:
+            tools (List[Dict[str, Any]]): A list of tools represented as dictionaries.
+
+        Returns:
+            str: A string representation of converted tools.
+        """
+
+        converted = []
+        # delete parameters key if its empty in tool
+        for tool in tools:
+            if (
+                "parameters" in tool["function"]
+                and "properties" in tool["function"]["parameters"]
+                and not tool["function"]["parameters"]["properties"]
+            ):
+                tool_copy = copy.deepcopy(tool)
+                del tool_copy["function"]["parameters"]
+                converted.append(json.dumps(tool_copy))
+            else:
+                converted.append(json.dumps(tool))
+        return "\n".join(converted)

@@ -1,0 +1,72 @@
+version: v0.1
+
+listeners:
+  ingress_traffic:
+    address: 0.0.0.0
+    port: 10000
+    message_format: openai
+    timeout: 30s
+
+overrides:
+  optimize_context_window: true
+
+llm_providers:
+  - name: gpt-4o
+    access_key: $OPENAI_API_KEY
+    provider_interface: openai
+    model: gpt-4o
+
+endpoints:
+  k8s_api_gateway:
+    endpoint: host.docker.internal:8001
+    http_host: localhost
+
+system_prompt: |
+  You are a helpful assistant.
+
+prompt_guards:
+  input_guards:
+    jailbreak:
+      on_exception:
+        message: Looks like you're curious about my abilities, but I can only provide assistance for currency exchange.
+
+prompt_targets:
+  - name: list_namespaces
+    description: List all namespaces in the cluster
+    endpoint:
+      name: k8s_api_gateway
+      path: /api/v1/namespaces
+    system_prompt: |
+      You are a helpful k8s assistant. Show status of each namespace as well in each line.
+
+  - name: show_namespace_details
+    description: Show details of a specific namespace
+    endpoint:
+      name: k8s_api_gateway
+      path: /api/v1/namespaces/{namespace}
+    parameters:
+      - name: namespace
+        description: namespace to show details
+        required: true
+        type: str
+        in_path: true
+    system_prompt: |
+      You are a helpful k8s assistant. Please show high level details of the namespace.
+
+  - name: get_pods_for_namespace
+    description: Get all pods in a specific namespace
+    endpoint:
+      name: k8s_api_gateway
+      path: /api/v1/namespaces/{namespace}/pods
+    parameters:
+      - name: namespace
+        description: namespace to show details
+        required: true
+        type: str
+        in_path: true
+    system_prompt: |
+      You are a helpful k8s assistant. Please only show high level details of each pod.
+
+tracing:
+  random_sampling: 100
+  trace_arch_internal: true

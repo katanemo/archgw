@@ -16,12 +16,14 @@ use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use http::StatusCode;
 use log::{debug, trace, warn};
+use omnillm::{ChatRequest, LlmProvider as LlmProviderTrait, LlmProviders as OmniLlmProviders};
 use proxy_wasm::hostcalls::get_current_time;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
 use std::collections::VecDeque;
 use std::num::NonZero;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -40,9 +42,10 @@ pub struct StreamContext {
     ttft_time: Option<u128>,
     traceparent: Option<String>,
     request_body_sent_time: Option<u128>,
-    user_message: Option<Message>,
+    user_message: Option<omnillm::Message>,
     traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
+    omni_llm_providers: Rc<OmniLlmProviders>,
 }
 
 impl StreamContext {
@@ -71,6 +74,7 @@ impl StreamContext {
             user_message: None,
             traces_queue,
             request_body_sent_time: None,
+            omni_llm_providers: Rc::new(OmniLlmProviders::new()),
         }
     }
     fn llm_provider(&self) -> &LlmProvider {
@@ -278,18 +282,17 @@ impl HttpContext for StreamContext {
 
         // Deserialize body into spec.
         // Currently OpenAI API.
-        let mut deserialized_body: ChatCompletionsRequest =
-            match serde_json::from_slice(&body_bytes) {
-                Ok(deserialized) => deserialized,
-                Err(e) => {
-                    debug!("body str: {}", String::from_utf8_lossy(&body_bytes));
-                    self.send_server_error(
-                        ServerError::Deserialization(e),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
-                }
-            };
+        let mut deserialized_body: ChatRequest = match serde_json::from_slice(&body_bytes) {
+            Ok(deserialized) => deserialized,
+            Err(e) => {
+                debug!("body str: {}", String::from_utf8_lossy(&body_bytes));
+                self.send_server_error(
+                    ServerError::Deserialization(e),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
         // remove metadata from the request body
         //TODO: move this to prompt gateway
@@ -302,7 +305,7 @@ impl HttpContext for StreamContext {
         self.user_message = deserialized_body
             .messages
             .iter()
-            .filter(|m| m.role == "user")
+            .filter(|m| m.role == omnillm::Role::User)
             .last()
             .cloned();
 
@@ -343,16 +346,32 @@ impl HttpContext for StreamContext {
             model_name,
         );
 
-        let chat_completion_request_str = serde_json::to_string(&deserialized_body).unwrap();
+        let omn_provider_type =
+            omnillm::Provider::from_str(&self.llm_provider().provider_interface.to_string())
+                .unwrap();
 
-        trace!("request body: {}", chat_completion_request_str);
+        let chat_request_bytes = self
+            .omni_llm_providers
+            .as_ref()
+            .providers
+            .get(&omn_provider_type)
+            .unwrap()
+            .translate_request(&deserialized_body)
+            .unwrap();
 
-        if deserialized_body.stream {
+        trace!(
+            "request body str: {}",
+            String::from_utf8_lossy(&chat_request_bytes)
+        );
+
+        if deserialized_body.stream.unwrap_or_default() {
             self.streaming_response = true;
         }
-        if deserialized_body.stream && deserialized_body.stream_options.is_none() {
-            deserialized_body.stream_options = Some(StreamOptions {
-                include_usage: true,
+        if deserialized_body.stream.unwrap_or_default()
+            && deserialized_body.stream_options.is_none()
+        {
+            deserialized_body.stream_options = Some(omnillm::StreamOptions {
+                include_usage: Some(true),
             });
         }
 
@@ -374,7 +393,7 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        self.set_http_request_body(0, body_size, chat_completion_request_str.as_bytes());
+        self.set_http_request_body(0, body_size, &chat_request_bytes);
 
         Action::Continue
     }

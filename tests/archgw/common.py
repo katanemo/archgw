@@ -47,14 +47,11 @@ TEST_CASE_FIXTURES = {
                         "tool_call_id": "",
                         "tool_calls": [
                             {
-                                "id": "call_6009",
+                                "id": "call_2925",
                                 "type": "function",
                                 "function": {
                                     "name": "get_current_weather",
-                                    "arguments": {
-                                        "location": "Seattle, WA",
-                                        "days": "2",
-                                    },
+                                    "arguments": {"location": "Seattle", "days": "2"},
                                 },
                             }
                         ],
@@ -63,7 +60,11 @@ TEST_CASE_FIXTURES = {
                 }
             ],
             "model": "Arch-Function",
-            "metadata": {"intent_latency": "455.092", "function_latency": "312.744"},
+            "metadata": {
+                "x-arch-fc-model-response": '{"tool_calls": [{"name": "get_current_weather", "arguments": {"location": "Seattle", "days": "2"}}]}',
+                "function_latency": "361.841",
+                "intent_latency": "361.841",
+            },
         },
         "api_server_response": [
             {

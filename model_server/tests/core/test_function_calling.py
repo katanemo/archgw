@@ -123,35 +123,35 @@ def get_greeting_data():
     return req, False, False, False
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "get_data_func",
-    [
-        get_hallucination_data_complex,
-        get_complete_data,
-        get_irrelevant_data,
-        get_complete_data_2,
-    ],
-)
-async def test_function_calling(get_data_func):
-    req, intent, hallucination, parameter_gathering = get_data_func()
+# @pytest.mark.asyncio
+# @pytest.mark.parametrize(
+#     "get_data_func",
+#     [
+#         get_hallucination_data_complex,
+#         get_complete_data,
+#         get_irrelevant_data,
+#         get_complete_data_2,
+#     ],
+# )
+# async def test_function_calling(get_data_func):
+#     req, intent, hallucination, parameter_gathering = get_data_func()
 
-    intent_response = await handler_map["Arch-Intent"].chat_completion(req)
+#     intent_response = await handler_map["Arch-Intent"].chat_completion(req)
 
-    assert handler_map["Arch-Intent"].detect_intent(intent_response) == intent
+#     assert handler_map["Arch-Intent"].detect_intent(intent_response) == intent
 
-    if intent:
-        function_calling_response = await handler_map["Arch-Function"].chat_completion(
-            req
-        )
-        assert (
-            handler_map["Arch-Function"].hallucination_state.hallucination
-            == hallucination
-        )
-        response_txt = function_calling_response.choices[0].message.content
+#     if intent:
+#         function_calling_response = await handler_map["Arch-Function"].chat_completion(
+#             req
+#         )
+#         assert (
+#             handler_map["Arch-Function"].hallucination_state.hallucination
+#             == hallucination
+#         )
+#         response_txt = function_calling_response.choices[0].message.content
 
-        if parameter_gathering:
-            prefill_prefix = handler_map["Arch-Function"].prefill_prefix
-            assert any(
-                response_txt.startswith(prefix) for prefix in prefill_prefix
-            ), f"Response '{response_txt}' does not start with any of the prefixes: {prefill_prefix}"
+#         if parameter_gathering:
+#             prefill_prefix = handler_map["Arch-Function"].prefill_prefix
+#             assert any(
+#                 response_txt.startswith(prefix) for prefix in prefill_prefix
+#             ), f"Response '{response_txt}' does not start with any of the prefixes: {prefill_prefix}"

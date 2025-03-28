@@ -380,6 +380,7 @@ fn prompt_gateway_request_to_llm_gateway() {
         .expect_log(Some(LogLevel::Warn), None)
         .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
         .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
@@ -453,6 +454,7 @@ fn prompt_gateway_request_to_llm_gateway() {
         .expect_log(Some(LogLevel::Info), None)
         .expect_set_buffer_bytes(Some(BufferType::HttpResponseBody), None)
         .expect_log(Some(LogLevel::Info), None)
+        .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -493,19 +495,9 @@ fn prompt_gateway_request_no_intent_match() {
             finish_reason: Some("test".to_string()),
             index: Some(0),
             message: Message {
-                role: "system".to_string(),
+                role: "assistant".to_string(),
                 content: None,
-                tool_calls: Some(vec![ToolCall {
-                    id: String::from("test"),
-                    tool_type: ToolType::Function,
-                    function: FunctionCallDetail {
-                        name: String::from("weather_forecast"),
-                        arguments: Some(HashMap::from([(
-                            String::from("city"),
-                            Value::String(String::from("seattle")),
-                        )])),
-                    },
-                }]),
+                tool_calls: None,
                 model: None,
                 tool_call_id: None,
             },
@@ -523,7 +515,7 @@ fn prompt_gateway_request_no_intent_match() {
         .expect_log(Some(LogLevel::Warn), None)
         .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Info), Some("intent not matched"))
+        .expect_log(Some(LogLevel::Info), Some("intent matched: false"))
         .expect_log(
             Some(LogLevel::Info),
             Some("no default prompt target found, forwarding request to upstream llm"),
@@ -651,17 +643,7 @@ fn prompt_gateway_request_no_intent_match_default_target() {
             message: Message {
                 role: "system".to_string(),
                 content: None,
-                tool_calls: Some(vec![ToolCall {
-                    id: String::from("test"),
-                    tool_type: ToolType::Function,
-                    function: FunctionCallDetail {
-                        name: String::from("weather_forecast"),
-                        arguments: Some(HashMap::from([(
-                            String::from("city"),
-                            Value::String(String::from("seattle")),
-                        )])),
-                    },
-                }]),
+                tool_calls: None,
                 model: None,
                 tool_call_id: None,
             },
@@ -679,7 +661,7 @@ fn prompt_gateway_request_no_intent_match_default_target() {
         .expect_log(Some(LogLevel::Warn), None)
         .expect_log(Some(LogLevel::Info), None)
         .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Info), Some("intent not matched"))
+        .expect_log(Some(LogLevel::Info), Some("intent matched: false"))
         .expect_log(
             Some(LogLevel::Info),
             Some("default prompt target found, forwarding request to default prompt target"),

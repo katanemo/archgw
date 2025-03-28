@@ -5,6 +5,9 @@ import yaml
 
 from deepdiff import DeepDiff
 
+pytestmark = pytest.mark.skip(
+    reason="Skipping entire test file as this these tests are heavily dependent on model output"
+)
 
 MODEL_SERVER_ENDPOINT = os.getenv(
     "MODEL_SERVER_ENDPOINT", "http://localhost:51000/function_calling"

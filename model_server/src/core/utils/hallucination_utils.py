@@ -13,16 +13,15 @@ from src.commons.utils import get_model_server_logger
 logger = get_model_server_logger()
 
 # constants
-FUNC_NAME_START_PATTERN = ('<tool_call>\n{"name":"', "<tool_call>\n{'name':'")
+FUNC_NAME_START_PATTERN = ('{"name":"', "{'name':'")
 FUNC_NAME_END_TOKEN = ('",', "',")
-TOOL_CALL_TOKEN = "<tool_call>"
-END_TOOL_CALL_TOKEN = "</tool_call>"
+END_TOOL_CALL_TOKEN = "}}"
 
 FIRST_PARAM_NAME_START_PATTERN = ('"arguments":{"', "'arguments':{'")
-PARAMETER_NAME_END_TOKENS = ('":', ':"', "':", ":'")
-PARAMETER_NAME_START_PATTERN = (',"', ",'")
+PARAMETER_NAME_END_TOKENS = ('":', ':"', "':", ":'", '":"', "':'")
+PARAMETER_NAME_START_PATTERN = ('","', "','")
 PARAMETER_VALUE_START_PATTERN = ('":', "':")
-PARAMETER_VALUE_END_TOKEN = ('",', "}}\n", "',")
+PARAMETER_VALUE_END_TOKEN = ('",', '"}')
 
 BRACKETS = {"(": ")", "{": "}", "[": "]"}
 
@@ -37,16 +36,9 @@ class MaskToken(Enum):
 
 
 HALLUCINATION_THRESHOLD_DICT = {
-    MaskToken.TOOL_CALL.value: {
-        "entropy": 0.35,
-        "varentropy": 1.7,
-        "probability": 0.8,
-    },
-    MaskToken.PARAMETER_VALUE.value: {
-        "entropy": 0.28,
-        "varentropy": 1.4,
-        "probability": 0.8,
-    },
+    "entropy": 0.28,
+    "varentropy": 1.4,
+    "probability": 0.8,
 }
 
 
@@ -160,6 +152,7 @@ class HallucinationState:
         self._process_function(function)
         self.open_bracket = False
         self.bracket = None
+        self.function_name = ""
         self.check_parameter_name = {}
         self.HALLUCINATION_THRESHOLD_DICT = HALLUCINATION_THRESHOLD_DICT
 
@@ -218,12 +211,10 @@ class HallucinationState:
                             raise ValueError(
                                 f"Error extracting logprobs from response: {e}"
                             )
-                        if token_content == END_TOOL_CALL_TOKEN:
-                            self._reset_parameters()
-                        else:
-                            self.append_and_check_token_hallucination(
-                                token_content, logprobs
-                            )
+                        
+                        self.append_and_check_token_hallucination(
+                            token_content, logprobs
+                        )
                         return token_content
             except StopIteration:
                 raise StopIteration
@@ -233,13 +224,13 @@ class HallucinationState:
         Processes the current token and updates the state and mask accordingly.
         Detects hallucinations based on the token type and log probabilities.
         """
-        content = "".join(self.tokens).replace(" ", "")
-        if self.tokens[-1] == TOOL_CALL_TOKEN:
-            self.mask.append(MaskToken.TOOL_CALL)
-            self._check_logprob()
+        content = "".join(self.tokens).replace(" ", "").replace("Ġ",'')
 
         # Function name extraction logic
         # If the state is function name and the token is not an end token, add to the mask
+        if content.endswith(END_TOOL_CALL_TOKEN):
+            self._reset_parameters()
+
         if self.state == "function_name":
             if self.tokens[-1] not in FUNC_NAME_END_TOKEN:
                 self.mask.append(MaskToken.FUNCTION_NAME)
@@ -359,7 +350,7 @@ class HallucinationState:
         if check_threshold(
             entropy,
             varentropy,
-            self.HALLUCINATION_THRESHOLD_DICT[self.mask[-1].value],
+            self.HALLUCINATION_THRESHOLD_DICT,
         ):
             self.hallucination = True
             self.error_message = f"token '{self.tokens[-1]}' is uncertain. Generated response:\n{''.join(self.tokens)}"

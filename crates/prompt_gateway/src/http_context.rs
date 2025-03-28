@@ -4,10 +4,11 @@ use common::{
         self, ArchState, ChatCompletionStreamResponse, ChatCompletionTool, ChatCompletionsRequest,
     },
     consts::{
-        ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME, ARCH_ROUTING_HEADER, ARCH_STATE_HEADER,
+        ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME, ARCH_ROUTING_HEADER,
         ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, CHAT_COMPLETIONS_PATH, HEALTHZ_PATH,
         MODEL_SERVER_NAME, MODEL_SERVER_REQUEST_TIMEOUT_MS, REQUEST_ID_HEADER, TOOL_ROLE,
-        TRACE_PARENT_HEADER, USER_ROLE,
+        TRACE_PARENT_HEADER, USER_ROLE, X_ARCH_API_RESPONSE, X_ARCH_FC_MODEL_RESPONSE,
+        X_ARCH_STATE_HEADER, X_ARCH_TOOL_CALL,
     },
     errors::ServerError,
     http::{CallArgs, Client},
@@ -125,8 +126,8 @@ impl HttpContext for StreamContext {
 
         self.arch_state = match deserialized_body.metadata {
             Some(ref metadata) => {
-                if metadata.contains_key(ARCH_STATE_HEADER) {
-                    let arch_state_str = metadata[ARCH_STATE_HEADER].clone();
+                if metadata.contains_key(X_ARCH_STATE_HEADER) {
+                    let arch_state_str = metadata[X_ARCH_STATE_HEADER].clone();
                     let arch_state: Vec<ArchState> = serde_json::from_str(&arch_state_str).unwrap();
                     Some(arch_state)
                 } else {
@@ -336,10 +337,10 @@ impl HttpContext for StreamContext {
             if self.tool_calls.is_some() && !self.tool_calls.as_ref().unwrap().is_empty() {
                 let chunks = vec![
                     ChatCompletionStreamResponse::new(
-                        None,
+                        self.arch_fc_response.clone(),
                         Some(ASSISTANT_ROLE.to_string()),
                         Some(ARCH_FC_MODEL_NAME.to_string()),
-                        self.tool_calls.to_owned(),
+                        None,
                     ),
                     ChatCompletionStreamResponse::new(
                         self.tool_call_response.clone(),
@@ -381,17 +382,39 @@ impl HttpContext for StreamContext {
                         *metadata = Value::Object(serde_json::Map::new());
                     }
 
-                    let fc_messages = vec![
-                        self.generate_toll_call_message(),
-                        self.generate_api_response_message(),
-                    ];
+                    let tool_call_message = self.generate_toll_call_message();
+                    let tool_call_message_str = serde_json::to_string(&tool_call_message).unwrap();
+                    metadata.as_object_mut().unwrap().insert(
+                        X_ARCH_TOOL_CALL.to_string(),
+                        serde_json::Value::String(tool_call_message_str),
+                    );
+
+                    let api_response_message = self.generate_api_response_message();
+                    let api_response_message_str =
+                        serde_json::to_string(&api_response_message).unwrap();
+                    metadata.as_object_mut().unwrap().insert(
+                        X_ARCH_API_RESPONSE.to_string(),
+                        serde_json::Value::String(api_response_message_str),
+                    );
+
+                    let fc_messages = vec![tool_call_message, api_response_message];
+
                     let fc_messages_str = serde_json::to_string(&fc_messages).unwrap();
                     let arch_state = HashMap::from([("messages".to_string(), fc_messages_str)]);
                     let arch_state_str = serde_json::to_string(&arch_state).unwrap();
                     metadata.as_object_mut().unwrap().insert(
-                        ARCH_STATE_HEADER.to_string(),
+                        X_ARCH_STATE_HEADER.to_string(),
                         serde_json::Value::String(arch_state_str),
                     );
+
+                    if let Some(arch_fc_response) = self.arch_fc_response.as_ref() {
+                        metadata.as_object_mut().unwrap().insert(
+                            X_ARCH_FC_MODEL_RESPONSE.to_string(),
+                            serde_json::Value::String(
+                                serde_json::to_string(arch_fc_response).unwrap(),
+                            ),
+                        );
+                    }
                     let data_serialized = serde_json::to_string(&data).unwrap();
                     info!("archgw <= developer: {}", data_serialized);
                     self.set_http_response_body(0, body_size, data_serialized.as_bytes());

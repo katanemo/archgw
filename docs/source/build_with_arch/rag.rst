@@ -46,7 +46,7 @@ Multi-Turn RAG (Follow-up Questions)
 Developers often `struggle <https://www.reddit.com/r/LocalLLaMA/comments/18mqwg6/best_practice_for_rag_with_followup_chat/>`_ to efficiently handle
 ``follow-up`` or ``clarification`` questions. Specifically, when users ask for changes or additions to previous responses, it requires developers to
 re-write prompts using LLMs with precise prompt engineering techniques. This process is slow, manual, error prone and adds signifcant latency to the
-user experience. Arch
+user experience.
 
 Arch is highly capable of accurately detecting and processing prompts in a multi-turn scenarios so that you can buil fast and accurate RAG apps in
 minutes. For additional details on how to build multi-turn RAG applications please refer to our :ref:`multi-turn <arch_multi_turn_guide>` docs.

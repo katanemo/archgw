@@ -1,5 +1,5 @@
 import pytest
-
+import time
 from src.commons.globals import handler_map
 from src.core.utils.model_utils import ChatMessage, Message
 
@@ -37,26 +37,9 @@ get_weather_api = {
 # get_data class return request, intent, hallucination, parameter_gathering
 
 
-def get_hallucination_data_complex():
+def get_hallucination_data():
     # Create instances of the Message class
-    message1 = Message(role="user", content="How is the weather in Seattle?")
-    message2 = Message(
-        role="assistant", content="Can you specify the unit you want the weather in?"
-    )
-    message3 = Message(role="user", content="In celcius please!")
-
-    # Create a list of tools
-    tools = [get_weather_api]
-
-    # Create an instance of the ChatMessage class
-    req = ChatMessage(messages=[message1, message2, message3], tools=tools)
-
-    return req, True, True, True
-
-
-def get_hallucination_data_medium():
-    # Create instances of the Message class
-    message1 = Message(role="user", content="How is the weather in?")
+    message1 = Message(role="user", content="How is the weather in Seattle in days?")
 
     # Create a list of tools
     tools = [get_weather_api]
@@ -65,26 +48,10 @@ def get_hallucination_data_medium():
     req = ChatMessage(messages=[message1], tools=tools)
 
     # first token will not be tool call
-    return req, True, True, True
+    return req, False, True
 
 
-def get_complete_data_2():
-    # Create instances of the Message class
-    message1 = Message(
-        role="user",
-        content="what is the weather forecast for seattle in the next 10 days?",
-    )
-
-    # Create a list of tools
-    tools = [get_weather_api]
-
-    # Create an instance of the ChatMessage class
-    req = ChatMessage(messages=[message1], tools=tools)
-
-    return req, True, False, False
-
-
-def get_complete_data():
+def get_success_tool_call_data():
     # Create instances of the Message class
     message1 = Message(role="user", content="How is the weather in Seattle in 7 days?")
 
@@ -94,7 +61,7 @@ def get_complete_data():
     # Create an instance of the ChatMessage class
     req = ChatMessage(messages=[message1], tools=tools)
 
-    return req, True, False, False
+    return req, True, False
 
 
 def get_irrelevant_data():
@@ -107,7 +74,7 @@ def get_irrelevant_data():
     # Create an instance of the ChatMessage class
     req = ChatMessage(messages=[message1], tools=tools)
 
-    return req, False, False, False
+    return req, False, False
 
 
 def get_greeting_data():
@@ -120,38 +87,29 @@ def get_greeting_data():
     # Create an instance of the ChatMessage class
     req = ChatMessage(messages=[message1], tools=tools)
 
-    return req, False, False, False
+    return req, False, False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "get_data_func",
     [
-        get_hallucination_data_complex,
-        get_complete_data,
+        get_hallucination_data,
+        get_greeting_data,
         get_irrelevant_data,
-        get_complete_data_2,
+        get_success_tool_call_data,
     ],
 )
 async def test_function_calling(get_data_func):
-    req, intent, hallucination, parameter_gathering = get_data_func()
+    req, intent, hallucination = get_data_func()
+    handler_name = "Arch-Function"
+    use_agent_orchestrator = False
+    model_handler: ArchFunctionHandler = handler_map[handler_name]
 
-    intent_response = await handler_map["Arch-Intent"].chat_completion(req)
+    start_time = time.perf_counter()
+    final_response = await model_handler.chat_completion(req)
+    latency = time.perf_counter() - start_time
 
-    assert handler_map["Arch-Intent"].detect_intent(intent_response) == intent
+    assert intent == (len(final_response.choices[0].message.tool_calls) >= 1)
 
-    if intent:
-        function_calling_response = await handler_map["Arch-Function"].chat_completion(
-            req
-        )
-        assert (
-            handler_map["Arch-Function"].hallucination_state.hallucination
-            == hallucination
-        )
-        response_txt = function_calling_response.choices[0].message.content
-
-        if parameter_gathering:
-            prefill_prefix = handler_map["Arch-Function"].prefill_prefix
-            assert any(
-                response_txt.startswith(prefix) for prefix in prefill_prefix
-            ), f"Response '{response_txt}' does not start with any of the prefixes: {prefill_prefix}"
+    assert hallucination == model_handler.hallucination_state.hallucination

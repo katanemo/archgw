@@ -9,6 +9,7 @@ use common::consts::{
     API_REQUEST_TIMEOUT_MS, ARCH_FC_MODEL_NAME, ARCH_INTERNAL_CLUSTER_NAME,
     ARCH_UPSTREAM_HOST_HEADER, ASSISTANT_ROLE, DEFAULT_TARGET_REQUEST_TIMEOUT_MS, MESSAGES_KEY,
     REQUEST_ID_HEADER, SYSTEM_ROLE, TOOL_ROLE, TRACE_PARENT_HEADER, USER_ROLE,
+    X_ARCH_FC_MODEL_RESPONSE,
 };
 use common::errors::ServerError;
 use common::http::{CallArgs, Client};
@@ -64,10 +65,10 @@ pub struct StreamContext {
     pub time_to_first_token: Option<u128>,
     pub traceparent: Option<String>,
     pub _tracing: Rc<Option<Tracing>>,
+    pub arch_fc_response: Option<String>,
 }
 
 impl StreamContext {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         context_id: u32,
         metrics: Rc<Metrics>,
@@ -98,6 +99,7 @@ impl StreamContext {
             _tracing: tracing,
             start_upstream_llm_request_time: 0,
             time_to_first_token: None,
+            arch_fc_response: None,
         }
     }
 
@@ -142,15 +144,17 @@ impl StreamContext {
             }
         };
 
-        // intent was matched if we see function_latency in metadata
-        let intent_matched = model_server_response
+        let intent_matched = check_intent_matched(&model_server_response);
+        info!("intent matched: {}", intent_matched);
+
+        self.arch_fc_response = model_server_response
             .metadata
             .as_ref()
-            .and_then(|metadata| metadata.get("function_latency"))
-            .is_some();
+            .and_then(|metadata| metadata.get(X_ARCH_FC_MODEL_RESPONSE))
+            .cloned();
+
 
         if !intent_matched {
-            info!("intent not matched");
             // check if we have a default prompt target
             if let Some(default_prompt_target) = self
                 .prompt_targets
@@ -278,9 +282,9 @@ impl StreamContext {
             let direct_response_str = if self.streaming_response {
                 let chunks = vec![
                     ChatCompletionStreamResponse::new(
-                        None,
+                        self.arch_fc_response.clone(),
                         Some(ASSISTANT_ROLE.to_string()),
-                        Some(ARCH_FC_MODEL_NAME.to_owned()),
+                        Some(ARCH_FC_MODEL_NAME.to_string()),
                         None,
                     ),
                     ChatCompletionStreamResponse::new(
@@ -293,7 +297,7 @@ impl StreamContext {
                                 .clone(),
                         ),
                         None,
-                        Some(ARCH_FC_MODEL_NAME.to_owned()),
+                        Some(format!("{}-Chat", ARCH_FC_MODEL_NAME.to_owned())),
                         None,
                     ),
                 ];
@@ -624,12 +628,23 @@ impl StreamContext {
     }
 
     pub fn generate_toll_call_message(&mut self) -> Message {
-        Message {
-            role: ASSISTANT_ROLE.to_string(),
-            content: None,
-            model: Some(ARCH_FC_MODEL_NAME.to_string()),
-            tool_calls: self.tool_calls.clone(),
-            tool_call_id: None,
+        if self.arch_fc_response.is_none() {
+            info!("arch_fc_response is none, generating tool call message");
+            Message {
+                role: ASSISTANT_ROLE.to_string(),
+                content: None,
+                model: Some(ARCH_FC_MODEL_NAME.to_string()),
+                tool_calls: self.tool_calls.clone(),
+                tool_call_id: None,
+            }
+        } else {
+            Message {
+                role: ASSISTANT_ROLE.to_string(),
+                content: self.arch_fc_response.as_ref().cloned(),
+                model: Some(ARCH_FC_MODEL_NAME.to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            }
         }
     }
 
@@ -761,6 +776,26 @@ impl StreamContext {
     }
 }
 
+fn check_intent_matched(model_server_response: &ChatCompletionsResponse) -> bool {
+    let content = model_server_response
+        .choices
+        .get(0)
+        .and_then(|choice| choice.message.content.as_ref());
+
+    let content_has_value = content.is_some() && !content.unwrap().is_empty();
+
+    let tool_calls = model_server_response
+        .choices
+        .get(0)
+        .and_then(|choice| choice.message.tool_calls.as_ref());
+
+    // intent was matched if content has some value or tool_calls is empty
+    let intent_matched =
+        content_has_value || (tool_calls.is_some() && !tool_calls.unwrap().is_empty());
+
+    return intent_matched;
+}
+
 impl Client for StreamContext {
     type CallContext = StreamCallContext;
 
@@ -770,5 +805,79 @@ impl Client for StreamContext {
 
     fn active_http_calls(&self) -> &Gauge {
         &self.metrics.active_http_calls
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::api::open_ai::{ChatCompletionsResponse, Choice, Message, ToolCall};
+
+    use crate::stream_context::check_intent_matched;
+
+    #[test]
+    fn test_intent_matched() {
+        let model_server_response = ChatCompletionsResponse {
+            choices: vec![Choice {
+                message: Message {
+                    content: Some("".to_string()),
+                    tool_calls: Some(vec![]),
+                    role: "assistant".to_string(),
+                    model: None,
+                    tool_call_id: None,
+                },
+                finish_reason: None,
+                index: None,
+            }],
+            usage: None,
+            model: "arch-fc".to_string(),
+            metadata: None,
+        };
+
+        assert_eq!(check_intent_matched(&model_server_response), false);
+
+        let model_server_response = ChatCompletionsResponse {
+            choices: vec![Choice {
+                message: Message {
+                    content: Some("hello".to_string()),
+                    tool_calls: Some(vec![]),
+                    role: "assistant".to_string(),
+                    model: None,
+                    tool_call_id: None,
+                },
+                finish_reason: None,
+                index: None,
+            }],
+            usage: None,
+            model: "arch-fc".to_string(),
+            metadata: None,
+        };
+
+        assert_eq!(check_intent_matched(&model_server_response), true);
+
+        let model_server_response = ChatCompletionsResponse {
+            choices: vec![Choice {
+                message: Message {
+                    content: Some("".to_string()),
+                    tool_calls: Some(vec![ToolCall {
+                        id: "1".to_string(),
+                        function: common::api::open_ai::FunctionCallDetail {
+                            name: "test".to_string(),
+                            arguments: None,
+                        },
+                        tool_type: common::api::open_ai::ToolType::Function,
+                    }]),
+                    role: "assistant".to_string(),
+                    model: None,
+                    tool_call_id: None,
+                },
+                finish_reason: None,
+                index: None,
+            }],
+            usage: None,
+            model: "arch-fc".to_string(),
+            metadata: None,
+        };
+
+        assert_eq!(check_intent_matched(&model_server_response), true);
     }
 }

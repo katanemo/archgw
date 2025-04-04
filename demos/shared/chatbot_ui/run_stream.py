@@ -88,6 +88,18 @@ def chat(
 
             yield "", conversation, history, debug_output, model_selector
 
+    # update assistant response to have correct format
+    # arch-fc 1.1 expects following format:
+    # {
+    #     "response": "<assistant response>",
+    # }
+
+    if not history[-1]["model"].startswith("Arch"):
+        assistant_response = {
+            "response": history[-1]["content"],
+        }
+        history[-1]["content"] = json.dumps(assistant_response)
+
 
 def main():
     with gr.Blocks(

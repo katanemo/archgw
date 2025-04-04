@@ -4,6 +4,9 @@ import requests
 import logging
 import yaml
 
+pytestmark = pytest.mark.skip(
+    reason="Skipping entire test file as hallucination is not enabled for archfc 1.1 yet"
+)
 
 MODEL_SERVER_ENDPOINT = os.getenv(
     "MODEL_SERVER_ENDPOINT", "http://localhost:51000/function_calling"

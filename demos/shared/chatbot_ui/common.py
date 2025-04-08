@@ -120,8 +120,11 @@ def process_stream_chunk(chunk, history):
 
     if delta.content:
         # append content to the last history item
-        history[-1]["content"] = history[-1].get("content", "") + delta.content
+        if history[-1]["model"] != "Arch-Function-Chat":
+            history[-1]["content"] = history[-1].get("content", "") + delta.content
         # yield content if it is from assistant
+        if history[-1]["model"] == "Arch-Function":
+            return None
         if history[-1]["role"] == "assistant":
             return delta.content
 

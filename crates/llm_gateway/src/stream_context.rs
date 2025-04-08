@@ -411,7 +411,7 @@ impl HttpContext for StreamContext {
         );
 
         if self.request_body_sent_time.is_none() {
-            debug!("on_http_response_body: request body not sent, no doing any processing in llm filter");
+            debug!("on_http_response_body: request body not sent, not doing any processing in llm filter");
             return Action::Continue;
         }
 

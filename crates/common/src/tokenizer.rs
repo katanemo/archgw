@@ -1,4 +1,4 @@
-use log::{debug};
+use log::debug;
 
 #[allow(dead_code)]
 pub fn token_count(model_name: &str, text: &str) -> Result<usize, String> {

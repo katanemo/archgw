@@ -1,4 +1,5 @@
 import json
+import src.commons.utils as utils
 
 from openai import OpenAI
 from pydantic import BaseModel
@@ -56,7 +57,6 @@ class ArchBaseHandler:
         client: OpenAI,
         model_name: str,
         task_prompt: str,
-        tool_prompt_template: str,
         format_prompt: str,
         generation_params: Dict,
     ):
@@ -67,7 +67,6 @@ class ArchBaseHandler:
             client (OpenAI): An OpenAI client instance.
             model_name (str): Name of the model to use.
             task_prompt (str): The main task prompt for the system.
-            tool_prompt (str): A prompt to describe tools.
             format_prompt (str): A prompt specifying the desired output format.
             generation_params (Dict): Generation parameters for the model.
         """
@@ -75,7 +74,6 @@ class ArchBaseHandler:
         self.model_name = model_name
 
         self.task_prompt = task_prompt
-        self.tool_prompt_template = tool_prompt_template
         self.format_prompt = format_prompt
 
         self.generation_params = generation_params
@@ -105,13 +103,11 @@ class ArchBaseHandler:
             str: A formatted system prompt.
         """
 
-        tool_text = self._convert_tools(tools)
+        today_date = utils.get_today_date()
+        tools = self._convert_tools(tools)
 
         system_prompt = (
-            self.task_prompt
-            + "\n\n"
-            + self.tool_prompt_template.format(tool_text=tool_text)
-            + "\n\n"
+            self.task_prompt.format(today_date=today_date, tools=tools)
             + self.format_prompt
         )
 
@@ -146,7 +142,7 @@ class ArchBaseHandler:
                 {"role": "system", "content": self._format_system_prompt(tools)}
             )
 
-        for message in messages:
+        for idx, message in enumerate(messages):
             role, content, tool_calls = (
                 message.role,
                 message.content,
@@ -162,9 +158,24 @@ class ArchBaseHandler:
                 if metadata.get("optimize_context_window", "false").lower() == "true":
                     content = f"<tool_response>\n\n</tool_response>"
                 else:
-                    content = (
-                        f"<tool_response>\n{json.dumps(content)}\n</tool_response>"
+                    # sample response below
+                    # "content": "<tool_response>\n{'name': 'get_stock_price', 'result': '$196.66'}\n</tool_response>"
+                    # msg[idx-1] contains tool call = '{"tool_calls": [{"name": "currency_exchange", "arguments": {"currency_symbol": "NZD"}}]}'
+                    tool_call_msg = messages[idx - 1].content
+                    if tool_call_msg.startswith("```") and tool_call_msg.endswith(
+                        "```"
+                    ):
+                        tool_call_msg = tool_call_msg.strip("```").strip()
+                        if tool_call_msg.startswith("json"):
+                            tool_call_msg = tool_call_msg[4:].strip()
+                    func_name = json.loads(tool_call_msg)["tool_calls"][0].get(
+                        "name", "no_name"
                     )
+                    tool_response = {
+                        "name": func_name,
+                        "result": content,
+                    }
+                    content = f"<tool_response>\n{json.dumps(tool_response)}\n</tool_response>"
 
             processed_messages.append({"role": role, "content": content})
 

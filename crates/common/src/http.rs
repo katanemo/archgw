@@ -50,8 +50,7 @@ pub trait Client: Context {
     ) -> Result<u32, ClientError> {
         debug!(
             "dispatching http call with args={:?} context={:?}",
-            call_args,
-            call_context
+            call_args, call_context
         );
 
         match self.dispatch_http_call(

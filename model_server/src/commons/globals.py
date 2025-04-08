@@ -5,8 +5,6 @@ from src.core.guardrails import get_guardrail_handler
 from src.core.function_calling import (
     ArchAgentConfig,
     ArchAgentHandler,
-    ArchIntentConfig,
-    ArchIntentHandler,
     ArchFunctionConfig,
     ArchFunctionHandler,
 )
@@ -17,7 +15,8 @@ logger = get_model_server_logger()
 
 
 # Define the client
-ARCH_ENDPOINT = os.getenv("ARCH_ENDPOINT", "https://archfc.katanemo.dev/v1")
+# ARCH_ENDPOINT = os.getenv("ARCH_ENDPOINT", "https://archfc.katanemo.dev/v1")
+ARCH_ENDPOINT = os.getenv("ARCH_ENDPOINT", "http://34.72.123.163:8000/v1")
 ARCH_API_KEY = "EMPTY"
 ARCH_CLIENT = OpenAI(base_url=ARCH_ENDPOINT, api_key=ARCH_API_KEY)
 ARCH_AGENT_CLIENT = ARCH_CLIENT
@@ -30,9 +29,6 @@ ARCH_GUARD_MODEL_ALIAS = "katanemo/Arch-Guard"
 
 # Define model handlers
 handler_map = {
-    "Arch-Intent": ArchIntentHandler(
-        ARCH_CLIENT, ARCH_INTENT_MODEL_ALIAS, ArchIntentConfig
-    ),
     "Arch-Function": ArchFunctionHandler(
         ARCH_CLIENT, ARCH_FUNCTION_MODEL_ALIAS, ArchFunctionConfig
     ),

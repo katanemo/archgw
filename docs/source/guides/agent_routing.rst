@@ -81,7 +81,7 @@ the workflow, configuration, and implementation of Agent routing and hand off in
         return agent.handle(req)
 
 .. note::
-    The above example demonstrates a simple implementation of Agent Routing and Hand Off using FastAPI. For the full implemenation of this example
+    The above example demonstrates a simple implementation of Agent Routing and Hand Off using FastAPI. For the full implementation of this example
     please see our `GitHub demo <https://github.com/katanemo/archgw/tree/main/demos/use_cases/orchestrating_agents>`_.
 
 Example Use Cases
@@ -96,10 +96,10 @@ Best Practices and Tips
 ------------------------
 When implementing Agent Routing and Hand Off in your applications, consider these best practices:
 
-- Clearly Define Agent Responsibilities: Ensure each agent or human endpoint has a clear, specific description of the prompts they handle, reducing misrouting.
-- Monitor and Optimize Routes: Regularly review how prompts are routed to adjust and optimize agent definitions and configurations.
+- Clearly define agent responsibilities: Ensure each agent or human endpoint has a clear, specific description of the prompts they handle, reducing mis-routing.
+- Monitor and optimize routes: Regularly review how prompts are routed to adjust and optimize agent definitions and configurations.
 
 .. note::
-    To observe traffic to and from agents, please read more about :ref:`observabiliuty <observability>` in Arch.
+    To observe traffic to and from agents, please read more about :ref:`observability <observability>` in Arch.
 
 By carefully configuring and managing your Agent routing and hand off, you can significantly improve your application's responsiveness, performance, and overall user satisfaction.

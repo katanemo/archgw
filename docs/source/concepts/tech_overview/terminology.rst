@@ -7,12 +7,12 @@ A few definitions before we dive into the main architecture documentation. Also 
 to keep things consistent in logs and traces, and introduces and clarifies concepts are is relates to LLM applications.
 
 **Agent**: An application that uses LLMs to handle wide-ranging tasks from users via prompts. This could be as simple
-as retrieving or summarizing data from an API, or being able to trigger compleix actions like adjusting ad campaigns, or
+as retrieving or summarizing data from an API, or being able to trigger complex actions like adjusting ad campaigns, or
 changing travel plans via prompts.
 
 **Arch Config**: Arch operates based on a configuration that controls the behavior of a single instance of the Arch gateway.
 This where you enable capabilities like LLM routing, fast function calling (via prompt_targets), applying guardrails, and enabling critical
-features like metrics and tracing. For the full configuration reference of `arch_config.yaml` see :ref:`here <configuration_refernce>`.
+features like metrics and tracing. For the full configuration reference of `arch_config.yaml` see :ref:`here <configuration_reference>`.
 
 **Downstream(Ingress)**: An downstream client (web application, etc.) connects to Arch, sends prompts, and receives responses.
 
@@ -37,11 +37,11 @@ code to LLMs.
 undifferentiated work in building generative AI apps. Prompt targets are endpoints that receive prompts that are processed by Arch.
 For example, Arch enriches incoming prompts with metadata like knowing when a request is a follow-up or clarifying prompt so that you
 can build faster, more accurate retrieval (RAG) apps. To support agentic apps, like scheduling travel plans or sharing comments on a
-document - via prompts, Arch uses its function calling abilities to extract critical information fromthe incoming prompt (or a set of
+document - via prompts, Arch uses its function calling abilities to extract critical information from the incoming prompt (or a set of
 prompts) needed by a downstream backend API or function call before calling it directly.
 
 **Model Serving**: Arch is a set of `two` self-contained processes that are designed to run alongside your application servers
-(or on a separate hostconnected via a network).The :ref:`model serving <model_serving>` process helps Arch make intelligent decisions
+(or on a separate host connected via a network).The :ref:`model serving <model_serving>` process helps Arch make intelligent decisions
 about the incoming prompts. The model server is designed to call the (fast) purpose-built LLMs in Arch.
 
 **Error Target**: :ref:`Error targets <error_target>` are those endpoints that receive forwarded errors from Arch when issues arise,

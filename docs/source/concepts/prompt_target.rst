@@ -9,7 +9,7 @@ This section covers the essentials of prompt targets—what they are, how to con
 
 What Are Prompt Targets?
 ------------------------
-Prompt targets are endpoints within Arch that handle specific types of user prompts. They act as the bridge between user inputs and your backend agemts or tools (APIs), enabling Arch to route, process, and manage prompts efficiently. Defining prompt targets helps you decouple your application's core logic from processing and handling complexities, leading to clearer code organization, better scalability, and easier maintenance.
+Prompt targets are endpoints within Arch that handle specific types of user prompts. They act as the bridge between user inputs and your backend agents or tools (APIs), enabling Arch to route, process, and manage prompts efficiently. Defining prompt targets helps you decouple your application's core logic from processing and handling complexities, leading to clearer code organization, better scalability, and easier maintenance.
 
 
 .. table::
@@ -71,7 +71,7 @@ Each parameter can be marked as required or optional. Here is a full list of par
     ``default``               Specifies a default value for the parameter if not provided by the user.
     ``format``                Specifies a format for the parameter value. For example: `2019-12-31` for a date value.
     ``enum``                  Lists of allowable values for the parameter with data type matching the ``type`` attribute. **Usage Example**: ``enum: ["celsius`", "fahrenheit"]``
-    ``items``                 Specifies the attribute of the elements when type euqals **list**, **set**, **dict**, **tuple**. **Usage Example**: ``items: {"type": "str"}``
+    ``items``                 Specifies the attribute of the elements when type equals **list**, **set**, **dict**, **tuple**. **Usage Example**: ``items: {"type": "str"}``
     ``required``              Indicates whether the parameter is mandatory or optional. Valid values: **true** or **false**
     ========================  ============================================================================
 

@@ -1,6 +1,6 @@
 # Function calling
 
-This demo shows how you can use Arch's core function calling capabilites.
+This demo shows how you can use Arch's core function calling capabilities.
 
 # Starting the demo
 

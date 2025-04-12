@@ -8,7 +8,7 @@ Arch relies on Envoy's HTTP `connection management <https://www.envoyproxy.io/do
 subsystem and its **prompt handler** subsystem engineered with purpose-built LLMs to
 implement critical functionality on behalf of developers so that you can stay focused on business logic.
 
-Arch's **prompt handler** subsystem interacts with the **model subsytem** through Envoy's cluster manager system to ensure robust, resilient and fault-tolerant experience in managing incoming prompts.
+Arch's **prompt handler** subsystem interacts with the **model subsystem** through Envoy's cluster manager system to ensure robust, resilient and fault-tolerant experience in managing incoming prompts.
 
 .. seealso::
    Read more about the :ref:`model subsystem <model_serving>` and how the LLMs are hosted in Arch.
@@ -28,7 +28,7 @@ Prompt Guard
 -----------------
 
 Arch is engineered with `Arch-Guard <https://huggingface.co/collections/katanemo/arch-guard-6702bdc08b889e4bce8f446d>`_, an industry leading safety layer, powered by a
-compact and high-performimg LLM that monitors incoming prompts to detect and reject jailbreak attempts -
+compact and high-performing LLM that monitors incoming prompts to detect and reject jailbreak attempts -
 ensuring that unauthorized or harmful behaviors are intercepted early in the process.
 
 To add jailbreak guardrails, see example below:
@@ -50,7 +50,7 @@ Prompt Targets
 --------------
 
 Once a prompt passes any configured guardrail checks, Arch processes the contents of the incoming conversation
-and identifies where to forwad the conversation to via its ``prompt target`` primitve. Prompt targets are endpoints
+and identifies where to forward the conversation to via its ``prompt target`` primitive. Prompt targets are endpoints
 that receive prompts that are processed by Arch. For example, Arch enriches incoming prompts with metadata like knowing
 when a user's intent has changed so that you can build faster, more accurate RAG apps.
 
@@ -72,7 +72,7 @@ Intent Matching
 
 Arch uses fast text embedding and intent recognition approaches to first detect the intent of each incoming prompt.
 This intent matching phase analyzes the prompt's content and matches it against predefined prompt targets, ensuring that each prompt is forwarded to the most appropriate endpoint.
-Arch’s intent matching framework considers both the name and description of each prompt target, and uses a composite matching score between embedding similarity and intent classification scores to enchance accuracy in forwarding decisions.
+Arch’s intent matching framework considers both the name and description of each prompt target, and uses a composite matching score between embedding similarity and intent classification scores to enhance accuracy in forwarding decisions.
 
 - **Intent Recognition**: NLI techniques further refine the matching process by evaluating the semantic alignment between the prompt and potential targets.
 

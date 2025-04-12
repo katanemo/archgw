@@ -48,8 +48,8 @@ llm_providers:
 
 # provides a way to override default settings for the arch system
 overrides:
-  # By default Arch uses an NLI + embedding approach to match an incomming prompt to a prompt target.
-  # The intent matching threshold is kept at 0.80, you can overide this behavior if you would like
+  # By default Arch uses an NLI + embedding approach to match an incoming prompt to a prompt target.
+  # The intent matching threshold is kept at 0.80, you can override this behavior if you would like
   prompt_target_intent_matching_threshold: 0.60
 
 # default system prompt used by all prompt targets

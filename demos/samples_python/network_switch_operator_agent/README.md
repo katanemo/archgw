@@ -28,7 +28,7 @@ The assistant can perform several key operations, including rebooting devices, a
 4. Tell me what can you do for me?"
 
 # Observability
-Arch gateway publishes stats endpoint at http://localhost:19901/stats. In this demo we are using prometheus to pull stats from arch and we are using grafana to visalize the stats in dashboard. To see grafana dashboard follow instructions below,
+Arch gateway publishes stats endpoint at http://localhost:19901/stats. In this demo we are using prometheus to pull stats from arch and we are using grafana to visualize the stats in dashboard. To see grafana dashboard follow instructions below,
 
 1. Start grafana and prometheus using following command
    ```yaml

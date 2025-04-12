@@ -32,14 +32,14 @@ Past the thrill of an AI demo, have you found yourself hitting these walls? You 
 - You're bogged down with prompt engineering just to **clarify user intent and validate inputs** effectively?
 - You're wasting cycles choosing and integrating code for **observability** instead of it happening transparently?
 
-And you think to youself, can't I move faster by focusing on higher-level objectives in a language/framework agnostic way? Well, you can! **Arch Gateway** was built by the contributors of [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:
+And you think to yourself, can't I move faster by focusing on higher-level objectives in a language/framework agnostic way? Well, you can! **Arch Gateway** was built by the contributors of [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:
 
 >Prompts are nuanced and opaque user requests, which require the same capabilities as traditional HTTP requests including secure handling, intelligent routing, robust observability, and integration with backend (API) systems to improve speed and accuracy for common agentic scenarios  – all outside core application logic.*
 
 **Core Features**:
 
   - `🚦 Routing`. Engineered with purpose-built [LLMs](https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68) for fast (<100ms) agent routing and hand-off scenarios
-  - `⚡ Tools Use`: For common agentic scenarios let Arch instantly clarfiy and convert prompts to tools/API calls
+  - `⚡ Tools Use`: For common agentic scenarios let Arch instantly clarify and convert prompts to tools/API calls
   - `⛨ Guardrails`: Centrally configure and prevent harmful outcomes and ensure safe user interactions
   - `🔗 Access to LLMs`: Centralize access and traffic to LLMs with smart retries for continuous availability
   - `🕵 Observability`: W3C compatible request tracing and LLM metrics that instantly plugin with popular tools
@@ -151,7 +151,7 @@ $ archgw up arch_config.yaml
 2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.1.5
 ...
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
-2024-12-05 16:56:28,485 - cli.main - INFO - Starging arch model server and arch gateway
+2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
 ...
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!
 

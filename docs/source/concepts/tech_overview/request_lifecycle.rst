@@ -5,7 +5,7 @@ Request Lifecycle
 
 Below we describe the events in the lifecycle of a request passing through an Arch gateway instance. We first
 describe how Arch fits into the request path and then the internal events that take place following
-the arrival of a request at Arch from downtream clients. We follow the request until the corresponding
+the arrival of a request at Arch from downstream clients. We follow the request until the corresponding
 dispatch upstream and the response path.
 
 .. image:: /_static/img/network-topology-ingress-egress.jpg
@@ -59,7 +59,7 @@ The request processing path in Arch has three main parts:
   lifecycle. The downstream and upstream HTTP/2 codec lives here.
 * :ref:`Prompt handler subsystem <arch_overview_prompt_handling>` which is responsible for selecting and
   forwarding prompts ``prompt_targets`` and establishes the lifecycle of any **upstream** connection to a
-  hosted endpoint that implements domain-specific business logic for incoming promots. This is where knowledge
+  hosted endpoint that implements domain-specific business logic for incoming prompts. This is where knowledge
   of targets and endpoint health, load balancing and connection pooling exists.
 * :ref:`Model serving subsystem <model_serving>` which helps Arch make intelligent decisions about the
   incoming prompts. The model server is designed to call the purpose-built LLMs in Arch.
@@ -67,7 +67,7 @@ The request processing path in Arch has three main parts:
 The three subsystems are bridged with either the HTTP router filter, and the cluster manager subsystems of Envoy.
 
 Also, Arch utilizes `Envoy event-based thread model <https://blog.envoyproxy.io/envoy-threading-model-a8d44b922310>`_.
-A main thread is responsible forthe server lifecycle, configuration processing, stats, etc. and some number of
+A main thread is responsible for the server lifecycle, configuration processing, stats, etc. and some number of
 :ref:`worker threads <arch_overview_threading>` process requests. All threads operate around an event loop (`libevent <https://libevent.org/>`_)
 and any given downstream TCP connection will be handled by exactly one worker thread for its lifetime. Each worker
 thread maintains its own pool of TCP connections to upstream endpoints.
@@ -99,7 +99,7 @@ A brief outline of the lifecycle of a request and response using the example con
    that harmful or unwanted behaviors are detected early in the request processing pipeline.
 
 3. **Intent Matching**:
-   The decrypted data stream is deframed by the HTTP/2 codec in Arch's HTTP connection manager. Arch performs
+   The decrypted data stream is de-framed by the HTTP/2 codec in Arch's HTTP connection manager. Arch performs
    intent matching via is **prompt-handler** subsystem using the name and description of the defined prompt targets,
    determining which endpoint should handle the prompt.
 
@@ -162,7 +162,7 @@ Post-request processing
 Once a request completes, the stream is destroyed. The following also takes places:
 
 * The post-request :ref:`monitoring <monitoring>` are updated (e.g. timing, active requests, upgrades, health checks).
-  Some statistics are updated earlier however, during request processing. Stats are batchedand written by the main
+  Some statistics are updated earlier however, during request processing. Stats are batched and written by the main
   thread periodically.
 * :ref:`Access logs <arch_access_logging>` are written to the access log
 * :ref:`Trace <arch_overview_tracing>` spans are finalized. If our example request was traced, a

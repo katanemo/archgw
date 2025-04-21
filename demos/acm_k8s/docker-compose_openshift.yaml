@@ -1,0 +1,31 @@
+services:
+  chatbot_ui:
+    build:
+      context: ../shared/chatbot_ui
+    ports:
+      - "18080:8080"
+    environment:
+      # this is only because we are running the sample app in the same docker container environment as archgw
+      - CHAT_COMPLETION_ENDPOINT=http://host.docker.internal:10000/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./arch_config_openshift.yaml:/app/arch_config.yaml
+
+  acm_service_put_policy:
+    build:
+      context: acm_service_put_policy
+    ports:
+      - "8002:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - ACM_SERVER=http://host.docker.internal:8001
+
+  jaeger:
+    build:
+      context: ../shared/jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"

@@ -1,0 +1,247 @@
+### list managed clusters
+
+GET http://127.0.0.1:8001/apis/cluster.open-cluster-management.io/v1/managedclusters HTTP/1.1
+
+### list policies
+
+GET http://127.0.0.1:8001/apis/policy.open-cluster-management.io/v1/namespaces/namespace/policies HTTP/1.1
+
+
+### using path from acm docs https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.12/html/apis/apis#rhacm-docs_apis_policy_jsonquerypolicies
+
+GET http://127.0.0.1:8001/apis/policy.open-cluster-management.io/v1/namespaces/default/policies/ HTTP/1.1
+Content-Type: application/yaml
+Accept: application/yaml
+
+### create policy
+
+POST http://127.0.0.1:8001/apis/policy.open-cluster-management.io/v1/namespaces/default/policies HTTP/1.1
+Content-Type: application/yaml
+
+# Policy Definition
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: default-namespace-policy
+  namespace: local-cluster
+  labels:
+    category: "Configuration Management"
+spec:
+  remediationAction: enforce # Change to 'inform' if needed
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: enforce-default-namespace
+        spec:
+          remediationAction: enforce
+          severity: low
+          namespaceSelector:
+            include: ["default"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: default
+                  labels:
+                    environment: production
+
+---
+# PlacementRule Definition
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: placement-local-cluster
+  namespace: local-cluster
+spec:
+  clusterSelector:
+    matchLabels:
+      name: local-cluster
+
+---
+# PolicyBinding Definition
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-default-namespace-policy
+  namespace: local-cluster
+placementRef:
+  kind: PlacementRule
+  name: placement-local-cluster
+policyRefs:
+  - name: default-namespace-policy
+
+### test policy from chat ui
+
+POST http://127.0.0.1:8001/apis/policy.open-cluster-management.io/v1/namespaces/default/policies HTTP/1.1
+Content-Type: application/yaml
+
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: test-policy
+  namespace: default
+  labels:
+    category: "Configuration-Management"  # Fixed label issue
+spec:
+  remediationAction: enforce  # Change to 'inform' if needed
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: enforce-default-namespace
+        spec:
+          remediationAction: enforce
+          severity: low
+          namespaceSelector:
+            include: ["default"]
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: archtest
+                  labels:
+                    environment: production
+
+---
+# PlacementRule Definition
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: placement-local-cluster
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      name: local-cluster
+
+---
+# PolicyBinding Definition
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-default-namespace-policy
+  namespace: default
+placementRef:
+  apiGroup: apps.open-cluster-management.io  # Fixed missing apiGroup
+  kind: PlacementRule
+  name: placement-local-cluster
+subjects:
+  - name: test-policy
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io
+
+
+### create policy
+
+POST http://127.0.0.1:8001/apis/policy.open-cluster-management.io/v1/namespaces/default/policies HTTP/1.1
+Content-Type: application/json
+
+{
+  "apiVersion": "policy.open-cluster-management.io/v1",
+  "kind": "Policy",
+  "metadata": {
+    "name": "test-policy-swagger",
+    "description": "Example body for Policy API Swagger docs"
+  },
+  "spec": {
+    "remediationAction": "enforce",
+    "customMessage": {
+      "compliant": [],
+      "noncompliant": []
+    },
+    "namespaces": {
+      "include": [
+        "default"
+      ],
+      "exclude": [
+        "kube*"
+      ]
+    },
+    "policy-templates": [
+      {
+        "objectDefinition": {
+          "apiVersion": "rbac.authorization.k8s.io/v1",
+          "kind": "Role",
+          "metadata": {
+            "name": "role-policy"
+          },
+          "rules": [
+            {
+              "apiGroups": [
+                "extensions",
+                "apps"
+              ],
+              "resources": [
+                "deployments"
+              ],
+              "verbs": [
+                "get",
+                "list",
+                "watch",
+                "delete"
+              ]
+            },
+            {
+              "apiGroups": [
+                "core"
+              ],
+              "resources": [
+                "pods"
+              ],
+              "verbs": [
+                "create",
+                "update",
+                "patch"
+              ]
+            },
+            {
+              "apiGroups": [
+                "core"
+              ],
+              "resources": [
+                "secrets"
+              ],
+              "verbs": [
+                "get",
+                "watch",
+                "list",
+                "create",
+                "delete",
+                "update",
+                "patch"
+              ]
+            }
+          ]
+        },
+        "kind": "ConfigurationPolicy",
+        "apiVersion": "policy.open-cluster-management.io/v1",
+        "complianceType": "musthave",
+        "metadataComplianceType": "musthave",
+        "metadata": {
+          "namespace": null,
+          "name": "test-role"
+        },
+        "selector": {
+          "matchLabels": {
+            "cloud": "IBM"
+          }
+        },
+        "spec": {
+          "object-templates": {
+            "complianceType": "musthave",
+            "metadataComplianceType": "musthave"
+          }
+        }
+      }
+    ]
+  }
+}

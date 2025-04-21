@@ -1,0 +1,127 @@
+version: "0.1-beta"
+
+listeners:
+  ingress_traffic:
+    address: 0.0.0.0
+    port: 10000
+    message_format: openai
+    timeout: 30s
+
+overrides:
+  # confidence threshold for prompt target intent matching
+  prompt_target_intent_matching_threshold: 0.6
+  optimize_context_window: true
+
+endpoints:
+  acm_service:
+    endpoint: host.docker.internal:8001
+    connect_timeout: 0.25s
+    http_host: localhost
+  local_proxy_service:
+    endpoint: host.docker.internal:8002
+    connect_timeout: 0.25s
+    http_host: localhost
+
+llm_providers:
+  - name: gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    provider: openai
+    model: gpt-4o-mini
+    default: true
+
+system_prompt: |
+  You are a helpful assistant.
+
+prompt_guards:
+  input_guards:
+    jailbreak:
+      on_exception:
+        message: Looks like you're curious about my abilities, but I can only provide assistance for weather forecasting.
+
+prompt_targets:
+  - name: listAllClusterDetails
+    description: Query your clusters for more details.
+    endpoint:
+      http_method: GET
+      name: acm_service
+      path: /apis/cluster.open-cluster-management.io/v1/managedclusters
+    system_prompt: |
+      You are a helpful assistant. You are given response in json. Show name of the cluster and its status in human readable format also show some related details about the cluster but be concise.
+
+  - name: getClusterDetails
+    description: Query a single cluster for more details
+    endpoint:
+      http_method: GET
+      name: acm_service
+      path: /apis/cluster.open-cluster-management.io/v1/managedclusters/{cluster_name}
+    parameters:
+      - name: cluster_name
+        in_path: true
+        description: The name of the cluster to retrieve
+        required: true
+        type: str
+    system_prompt: |
+      You are a helpful assistant. You are given response in json. Show name of the cluster and its status in human readable format also show some related details about the cluster but be concise.
+
+  - name: listAllPolicies
+    description: Lists all policies in the default namespace
+    endpoint:
+      http_method: GET
+      name: acm_service
+      path: /apis/policy.open-cluster-management.io/v1/namespaces/default/policies/
+    system_prompt: |
+      You are a helpful assistant. You are given response in json. Show name of the policies and key details in readable format.
+
+  - name: querySinglePolicyDetails
+    description: Query details of a single policy
+    endpoint:
+      http_method: GET
+      name: acm_service
+      path: /apis/policy.open-cluster-management.io/v1/namespaces/default/policies/{policy_name}
+    parameters:
+      - name: policy_name
+        in_path: true
+        description: The name of the policy to retrieve
+        required: true
+        type: str
+    system_prompt: |
+      You are a helpful assistant. You are given response in json. Show name of the policies and key details in readable format.
+
+  - name: createPolicy
+    description: Creates a policy in the default namespace
+    endpoint:
+      http_method: POST
+      name: local_proxy_service
+      path: /create_policy
+    parameters:
+      - name: policy_name
+        description: The name of the policy to retrieve
+        required: true
+        type: str
+      - name: remediationAction
+        description: The remediation action for the policy
+        required: true
+        type: str
+      - name: namespace
+        description: The namespace for the policy
+        required: true
+        type: str
+    system_prompt: |
+      You are a helpful assistant. You are given response in json for create policy operation. Show the result of the operation that is readable.
+
+  - name: default_target
+    default: true
+    description: This is the default target for all unmatched prompts.
+    endpoint:
+      name: local_proxy_service
+      path: /default_target
+      http_method: POST
+    system_prompt: |
+      You are a helpful assistant! Summarize the user's request and provide a helpful response.
+    # if it is set to false arch will send response that it received from this prompt target to the user
+    # if true arch will forward the response to the default LLM
+    auto_llm_dispatch_on_response: false
+
+tracing:
+  random_sampling: 100
+  trace_arch_internal: true

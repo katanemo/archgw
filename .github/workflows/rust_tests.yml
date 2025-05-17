@@ -24,7 +24,8 @@ jobs:
         run: rustup target add wasm32-wasip1
 
       - name: Build wasm module
-        run: cargo build --release --target=wasm32-wasip1
+        run: |
+         cargo build --release --target=wasm32-wasip1 -p llm_gateway -p prompt_gateway
 
       - name: Run unit tests
         run: cargo test --lib

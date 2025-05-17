@@ -16,7 +16,7 @@ from cli.core import (
     start_arch_modelserver,
     stop_arch_modelserver,
     start_arch,
-    stop_arch,
+    stop_docker_container,
     download_models_from_hf,
 )
 from cli.consts import (
@@ -51,6 +51,18 @@ def get_version():
         return "version not found"
 
 
+def verify_service_name(service):
+    """Verify if the service name is valid."""
+    if service not in [
+        SERVICE_NAME_ARCHGW,
+        SERVICE_NAME_MODEL_SERVER,
+        SERVICE_ALL,
+    ]:
+        print(f"Error: Invalid service {service}. Exiting")
+        sys.exit(1)
+    return True
+
+
 @click.group(invoke_without_command=True)
 @click.option("--version", is_flag=True, help="Show the archgw cli version and exit.")
 @click.pass_context
@@ -75,9 +87,8 @@ def main(ctx, version):
 )
 def build(service):
     """Build Arch from source. Must be in root of cloned repo."""
-    if service not in [SERVICE_NAME_ARCHGW, SERVICE_NAME_MODEL_SERVER, SERVICE_ALL]:
-        print(f"Error: Invalid service {service}. Exiting")
-        sys.exit(1)
+    verify_service_name(service)
+
     # Check if /arch/Dockerfile exists
     if service == SERVICE_NAME_ARCHGW or service == SERVICE_ALL:
         if os.path.exists(ARCHGW_DOCKERFILE):
@@ -146,9 +157,7 @@ def build(service):
 )
 def up(file, path, service, foreground):
     """Starts Arch."""
-    if service not in [SERVICE_NAME_ARCHGW, SERVICE_NAME_MODEL_SERVER, SERVICE_ALL]:
-        log.info(f"Error: Invalid service {service}. Exiting")
-        sys.exit(1)
+    verify_service_name(service)
 
     if service == SERVICE_ALL and foreground:
         # foreground can only be specified when starting individual services
@@ -156,7 +165,7 @@ def up(file, path, service, foreground):
         sys.exit(1)
 
     if service == SERVICE_NAME_MODEL_SERVER:
-        log.info("Download archgw models from HuggingFace...")
+        log.info("Download models from HuggingFace...")
         download_models_from_hf()
         start_arch_modelserver(foreground)
         return
@@ -186,8 +195,6 @@ def up(file, path, service, foreground):
         log.info(f"Validation stderr: {validation_stderr}")
         sys.exit(1)
 
-    log.info("Starting arch model server and arch gateway")
-
     # Set the ARCH_CONFIG_FILE environment variable
     env_stage = {
         "OTEL_TRACING_HTTP_ENDPOINT": "http://host.docker.internal:4318/v1/traces",
@@ -210,7 +217,6 @@ def up(file, path, service, foreground):
         else:
             app_env_file = os.path.abspath(os.path.join(path, ".env"))
 
-        print(f"app_env_file: {app_env_file}")
         if not os.path.exists(
             app_env_file
         ):  # check to see if the environment variables in the current environment or not
@@ -248,17 +254,15 @@ def up(file, path, service, foreground):
 def down(service):
     """Stops Arch."""
 
-    if service not in [SERVICE_NAME_ARCHGW, SERVICE_NAME_MODEL_SERVER, SERVICE_ALL]:
-        log.info(f"Error: Invalid service {service}. Exiting")
-        sys.exit(1)
+    verify_service_name(service)
 
     if service == SERVICE_NAME_MODEL_SERVER:
         stop_arch_modelserver()
     elif service == SERVICE_NAME_ARCHGW:
-        stop_arch()
+        stop_docker_container()
     else:
         stop_arch_modelserver()
-        stop_arch()
+        stop_docker_container(SERVICE_NAME_ARCHGW)
 
 
 @click.command()

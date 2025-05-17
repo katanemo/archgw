@@ -90,6 +90,8 @@ properties:
             - https
         http_host:
           type: string
+        usage:
+          type: string
       additionalProperties: false
       required:
         - name
@@ -225,6 +227,12 @@ properties:
     enum:
       - llm
       - prompt
+  routing:
+    type: object
+    properties:
+      model:
+        type: string
+      additionalProperties: false
   prompt_guards:
     type: object
     properties:

@@ -24,7 +24,7 @@ jobs:
 
       - name: build arch docker image
         run: |
-          cd ../../ && docker build -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.2.8
+          cd ../../ && docker build -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.2.8 -t katanemo/archgw:latest
 
       - name: start archgw
         env:

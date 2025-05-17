@@ -171,6 +171,18 @@ pub struct Message {
     pub tool_call_id: Option<String>,
 }
 
+impl Default for Message {
+    fn default() -> Self {
+        Message {
+            role: ASSISTANT_ROLE.to_string(),
+            content: None,
+            model: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Choice {
     pub finish_reason: Option<String>,

@@ -11,7 +11,8 @@ pub const MODEL_SERVER_NAME: &str = "model_server";
 pub const ARCH_ROUTING_HEADER: &str = "x-arch-llm-provider";
 pub const MESSAGES_KEY: &str = "messages";
 pub const ARCH_PROVIDER_HINT_HEADER: &str = "x-arch-llm-provider-hint";
-pub const CHAT_COMPLETIONS_PATH: [&str; 2] = ["/v1/chat/completions", "/openai/v1/chat/completions"];
+pub const CHAT_COMPLETIONS_PATH: [&str; 2] =
+    ["/v1/chat/completions", "/openai/v1/chat/completions"];
 pub const HEALTHZ_PATH: &str = "/healthz";
 pub const X_ARCH_STATE_HEADER: &str = "x-arch-state";
 pub const X_ARCH_API_RESPONSE: &str = "x-arch-api-response-message";
@@ -27,3 +28,4 @@ pub const HALLUCINATION_TEMPLATE: &str =
     "It seems I'm missing some information. Could you provide the following details ";
 pub const OTEL_COLLECTOR_HTTP: &str = "opentelemetry_collector_http";
 pub const OTEL_POST_PATH: &str = "/v1/traces";
+pub const LLM_ROUTE_HEADER: &str = "x-arch-llm-route";

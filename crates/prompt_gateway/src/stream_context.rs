@@ -777,17 +777,18 @@ impl StreamContext {
 
 fn check_intent_matched(model_server_response: &ChatCompletionsResponse) -> bool {
     let content = model_server_response
-        .choices.first()
+        .choices
+        .first()
         .and_then(|choice| choice.message.content.as_ref());
 
     let content_has_value = content.is_some() && !content.unwrap().is_empty();
 
     let tool_calls = model_server_response
-        .choices.first()
+        .choices
+        .first()
         .and_then(|choice| choice.message.tool_calls.as_ref());
 
     // intent was matched if content has some value or tool_calls is empty
-
 
     content_has_value || (tool_calls.is_some() && !tool_calls.unwrap().is_empty())
 }

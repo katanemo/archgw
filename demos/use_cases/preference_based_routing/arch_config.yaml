@@ -1,0 +1,39 @@
+version: "0.1-beta"
+
+routing:
+  model: gpt-4o
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+
+  - name: archgw-v1-router-model
+    provider_interface: openai
+    model: cotran2/llama-1b-4-26
+    base_url: http://35.192.87.187:8000/v1
+
+  - name: gpt-4o-mini
+    provider_interface: openai
+    access_key: $OPENAI_API_KEY
+    model: gpt-4o-mini
+    default: true
+
+  - name: gpt-4o
+    provider_interface: openai
+    access_key: $OPENAI_API_KEY
+    model: gpt-4o
+    usage: Generating original content such as scripts, articles, or creative materials.
+
+  - name: o4-mini
+    provider_interface: openai
+    access_key: $OPENAI_API_KEY
+    model: o4-mini
+    usage: Requesting topic ideas specifically related to personal finance and budgeting.
+
+tracing:
+  random_sampling: 100

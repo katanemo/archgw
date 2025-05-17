@@ -3,7 +3,10 @@ import json
 import sys
 import requests
 
-from cli.consts import ARCHGW_DOCKER_IMAGE, ARCHGW_DOCKER_NAME
+from cli.consts import (
+    ARCHGW_DOCKER_IMAGE,
+    ARCHGW_DOCKER_NAME,
+)
 from cli.utils import getLogger
 
 log = getLogger(__name__)
@@ -54,7 +57,8 @@ def docker_start_archgw_detached(
     port_mappings_args = [item for port in port_mappings for item in ("-p", port)]
 
     volume_mappings = [
-        f"{logs_path_abs}:/var/log:rw",
+        # TODO: fix log path
+        # f"{logs_path_abs}:/var/log:rw",
         f"{arch_config_file}:/app/arch_config.yaml:ro",
         # "/Users/adilhafeez/src/intelligent-prompt-gateway/crates/target/wasm32-wasip1/release:/etc/envoy/proxy-wasm-plugins:ro",
     ]
@@ -90,7 +94,7 @@ def health_check_endpoint(endpoint: str) -> bool:
     return False
 
 
-def stream_gateway_logs(follow):
+def stream_gateway_logs(follow, service="archgw"):
     """
     Stream logs from the arch gateway service.
     """
@@ -99,7 +103,7 @@ def stream_gateway_logs(follow):
     options = ["docker", "logs"]
     if follow:
         options.append("-f")
-    options.append(ARCHGW_DOCKER_NAME)
+    options.append(service)
     try:
         # Run `docker-compose logs` to stream logs from the gateway service
         subprocess.run(

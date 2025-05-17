@@ -6,6 +6,7 @@ import sys
 import yaml
 from cli.utils import getLogger
 from cli.consts import (
+    ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
     KATANEMO_LOCAL_MODEL_LIST,
 )
@@ -55,7 +56,9 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
         path (str): The path where the prompt_config.yml file is located.
         log_timeout (int): Time in seconds to show logs before checking for healthy state.
     """
-    log.info("Starting arch gateway")
+    log.info(
+        f"Starting arch gateway, image name: {ARCHGW_DOCKER_NAME}, tag: {ARCHGW_DOCKER_IMAGE}"
+    )
 
     try:
         archgw_container_status = docker_container_status(ARCHGW_DOCKER_NAME)
@@ -92,10 +95,15 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
             current_time = time.time()
             elapsed_time = current_time - start_time
 
+            if archgw_status == "exited":
+                log.info("archgw container exited unexpectedly.")
+                stream_gateway_logs(follow=False)
+                sys.exit(1)
+
             # Check if timeout is reached
             if elapsed_time > log_timeout:
                 log.info(f"stopping log monitoring after {log_timeout} seconds.")
-                break
+                sys.exit(1)
 
             if prompt_gateway_health_check_status or llm_gateway_health_check_status:
                 log.info("archgw is running and is healthy!")
@@ -109,27 +117,27 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
 
     except KeyboardInterrupt:
         log.info("Keyboard interrupt received, stopping arch gateway service.")
-        stop_arch()
+        stop_docker_container()
 
 
-def stop_arch():
+def stop_docker_container(service=ARCHGW_DOCKER_NAME):
     """
     Shutdown all Docker Compose services by running `docker-compose down`.
 
     Args:
         path (str): The path where the docker-compose.yml file is located.
     """
-    log.info("Shutting down arch gateway service.")
+    log.info(f"Shutting down {service} service.")
 
     try:
         subprocess.run(
-            ["docker", "stop", ARCHGW_DOCKER_NAME],
+            ["docker", "stop", service],
         )
         subprocess.run(
-            ["docker", "rm", ARCHGW_DOCKER_NAME],
+            ["docker", "rm", service],
         )
 
-        log.info("Successfully shut down arch gateway service.")
+        log.info(f"Successfully shut down {service} service.")
 
     except subprocess.CalledProcessError as e:
         log.info(f"Failed to shut down services: {str(e)}")

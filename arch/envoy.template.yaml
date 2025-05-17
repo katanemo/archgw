@@ -29,6 +29,7 @@ stats_config:
       - 180000
 static_resources:
   listeners:
+
     - name: ingress_traffic
       address:
         socket_address:
@@ -329,10 +330,14 @@ static_resources:
                         - "*"
                       routes:
                         - match:
+                            prefix: "/healthz"
+                          direct_response:
+                            status: 200
+                        - match:
                             prefix: "/"
                           route:
                             auto_host_rewrite: true
-                            cluster: arch_listener_llm
+                            cluster: bright_staff
                             timeout: {{ llm_gateway_listener.timeout }}
                 http_filters:
                   - name: envoy.filters.http.router
@@ -380,12 +385,6 @@ static_resources:
                       domains:
                         - "*"
                       routes:
-                        - match:
-                            prefix: "/healthz"
-                          route:
-                            auto_host_rewrite: true
-                            cluster: openai
-                            timeout: 60s
                       {% for provider in arch_llm_providers %}
                         # if endpoint is set then use custom cluster for upstream llm
                         {% if provider.endpoint %}
@@ -614,6 +613,38 @@ static_resources:
                       address: 0.0.0.0
                       port_value: 11000
                   hostname: arch_internal
+
+    - name: bright_staff
+      connect_timeout: 0.5s
+      type: LOGICAL_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: bright_staff
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 0.0.0.0
+                      port_value: 9091
+                  hostname: localhost
+
+    - name: router_model_host
+      connect_timeout: 0.5s
+      type: LOGICAL_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: router_model_host
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 34.30.16.38
+                      port_value: 8000
+                  hostname: router_model_host
 
     - name: arch_prompt_gateway_listener
       connect_timeout: 0.5s

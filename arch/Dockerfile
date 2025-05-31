@@ -1,5 +1,5 @@
 # build docker image for arch gateway
-FROM rust:1.82.0 as builder
+FROM rust:1.82.0 AS builder
 RUN rustup -v target add wasm32-wasip1
 WORKDIR /arch
 COPY crates .
@@ -8,10 +8,10 @@ RUN cargo build --release --target wasm32-wasip1 -p prompt_gateway -p llm_gatewa
 RUN cargo build --release -p brightstaff
 
 # copy built filter into envoy image
-FROM docker.io/envoyproxy/envoy:v1.32-latest as envoy
+FROM docker.io/envoyproxy/envoy:v1.32-latest AS envoy
 
 #Build config generator, so that we have a single build image for both Rust and Python
-FROM python:3.12-slim as arch
+FROM python:3.12-slim AS arch
 
 RUN apt-get update && apt-get install -y supervisor gettext-base curl && apt-get clean && rm -rf /var/lib/apt/lists/*
 

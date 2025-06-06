@@ -1,6 +1,6 @@
 use bytes::Bytes;
-use common::api::open_ai::Models;
-use common::configuration::LlmProvider;
+use common::configuration::{IntoModels, LlmProvider};
+use hermesllm::providers::openai::types::Models;
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{Response, StatusCode};
 use serde_json;
@@ -11,7 +11,7 @@ pub async fn list_models(
 ) -> Response<BoxBody<Bytes, hyper::Error>> {
     let prov = llm_providers.clone();
     let providers = (*prov).clone();
-    let openai_models = Models::from(providers);
+    let openai_models: Models = providers.into_models();
 
     match serde_json::to_string(&openai_models) {
         Ok(json) => {

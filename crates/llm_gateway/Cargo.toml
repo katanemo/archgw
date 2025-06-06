@@ -22,6 +22,7 @@ rand = "0.8.5"
 thiserror = "1.0.64"
 derivative = "2.2.0"
 sha2 = "0.10.8"
+hermesllm = { version = "0.1.0", path = "../hermesllm" }
 
 [dev-dependencies]
 proxy-wasm-test-framework = { git = "https://github.com/katanemo/test-framework.git", branch = "new" }

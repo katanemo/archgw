@@ -1,6 +1,7 @@
 use proxy_wasm::types::Status;
 
 use crate::{api::open_ai::ChatCompletionChunkResponseError, ratelimit};
+use hermesllm::providers::openai::types::OpenAIError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
@@ -39,4 +40,6 @@ pub enum ServerError {
     BadRequest { why: String },
     #[error("error in streaming response")]
     Streaming(#[from] ChatCompletionChunkResponseError),
+    #[error("error parsing openai message: {0}")]
+    OpenAIPError(#[from] OpenAIError),
 }

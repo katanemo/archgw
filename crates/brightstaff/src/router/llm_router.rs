@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use common::{
-    api::open_ai::{ChatCompletionsResponse, ContentType, Message},
     configuration::{LlmProvider, LlmRoute},
     consts::ARCH_PROVIDER_HINT_HEADER,
 };
+use hermesllm::providers::openai::types::{ChatCompletionsResponse, ContentType, Message};
 use hyper::header;
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -135,6 +135,11 @@ impl RouterService {
                 ));
             }
         };
+
+        if chat_completion_response.choices.is_empty() {
+            warn!("No choices in router response: {}", body);
+            return Ok(None);
+        }
 
         if let Some(ContentType::Text(content)) =
             &chat_completion_response.choices[0].message.content

@@ -7,7 +7,8 @@ Content-Type: application/json
       "role": "user",
       "content": "convert 100 eur"
     }
-  ]
+  ],
+  "model": "none"
 }
 HTTP 200
 [Asserts]

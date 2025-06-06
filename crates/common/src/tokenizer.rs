@@ -14,7 +14,7 @@ pub fn token_count(model_name: &str, text: &str) -> Result<usize, String> {
             );
             "gpt-4"
         }
-        true => model_name
+        true => model_name,
     };
 
     // Consideration: is it more expensive to instantiate the BPE object every time, or to contend the singleton?

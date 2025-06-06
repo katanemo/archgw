@@ -7,7 +7,8 @@ Content-Type: application/json
       "role": "user",
       "content": "I am running under debt, how should I keep a tab on my expenses?"
     }
-  ]
+  ],
+  "model": "none"
 }
 HTTP 200
 [Asserts]

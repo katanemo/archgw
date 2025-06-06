@@ -1,4 +1,4 @@
-use common::api::open_ai::{ChatCompletionsRequest, Message};
+use hermesllm::providers::openai::types::{ChatCompletionsRequest, Message};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

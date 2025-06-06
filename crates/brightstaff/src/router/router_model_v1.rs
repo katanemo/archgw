@@ -1,8 +1,8 @@
 use common::{
-    api::open_ai::{ChatCompletionsRequest, ContentType, Message},
     configuration::LlmRoute,
     consts::{SYSTEM_ROLE, TOOL_ROLE, USER_ROLE},
 };
+use hermesllm::providers::openai::types::{ChatCompletionsRequest, ContentType, Message};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -121,11 +121,13 @@ impl RouterModel for RouterModelV1 {
             .iter()
             .rev()
             .map(|message| {
-                Message::new(
-                    message.role.clone(),
+                Message {
+                    role: message.role.clone(),
                     // we can unwrap here because we have already filtered out messages without content
-                    message.content.as_ref().unwrap().to_string(),
-                )
+                    content: Some(ContentType::Text(
+                        message.content.as_ref().unwrap().to_string(),
+                    )),
+                }
             })
             .collect::<Vec<Message>>();
 
@@ -141,14 +143,8 @@ impl RouterModel for RouterModelV1 {
             messages: vec![Message {
                 content: Some(ContentType::Text(messages_content)),
                 role: USER_ROLE.to_string(),
-                model: None,
-                tool_calls: None,
-                tool_call_id: None,
             }],
-            tools: None,
-            stream: false,
-            stream_options: None,
-            metadata: None,
+            ..Default::default()
         }
     }
 

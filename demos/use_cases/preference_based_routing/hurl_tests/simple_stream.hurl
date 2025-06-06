@@ -8,6 +8,7 @@ Content-Type: application/json
       "content": "I am running under debt, how should I keep a tab on my expenses?"
     }
   ],
+  "model": "none",
   "stream": true
 }
 HTTP 200

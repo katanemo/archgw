@@ -8,7 +8,8 @@ Content-Type: application/json
       "content": "convert 100 eur"
     }
   ],
-  "stream": true
+  "stream": true,
+  "model": "none"
 }
 HTTP 200
 [Asserts]

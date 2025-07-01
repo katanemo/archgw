@@ -28,14 +28,51 @@
   /**─────────────────────── 2️⃣ Handle proxied fetch from the page ───────────────────────**/
   window.addEventListener('message', ev => {
     console.log('[ModelSelector] page→content message', ev.data, ev.ports);
+
     if (ev.source !== window || ev.data?.type !== 'ARCHGW_FETCH') return;
-    const { url, init } = ev.data;
+
+    const { url, init, originalRequestUrl } = ev.data;
     const port = ev.ports[0];
 
     (async () => {
       try {
-        const res = await fetch(url, init);
-        const reader = res.body.getReader();
+        console.log('[ModelSelector] Fetching model recommendation from local proxy...');
+        //const res = await fetch(url, init);
+        //const json = await res.json();
+
+        //console.log('[ModelSelector] Proxy responded with:', json);
+
+        const targetModel = 'o4-mini-high';
+        if (!targetModel) {
+          console.warn('[ModelSelector] No model returned from proxy, using default fetch');
+          port.postMessage({ done: true });
+          return;
+        }
+
+        // ✅ Extract the original fetch request body from init.body
+        let originalBody = {};
+        try {
+          originalBody = JSON.parse(init.body);
+        } catch {
+          console.warn('[ModelSelector] Could not parse original fetch body');
+        }
+
+        // ✅ Patch the model in the request
+        originalBody.model = targetModel;
+
+        console.log(`[ModelSelector] Updating model in request → ${targetModel}`);
+
+        // ✅ Resume the request to the real backend
+        const upstreamRes = await fetch('/backend-api/conversation', {
+          method: init.method,
+          headers: init.headers,
+          credentials: init.credentials,
+          body: JSON.stringify(originalBody)
+        });
+
+        // ✅ Stream the upstream response back to the page
+        const reader = upstreamRes.body.getReader();
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
@@ -46,11 +83,12 @@
           }
         }
       } catch (err) {
-        console.error(`${TAG} proxy fetch error`, err);
+        console.error('[ModelSelector] proxy fetch error', err);
         port.postMessage({ done: true });
       }
     })();
   });
+
 
   /**─────────────────────── 3️⃣ DOM patch for model selector label ───────────────────────**/
   let desiredModel = null;

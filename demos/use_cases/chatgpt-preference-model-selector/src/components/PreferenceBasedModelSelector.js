@@ -95,7 +95,16 @@ export default function PreferenceBasedModelSelector() {
   useEffect(() => {
     chrome.storage.sync.get(['routingEnabled', 'preferences', 'defaultModel'], (result) => {
       if (result.routingEnabled !== undefined) setRoutingEnabled(result.routingEnabled);
-      if (result.preferences) setPreferences(result.preferences);
+
+      if (result.preferences) {
+        // add ids if they were missing
+        const withIds = result.preferences.map((p, i) => ({
+          id: p.id ?? i + 1,
+          ...p,
+        }));
+        setPreferences(withIds);
+      }
+
       if (result.defaultModel) setDefaultModel(result.defaultModel);
     });
   }, []);
@@ -103,10 +112,15 @@ export default function PreferenceBasedModelSelector() {
   const updatePreference = (id, key, value) => {
     setPreferences((prev) => prev.map((p) => (p.id === id ? { ...p, [key]: value } : p)));
   };
+
   const addPreference = () => {
-    const newId = preferences.length ? Math.max(...preferences.map((p) => p.id)) + 1 : 1;
-    setPreferences((prev) => [...prev, { id: newId, usage: '', model: defaultModel }]);
+    const newId = preferences.reduce((max, p) => Math.max(max, p.id ?? 0), 0) + 1;
+    setPreferences((prev) => [
+      ...prev,
+      { id: newId, usage: '', model: defaultModel }
+    ]);
   };
+
   const removePreference = (id) => {
     if (preferences.length > 1) {
       setPreferences((prev) => prev.filter((p) => p.id !== id));
@@ -128,6 +142,8 @@ export default function PreferenceBasedModelSelector() {
     });
     window.parent.postMessage({ action: 'CLOSE_PBMS_MODAL' }, '*');
   };
+
+
   const handleCancel = () => {
     window.parent.postMessage({ action: 'CLOSE_PBMS_MODAL' }, '*');
   };

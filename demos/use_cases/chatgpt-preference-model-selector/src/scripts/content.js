@@ -1,11 +1,26 @@
 (() => {
   const TAG = '[ModelSelector]';
 
-  /**─────────────────────── 🔧 Utility: Scrape Current Messages ───────────────────────**/
-  function getMessagesFromDom() {
+  async function streamToPort(response, port) {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      port.postMessage({ done: true });
+      return;
+    }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        port.postMessage({ done: true });
+        break;
+      }
+      port.postMessage({ chunk: value.buffer }, [value.buffer]);
+    }
+  }
+
+  function getMessagesFromDom(requestMessages = null) {
     const bubbles = [...document.querySelectorAll('[data-message-author-role]')];
 
-    return bubbles
+    const domMessages = bubbles
       .map(b => {
         const role = b.getAttribute('data-message-author-role');
         const content =
@@ -15,29 +30,44 @@
         return content ? { role, content } : null;
       })
       .filter(Boolean);
+
+    // Fallback: If DOM is empty but we have requestMessages, use those
+    if (domMessages.length === 0 && requestMessages?.length > 0) {
+      return requestMessages
+        .map(msg => {
+          const role = msg.author?.role;
+          const parts = msg.content?.parts ?? [];
+          const textPart = parts.find(p => typeof p === 'string');
+          return role && textPart ? { role, content: textPart.trim() } : null;
+        })
+        .filter(Boolean);
+    }
+
+    return domMessages;
   }
 
-  /**─────────────────────── 🔧 Utility: Prepare Request to Proxy ───────────────────────**/
+
+
   function prepareProxyRequest(messages, routes, maxTokenLength = 2048) {
     const SYSTEM_PROMPT_TEMPLATE = `
-    You are a helpful assistant designed to find the best suited route.
-    You are provided with route description within <routes></routes> XML tags:
-    <routes>
-    {routes}
-    </routes>
+You are a helpful assistant designed to find the best suited route.
+You are provided with route description within <routes></routes> XML tags:
+<routes>
+{routes}
+</routes>
 
-    <conversation>
-    {conversation}
-    </conversation>
+<conversation>
+{conversation}
+</conversation>
 
-    Your task is to decide which route is best suit with user intent on the conversation in <conversation></conversation> XML tags.  Follow the instruction:
-    1. If the latest intent from user is irrelevant or user intent is full filled, response with other route {"route": "other"}.
-    2. You must analyze the route descriptions and find the best match route for user latest intent.
-    3. You only response the name of the route that best matches the user's request, use the exact name in the <routes></routes>.
+Your task is to decide which route is best suit with user intent on the conversation in <conversation></conversation> XML tags.  Follow the instruction:
+1. If the latest intent from user is irrelevant or user intent is full filled, response with other route {"route": "other"}.
+2. You must analyze the route descriptions and find the best match route for user latest intent.
+3. You only response the name of the route that best matches the user's request, use the exact name in the <routes></routes>.
 
-    Based on your analysis, provide your response in the following JSON formats if you decide to match any route:
-    {"route": "route_name"}
-    `;
+Based on your analysis, provide your response in the following JSON formats if you decide to match any route:
+{"route": "route_name"}
+`;
     const TOKEN_DIVISOR = 4;
 
     const filteredMessages = messages.filter(
@@ -72,7 +102,6 @@
     return systemPrompt;
   }
 
-  /**─────────────────────── 🔧 Get routes from storage ───────────────────────**/
   function getRoutesFromStorage() {
     return new Promise(resolve => {
       chrome.storage.sync.get(['preferences'], ({ preferences }) => {
@@ -91,8 +120,6 @@
     });
   }
 
-
-  /**─────────────────────── 🔧 Get model ID by route name ───────────────────────**/
   function getModelIdForRoute(routeName) {
     return new Promise(resolve => {
       chrome.storage.sync.get(['preferences'], ({ preferences }) => {
@@ -103,7 +130,6 @@
     });
   }
 
-  /**─────────────────────── 1️⃣ Inject page-context fetch override ───────────────────────**/
   (function injectPageFetchOverride() {
     const injectorTag = '[ModelSelector][Injector]';
     const s = document.createElement('script');
@@ -115,7 +141,6 @@
     (document.head || document.documentElement).appendChild(s);
   })();
 
-  /**─────────────────────── 2️⃣ Intercept fetch and reroute via Ollama ───────────────────────**/
   window.addEventListener('message', ev => {
     if (ev.source !== window || ev.data?.type !== 'ARCHGW_FETCH') return;
 
@@ -133,11 +158,23 @@
           console.warn(`${TAG} Could not parse original fetch body`);
         }
 
-        const scrapedMessages = getMessagesFromDom();
-        const routes = await getRoutesFromStorage();
+        const { routingEnabled, preferences } = await new Promise(resolve => {
+          chrome.storage.sync.get(['routingEnabled', 'preferences'], resolve);
+        });
+
+        if (!routingEnabled) {
+          console.log(`${TAG} Routing disabled — forwarding original request`);
+          await streamToPort(await fetch(url, init), port);
+          return;
+        }
+
+        const scrapedMessages = getMessagesFromDom(originalBody.messages);
+        const routes = (preferences || []).map(p => ({
+          name: p.name,
+          description: p.usage
+        }));
         const prompt = prepareProxyRequest(scrapedMessages, routes);
 
-        // 🔁 Call Ollama router
         let selectedRoute = null;
         try {
           const res = await fetch('http://localhost:11434/api/generate', {
@@ -146,32 +183,32 @@
             body: JSON.stringify({
               model: 'hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M',
               prompt: prompt,
-              temperature: 0.1,
+              temperature: 0.01,
+              top_p: 0.95,
+              top_k: 20,
               stream: false
             })
           });
 
-        if (res.ok) {
+          if (res.ok) {
             const data = await res.json();
             console.log(`${TAG} Ollama router response:`, data.response);
             try {
-            let parsed = data.response;
-            if (typeof data.response === 'string') {
-              try {
-                parsed = JSON.parse(data.response);
-              } catch (jsonErr) {
-                // Try to recover from single quotes
-                const safe = data.response.replace(/'/g, '"');
-                parsed = JSON.parse(safe);
+              let parsed = data.response;
+              if (typeof data.response === 'string') {
+                try {
+                  parsed = JSON.parse(data.response);
+                } catch (jsonErr) {
+                  const safe = data.response.replace(/'/g, '"');
+                  parsed = JSON.parse(safe);
+                }
               }
+              selectedRoute = parsed.route || null;
+              if (!selectedRoute) console.warn(`${TAG} Route missing in parsed response`);
+            } catch (e) {
+              console.warn(`${TAG} Failed to parse or extract route from response`, e);
             }
-            selectedRoute = parsed.route || null;
-            if (!selectedRoute) console.warn(`${TAG} Route missing in parsed response`);
-          } catch (e) {
-            console.warn(`${TAG} Failed to parse or extract route from response`, e);
-          }
-          }
-          else {
+          } else {
             console.warn(`${TAG} Ollama router failed:`, res.status);
           }
         } catch (err) {
@@ -184,7 +221,6 @@
           console.log(`${TAG} Resolved model for route "${selectedRoute}" →`, targetModel);
         }
 
-        // 🧠 Replace model if we found one
         const modifiedBody = { ...originalBody };
         if (targetModel) {
           modifiedBody.model = targetModel;
@@ -193,22 +229,12 @@
           console.warn(`${TAG} No route/model override applied`);
         }
 
-        const upstreamRes = await fetch(url, {
+        await streamToPort(await fetch(url, {
           method: init.method,
           headers: init.headers,
           credentials: init.credentials,
           body: JSON.stringify(modifiedBody)
-        });
-
-        const reader = upstreamRes.body.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            port.postMessage({ done: true });
-            break;
-          }
-          port.postMessage({ chunk: value.buffer }, [value.buffer]);
-        }
+        }), port);
       } catch (err) {
         console.error(`${TAG} Proxy fetch error`, err);
         port.postMessage({ done: true });
@@ -216,7 +242,6 @@
     })();
   });
 
-  /**─────────────────────── 3️⃣ DOM patch for model selector label ───────────────────────**/
   let desiredModel = null;
   function patchDom() {
     if (!desiredModel) return;
@@ -252,7 +277,6 @@
     }
   });
 
-  /**─────────────────────── 4️⃣ Modal / dropdown interception ───────────────────────**/
   function showModal() {
     if (document.getElementById('pbms-overlay')) return;
     const overlay = document.createElement('div');
@@ -278,7 +302,9 @@
   }
 
   function interceptDropdown(ev) {
-    if (!ev.target.closest('button[aria-haspopup="menu"]')) return;
+    const btn = ev.target.closest('button[data-testid="model-switcher-dropdown-button"]');
+    if (!btn) return;
+
     ev.preventDefault();
     ev.stopPropagation();
     showModal();

@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 const MODEL_LIST = [
   'gpt-4o',
   'gpt-4.1',
-  'gpt-4.1 mini',
-  'gpt-4.5 preview',
+  'gpt-4.1-mini',
+  'gpt-4.5-preview',
   'o3',
   'o3-pro',
   'o4-mini',
@@ -129,27 +129,45 @@ export default function PreferenceBasedModelSelector() {
 
   // Save settings: generate name slug and store tuples
   const handleSave = () => {
-    // Only keep valid preferences with non-empty usage
-    const tuples = preferences
+    const slugCounts = {};
+    const tuples = [];
+
+    preferences
       .filter(p => p.usage?.trim())
-      .map((p) => {
-        const slug = p.usage.split(/\s+/).slice(0, 3).join('-').toLowerCase() || 'route';
-        return { name: slug, usage: p.usage, model: p.model };
+      .forEach(p => {
+        const baseSlug = p.usage
+          .split(/\s+/)
+          .slice(0, 3)
+          .join('-')
+          .toLowerCase()
+          .replace(/[^\w-]/g, '');
+
+        const count = slugCounts[baseSlug] || 0;
+        slugCounts[baseSlug] = count + 1;
+
+        const dedupedSlug = count === 0 ? baseSlug : `${baseSlug}-${count}`;
+
+        tuples.push({
+          name: dedupedSlug,
+          usage: p.usage.trim(),
+          model: p.model?.trim?.() || ''
+        });
       });
 
     chrome.storage.sync.set({ routingEnabled, preferences: tuples, defaultModel }, () => {
-      console.log('[PBMS] Saved tuples:', tuples);
+      if (chrome.runtime.lastError) {
+        console.error('[PBMS] Storage error:', chrome.runtime.lastError);
+      } else {
+        console.log('[PBMS] Saved tuples:', tuples);
+      }
     });
 
-    // Notify content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, { action: 'applyModelSelection', model: defaultModel });
     });
 
-    // Close the modal
     window.parent.postMessage({ action: 'CLOSE_PBMS_MODAL' }, '*');
   };
-
 
   const handleCancel = () => {
     window.parent.postMessage({ action: 'CLOSE_PBMS_MODAL' }, '*');
@@ -157,7 +175,6 @@ export default function PreferenceBasedModelSelector() {
 
   return (
     <div className="w-full max-w-[600px] bg-gray-50 p-4 mx-auto">
-      <h2 className="text-lg font-semibold text-center mb-4">Model Preferences</h2>
       <div className="space-y-4">
         <Card className="w-full">
           <CardContent>

@@ -129,17 +129,24 @@ export default function PreferenceBasedModelSelector() {
 
   // Save settings: generate name slug and store tuples
   const handleSave = () => {
-    const tuples = preferences.map((p) => {
-      const slug = p.usage.split(/\s+/).slice(0, 3).join('-').toLowerCase() || 'route';
-      return { name: slug, usage: p.usage, model: p.model };
-    });
+    // Only keep valid preferences with non-empty usage
+    const tuples = preferences
+      .filter(p => p.usage?.trim())
+      .map((p) => {
+        const slug = p.usage.split(/\s+/).slice(0, 3).join('-').toLowerCase() || 'route';
+        return { name: slug, usage: p.usage, model: p.model };
+      });
+
     chrome.storage.sync.set({ routingEnabled, preferences: tuples, defaultModel }, () => {
       console.log('[PBMS] Saved tuples:', tuples);
     });
+
     // Notify content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, { action: 'applyModelSelection', model: defaultModel });
     });
+
+    // Close the modal
     window.parent.postMessage({ action: 'CLOSE_PBMS_MODAL' }, '*');
   };
 

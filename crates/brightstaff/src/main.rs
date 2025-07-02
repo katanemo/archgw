@@ -101,6 +101,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             .with_context(parent_cx)
                             .await
                     }
+                    (&Method::OPTIONS, "/v1/chat/completions") => {
+                        let mut response = Response::new(empty());
+                        *response.status_mut() = StatusCode::NO_CONTENT;
+                        response
+                            .headers_mut()
+                            .insert("Allow", "GET, OPTIONS".parse().unwrap());
+                        response
+                            .headers_mut()
+                            .insert("Access-Control-Allow-Origin", "https://chatgpt.com".parse().unwrap());
+                        response
+                            .headers_mut()
+                            .insert("Access-Control-Allow-Credentials", "true".parse().unwrap());
+                        response.headers_mut().insert(
+                            "Access-Control-Allow-Headers",
+                            "authorization,content-type,oai-client-version,oai-device-id,oai-echo-logs,oai-language,openai-sentinel-chat-requirements-token,openai-sentinel-proof-token,openai-sentinel-turnstile-token,traceparent".parse().unwrap(),
+                        );
+                        response.headers_mut().insert(
+                            "Access-Control-Allow-Methods",
+                            "GET, POST, OPTIONS".parse().unwrap(),
+                        );
+                        response
+                            .headers_mut()
+                            .insert("Content-Type", "application/json".parse().unwrap());
+
+                        Ok(response)
+                    }
                     (&Method::GET, "/v1/models") => Ok(list_models(llm_providers).await),
                     (&Method::OPTIONS, "/v1/models") => {
                         let mut response = Response::new(empty());

@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "ChatGPT Preference-Based Model Selector",
+  "version": "1.2",
+  "description": "Define usage preferences for your ChatGPT models and proxy conversation requests through ArchGW.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "http://localhost:12000/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://localhost:12000"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["index.html"],
+      "matches": ["https://chatgpt.com/*"]
+    },
+    {
+      "resources": ["pageFetchOverride.js"],
+      "matches": ["https://chatgpt.com/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["static/js/content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

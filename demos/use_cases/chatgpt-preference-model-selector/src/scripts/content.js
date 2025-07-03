@@ -68,7 +68,7 @@
     }
 
     const label = document.createElement('span');
-    label.textContent = `RouteGPT preference >> ${match.usage}`;
+    label.textContent = `RouteGPT: preference = ${match.usage}`;
     label.className = 'arch-route-label';
     label.style.fontWeight = '100';
     label.style.fontSize = '0.85rem';

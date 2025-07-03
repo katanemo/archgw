@@ -56,25 +56,41 @@ const Button = ({ children, variant = 'default', size = 'default', className = '
     </button>
   );
 };
+
 const Switch = ({ checked, onCheckedChange, id }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onCheckedChange(!checked)}
-    id={id}
-    className={`relative inline-flex items-center h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-      checked ? 'bg-gray-900' : 'bg-gray-300'
-    }`}
-  >
-    <span
-      aria-hidden="true"
-      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-        checked ? 'translate-x-5' : 'translate-x-0'
-      }`}
-    />
-  </button>
+  <div className="flex items-center gap-2">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onCheckedChange(!checked)}
+      id={id}
+      className={`
+        relative inline-flex items-center justify-start
+        h-6 w-11 rounded-full
+        transition-colors duration-200 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+        border-2 border-transparent
+        overflow-hidden
+        ${checked ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}
+      `}
+    >
+      <span
+        aria-hidden="true"
+        className={`
+          pointer-events-none
+          inline-block h-5 w-5 transform rounded-full bg-white
+          shadow-md ring-0 transition-transform duration-200 ease-in-out
+          ${checked ? 'translate-x-[20px]' : 'translate-x-0'}
+        `}
+      />
+    </button>
+    <span className="inline-block w-8 text-sm text-gray-700 dark:text-gray-300 text-center select-none">
+      {checked ? 'On' : 'Off'}
+    </span>
+  </div>
 );
+
 const Label = (props) => (
   <label {...props} className={`text-sm font-medium leading-none text-gray-700 ${props.className || ''}`} />
 );
@@ -182,11 +198,11 @@ export default function PreferenceBasedModelSelector() {
               <div className="pt-4 mt-4 space-y-3 border-t border-gray-200">
                 {preferences.map((pref) => (
                   <div key={pref.id} className="grid grid-cols-[3fr_1.5fr_auto] gap-4 items-center">
-                    <Input
-                      placeholder="(e.g. generating fictional stories or poems)"
-                      value={pref.usage}
-                      onChange={(e) => updatePreference(pref.id, 'usage', e.target.value)}
-                    />
+                      <Input
+                        placeholder="(e.g. generating fictional stories or poems)"
+                        value={pref.usage}
+                        onChange={(e) => updatePreference(pref.id, 'usage', e.target.value)}
+                      />
                     <select
                       value={pref.model}
                       onChange={(e) => updatePreference(pref.id, 'model', e.target.value)}

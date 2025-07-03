@@ -50,33 +50,44 @@
   // Insert a route label for the last user message in the chat
   function insertRouteLabelForLastUserMessage(routeName) {
     chrome.storage.sync.get(['preferences'], ({ preferences }) => {
-    if (!Array.isArray(preferences)) return;
+      // Find the most recent user bubble
+      const bubbles = [...document.querySelectorAll('[data-message-author-role="user"]')];
+      const lastBubble = bubbles[bubbles.length - 1];
+      if (!lastBubble) return;
 
-    const match = preferences.find(p => p.name === routeName);
-    if (!match || !match.usage) {
-      console.log('[RouteLabel] No usage found for route:', routeName);
-      return;
-    }
+      // Skip if we’ve already added a label
+      if (lastBubble.querySelector('.arch-route-label')) {
+        console.log('[RouteLabel] Label already exists, skipping');
+        return;
+      }
 
-    const bubbles = [...document.querySelectorAll('[data-message-author-role="user"]')];
-    const lastBubble = bubbles[bubbles.length - 1];
-    if (!lastBubble) return;
+      // Default label text
+      let labelText = 'RouteGPT: preference = default';
 
-    if (lastBubble.querySelector('.arch-route-label')) {
-      console.log('[RouteLabel] Label already exists, skipping');
-      return;
-    }
+      // Try to override with preference-based usage if we have a routeName
+      if (routeName && Array.isArray(preferences)) {
+        const match = preferences.find(p => p.name === routeName);
+        if (match && match.usage) {
+          labelText = `RouteGPT: preference = ${match.usage}`;
+        } else {
+          console.log('[RouteLabel] No usage found for route (falling back to default):', routeName);
+        }
+      }
 
-    const label = document.createElement('span');
-    label.textContent = `RouteGPT: preference = ${match.usage}`;
-    label.className = 'arch-route-label';
-    label.style.fontWeight = '100';
-    label.style.fontSize = '0.85rem';
-    label.style.marginTop = '4px';
+      // Build and attach the label
+      const label = document.createElement('span');
+      label.textContent = labelText;
+      label.className = 'arch-route-label';
+      label.style.fontWeight = '350';
+      label.style.fontSize = '0.85rem';
+      label.style.marginTop = '2px';
+      label.style.fontStyle = 'italic';
+      label.style.alignSelf = 'end';
+      label.style.marginRight = '5px';
 
-    lastBubble.appendChild(label);
-    console.log('[RouteLabel] Inserted label:', label.textContent);
-  });
+      lastBubble.appendChild(label);
+      console.log('[RouteLabel] Inserted label:', labelText);
+    });
   }
 
 
@@ -275,10 +286,9 @@ Based on your analysis, provide your response in the following JSON formats if y
           } else {
             console.log(`${TAG} Resolved model for route "${selectedRoute}" →`, targetModel);
           }
-          insertRouteLabelForLastUserMessage(selectedRoute);
         }
 
-
+        insertRouteLabelForLastUserMessage(selectedRoute);
         const modifiedBody = { ...originalBody };
         if (targetModel) {
           modifiedBody.model = targetModel;

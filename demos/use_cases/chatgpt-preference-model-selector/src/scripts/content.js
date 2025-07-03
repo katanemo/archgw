@@ -251,16 +251,27 @@ Based on your analysis, provide your response in the following JSON formats if y
         let targetModel = null;
         if (selectedRoute) {
           targetModel = await getModelIdForRoute(selectedRoute);
-          console.log(`${TAG} Resolved model for route "${selectedRoute}" →`, targetModel);
+          if (!targetModel) {
+            const { defaultModel } = await new Promise(resolve =>
+              chrome.storage.sync.get(['defaultModel'], resolve)
+            );
+            targetModel = defaultModel || null;
+            if (targetModel) {
+              console.log(`${TAG} Falling back to default model: ${targetModel}`);
+            }
+          } else {
+            console.log(`${TAG} Resolved model for route "${selectedRoute}" →`, targetModel);
+          }
           insertRouteLabelForLastUserMessage(selectedRoute);
         }
+
 
         const modifiedBody = { ...originalBody };
         if (targetModel) {
           modifiedBody.model = targetModel;
           console.log(`${TAG} Overriding request with model: ${targetModel}`);
         } else {
-          console.warn(`${TAG} No route/model override applied`);
+          console.log(`${TAG} No route/model override applied`);
         }
 
         await streamToPort(await fetch(url, {

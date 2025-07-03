@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Preference-Based Model Selector",
-  "version": "1.2",
-  "description": "Define usage preferences for your ChatGPT models and proxy conversation requests through ArchGW.",
+  "name": "RouteGPT (beta)",
+  "version": "0.1.0",
+  "description": " Dynamically route to GPT models based on usage preferences. Powered by Arch-Router.",
   "permissions": [
     "storage",
     "tabs",

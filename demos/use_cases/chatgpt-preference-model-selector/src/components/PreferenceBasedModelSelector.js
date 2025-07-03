@@ -233,80 +233,96 @@ export default function PreferenceBasedModelSelector() {
   };
 
   return (
-    <div className="w-full max-w-[600px] bg-gray-50 dark:bg-gray-800 p-4 mx-auto">
-      <div className="space-y-4">
-        <Card className="w-full">
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <Label>Enable preference-based routing</Label>
-              <Switch checked={routingEnabled} onCheckedChange={setRoutingEnabled} />
-            </div>
-            {routingEnabled && (
-              <div className="pt-4 mt-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
-                {preferences.map((pref) => (
-                  <div key={pref.id} className="grid grid-cols-[3fr_1.5fr_auto] gap-4 items-center">
-                      <Input
-                        placeholder="(e.g. generating fictional stories or poems)"
-                        value={pref.usage}
-                        onChange={(e) => updatePreference(pref.id, 'usage', e.target.value)}
-                      />
-                    <select
-                      value={pref.model}
-                      onChange={(e) => updatePreference(pref.id, 'model', e.target.value)}
-                      className="h-9 w-full px-3 text-sm
-                        bg-white dark:bg-gray-700
-                        text-gray-800 dark:text-white
-                        border border-gray-300 dark:border-gray-600
-                        rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option disabled value="">
-                        Select Model
+  <div className="w-full max-w-[600px] h-[65vh] flex flex-col bg-gray-50 dark:bg-gray-800 p-4 mx-auto">
+
+    {/* Scrollable preferences only */}
+   <div className="space-y-4 overflow-y-auto flex-1 pr-1 max-h-[60vh]">
+      <Card className="w-full">
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <Label>Enable preference-based routing</Label>
+            <Switch checked={routingEnabled} onCheckedChange={setRoutingEnabled} />
+          </div>
+          {routingEnabled && (
+            <div className="pt-4 mt-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
+              {preferences.map((pref) => (
+                <div key={pref.id} className="grid grid-cols-[3fr_1.5fr_auto] gap-4 items-center">
+                  <Input
+                    placeholder="(e.g. generating fictional stories or poems)"
+                    value={pref.usage}
+                    onChange={(e) => updatePreference(pref.id, 'usage', e.target.value)}
+                  />
+                  <select
+                    value={pref.model}
+                    onChange={(e) => updatePreference(pref.id, 'model', e.target.value)}
+                    className="h-9 w-full px-3 text-sm
+                      bg-white dark:bg-gray-700
+                      text-gray-800 dark:text-white
+                      border border-gray-300 dark:border-gray-600
+                      rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option disabled value="">
+                      Select Model
+                    </option>
+                    {modelOptions.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
                       </option>
-                      {modelOptions.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                    <Button variant="ghost" size="icon" onClick={() => removePreference(pref.id)} disabled={preferences.length <= 1}>
-                      <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-600" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="outline" onClick={addPreference} className="flex items-center gap-2 text-sm mt-2">
-                  <PlusCircle className="h-4 w-4" /> Add Preference
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="w-full">
-          <CardContent>
-            <Label>Default Model</Label>
-            <select
-              value={defaultModel}
-              onChange={(e) => setDefaultModel(e.target.value)}
-              className="h-9 w-full mt-2 px-3 text-sm
-                bg-white dark:bg-gray-700
-                text-gray-800 dark:text-white
-                border border-gray-300 dark:border-gray-600
-                rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {modelOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePreference(pref.id)}
+                    disabled={preferences.length <= 1}
+                  >
+                    <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-600" />
+                  </Button>
+                </div>
               ))}
-            </select>
-          </CardContent>
-        </Card>
-        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Button variant="ghost" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save and Apply</Button>
-        </div>
-      </div>
+              <Button
+                variant="outline"
+                onClick={addPreference}
+                className="flex items-center gap-2 text-sm mt-2"
+              >
+                <PlusCircle className="h-4 w-4" /> Add Preference
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  );
+
+    {/* Default model selector (static) */}
+    <Card className="w-full mt-4">
+      <CardContent>
+        <Label>Default Model</Label>
+        <select
+          value={defaultModel}
+          onChange={(e) => setDefaultModel(e.target.value)}
+          className="h-9 w-full mt-2 px-3 text-sm
+            bg-white dark:bg-gray-700
+            text-gray-800 dark:text-white
+            border border-gray-300 dark:border-gray-600
+            rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {modelOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </CardContent>
+    </Card>
+
+    {/* Save/Cancel footer (static) */}
+    <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 mt-4">
+      <Button variant="ghost" onClick={handleCancel}>
+        Cancel
+      </Button>
+      <Button onClick={handleSave}>Save and Apply</Button>
+    </div>
+
+  </div>
+);
 }

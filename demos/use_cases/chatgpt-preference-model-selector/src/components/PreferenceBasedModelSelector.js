@@ -31,27 +31,74 @@ const PlusCircle = ({ className }) => (
 
 // --- Mocked UI Components ---
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>{children}</div>
+  <div className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+    {children}
+  </div>
 );
+
 const CardContent = ({ children, className = '' }) => (
-  <div className={`p-4 ${className}`}>{children}</div>
+  <div className={`p-4 text-gray-800 dark:text-gray-100 ${className}`}>
+    {children}
+  </div>
 );
+
 const Input = (props) => (
   <input
     {...props}
-    className={`w-full h-9 px-3 text-sm text-gray-800 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${props.className || ''}`}
+    className={`w-full h-9 px-3 text-sm
+      text-gray-800 dark:text-white
+      bg-white dark:bg-gray-700
+      border border-gray-300 dark:border-gray-600
+      rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+      ${props.className || ''}`}
   />
 );
+
 const Button = ({ children, variant = 'default', size = 'default', className = '', ...props }) => {
-  const baseClasses = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = `
+    inline-flex items-center justify-center
+    rounded-md text-sm font-medium
+    transition-colors
+    focus:outline-none focus:ring-2 focus:ring-offset-2
+  `;
+
   const variantClasses = {
-    default: 'bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-900',
-    outline: 'border border-gray-300 bg-transparent hover:bg-gray-100 focus:ring-gray-400',
-    ghost: 'hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-400'
+    default: `
+      bg-gray-900 text-white
+      hover:bg-gray-800
+      focus:ring-gray-900
+    `,
+    outline: `
+      border border-gray-300 dark:border-gray-600
+      bg-transparent
+      text-gray-800 dark:text-white
+      hover:bg-gray-100 dark:hover:bg-gray-700
+      focus:ring-blue-500
+      focus:ring-offset-2
+      dark:focus:ring-offset-gray-900
+    `,
+    ghost: `
+      text-gray-800 dark:text-gray-200
+      hover:bg-gray-100 dark:hover:bg-gray-700
+      focus:ring-gray-400
+    `
   };
-  const sizeClasses = { default: 'h-9 px-3', icon: 'h-9 w-9' };
+
+  const sizeClasses = {
+    default: 'h-9 px-3',
+    icon: 'h-9 w-9'
+  };
+
   return (
-    <button {...props} className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}>
+    <button
+      {...props}
+      className={`
+        ${baseClasses}
+        ${variantClasses[variant]}
+        ${sizeClasses[size]}
+        ${className}
+      `}
+    >
       {children}
     </button>
   );
@@ -186,7 +233,7 @@ export default function PreferenceBasedModelSelector() {
   };
 
   return (
-    <div className="w-full max-w-[600px] bg-gray-50 p-4 mx-auto">
+    <div className="w-full max-w-[600px] bg-gray-50 dark:bg-gray-800 p-4 mx-auto">
       <div className="space-y-4">
         <Card className="w-full">
           <CardContent>
@@ -195,7 +242,7 @@ export default function PreferenceBasedModelSelector() {
               <Switch checked={routingEnabled} onCheckedChange={setRoutingEnabled} />
             </div>
             {routingEnabled && (
-              <div className="pt-4 mt-4 space-y-3 border-t border-gray-200">
+              <div className="pt-4 mt-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
                 {preferences.map((pref) => (
                   <div key={pref.id} className="grid grid-cols-[3fr_1.5fr_auto] gap-4 items-center">
                       <Input
@@ -206,7 +253,11 @@ export default function PreferenceBasedModelSelector() {
                     <select
                       value={pref.model}
                       onChange={(e) => updatePreference(pref.id, 'model', e.target.value)}
-                      className="h-9 w-full px-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="h-9 w-full px-3 text-sm
+                        bg-white dark:bg-gray-700
+                        text-gray-800 dark:text-white
+                        border border-gray-300 dark:border-gray-600
+                        rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option disabled value="">
                         Select Model
@@ -235,7 +286,11 @@ export default function PreferenceBasedModelSelector() {
             <select
               value={defaultModel}
               onChange={(e) => setDefaultModel(e.target.value)}
-              className="h-9 w-full mt-2 px-3 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 w-full mt-2 px-3 text-sm
+                bg-white dark:bg-gray-700
+                text-gray-800 dark:text-white
+                border border-gray-300 dark:border-gray-600
+                rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {modelOptions.map((m) => (
                 <option key={m} value={m}>
@@ -245,7 +300,7 @@ export default function PreferenceBasedModelSelector() {
             </select>
           </CardContent>
         </Card>
-        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button variant="ghost" onClick={handleCancel}>
             Cancel
           </Button>

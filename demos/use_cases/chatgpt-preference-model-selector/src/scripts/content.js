@@ -54,7 +54,7 @@
 
     const match = preferences.find(p => p.name === routeName);
     if (!match || !match.usage) {
-      console.warn('[RouteLabel] No usage found for route:', routeName);
+      console.log('[RouteLabel] No usage found for route:', routeName);
       return;
     }
 
@@ -191,13 +191,26 @@ Based on your analysis, provide your response in the following JSON formats if y
           console.warn(`${TAG} Could not parse original fetch body`);
         }
 
-        const { routingEnabled, preferences } = await new Promise(resolve => {
-          chrome.storage.sync.get(['routingEnabled', 'preferences'], resolve);
+        const { routingEnabled, preferences, defaultModel } = await new Promise(resolve => {
+          chrome.storage.sync.get(['routingEnabled', 'preferences', 'defaultModel'], resolve);
         });
 
         if (!routingEnabled) {
-          console.log(`${TAG} Routing disabled — forwarding original request`);
-          await streamToPort(await fetch(url, init), port);
+          console.log(`${TAG} Routing disabled — applying default model if present`);
+          const modifiedBody = { ...originalBody };
+          if (defaultModel) {
+            modifiedBody.model = defaultModel;
+            console.log(`${TAG} Routing disabled — overriding with default model: ${defaultModel}`);
+          } else {
+            console.log(`${TAG} Routing disabled — no default model found`);
+          }
+
+          await streamToPort(await fetch(url, {
+            method: init.method,
+            headers: init.headers,
+            credentials: init.credentials,
+            body: JSON.stringify(modifiedBody)
+          }), port);
           return;
         }
 

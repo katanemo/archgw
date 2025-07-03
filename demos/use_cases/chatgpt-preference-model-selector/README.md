@@ -26,8 +26,8 @@ Folder: `chatgpt-preference-model-selector`
 ### 1. Clone and install dependencies
 
 ```
-git clone https://github.com/your-org/chatgpt-preference-model-selector.git
-cd chatgpt-preference-model-selector
+git clone https://github.com/katanemo/archgw/
+cd demos/use_cases/chatgpt-preference-model-selector
 ```
 
 ### 2. Build the extension

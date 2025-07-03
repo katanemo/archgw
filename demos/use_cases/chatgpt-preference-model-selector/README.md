@@ -28,13 +28,12 @@ Folder: `chatgpt-preference-model-selector`
 ```
 git clone https://github.com/your-org/chatgpt-preference-model-selector.git
 cd chatgpt-preference-model-selector
-npm install
 ```
 
 ### 2. Build the extension
 
 ```
-npm install 
+npm install
 npm run build
 ```
 
@@ -52,23 +51,15 @@ Then pull the Arch-Router model:
 ollama pull hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M
 ```
 
-Or run it directly:
-
-```
-ollama run hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M
-```
-
 ### 🌐 Allow Chrome to Access Ollama
 
 Start Ollama with appropriate network settings:
 
 ```
-OLLAMA_ORIGINS=* OLLAMA_HOST=0.0.0.0 ollama serve
+OLLAMA_ORIGINS=* ollama serve
 ```
 
 This:
-
-* Binds Ollama to `0.0.0.0` for external access
 * Sets CORS to allow requests from Chrome
 
 ---
@@ -78,7 +69,7 @@ This:
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
 3. Click **"Load unpacked"**
-4. Select the `build/` folder inside `chatgpt-preference-model-selector`
+4. Select the `build` folder inside `chatgpt-preference-model-selector`
 
 Once loaded, RouteGPT will begin intercepting and routing your ChatGPT messages based on the preferences you define.
 

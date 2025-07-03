@@ -34,6 +34,7 @@ npm install
 ### 2. Build the extension
 
 ```
+npm install 
 npm run build
 ```
 
@@ -62,7 +63,7 @@ ollama run hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M
 Start Ollama with appropriate network settings:
 
 ```
-OLLAMA_ORIGINS=* ollama serve --host 0.0.0.0
+OLLAMA_ORIGINS=* OLLAMA_HOST=0.0.0.0 ollama serve
 ```
 
 This:

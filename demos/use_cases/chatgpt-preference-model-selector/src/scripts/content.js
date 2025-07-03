@@ -1,6 +1,6 @@
 (() => {
   const TAG = '[ModelSelector]';
-
+  // Content script to intercept fetch requests and modify them based on user preferences
   async function streamToPort(response, port) {
     const reader = response.body?.getReader();
     if (!reader) {
@@ -17,6 +17,7 @@
     }
   }
 
+  // Extract messages from the DOM, falling back to requestMessages if DOM is empty
   function getMessagesFromDom(requestMessages = null) {
     const bubbles = [...document.querySelectorAll('[data-message-author-role]')];
 
@@ -46,8 +47,40 @@
     return domMessages;
   }
 
+  // Insert a route label for the last user message in the chat
+  function insertRouteLabelForLastUserMessage(routeName) {
+    chrome.storage.sync.get(['preferences'], ({ preferences }) => {
+    if (!Array.isArray(preferences)) return;
+
+    const match = preferences.find(p => p.name === routeName);
+    if (!match || !match.usage) {
+      console.warn('[RouteLabel] No usage found for route:', routeName);
+      return;
+    }
+
+    const bubbles = [...document.querySelectorAll('[data-message-author-role="user"]')];
+    const lastBubble = bubbles[bubbles.length - 1];
+    if (!lastBubble) return;
+
+    if (lastBubble.querySelector('.arch-route-label')) {
+      console.log('[RouteLabel] Label already exists, skipping');
+      return;
+    }
+
+    const label = document.createElement('span');
+    label.textContent = `RouteGPT preference >> ${match.usage}`;
+    label.className = 'arch-route-label';
+    label.style.fontWeight = '100';
+    label.style.fontSize = '0.85rem';
+    label.style.marginTop = '4px';
+
+    lastBubble.appendChild(label);
+    console.log('[RouteLabel] Inserted label:', label.textContent);
+  });
+  }
 
 
+  // Prepare the system prompt for the proxy request
   function prepareProxyRequest(messages, routes, maxTokenLength = 2048) {
     const SYSTEM_PROMPT_TEMPLATE = `
 You are a helpful assistant designed to find the best suited route.
@@ -219,6 +252,7 @@ Based on your analysis, provide your response in the following JSON formats if y
         if (selectedRoute) {
           targetModel = await getModelIdForRoute(selectedRoute);
           console.log(`${TAG} Resolved model for route "${selectedRoute}" →`, targetModel);
+          insertRouteLabelForLastUserMessage(selectedRoute);
         }
 
         const modifiedBody = { ...originalBody };

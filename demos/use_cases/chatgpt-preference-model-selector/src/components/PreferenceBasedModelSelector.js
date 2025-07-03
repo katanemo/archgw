@@ -8,12 +8,8 @@ const MODEL_LIST = [
   'gpt-4.1-mini',
   'gpt-4.5-preview',
   'o3',
-  'o3-pro',
   'o4-mini',
-  'o4-mini-high',
-  'o1',
-  'o1-mini',
-  'o1-pro'
+  'o4-mini-high'
 ];
 
 // --- Mocked lucide-react icons as SVG components ---
@@ -185,9 +181,9 @@ export default function PreferenceBasedModelSelector() {
             {routingEnabled && (
               <div className="pt-4 mt-4 space-y-3 border-t border-gray-200">
                 {preferences.map((pref) => (
-                  <div key={pref.id} className="grid grid-cols-[3fr_1fr_auto] gap-4 items-center">
+                  <div key={pref.id} className="grid grid-cols-[3fr_1.5fr_auto] gap-4 items-center">
                     <Input
-                      placeholder="Usage (e.g. generate tests)"
+                      placeholder="(e.g. generating fictional stories or poems)"
                       value={pref.usage}
                       onChange={(e) => updatePreference(pref.id, 'usage', e.target.value)}
                     />
@@ -219,7 +215,7 @@ export default function PreferenceBasedModelSelector() {
         </Card>
         <Card className="w-full">
           <CardContent>
-            <Label>Default Model on Page Load</Label>
+            <Label>Default Model</Label>
             <select
               value={defaultModel}
               onChange={(e) => setDefaultModel(e.target.value)}

@@ -44,4 +44,21 @@ try {
   process.exit(1);
 }
 
+// 4️⃣ Copy logo.png from src/assets to build root
+try {
+  const logoSource = path.join(reactAppDir, 'src', 'assets', 'logo.png');
+  const logoDest = path.join(buildDir, 'logo.png');
+
+  if (!fs.existsSync(logoSource)) {
+    throw new Error(`Missing logo.png at ${logoSource}`);
+  }
+
+  fs.copyFileSync(logoSource, logoDest);
+  console.log(`Copied logo.png → ${logoDest}`);
+} catch (err) {
+  console.error('Failed to copy logo.png:', err);
+  process.exit(1);
+}
+
+
 console.log('Extension build process finished successfully!');

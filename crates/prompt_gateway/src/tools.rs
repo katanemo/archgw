@@ -12,15 +12,19 @@ pub fn filter_tool_params(tool_params: &Option<HashMap<String, Value>>) -> HashM
         .as_ref()
         .unwrap()
         .iter()
-        .filter(|(_, value)| value.is_number() || value.is_string() || value.is_bool())
+        .filter(|(_, value)| value.is_number() || value.is_string() || value.is_bool() || value.is_sequence())
         .map(|(key, value)| match value {
             Value::Number(n) => (key.clone(), n.to_string()),
             Value::String(s) => (key.clone(), s.clone()),
             Value::Bool(b) => (key.clone(), b.to_string()),
-            Value::Null => todo!(),
-            Value::Sequence(_) => todo!(),
-            Value::Mapping(_) => todo!(),
-            Value::Tagged(_) => todo!(),
+            Value::Sequence(seq) => (
+                key.clone(),
+                seq.iter()
+                    .map(|v| v.as_str().unwrap_or_default())
+                    .collect::<Vec<&str>>()
+                    .join(","),
+            ),
+            _ => (key.clone(), "".to_string()),
         })
         .collect::<HashMap<String, String>>()
 }

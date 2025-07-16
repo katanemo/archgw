@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use common::{
     configuration::{LlmProvider, ModelUsagePreference, RoutingPreference},
@@ -48,9 +48,14 @@ impl RouterService {
             .cloned()
             .collect::<Vec<LlmProvider>>();
 
-        let llm_routes: Vec<RoutingPreference> = providers_with_usage
+        let llm_routes: HashMap<String, Vec<RoutingPreference>> = providers_with_usage
             .iter()
-            .flat_map(|provider| provider.routing_preferences.clone().unwrap_or_default())
+            .filter_map(|provider| {
+                provider
+                    .routing_preferences
+                    .as_ref()
+                    .map(|prefs| (provider.name.clone(), prefs.clone()))
+            })
             .collect();
 
         let router_model = Arc::new(router_model_v1::RouterModelV1::new(
@@ -151,21 +156,22 @@ impl RouterService {
         if let Some(ContentType::Text(content)) =
             &chat_completion_response.choices[0].message.content
         {
-            let route_name = self.router_model.parse_response(content)?;
+            let parsed_response = self
+                .router_model
+                .parse_response(content, &usage_preferences)?;
             info!(
                 "router response: {}, selected_model: {:?}, response time: {}ms",
                 content.replace("\n", "\\n"),
-                route_name,
+                parsed_response,
                 router_response_time.as_millis()
             );
 
-            if let Some(ref route) = route_name {
-                if route == "other" {
-                    return Ok(None);
-                }
+            if let Some(ref route) = parsed_response {
+                // return model name if route is found
+                return Ok(Some(route.1.clone()));
             }
 
-            Ok(route_name)
+            Ok(None)
         } else {
             Ok(None)
         }

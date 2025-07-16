@@ -104,7 +104,7 @@ pub async fn chat_completions(
 
     debug!("usage preferences from request: {:?}", usage_preferences);
 
-    let mut determined_route = match router_service
+    let determined_model = match router_service
         .determine_route(
             &chat_completion_request.messages,
             trace_parent.clone(),
@@ -121,27 +121,23 @@ pub async fn chat_completions(
         }
     };
 
-    if determined_route.is_none() {
-        debug!("No LLM model selected, using default from request");
-        determined_route = Some(chat_completion_request.model.clone());
-    }
-
     info!(
-        "sending request to llm provider: {} with llm model: {:?}",
-        llm_provider_endpoint, determined_route
+        "sending request to llm provider: {} determined_model: {:?}, model from request: {}",
+        llm_provider_endpoint, determined_model, chat_completion_request.model
+    );
+
+    request_headers.insert(
+        ARCH_PROVIDER_HINT_HEADER,
+        header::HeaderValue::from_str(
+            &determined_model.unwrap_or(chat_completion_request.model.clone()),
+        )
+        .unwrap(),
     );
 
     if let Some(trace_parent) = trace_parent {
         request_headers.insert(
             header::HeaderName::from_static("traceparent"),
             header::HeaderValue::from_str(&trace_parent).unwrap(),
-        );
-    }
-
-    if let Some(selected_route) = determined_route {
-        request_headers.insert(
-            ARCH_PROVIDER_HINT_HEADER,
-            header::HeaderValue::from_str(&selected_route).unwrap(),
         );
     }
 

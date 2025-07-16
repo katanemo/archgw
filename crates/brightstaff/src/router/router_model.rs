@@ -16,6 +16,10 @@ pub trait RouterModel: Send + Sync {
         messages: &[Message],
         usage_preferences: &Option<Vec<ModelUsagePreference>>,
     ) -> ChatCompletionsRequest;
-    fn parse_response(&self, content: &str) -> Result<Option<String>>;
+    fn parse_response(
+        &self,
+        content: &str,
+        usage_preferences: &Option<Vec<ModelUsagePreference>>,
+    ) -> Result<Option<(String, String)>>;
     fn get_model_name(&self) -> String;
 }

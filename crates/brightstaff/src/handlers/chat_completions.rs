@@ -27,6 +27,7 @@ pub async fn chat_completions(
     router_service: Arc<RouterService>,
     llm_provider_endpoint: String,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
+    let request_path = request.uri().path().to_string();
     let mut request_headers = request.headers().clone();
 
     let chat_request_bytes = request.collect().await?.to_bytes();
@@ -61,20 +62,15 @@ pub async fn chat_completions(
     // remove metadata from the request
     let mut chat_request_user_preferences_removed = chat_request_parsed;
     if let Some(metadata) = chat_request_user_preferences_removed.get_mut("metadata") {
-        info!("Removing metadata from request");
+        debug!("Removing metadata from request");
         if let Some(m) = metadata.as_object_mut() {
             m.remove("archgw_preference_config");
-            info!("Removed archgw_preference_config from metadata");
+            debug!("Removed archgw_preference_config from metadata");
         }
-
-        // metadata.as_object_mut().map(|m| {
-        //     m.remove("archgw_preference_config");
-        //     info!("Removed archgw_preference_config from metadata");
-        // });
 
         // if metadata is empty, remove it
         if metadata.as_object().map_or(false, |m| m.is_empty()) {
-            info!("Removing empty metadata from request");
+            debug!("Removing empty metadata from request");
             chat_request_user_preferences_removed
                 .as_object_mut()
                 .map(|m| m.remove("metadata"));
@@ -102,9 +98,33 @@ pub async fn chat_completions(
         .as_ref()
         .and_then(|s| serde_yaml::from_str(s).ok());
 
+    let latest_message_for_log =
+        chat_completion_request
+            .messages
+            .last()
+            .map_or("None".to_string(), |msg| {
+                msg.content.as_ref().map_or("None".to_string(), |content| {
+                    content.to_string().replace('\n', "\\n")
+                })
+            });
+
+    const MAX_MESSAGE_LENGTH: usize = 50;
+    let latest_message_for_log = if latest_message_for_log.len() > MAX_MESSAGE_LENGTH {
+        format!("{}...", &latest_message_for_log[..MAX_MESSAGE_LENGTH])
+    } else {
+        latest_message_for_log
+    };
+
+    info!(
+        "request received, request type: chat_completion, usage preferences from request: {}, request path: {}, latest message: {}",
+        usage_preferences.is_some(),
+        request_path,
+        latest_message_for_log
+    );
+
     debug!("usage preferences from request: {:?}", usage_preferences);
 
-    let determined_model = match router_service
+    let model_name = match router_service
         .determine_route(
             &chat_completion_request.messages,
             trace_parent.clone(),
@@ -112,7 +132,16 @@ pub async fn chat_completions(
         )
         .await
     {
-        Ok(route) => route,
+        Ok(route) => match route {
+            Some((_, model_name)) => model_name,
+            None => {
+                debug!(
+                    "No route determined, using default model from request: {}",
+                    chat_completion_request.model
+                );
+                chat_completion_request.model.clone()
+            }
+        },
         Err(err) => {
             let err_msg = format!("Failed to determine route: {}", err);
             let mut internal_error = Response::new(full(err_msg));
@@ -121,17 +150,14 @@ pub async fn chat_completions(
         }
     };
 
-    info!(
-        "sending request to llm provider: {} determined_model: {:?}, model from request: {}",
-        llm_provider_endpoint, determined_model, chat_completion_request.model
+    debug!(
+        "sending request to llm provider: {}, with model hint: {}",
+        llm_provider_endpoint, model_name
     );
 
     request_headers.insert(
         ARCH_PROVIDER_HINT_HEADER,
-        header::HeaderValue::from_str(
-            &determined_model.unwrap_or(chat_completion_request.model.clone()),
-        )
-        .unwrap(),
+        header::HeaderValue::from_str(&model_name).unwrap(),
     );
 
     if let Some(trace_parent) = trace_parent {

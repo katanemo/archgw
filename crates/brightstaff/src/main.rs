@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
 
         tokio::task::spawn(async move {
-            info!("Accepted connection from {:?}", peer_addr);
+            debug!("Accepted connection from {:?}", peer_addr);
             if let Err(err) = http1::Builder::new()
                 // .serve_connection(io, service_fn(chat_completion))
                 .serve_connection(io, service)

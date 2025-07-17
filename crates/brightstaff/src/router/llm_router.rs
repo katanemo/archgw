@@ -78,7 +78,7 @@ impl RouterService {
         messages: &[Message],
         trace_parent: Option<String>,
         usage_preferences: Option<Vec<ModelUsagePreference>>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<(String, String)>> {
         if !self.llm_usage_defined {
             return Ok(None);
         }
@@ -87,7 +87,7 @@ impl RouterService {
             .router_model
             .generate_request(messages, &usage_preferences);
 
-        info!(
+        debug!(
             "sending request to arch-router model: {}, endpoint: {}",
             self.router_model.get_model_name(),
             self.router_url
@@ -160,15 +160,14 @@ impl RouterService {
                 .router_model
                 .parse_response(content, &usage_preferences)?;
             info!(
-                "router response: {}, selected_model: {:?}, response time: {}ms",
+                "arch-router determined route: {}, selected_model: {:?}, response time: {}ms",
                 content.replace("\n", "\\n"),
                 parsed_response,
                 router_response_time.as_millis()
             );
 
-            if let Some(ref route) = parsed_response {
-                // return model name if route is found
-                return Ok(Some(route.1.clone()));
+            if let Some(ref parsed_response) = parsed_response {
+                return Ok(Some(parsed_response.clone()));
             }
 
             Ok(None)

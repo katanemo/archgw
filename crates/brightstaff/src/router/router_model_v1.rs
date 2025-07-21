@@ -73,7 +73,7 @@ impl RouterModel for RouterModelV1 {
     fn generate_request(
         &self,
         messages: &[Message],
-        usage_preferences: &Option<Vec<ModelUsagePreference>>,
+        usage_preferences_from_request: &Option<Vec<ModelUsagePreference>>,
     ) -> ChatCompletionsRequest {
         // remove system prompt, tool calls, tool call response and messages without content
         // if content is empty its likely a tool call
@@ -150,36 +150,17 @@ impl RouterModel for RouterModelV1 {
             })
             .collect::<Vec<Message>>();
 
-        let llm_route_json = usage_preferences
-            .as_ref()
-            .map(|prefs| {
-                let llm_route: Vec<RoutingPreference> = prefs
-                    .iter()
-                    .flat_map(|pref| {
-                        let routing_preferences = pref.routing_preferences.clone();
-                        routing_preferences
-                            .into_iter()
-                            .map(|routing_pref| RoutingPreference {
-                                name: routing_pref.name,
-                                description: routing_pref.description,
-                            })
-                    })
-                    .collect();
-                serde_json::to_string(&llm_route).unwrap_or_default()
-            })
-            .unwrap_or_else(|| self.llm_route_json_str.clone());
-
-        let messages_content = ARCH_ROUTER_V1_SYSTEM_PROMPT
-            .replace("{routes}", &llm_route_json)
-            .replace(
-                "{conversation}",
-                &serde_json::to_string(&selected_conversation_list).unwrap_or_default(),
-            );
+        // Generate the router request message based on the usage preferences.
+        // If preferences are passed in request then we use them otherwise we use the default routing model preferences.
+        let router_message = match convert_to_router_preferences(usage_preferences_from_request) {
+            Some(prefs) => generate_router_message(&prefs, &selected_conversation_list),
+            None => generate_router_message(&self.llm_route_json_str, &selected_conversation_list),
+        };
 
         ChatCompletionsRequest {
             model: self.routing_model.clone(),
             messages: vec![Message {
-                content: Some(ContentType::Text(messages_content)),
+                content: Some(ContentType::Text(router_message)),
                 role: USER_ROLE.to_string(),
             }],
             temperature: Some(0.01),
@@ -243,6 +224,37 @@ impl RouterModel for RouterModelV1 {
     fn get_model_name(&self) -> String {
         self.routing_model.clone()
     }
+}
+
+fn generate_router_message(prefs: &str, selected_conversation_list: &Vec<Message>) -> String {
+    ARCH_ROUTER_V1_SYSTEM_PROMPT
+        .replace("{routes}", prefs)
+        .replace(
+            "{conversation}",
+            &serde_json::to_string(&selected_conversation_list).unwrap_or_default(),
+        )
+}
+
+fn convert_to_router_preferences(
+    prefs_from_request: &Option<Vec<ModelUsagePreference>>,
+) -> Option<String> {
+    if let Some(usage_preferences) = prefs_from_request {
+        let routing_preferences = usage_preferences
+            .iter()
+            .flat_map(|pref| {
+                pref.routing_preferences
+                    .iter()
+                    .map(|routing_pref| RoutingPreference {
+                        name: routing_pref.name.clone(),
+                        description: routing_pref.description.clone(),
+                    })
+            })
+            .collect::<Vec<RoutingPreference>>();
+
+        return Some(serde_json::to_string(&routing_preferences).unwrap_or_default());
+    }
+
+    None
 }
 
 fn fix_json_response(body: &str) -> String {

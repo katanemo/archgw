@@ -208,7 +208,7 @@ impl RouterModel for RouterModelV1 {
             }
         }
 
-        // If no usage preferences are defined, we return the route with the routing model
+        // If no usage preferences are passed in request then use the default routing model preferences
         if let Some(model) = self.llm_route_to_model_map.get(&selected_route).cloned() {
             return Ok(Some((selected_route, model)));
         }

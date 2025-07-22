@@ -2,7 +2,7 @@
 
 [[package]]
 name = "archgw_modelserver"
-version = "0.3.5"
+version = "0.3.6"
 description = "A model server for serving models"
 optional = false
 python-versions = "*"
@@ -576,4 +576,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e86085ff732244cb68d2e3f7f4c2903f4a8a50cc7e0963324c2506f0de90df11"
+content-hash = "d66f922881475b01508e74b362e554f8aa667c805b038d62311c2d99eaaef08d"

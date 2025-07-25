@@ -73,16 +73,23 @@ Before you begin, ensure you have the following:
 1. [Docker System](https://docs.docker.com/get-started/get-docker/) (v24)
 2. [Docker compose](https://docs.docker.com/compose/install/) (v2.29)
 3. [Python](https://www.python.org/downloads/) (v3.12)
+4. [Ollama](https://ollama.com/download) (v0.9.6)
 
 Arch's CLI allows you to manage and interact with the Arch gateway efficiently. To install the CLI, simply run the following command:
 
 > [!TIP]
 > We recommend that developers create a new Python virtual environment to isolate dependencies before installing Arch. This ensures that archgw and its dependencies do not interfere with other packages on your system.
 
-```console
+```bash
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
 $ pip install archgw==0.3.6
+```
+
+If you want to run arch-router locally ensure that ollama has arch-router model downloaded,
+
+```bash
+$ ollama pull hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M
 ```
 
 ### Build Agentic Apps with Arch Gateway
@@ -208,7 +215,10 @@ llm_providers:
 ```
 
 #### Preference-based Routing
-Preference-based routing is designed for more dynamic and intelligent selection of models. Instead of static model names, you write plain-language routing policies that describe the type of task or preference — for example:
+Preference-based routing is designed for more dynamic and intelligent selection of models. Instead of static model names, you write plain-language routing policies that describe the type of task or preference — for example create arch_config.yaml file with following config:
+
+> [!IMPORTANT]
+> Make sure arch-router model is running locally. Refer to [prerequisites](#Prerequisites) for details.
 
 ```yaml
 version: v0.1.0
@@ -233,8 +243,37 @@ llm_providers:
     routing_preferences:
       - name: code understanding
         description: understand and explain existing code snippets, functions, or libraries
+
+  - name: arch-router
+    model: arch/hf.co/katanemo/Arch-Router-1.5B.gguf:Q4_K_M
+    base_url: http://host.docker.internal:11434
 ```
 
+##### Start archgw
+
+```bash
+$ archgw up --service archgw --foreground
+```
+
+##### Test routing
+
+```bash
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "generate code to print prime numbers in rust"}], "model": "openai/gpt-4o-mini"}' \
+  http://localhost:12000/v1/chat/completions | jq ".model"
+"gpt-4.1-2025-04-14"
+```
+
+```bash
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "hi"}], "model": "openai/gpt-4o-mini"}' \
+  http://localhost:12000/v1/chat/completions | jq ".model"
+"gpt-4o-mini-2024-07-18"
+```
+
+Notice that for code generation task it used gpt-4.1.
+
+##### Routing - under the hood
 Arch uses a lightweight 1.5B autoregressive model to map prompts (and conversation context) to these policies. This approach adapts to intent drift, supports multi-turn conversations, and avoids the brittleness of embedding-based classifiers or manual if/else chains. No retraining is required when adding new models or updating policies — routing is governed entirely by human-readable rules. You can learn more about the design, benchmarks, and methodology behind preference-based routing in our paper:
 
 <div align="left">

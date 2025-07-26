@@ -72,7 +72,7 @@ def start_server(port=51000, foreground=False):
     if foreground:
         process = subprocess.Popen(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "uvicorn",
                 "src.main:app",
@@ -85,7 +85,7 @@ def start_server(port=51000, foreground=False):
     else:
         process = subprocess.Popen(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "uvicorn",
                 "src.main:app",

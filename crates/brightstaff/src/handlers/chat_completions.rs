@@ -32,6 +32,8 @@ pub async fn chat_completions(
 
     let chat_request_bytes = request.collect().await?.to_bytes();
 
+    debug!("Received request body (raw utf8): {}", String::from_utf8_lossy(&chat_request_bytes));
+
     let chat_request_parsed = serde_json::from_slice::<serde_json::Value>(&chat_request_bytes)
         .inspect_err(|err| {
             warn!(

@@ -38,29 +38,29 @@ Adding custom LLM Provider
 We support any OpenAI compliant LLM for example mistral, openai, ollama etc. We also offer first class support for OpenAI, Anthropic, DeepSeek, Mistral, Groq, and Ollama based models.
 You can easily configure an LLM that communicates over the OpenAI API interface, by following the below guide.
 
-For example following code block shows you how to add an ollama-supported LLM in the `arch_config.yaml` file.
+For example following code block shows you how to add an ollama-supported LLM in the ``arch_config.yaml`` file.
 
 .. code-block:: yaml
 
     llm_providers:
-    - model: some_custom_llm_provider/llama3.2
-      provider_interface: openai
-      base_url: http://host.docker.internal:11434
+      - model: some_custom_llm_provider/llama3.2
+        provider_interface: openai
+        base_url: http://host.docker.internal:11434
 
-And in the following code block shows you how to add mistral llm provider in the `arch_config.yaml` file.
+And in the following code block shows you how to add mistral llm provider in the ``arch_config.yaml`` file.
 
 .. code-block:: yaml
 
     llm_providers:
-    - name: mistral/ministral-3b-latest
-      access_key: $MISTRAL_API_KEY
+      - name: mistral/ministral-3b-latest
+        access_key: $MISTRAL_API_KEY
 
 Example: Using the OpenAI Python SDK
 ------------------------------------
 
 .. code-block:: python
 
-   from openai import OpenAI
+    from openai import OpenAI
 
     # Initialize the Arch client
     client = OpenAI(base_url="http://127.0.0.1:2000/")

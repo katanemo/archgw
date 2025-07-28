@@ -41,6 +41,7 @@ You can easily configure an LLM that communicates over the OpenAI API interface,
 For example following code block shows you how to add an ollama-supported LLM in the `arch_config.yaml` file.
 
 .. code-block:: yaml
+
     llm_providers:
     - model: some_custom_llm_provider/llama3.2
       provider_interface: openai
@@ -49,6 +50,7 @@ For example following code block shows you how to add an ollama-supported LLM in
 And in the following code block shows you how to add mistral llm provider in the `arch_config.yaml` file.
 
 .. code-block:: yaml
+
     llm_providers:
     - name: mistral/ministral-3b-latest
       access_key: $MISTRAL_API_KEY

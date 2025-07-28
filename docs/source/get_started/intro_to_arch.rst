@@ -20,7 +20,7 @@ Arch is designed to solve these problems by providing a unified, out-of-process 
    High-level network flow of where Arch Gateway sits in your agentic stack. Designed for both ingress and egress prompt traffic.
 
 
-`Arch <https://github.com/katanemo/arch>`_ is a modular edge and AI gateway for AI-native apps - built by the contributors of Envoy Proxy with the belief that:
+`Arch <https://github.com/katanemo/arch>`_ is a smart edge and AI gateway for AI-native apps - built by the contributors of Envoy Proxy with the belief that:
 
   *Prompts are nuanced and opaque user requests, which require the same capabilities as traditional HTTP requests
   including secure handling, intelligent routing, robust observability, and integration with backend (API)

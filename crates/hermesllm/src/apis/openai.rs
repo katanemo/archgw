@@ -64,7 +64,7 @@ impl ApiDefinition for OpenAIApi {
 pub struct ChatCompletionsRequest {
     pub messages: Vec<Message>,
     pub model: String,
-    // pub auduio: Option<Audio> // GOOD FIRST ISSUE: future support for audio input
+    // pub audio: Option<Audio> // GOOD FIRST ISSUE: future support for audio input
     pub frequency_penalty: Option<f32>,
     // Function calling configuration has been deprecated, but we keep it for compatibility
     pub function_call: Option<FunctionChoice>,
@@ -115,8 +115,8 @@ pub enum Role {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
-    pub role: Role,
     pub content: MessageContent,
+    pub role: Role,
     pub name: Option<String>,
     /// Tool calls made by the assistant (only present for assistant role)
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -387,7 +387,7 @@ pub struct MessageDelta {
 
 /// Tool call delta for streaming tool call updates
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ToolCallDelta {
     pub index: u32,
     pub id: Option<String>,
@@ -398,16 +398,11 @@ pub struct ToolCallDelta {
 
 /// Function call delta for streaming function call updates
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FunctionCallDelta {
     pub name: Option<String>,
     pub arguments: Option<String>,
 }
-
-
-// ============================================================================
-// LEGACY COMPATIBILITY & TYPE ALIASES
-// ============================================================================
 
 /// Stream options for controlling streaming behavior
 #[skip_serializing_none]
@@ -420,221 +415,293 @@ pub struct StreamOptions {
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::collections::HashMap;
 
     #[test]
     fn test_required_fields() {
-        // Test ChatCompletionsRequest with only required fields
-        let minimal_request = ChatCompletionsRequest {
-            model: "gpt-4".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello, world!".to_string()),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-            }],
-            // All other fields are optional
-            frequency_penalty: None,
-            function_call: None,
-            functions: None,
-            logit_bias: None,
-            logprobs: None,
-            max_completion_tokens: None,
-            max_tokens: None,
-            modalities: None,
-            metadata: None,
-            n: None,
-            presence_penalty: None,
-            parallel_tool_calls: None,
-            prediction: None,
-            response_format: None,
-            seed: None,
-            service_tier: None,
-            stop: None,
-            store: None,
-            stream: None,
-            stream_options: None,
-            temperature: None,
-            tool_choice: None,
-            tools: None,
-            top_p: None,
-            top_logprobs: None,
-            user: None,
-        };
+        // Create a JSON object with only required fields
+        let original_json = json!({
+            "model": "gpt-4",
+            "messages": [
+                {
+                    "content": "Hello, world!",
+                    "role": "user"
+                }
+            ]
+        });
 
-        // Test serialization of minimal request
-        let json = serde_json::to_value(&minimal_request).unwrap();
-        let obj = json.as_object().unwrap();
+        // Deserialize JSON into ChatCompletionsRequest
+        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
 
-        // Required fields should be present
-        assert_eq!(obj["model"], "gpt-4");
-        assert!(obj.contains_key("messages"));
-        assert_eq!(obj["messages"].as_array().unwrap().len(), 1);
+        // Validate required fields are properly set
+        assert_eq!(deserialized_request.model, "gpt-4");
+        assert_eq!(deserialized_request.messages.len(), 1);
 
-        // Test message structure
-        let message = &obj["messages"].as_array().unwrap()[0];
-        assert_eq!(message["role"], "user");
-        assert_eq!(message["content"], "Hello, world!");
+        let message = &deserialized_request.messages[0];
+        assert_eq!(message.role, Role::User);
+        if let MessageContent::Text(content) = &message.content {
+            assert_eq!(content, "Hello, world!");
+        } else {
+            panic!("Expected text content");
+        }
 
-        // Optional fields should not be present
-        assert!(!obj.contains_key("temperature"));
-        assert!(!obj.contains_key("max_tokens"));
-        assert!(!obj.contains_key("stream"));
+        // Serialize the ChatCompletionsRequest back to JSON
+        let serialized_json = serde_json::to_value(&deserialized_request).unwrap();
+        assert_eq!(original_json, serialized_json);
     }
 
     #[test]
     fn test_optional_fields_serialization() {
-        // Test that optional fields work correctly and None fields are skipped
-        let request_with_options = ChatCompletionsRequest {
-            model: "gpt-4".to_string(),
-            messages: vec![Message {
-                role: Role::User,
-                content: MessageContent::Text("Test message".to_string()),
-                name: Some("test_user".to_string()), // Optional field with value
-                tool_calls: None, // Optional field as None
-                tool_call_id: None,
-            }],
-            temperature: Some(0.7),
-            max_tokens: Some(150),
-            stream: Some(true),
-            stream_options: Some(StreamOptions {
-                include_usage: Some(true),
-            }),
-            metadata: Some(HashMap::from([
-                ("user_id".to_string(), "123".to_string()),
-            ])),
-            // These should be None and skipped
-            top_p: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            tools: None,
-            tool_choice: None,
-            parallel_tool_calls: None,
-            user: None,
-            logit_bias: None,
-            logprobs: None,
-            max_completion_tokens: None,
-            modalities: None,
-            n: None,
-            prediction: None,
-            response_format: None,
-            seed: None,
-            service_tier: None,
-            store: None,
-            top_logprobs: None,
-            function_call: None,
-            functions: None,
-        };
+        // Create a JSON object with optional fields set
+        let original_json = json!({
+            "model": "gpt-4",
+            "messages": [
+                {
+                    "content": "Test message",
+                    "role": "user",
+                    "name": "test_user"
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 150,
+            "stream": true,
+            "stream_options": {
+                "include_usage": true
+            },
+            "metadata": {
+                "user_id": "123"
+            }
+        });
 
-        let json = serde_json::to_value(&request_with_options).unwrap();
-        let obj = json.as_object().unwrap();
+        // Deserialize JSON into ChatCompletionsRequest
+        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
 
-        // Fields with Some values should be present
-        assert!((obj["temperature"].as_f64().unwrap() - 0.7).abs() < 1e-6);
-        assert_eq!(obj["max_tokens"], 150);
-        assert_eq!(obj["stream"], true);
-        assert!(obj.contains_key("stream_options"));
-        assert!(obj.contains_key("metadata"));
+        // Validate required fields
+        assert_eq!(deserialized_request.model, "gpt-4");
+        assert_eq!(deserialized_request.messages.len(), 1);
 
-        // Message name should be present
-        let message = &obj["messages"].as_array().unwrap()[0];
-        assert_eq!(message["name"], "test_user");
-        assert!(!message.as_object().unwrap().contains_key("tool_calls"));
+        let message = &deserialized_request.messages[0];
+        assert_eq!(message.role, Role::User);
+        if let MessageContent::Text(content) = &message.content {
+            assert_eq!(content, "Test message");
+        } else {
+            panic!("Expected text content");
+        }
+        assert_eq!(message.name, Some("test_user".to_string()));
 
-        // None fields should be skipped
-        assert!(!obj.contains_key("top_p"));
-        assert!(!obj.contains_key("frequency_penalty"));
-        assert!(!obj.contains_key("presence_penalty"));
-        assert!(!obj.contains_key("stop"));
-        assert!(!obj.contains_key("tools"));
+        // Validate optional fields are properly set
+        assert!((deserialized_request.temperature.unwrap() - 0.7).abs() < 1e-6);
+        assert_eq!(deserialized_request.max_tokens, Some(150));
+        assert_eq!(deserialized_request.stream, Some(true));
+        assert!(deserialized_request.stream_options.is_some());
+        assert!(deserialized_request.metadata.is_some());
+
+        // Validate fields not in JSON are None
+        assert!(deserialized_request.top_p.is_none());
+        assert!(deserialized_request.frequency_penalty.is_none());
+        assert!(deserialized_request.presence_penalty.is_none());
+        assert!(deserialized_request.stop.is_none());
+        assert!(deserialized_request.tools.is_none());
+
+        // Serialize back to JSON and compare (handle floating point precision)
+        let serialized_json = serde_json::to_value(&deserialized_request).unwrap();
+
+        // Compare all fields except temperature which needs floating point comparison
+        assert_eq!(serialized_json["model"], original_json["model"]);
+        assert_eq!(serialized_json["messages"], original_json["messages"]);
+        assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
+        assert_eq!(serialized_json["stream"], original_json["stream"]);
+        assert_eq!(serialized_json["stream_options"], original_json["stream_options"]);
+        assert_eq!(serialized_json["metadata"], original_json["metadata"]);
+
+        // Handle temperature with floating point tolerance
+        let original_temp = original_json["temperature"].as_f64().unwrap();
+        let serialized_temp = serialized_json["temperature"].as_f64().unwrap();
+        assert!((original_temp - serialized_temp).abs() < 1e-6);
     }
 
     #[test]
     fn test_nested_types_serialization() {
-        // Test tools, message parts, static content, and streaming deltas
-
-        // Test tool serialization
-        let tool = Tool {
-            tool_type: "function".to_string(),
-            function: Function {
-                name: "get_weather".to_string(),
-                description: Some("Get weather information".to_string()),
-                parameters: json!({
-                    "type": "object",
-                    "properties": {
-                        "location": {"type": "string"}
+        // Create a comprehensive JSON object with nested types - a ChatCompletionsRequest with complex message content and tools
+        let original_json = json!({
+            "model": "gpt-4-vision-preview",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "What can you see in this image and what's the weather like in the location shown?"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": "https://example.com/cityscape.jpg",
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "role": "assistant",
+                    "content": "I can see a beautiful cityscape. Let me check the weather for you.",
+                    "tool_calls": [
+                        {
+                            "id": "call_weather123",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"location\": \"New York, NY\"}"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "role": "tool",
+                    "content": "Current weather in New York: 72°F, sunny",
+                    "tool_call_id": "call_weather123"
+                }
+            ],
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "description": "Get current weather information for a location",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "location": {
+                                    "type": "string",
+                                    "description": "The city and state, e.g. San Francisco, CA"
+                                }
+                            },
+                            "required": ["location"]
+                        },
+                        "strict": true
                     }
-                }),
-                strict: Some(true),
-            },
-        };
+                }
+            ],
+            "tool_choice": "auto",
+            "temperature": 0.7,
+            "max_tokens": 1000,
+            "prediction": {
+                "type": "content",
+                "content": "Based on the image analysis and weather data, I can provide you with comprehensive information."
+            }
+        });
 
-        let tool_json = serde_json::to_value(&tool).unwrap();
-        assert_eq!(tool_json["type"], "function");
-        assert_eq!(tool_json["function"]["name"], "get_weather");
-        assert!(tool_json["function"].as_object().unwrap().contains_key("description"));
-        assert_eq!(tool_json["function"]["strict"], true);
+        // Deserialize JSON into ChatCompletionsRequest
+        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
 
-        // Test multimodal message content
-        let multimodal_message = Message {
-            role: Role::User,
-            content: MessageContent::Parts(vec![
-                ContentPart::Text {
-                    text: "What's in this image?".to_string(),
-                },
-                ContentPart::ImageUrl {
-                    image_url: ImageUrl {
-                        url: "https://example.com/image.jpg".to_string(),
-                        detail: Some("high".to_string()),
-                    },
-                },
-            ]),
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-        };
+        // Validate top-level fields
+        assert_eq!(deserialized_request.model, "gpt-4-vision-preview");
+        assert_eq!(deserialized_request.messages.len(), 3);
+        assert!((deserialized_request.temperature.unwrap() - 0.7).abs() < 1e-6);
+        assert_eq!(deserialized_request.max_tokens, Some(1000));
 
-        let multimodal_json = serde_json::to_value(&multimodal_message).unwrap();
-        let content_array = multimodal_json["content"].as_array().unwrap();
-        assert_eq!(content_array.len(), 2);
-        assert_eq!(content_array[0]["type"], "text");
-        assert_eq!(content_array[1]["type"], "image_url");
-        assert_eq!(content_array[1]["image_url"]["detail"], "high");
+        // Validate first message (user with multimodal content)
+        let user_message = &deserialized_request.messages[0];
+        assert_eq!(user_message.role, Role::User);
+        if let MessageContent::Parts(ref content_parts) = user_message.content {
+            assert_eq!(content_parts.len(), 2);
 
-        // Test static content for prediction
-        let static_content = StaticContent {
-            content_type: "content".to_string(),
-            content: StaticContentType::Text("Predicted output".to_string()),
-        };
+            // Validate text content part
+            if let ContentPart::Text { text } = &content_parts[0] {
+                assert_eq!(text, "What can you see in this image and what's the weather like in the location shown?");
+            } else {
+                panic!("Expected text content part");
+            }
 
-        let static_json = serde_json::to_value(&static_content).unwrap();
-        assert_eq!(static_json["type"], "content");
-        assert_eq!(static_json["content"], "Predicted output");
+            // Validate image URL content part
+            if let ContentPart::ImageUrl { ref image_url } = content_parts[1] {
+                assert_eq!(image_url.url, "https://example.com/cityscape.jpg");
+                assert_eq!(image_url.detail, Some("high".to_string()));
+            } else {
+                panic!("Expected image URL content part");
+            }
+        } else {
+            panic!("Expected multimodal content parts for user message");
+        }
 
-        // Test streaming delta
-        let stream_delta = MessageDelta {
-            role: Some(Role::Assistant),
-            content: Some("Streaming response".to_string()),
-            refusal: None,
-            function_call: None,
-            tool_calls: Some(vec![ToolCallDelta {
-                index: 0,
-                id: Some("call_123".to_string()),
-                call_type: Some("function".to_string()),
-                function: Some(FunctionCallDelta {
-                    name: Some("get_weather".to_string()),
-                    arguments: Some(r#"{"location":"NYC"}"#.to_string()),
-                }),
-            }]),
-        };
+        // Validate second message (assistant with tool calls)
+        let assistant_message = &deserialized_request.messages[1];
+        assert_eq!(assistant_message.role, Role::Assistant);
+        if let MessageContent::Text(text) = &assistant_message.content {
+            assert_eq!(text, "I can see a beautiful cityscape. Let me check the weather for you.");
+        } else {
+            panic!("Expected text content for assistant message");
+        }
 
-        let delta_json = serde_json::to_value(&stream_delta).unwrap();
-        assert_eq!(delta_json["role"], "assistant");
-        assert_eq!(delta_json["content"], "Streaming response");
-        assert!(delta_json["tool_calls"].as_array().unwrap().len() == 1);
-        assert!(!delta_json.as_object().unwrap().contains_key("refusal")); // None should be skipped
+        // Validate tool calls in assistant message
+        assert!(assistant_message.tool_calls.is_some());
+        let tool_calls = assistant_message.tool_calls.as_ref().unwrap();
+        assert_eq!(tool_calls.len(), 1);
+
+        let tool_call = &tool_calls[0];
+        assert_eq!(tool_call.id, "call_weather123");
+        assert_eq!(tool_call.call_type, "function");
+        assert_eq!(tool_call.function.name, "get_weather");
+        assert_eq!(tool_call.function.arguments, "{\"location\": \"New York, NY\"}");
+
+        // Validate third message (tool response)
+        let tool_message = &deserialized_request.messages[2];
+        assert_eq!(tool_message.role, Role::Tool);
+        if let MessageContent::Text(text) = &tool_message.content {
+            assert_eq!(text, "Current weather in New York: 72°F, sunny");
+        } else {
+            panic!("Expected text content for tool message");
+        }
+        assert_eq!(tool_message.tool_call_id, Some("call_weather123".to_string()));
+
+        // Validate tools array
+        assert!(deserialized_request.tools.is_some());
+        let tools = deserialized_request.tools.as_ref().unwrap();
+        assert_eq!(tools.len(), 1);
+
+        let tool = &tools[0];
+        assert_eq!(tool.tool_type, "function");
+        assert_eq!(tool.function.name, "get_weather");
+        assert_eq!(tool.function.description, Some("Get current weather information for a location".to_string()));
+        assert_eq!(tool.function.strict, Some(true));
+
+        // Validate tool parameters schema
+        let parameters = &tool.function.parameters;
+        assert_eq!(parameters["type"], "object");
+        assert!(parameters["properties"]["location"].is_object());
+        assert_eq!(parameters["required"], json!(["location"]));
+
+        // Validate tool choice
+        if let Some(ToolChoice::String(choice)) = &deserialized_request.tool_choice {
+            assert_eq!(choice, "auto");
+        } else {
+            panic!("Expected auto tool choice string");
+        }
+
+        // Validate prediction
+        assert!(deserialized_request.prediction.is_some());
+        let prediction = deserialized_request.prediction.as_ref().unwrap();
+        assert_eq!(prediction.content_type, "content");
+        if let StaticContentType::Text(text) = &prediction.content {
+            assert_eq!(text, "Based on the image analysis and weather data, I can provide you with comprehensive information.");
+        } else {
+            panic!("Expected text prediction content");
+        }
+
+        // Serialize back to JSON and compare (handle floating point precision)
+        let serialized_json = serde_json::to_value(&deserialized_request).unwrap();
+
+        // Compare all fields except floating point ones
+        assert_eq!(serialized_json["model"], original_json["model"]);
+        assert_eq!(serialized_json["messages"], original_json["messages"]);
+        assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
+        assert_eq!(serialized_json["tools"], original_json["tools"]);
+        assert_eq!(serialized_json["tool_choice"], original_json["tool_choice"]);
+        assert_eq!(serialized_json["prediction"], original_json["prediction"]);
+
+        // Handle floating point field with tolerance
+        let original_temp = original_json["temperature"].as_f64().unwrap();
+        let serialized_temp = serialized_json["temperature"].as_f64().unwrap();
+        assert!((original_temp - serialized_temp).abs() < 1e-6);
     }
 
     #[test]
@@ -663,88 +730,657 @@ mod tests {
 
     #[test]
     fn test_role_specific_behavior() {
-        // Test role-specific serialization behavior
+        // Test 1: User message - basic content, no tool-related fields
+        let user_json = json!({
+            "content": "Hello!",
+            "role": "user",
+            "name": "user123"
+        });
 
-        // User message - basic content, no tool-related fields
-        let user_message = Message {
-            role: Role::User,
-            content: MessageContent::Text("Hello!".to_string()),
-            name: Some("user123".to_string()),
-            tool_calls: None,
-            tool_call_id: None,
-        };
+        let deserialized_user: Message = serde_json::from_value(user_json.clone()).unwrap();
+        assert_eq!(deserialized_user.role, Role::User);
+        if let MessageContent::Text(content) = &deserialized_user.content {
+            assert_eq!(content, "Hello!");
+        } else {
+            panic!("Expected text content");
+        }
+        assert_eq!(deserialized_user.name, Some("user123".to_string()));
+        assert!(deserialized_user.tool_calls.is_none());
+        assert!(deserialized_user.tool_call_id.is_none());
 
-        let user_json = serde_json::to_value(&user_message).unwrap();
-        let user_obj = user_json.as_object().unwrap();
-        assert_eq!(user_obj["role"], "user");
-        assert_eq!(user_obj["name"], "user123");
-        assert!(!user_obj.contains_key("tool_calls"));
-        assert!(!user_obj.contains_key("tool_call_id"));
+        let serialized_user_json = serde_json::to_value(&deserialized_user).unwrap();
+        assert_eq!(user_json, serialized_user_json);
 
-        // Assistant message with tool calls
-        let assistant_message = Message {
-            role: Role::Assistant,
-            content: MessageContent::Text("I'll help with that.".to_string()),
-            name: None,
-            tool_calls: Some(vec![ToolCall {
-                id: "call_456".to_string(),
-                call_type: "function".to_string(),
-                function: FunctionCall {
-                    name: "get_weather".to_string(),
-                    arguments: r#"{"location":"SF"}"#.to_string(),
-                },
-            }]),
-            tool_call_id: None, // Should not be present for assistant
-        };
+        // Test 2: Assistant message with tool calls
+        let assistant_json = json!({
+            "content": "I'll help with that.",
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "call_456",
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": r#"{"location":"SF"}"#
+                    }
+                }
+            ]
+        });
 
-        let assistant_json = serde_json::to_value(&assistant_message).unwrap();
-        let assistant_obj = assistant_json.as_object().unwrap();
-        assert_eq!(assistant_obj["role"], "assistant");
-        assert!(assistant_obj.contains_key("tool_calls"));
-        assert!(!assistant_obj.contains_key("tool_call_id")); // Not for assistant
-        assert!(!assistant_obj.contains_key("name")); // None, so skipped
+        let deserialized_assistant: Message = serde_json::from_value(assistant_json.clone()).unwrap();
+        assert_eq!(deserialized_assistant.role, Role::Assistant);
+        if let MessageContent::Text(content) = &deserialized_assistant.content {
+            assert_eq!(content, "I'll help with that.");
+        } else {
+            panic!("Expected text content");
+        }
+        assert!(deserialized_assistant.tool_calls.is_some());
+        assert!(deserialized_assistant.tool_call_id.is_none());
+        assert!(deserialized_assistant.name.is_none());
 
-        // Tool message responding to a call
-        let tool_message = Message {
-            role: Role::Tool,
-            content: MessageContent::Text("Weather is sunny".to_string()),
-            name: None,
-            tool_calls: None, // Should not be present for tool messages
-            tool_call_id: Some("call_456".to_string()),
-        };
+        let tool_calls = deserialized_assistant.tool_calls.as_ref().unwrap();
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_456");
+        assert_eq!(tool_calls[0].function.name, "get_weather");
 
-        let tool_json = serde_json::to_value(&tool_message).unwrap();
-        let tool_obj = tool_json.as_object().unwrap();
-        assert_eq!(tool_obj["role"], "tool");
-        assert_eq!(tool_obj["tool_call_id"], "call_456");
-        assert!(!tool_obj.contains_key("tool_calls")); // Not for tool messages
+        let serialized_assistant_json = serde_json::to_value(&deserialized_assistant).unwrap();
+        assert_eq!(assistant_json, serialized_assistant_json);
 
-        // Test ResponseMessage vs Message differences
-        let response_message = ResponseMessage {
-            role: Role::Assistant,
-            content: Some("Response content".to_string()),
-            refusal: None,
-            annotations: Some(vec![json!({"type": "citation"})]),
-            audio: None,
-            function_call: None,
-            tool_calls: None,
-        };
+        // Test 3: Tool message responding to a call
+        let tool_json = json!({
+            "content": "Weather is sunny",
+            "role": "tool",
+            "tool_call_id": "call_456"
+        });
 
-        let response_json = serde_json::to_value(&response_message).unwrap();
-        let response_obj = response_json.as_object().unwrap();
+        let deserialized_tool: Message = serde_json::from_value(tool_json.clone()).unwrap();
+        assert_eq!(deserialized_tool.role, Role::Tool);
+        if let MessageContent::Text(content) = &deserialized_tool.content {
+            assert_eq!(content, "Weather is sunny");
+        } else {
+            panic!("Expected text content");
+        }
+        assert_eq!(deserialized_tool.tool_call_id, Some("call_456".to_string()));
+        assert!(deserialized_tool.tool_calls.is_none());
+        assert!(deserialized_tool.name.is_none());
 
-        // ResponseMessage has different fields than Message
-        assert!(response_obj.contains_key("annotations"));
-        assert!(!response_obj.contains_key("name")); // Not in ResponseMessage
-        assert!(!response_obj.contains_key("tool_call_id")); // Not in ResponseMessage
+        let serialized_tool_json = serde_json::to_value(&deserialized_tool).unwrap();
+        assert_eq!(tool_json, serialized_tool_json);
 
-        // Test conversion
-        let converted = response_message.to_message();
+        // Test 4: ResponseMessage vs Message differences
+        let response_json = json!({
+            "role": "assistant",
+            "content": "Response content",
+            "annotations": [
+                {"type": "citation"}
+            ]
+        });
+
+        let deserialized_response: ResponseMessage = serde_json::from_value(response_json.clone()).unwrap();
+        assert_eq!(deserialized_response.role, Role::Assistant);
+        assert_eq!(deserialized_response.content, Some("Response content".to_string()));
+        assert!(deserialized_response.annotations.is_some());
+        assert!(deserialized_response.refusal.is_none());
+        assert!(deserialized_response.function_call.is_none());
+        assert!(deserialized_response.tool_calls.is_none());
+
+        let serialized_response_json = serde_json::to_value(&deserialized_response).unwrap();
+        assert_eq!(response_json, serialized_response_json);
+
+        // Test conversion from ResponseMessage to Message
+        let converted = deserialized_response.to_message();
         assert_eq!(converted.role, Role::Assistant);
         if let MessageContent::Text(text) = converted.content {
             assert_eq!(text, "Response content");
         } else {
             panic!("Expected text content");
+        }
+        assert!(converted.name.is_none());
+        assert!(converted.tool_call_id.is_none());
+    }
+
+    // ============================================================================
+    // INTEGRATION TESTS WITH async-openai
+    // ============================================================================
+
+    mod integration_tests {
+        use super::*;
+        use async_openai::{
+            types::{
+                ChatCompletionRequestUserMessageArgs,
+                CreateChatCompletionRequestArgs,
+                ChatCompletionToolArgs,
+                ChatCompletionToolType, FunctionObjectArgs,
+                Role as AsyncOpenAIRole,
+            },
+        };
+
+        /// Helper to convert our Role to async-openai Role
+        #[allow(dead_code)]
+        fn convert_role(role: Role) -> AsyncOpenAIRole {
+            match role {
+                Role::System => AsyncOpenAIRole::System,
+                Role::User => AsyncOpenAIRole::User,
+                Role::Assistant => AsyncOpenAIRole::Assistant,
+                Role::Tool => AsyncOpenAIRole::Tool,
+            }
+        }
+
+        /// Helper to convert async-openai Role to our Role
+        #[allow(dead_code)]
+        fn convert_role_back(role: AsyncOpenAIRole) -> Role {
+            match role {
+                AsyncOpenAIRole::System => Role::System,
+                AsyncOpenAIRole::User => Role::User,
+                AsyncOpenAIRole::Assistant => Role::Assistant,
+                AsyncOpenAIRole::Tool => Role::Tool,
+                AsyncOpenAIRole::Function => Role::Tool, // Map Function to Tool (legacy support)
+            }
+        }
+
+        #[tokio::test]
+        async fn test_required_fields_compatibility() {
+            // Test 1: Required fields req/response compatibility
+
+            // Create our minimal request
+            let our_request = ChatCompletionsRequest {
+                model: "gpt-4".to_string(),
+                messages: vec![Message {
+                    role: Role::User,
+                    content: MessageContent::Text("Hello, world!".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                }],
+                frequency_penalty: None,
+                function_call: None,
+                functions: None,
+                logit_bias: None,
+                logprobs: None,
+                max_completion_tokens: None,
+                max_tokens: None,
+                modalities: None,
+                metadata: None,
+                n: None,
+                presence_penalty: None,
+                parallel_tool_calls: None,
+                prediction: None,
+                response_format: None,
+                seed: None,
+                service_tier: None,
+                stop: None,
+                store: None,
+                stream: None,
+                stream_options: None,
+                temperature: None,
+                tool_choice: None,
+                tools: None,
+                top_p: None,
+                top_logprobs: None,
+                user: None,
+            };
+
+            // Create equivalent async-openai request
+            let async_openai_request = CreateChatCompletionRequestArgs::default()
+                .model("gpt-4")
+                .messages(vec![
+                    ChatCompletionRequestUserMessageArgs::default()
+                        .content("Hello, world!")
+                        .build()
+                        .unwrap().into(),
+                ])
+                .build()
+                .unwrap();
+
+            // Serialize both and compare JSON structure
+            let our_json = serde_json::to_value(&our_request).unwrap();
+            let async_openai_json = serde_json::to_value(&async_openai_request).unwrap();
+
+            // Both should have the required fields
+            assert_eq!(our_json["model"], "gpt-4");
+            assert_eq!(async_openai_json["model"], "gpt-4");
+
+            // Messages should be structured the same way
+            let our_messages = our_json["messages"].as_array().unwrap();
+            let async_openai_messages = async_openai_json["messages"].as_array().unwrap();
+
+            assert_eq!(our_messages.len(), 1);
+            assert_eq!(async_openai_messages.len(), 1);
+
+            assert_eq!(our_messages[0]["role"], "user");
+            assert_eq!(async_openai_messages[0]["role"], "user");
+
+            assert_eq!(our_messages[0]["content"], "Hello, world!");
+            assert_eq!(async_openai_messages[0]["content"], "Hello, world!");
+        }
+
+        #[tokio::test]
+        async fn test_optional_fields_compatibility() {
+            // Test 2: Optional fields req/response compatibility
+
+            let our_request = ChatCompletionsRequest {
+                model: "gpt-4".to_string(),
+                messages: vec![Message {
+                    role: Role::User,
+                    content: MessageContent::Text("Test with options".to_string()),
+                    name: Some("test_user".to_string()),
+                    tool_calls: None,
+                    tool_call_id: None,
+                }],
+                temperature: Some(0.7),
+                max_tokens: Some(150),
+                stream: Some(false),
+                top_p: Some(0.95),
+                frequency_penalty: Some(0.1),
+                presence_penalty: Some(0.2),
+                stop: Some(vec!["STOP".to_string()]),
+                user: Some("user123".to_string()),
+                // Set remaining fields to None
+                function_call: None,
+                functions: None,
+                logit_bias: None,
+                logprobs: None,
+                max_completion_tokens: None,
+                modalities: None,
+                metadata: None,
+                n: None,
+                parallel_tool_calls: None,
+                prediction: None,
+                response_format: None,
+                seed: None,
+                service_tier: None,
+                store: None,
+                stream_options: None,
+                tool_choice: None,
+                tools: None,
+                top_logprobs: None,
+            };
+
+            let async_openai_request = CreateChatCompletionRequestArgs::default()
+                .model("gpt-4")
+                .messages(vec![
+                    ChatCompletionRequestUserMessageArgs::default()
+                        .content("Test with options")
+                        .name("test_user")
+                        .build()
+                        .unwrap().into(),
+                ])
+                .temperature(0.7)
+                .max_tokens(150u32)
+                .stream(false)
+                .top_p(0.95)
+                .frequency_penalty(0.1)
+                .presence_penalty(0.2)
+                .stop(vec!["STOP".to_string()])
+                .user("user123")
+                .build()
+                .unwrap();
+
+            let our_json = serde_json::to_value(&our_request).unwrap();
+            let async_openai_json = serde_json::to_value(&async_openai_request).unwrap();
+
+            // Check that optional fields match
+            assert!((our_json["temperature"].as_f64().unwrap() - 0.7).abs() < 1e-6);
+            assert!((async_openai_json["temperature"].as_f64().unwrap() - 0.7).abs() < 1e-6);
+
+            assert_eq!(our_json["max_tokens"], 150);
+            assert_eq!(async_openai_json["max_tokens"], 150);
+
+            assert_eq!(our_json["stream"], false);
+            assert_eq!(async_openai_json["stream"], false);
+
+            assert_eq!(our_json["user"], "user123");
+            assert_eq!(async_openai_json["user"], "user123");
+
+            // Check message name field
+            let our_message = &our_json["messages"].as_array().unwrap()[0];
+            let async_openai_message = &async_openai_json["messages"].as_array().unwrap()[0];
+
+            assert_eq!(our_message["name"], "test_user");
+            assert_eq!(async_openai_message["name"], "test_user");
+        }
+
+        #[tokio::test]
+        async fn test_streaming_response_compatibility() {
+            // Test 3: Streaming response compatibility
+
+            // Create a mock streaming response using our types
+            let our_stream_response = ChatCompletionsStreamResponse {
+                id: "chatcmpl-123".to_string(),
+                object: "chat.completion.chunk".to_string(),
+                created: 1677652288,
+                model: "gpt-4".to_string(),
+                choices: vec![StreamChoice {
+                    index: 0,
+                    delta: MessageDelta {
+                        role: Some(Role::Assistant),
+                        content: Some("Hello! ".to_string()),
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: None,
+                    },
+                    finish_reason: None,
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: Some("fp_44709d6fcb".to_string()),
+                service_tier: None,
+            };
+
+            let our_json = serde_json::to_value(&our_stream_response).unwrap();
+
+            // Verify structure matches expected streaming response format
+            assert_eq!(our_json["id"], "chatcmpl-123");
+            assert_eq!(our_json["object"], "chat.completion.chunk");
+            assert_eq!(our_json["created"], 1677652288);
+            assert_eq!(our_json["model"], "gpt-4");
+
+            let choices = our_json["choices"].as_array().unwrap();
+            assert_eq!(choices.len(), 1);
+
+            let choice = &choices[0];
+            assert_eq!(choice["index"], 0);
+            assert_eq!(choice["delta"]["role"], "assistant");
+            assert_eq!(choice["delta"]["content"], "Hello! ");
+            assert!(!choice["delta"].as_object().unwrap().contains_key("refusal"));
+
+            // Test final streaming chunk with usage
+            let final_chunk = ChatCompletionsStreamResponse {
+                id: "chatcmpl-123".to_string(),
+                object: "chat.completion.chunk".to_string(),
+                created: 1677652288,
+                model: "gpt-4".to_string(),
+                choices: vec![StreamChoice {
+                    index: 0,
+                    delta: MessageDelta {
+                        role: None,
+                        content: None,
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: None,
+                    },
+                    finish_reason: Some(FinishReason::Stop),
+                    logprobs: None,
+                }],
+                usage: Some(Usage {
+                    prompt_tokens: 20,
+                    completion_tokens: 30,
+                    total_tokens: 50,
+                    prompt_tokens_details: None,
+                    completion_tokens_details: None,
+                }),
+                system_fingerprint: Some("fp_44709d6fcb".to_string()),
+                service_tier: None,
+            };
+
+            let final_json = serde_json::to_value(&final_chunk).unwrap();
+            assert_eq!(final_json["choices"][0]["finish_reason"], "stop");
+            assert_eq!(final_json["usage"]["total_tokens"], 50);
+        }
+
+        #[tokio::test]
+        async fn test_tool_calls_compatibility() {
+            // Test 4: Request with tool calls and streaming response with tools
+
+            // Create our tool definition
+            let weather_tool = Tool {
+                tool_type: "function".to_string(),
+                function: Function {
+                    name: "get_weather".to_string(),
+                    description: Some("Get the current weather in a location".to_string()),
+                    parameters: json!({
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA"
+                            }
+                        },
+                        "required": ["location"]
+                    }),
+                    strict: None,
+                },
+            };
+
+            // Create request with tools
+            let our_request = ChatCompletionsRequest {
+                model: "gpt-4".to_string(),
+                messages: vec![Message {
+                    role: Role::User,
+                    content: MessageContent::Text("What's the weather like in San Francisco?".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                }],
+                tools: Some(vec![weather_tool]),
+                tool_choice: Some(ToolChoice::String("auto".to_string())),
+                stream: Some(true),
+                stream_options: Some(StreamOptions {
+                    include_usage: Some(true),
+                }),
+                // Set all other optional fields to None
+                frequency_penalty: None,
+                function_call: None,
+                functions: None,
+                logit_bias: None,
+                logprobs: None,
+                max_completion_tokens: None,
+                max_tokens: None,
+                modalities: None,
+                metadata: None,
+                n: None,
+                presence_penalty: None,
+                parallel_tool_calls: None,
+                prediction: None,
+                response_format: None,
+                seed: None,
+                service_tier: None,
+                stop: None,
+                store: None,
+                temperature: None,
+                top_p: None,
+                top_logprobs: None,
+                user: None,
+            };
+
+            // Create equivalent async-openai request with tools
+            let async_openai_tool = ChatCompletionToolArgs::default()
+                .r#type(ChatCompletionToolType::Function)
+                .function(
+                    FunctionObjectArgs::default()
+                        .name("get_weather")
+                        .description("Get the current weather in a location")
+                        .parameters(json!({
+                            "type": "object",
+                            "properties": {
+                                "location": {
+                                    "type": "string",
+                                    "description": "The city and state, e.g. San Francisco, CA"
+                                }
+                            },
+                            "required": ["location"]
+                        }))
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap();
+
+            let async_openai_request = CreateChatCompletionRequestArgs::default()
+                .model("gpt-4")
+                .messages(vec![
+                    ChatCompletionRequestUserMessageArgs::default()
+                        .content("What's the weather like in San Francisco?")
+                        .build()
+                        .unwrap().into(),
+                ])
+                .tools(vec![async_openai_tool])
+                .tool_choice("auto")
+                .build()
+                .unwrap();
+
+            // Compare JSON structures
+            let our_json = serde_json::to_value(&our_request).unwrap();
+            let async_openai_json = serde_json::to_value(&async_openai_request).unwrap();
+
+            // Verify tool structure matches
+            let our_tools = our_json["tools"].as_array().unwrap();
+            let async_openai_tools = async_openai_json["tools"].as_array().unwrap();
+
+            assert_eq!(our_tools.len(), 1);
+            assert_eq!(async_openai_tools.len(), 1);
+
+            let our_tool = &our_tools[0];
+            let async_openai_tool = &async_openai_tools[0];
+
+            assert_eq!(our_tool["type"], "function");
+            assert_eq!(async_openai_tool["type"], "function");
+
+            assert_eq!(our_tool["function"]["name"], "get_weather");
+            assert_eq!(async_openai_tool["function"]["name"], "get_weather");
+
+            // Test streaming response with tool calls
+            let tool_call_stream_chunk = ChatCompletionsStreamResponse {
+                id: "chatcmpl-tool-123".to_string(),
+                object: "chat.completion.chunk".to_string(),
+                created: 1677652288,
+                model: "gpt-4".to_string(),
+                choices: vec![StreamChoice {
+                    index: 0,
+                    delta: MessageDelta {
+                        role: Some(Role::Assistant),
+                        content: None,
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: Some(vec![ToolCallDelta {
+                            index: 0,
+                            id: Some("call_abc123".to_string()),
+                            call_type: Some("function".to_string()),
+                            function: Some(FunctionCallDelta {
+                                name: Some("get_weather".to_string()),
+                                arguments: Some(r#"{"location":"San Francisco, CA"}"#.to_string()),
+                            }),
+                        }]),
+                    },
+                    finish_reason: Some(FinishReason::ToolCalls),
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: Some("fp_44709d6fcb".to_string()),
+                service_tier: None,
+            };
+
+            let tool_call_json = serde_json::to_value(&tool_call_stream_chunk).unwrap();
+
+            // Verify tool call structure in streaming response
+            let choice = &tool_call_json["choices"][0];
+            assert_eq!(choice["finish_reason"], "tool_calls");
+
+            let tool_calls = choice["delta"]["tool_calls"].as_array().unwrap();
+            assert_eq!(tool_calls.len(), 1);
+
+            let tool_call = &tool_calls[0];
+            assert_eq!(tool_call["index"], 0);
+            assert_eq!(tool_call["id"], "call_abc123");
+            assert_eq!(tool_call["type"], "function");
+            assert_eq!(tool_call["function"]["name"], "get_weather");
+            assert_eq!(tool_call["function"]["arguments"], r#"{"location":"San Francisco, CA"}"#);
+
+            // Test tool response message
+            let tool_response_message = Message {
+                role: Role::Tool,
+                content: MessageContent::Text(r#"{"temperature": "72°F", "condition": "sunny"}"#.to_string()),
+                name: None,
+                tool_calls: None,
+                tool_call_id: Some("call_abc123".to_string()),
+            };
+
+            let tool_response_json = serde_json::to_value(&tool_response_message).unwrap();
+            assert_eq!(tool_response_json["role"], "tool");
+            assert_eq!(tool_response_json["tool_call_id"], "call_abc123");
+            assert_eq!(tool_response_json["content"], r#"{"temperature": "72°F", "condition": "sunny"}"#);
+        }
+
+        #[test]
+        fn test_cross_conversion_compatibility() {
+            // Test conversion of complex response using JSON-first approach
+            let complex_response_json = json!({
+                "id": "chatcmpl-complex",
+                "object": "chat.completion",
+                "created": 1677652288u64,
+                "model": "gpt-4",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "I can help you with that!",
+                            "tool_calls": [
+                                {
+                                    "id": "call_xyz789",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "search_database",
+                                        "arguments": r#"{"query":"user question"}"#
+                                    }
+                                }
+                            ]
+                        },
+                        "finish_reason": "tool_calls"
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 25,
+                    "completion_tokens": 35,
+                    "total_tokens": 60,
+                    "prompt_tokens_details": {
+                        "cached_tokens": 10
+                    },
+                    "completion_tokens_details": {
+                        "reasoning_tokens": 5
+                    }
+                },
+                "system_fingerprint": "fp_complex"
+            });
+
+            // Deserialize JSON into ChatCompletionsResponse
+            let deserialized: ChatCompletionsResponse = serde_json::from_value(complex_response_json.clone()).unwrap();
+
+            // Verify fields are properly deserialized
+            assert_eq!(deserialized.id, "chatcmpl-complex");
+            assert_eq!(deserialized.object, "chat.completion");
+            assert_eq!(deserialized.created, 1677652288);
+            assert_eq!(deserialized.model, "gpt-4");
+            assert_eq!(deserialized.choices.len(), 1);
+            assert_eq!(deserialized.usage.total_tokens, 60);
+            assert_eq!(deserialized.usage.prompt_tokens, 25);
+            assert_eq!(deserialized.usage.completion_tokens, 35);
+            assert_eq!(
+                deserialized.usage.prompt_tokens_details.as_ref().unwrap().cached_tokens,
+                Some(10)
+            );
+            assert_eq!(
+                deserialized.usage.completion_tokens_details.as_ref().unwrap().reasoning_tokens,
+                Some(5)
+            );
+            assert_eq!(deserialized.system_fingerprint, Some("fp_complex".to_string()));
+
+            let choice = &deserialized.choices[0];
+            assert_eq!(choice.index, 0);
+            assert_eq!(choice.finish_reason, Some(FinishReason::ToolCalls));
+            assert!(choice.message.tool_calls.is_some());
+            assert_eq!(choice.message.role, Role::Assistant);
+            assert_eq!(choice.message.content, Some("I can help you with that!".to_string()));
+
+            let tool_call = &choice.message.tool_calls.as_ref().unwrap()[0];
+            assert_eq!(tool_call.id, "call_xyz789");
+            assert_eq!(tool_call.call_type, "function");
+            assert_eq!(tool_call.function.name, "search_database");
+            assert_eq!(tool_call.function.arguments, r#"{"query":"user question"}"#);
+
+            // Serialize back to JSON and verify round-trip compatibility
+            let serialized_json = serde_json::to_value(&deserialized).unwrap();
+            assert_eq!(complex_response_json, serialized_json);
         }
     }
 }

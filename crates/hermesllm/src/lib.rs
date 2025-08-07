@@ -1,10 +1,12 @@
 //! hermesllm: A library for translating LLM API requests and responses
 //! between Mistral, Grok, Gemini, and OpenAI-compliant formats.
 
-use std::fmt::Display;
-
 pub mod providers;
+pub mod apis;
+pub mod clients;
 
+
+use std::fmt::Display;
 pub enum Provider {
     Arch,
     Mistral,

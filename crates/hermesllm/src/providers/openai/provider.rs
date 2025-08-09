@@ -2,7 +2,6 @@
 
 use crate::apis::openai::*;
 use crate::providers::traits::*;
-use crate::Provider;
 
 // Simple error type for OpenAI API operations
 #[derive(Debug, thiserror::Error)]
@@ -73,6 +72,14 @@ impl ProviderInterface for OpenAIProvider {
     type Response = ChatCompletionsResponse;
     type StreamingResponse = OpenAIStreamingResponse;
     type Usage = Usage;
+
+    fn has_compatible_api(&self, api_path: &str) -> bool {
+        api_path == "/v1/chat/completions"
+    }
+
+    fn supported_apis(&self) -> Vec<&'static str> {
+        vec!["/v1/chat/completions"]
+    }
 }
 
 // ============================================================================
@@ -87,7 +94,7 @@ impl ProviderRequest for ChatCompletionsRequest {
         Ok(serde_json::from_str(s)?)
     }
 
-    fn to_provider_bytes(&self, _provider: Provider) -> Result<Vec<u8>, Self::Error> {
+    fn to_provider_bytes(&self, _provider: super::super::ProviderId, _mode: ConversionMode) -> Result<Vec<u8>, Self::Error> {
         Ok(serde_json::to_vec(self)?)
     }
 
@@ -142,7 +149,7 @@ impl ProviderResponse for ChatCompletionsResponse {
     type Error = OpenAIApiError;
     type Usage = Usage;
 
-    fn try_from_bytes(bytes: &[u8], _provider: &Provider) -> Result<Self, Self::Error> {
+    fn try_from_bytes(bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self, Self::Error> {
         let s = std::str::from_utf8(bytes)?;
         Ok(serde_json::from_str(s)?)
     }
@@ -164,7 +171,7 @@ impl StreamingResponse for OpenAIStreamingResponse {
     type Error = OpenAIApiError;
     type Chunk = ChatCompletionsStreamResponse;
 
-    fn try_from_bytes(bytes: &[u8], _provider: &Provider) -> Result<Self, Self::Error> {
+    fn try_from_bytes(bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self, Self::Error> {
         let s = std::str::from_utf8(bytes)?;
         Ok(OpenAIStreamingResponse::new(s.to_string()))
     }

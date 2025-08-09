@@ -178,14 +178,13 @@ impl Display for LlmProviderType {
 }
 
 impl LlmProviderType {
-    /// Create a ProviderInstance from this LlmProviderType
+    /// Create a Provider from this LlmProviderType
     /// This is the main method for stream_context to get provider-specific interfaces
-    pub fn create_provider_instance(&self) -> hermesllm::ProviderInstance {
-        use hermesllm::ProviderInstance;
+    pub fn create_provider(&self) -> hermesllm::Provider {
+        use hermesllm::{ProviderId, Provider};
 
-        // For now, all providers use OpenAI-compatible APIs
-        // TODO: Return specific provider instances when implementing different APIs
-        ProviderInstance::from_name(&self.to_string())
+        let provider_id = ProviderId::from(self.to_string().as_str());
+        Provider::new(provider_id)
     }
 }
 
@@ -265,10 +264,10 @@ impl Display for LlmProvider {
 }
 
 impl LlmProvider {
-    /// Create a ProviderInstance for this LlmProvider
+    /// Create a Provider for this LlmProvider
     /// This is a convenience method that delegates to the provider_interface
-    pub fn create_provider_instance(&self) -> hermesllm::ProviderInstance {
-        self.provider_interface.create_provider_instance()
+    pub fn create_provider(&self) -> hermesllm::Provider {
+        self.provider_interface.create_provider()
     }
 }
 

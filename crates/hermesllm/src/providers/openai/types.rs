@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 use std::str;
 use thiserror::Error;
 
-use crate::Provider;
+use crate::providers::ProviderId;
 
 #[derive(Debug, Error)]
 pub enum OpenAIError {
@@ -144,28 +144,26 @@ impl TryFrom<&[u8]> for ChatCompletionsResponse {
     }
 }
 
-impl<'a> TryFrom<(&'a [u8], &'a Provider)> for ChatCompletionsResponse {
+impl<'a> TryFrom<(&'a [u8], &'a ProviderId)> for ChatCompletionsResponse {
     type Error = OpenAIError;
 
-    fn try_from(input: (&'a [u8], &'a Provider)) -> Result<Self> {
+    fn try_from(input: (&'a [u8], &'a ProviderId)) -> Result<Self> {
         // Use input.provider as needed, if necessary
         serde_json::from_slice(input.0).map_err(OpenAIError::from)
     }
 }
 
 impl ChatCompletionsRequest {
-    pub fn to_bytes(&self, provider: Provider) -> Result<Vec<u8>> {
+    pub fn to_bytes(&self, provider: ProviderId) -> Result<Vec<u8>> {
         match provider {
-            Provider::OpenAI
-            | Provider::Arch
-            | Provider::Deepseek
-            | Provider::Mistral
-            | Provider::Groq
-            | Provider::Gemini
-            | Provider::Claude => serde_json::to_vec(self).map_err(OpenAIError::from),
-            _ => Err(OpenAIError::UnsupportedProvider {
-                provider: provider.to_string(),
-            }),
+            ProviderId::OpenAI
+            | ProviderId::Arch
+            | ProviderId::Deepseek
+            | ProviderId::Mistral
+            | ProviderId::Groq
+            | ProviderId::Gemini
+            | ProviderId::Claude
+            | ProviderId::GitHub => serde_json::to_vec(self).map_err(OpenAIError::from),
         }
     }
 }
@@ -262,10 +260,10 @@ where
     }
 }
 
-impl<'a> TryFrom<(&'a [u8], &'a Provider)> for SseChatCompletionIter<str::Lines<'a>> {
+impl<'a> TryFrom<(&'a [u8], &'a ProviderId)> for SseChatCompletionIter<str::Lines<'a>> {
     type Error = OpenAIError;
 
-    fn try_from(input: (&'a [u8], &'a Provider)) -> Result<Self> {
+    fn try_from(input: (&'a [u8], &'a ProviderId)) -> Result<Self> {
         let s = std::str::from_utf8(input.0)?;
         // Use input.provider as needed
         Ok(SseChatCompletionIter::new(s.lines()))

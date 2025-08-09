@@ -4,7 +4,15 @@
 //! handling of LLM requests and responses in the gateway.
 
 use std::error::Error;
-use crate::Provider;
+
+/// Conversion mode for provider requests/responses
+#[derive(Debug, Clone, Copy)]
+pub enum ConversionMode {
+    /// Compatible: Convert between different provider formats to ensure compatibility
+    Compatible,
+    /// Passthrough: Pass requests/responses through with minimal modification
+    Passthrough,
+}
 
 /// Trait for provider-specific request types
 pub trait ProviderRequest: Sized {
@@ -14,7 +22,7 @@ pub trait ProviderRequest: Sized {
     fn try_from_bytes(bytes: &[u8]) -> Result<Self, Self::Error>;
 
     /// Convert to provider-specific format
-    fn to_provider_bytes(&self, provider: Provider) -> Result<Vec<u8>, Self::Error>;
+    fn to_provider_bytes(&self, provider: super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Self::Error>;
 
     /// Extract the model name from the request
     fn extract_model(&self) -> &str;
@@ -42,7 +50,7 @@ pub trait ProviderResponse: Sized {
     type Usage: TokenUsage;
 
     /// Parse response from raw bytes
-    fn try_from_bytes(bytes: &[u8], provider: &Provider) -> Result<Self, Self::Error>;
+    fn try_from_bytes(bytes: &[u8], provider: &super::ProviderId, mode: ConversionMode) -> Result<Self, Self::Error>;
 
     /// Get usage information if available
     fn usage(&self) -> Option<&Self::Usage>;
@@ -62,7 +70,7 @@ pub trait StreamingResponse: Iterator<Item = Result<Self::Chunk, Self::Error>> +
     type Chunk: StreamChunk;
 
     /// Parse streaming response from raw bytes
-    fn try_from_bytes(bytes: &[u8], provider: &Provider) -> Result<Self, Self::Error>;
+    fn try_from_bytes(bytes: &[u8], provider: &super::ProviderId, mode: ConversionMode) -> Result<Self, Self::Error>;
 }
 
 /// Main provider interface trait
@@ -71,4 +79,20 @@ pub trait ProviderInterface {
     type Response: ProviderResponse;
     type StreamingResponse: StreamingResponse;
     type Usage: TokenUsage;
+
+    /// Check if this provider has a compatible API with the client request
+    fn has_compatible_api(&self, api_path: &str) -> bool;
+
+    /// Get the interface implementation for this provider
+    /// passthrough: if true, use provider-specific format; if false, use compatible format
+    fn get_interface(&self, passthrough: bool) -> ConversionMode {
+        if passthrough {
+            ConversionMode::Passthrough
+        } else {
+            ConversionMode::Compatible
+        }
+    }
+
+    /// Get supported API endpoints for this provider
+    fn supported_apis(&self) -> Vec<&'static str>;
 }

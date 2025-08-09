@@ -5,6 +5,11 @@ pub mod providers;
 pub mod apis;
 pub mod clients;
 
+// Re-export important traits
+pub use providers::traits::*;
+pub use providers::openai::provider::OpenAIProvider;
+pub use providers::provider_enum::ProviderInstance;
+
 
 use std::fmt::Display;
 pub enum Provider {
@@ -30,6 +35,45 @@ impl From<&str> for Provider {
             "claude" => Provider::Claude,
             "github" => Provider::Github,
             _ => panic!("Unknown provider: {}", value),
+        }
+    }
+}
+
+impl Provider {
+    /// Get the API endpoint path for this provider
+    pub fn api_path(&self) -> &'static str {
+        match self {
+            Provider::OpenAI => "/v1/chat/completions",
+            Provider::Groq => "/openai/v1/chat/completions", // Groq maps to OpenAI-compatible endpoint
+            Provider::Gemini => "/v1/models", // TODO: Update with correct Gemini path
+            Provider::Claude => "/v1/messages", // TODO: Update with correct Claude path
+            Provider::Mistral => "/v1/chat/completions", // Mistral uses OpenAI-compatible API
+            Provider::Deepseek => "/v1/chat/completions", // DeepSeek uses OpenAI-compatible API
+            Provider::Arch => "/v1/chat/completions", // Arch gateway endpoint
+            Provider::Github => "/models", // TODO: Update with correct GitHub models path
+        }
+    }
+
+    /// Check if this provider uses OpenAI-compatible API format
+    pub fn uses_openai_format(&self) -> bool {
+        match self {
+            Provider::OpenAI | Provider::Groq | Provider::Mistral | Provider::Deepseek | Provider::Arch => true,
+            Provider::Gemini | Provider::Claude | Provider::Github => false, // These have their own formats
+        }
+    }
+
+    /// Create a provider implementation instance for this provider
+    pub fn create_provider_instance(&self) -> ProviderInstance {
+        match self {
+            Provider::OpenAI => ProviderInstance::OpenAI(OpenAIProvider),
+            Provider::Groq => ProviderInstance::OpenAI(OpenAIProvider), // Groq uses OpenAI-compatible API
+            Provider::Mistral => ProviderInstance::OpenAI(OpenAIProvider), // Mistral uses OpenAI-compatible API
+            Provider::Deepseek => ProviderInstance::OpenAI(OpenAIProvider), // Deepseek uses OpenAI-compatible API
+            Provider::Arch => ProviderInstance::OpenAI(OpenAIProvider), // Arch gateway uses OpenAI-compatible API
+            // TODO: Implement specific providers for these when they have different APIs
+            Provider::Gemini => ProviderInstance::OpenAI(OpenAIProvider), // For now, use OpenAI-compatible
+            Provider::Claude => ProviderInstance::OpenAI(OpenAIProvider), // For now, use OpenAI-compatible
+            Provider::Github => ProviderInstance::OpenAI(OpenAIProvider), // For now, use OpenAI-compatible
         }
     }
 }

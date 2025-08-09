@@ -10,11 +10,9 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::providers::openai::types::{ChatCompletionsRequest, SseChatCompletionIter};
-use hermesllm::providers::openai::types::{
-    ChatCompletionsResponse, ContentType, Message, StreamOptions,
+use hermesllm::{
+    Provider, ProviderInstance, ProviderRequest, ProviderResponse, StreamChunk, TokenUsage,
 };
-use hermesllm::Provider;
 use http::StatusCode;
 use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
@@ -41,7 +39,6 @@ pub struct StreamContext {
     ttft_time: Option<u128>,
     traceparent: Option<String>,
     request_body_sent_time: Option<u128>,
-    user_message: Option<Message>,
     traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
 }
@@ -69,7 +66,6 @@ impl StreamContext {
             ttft_duration: None,
             traceparent: None,
             ttft_time: None,
-            user_message: None,
             traces_queue,
             request_body_sent_time: None,
         }
@@ -78,6 +74,10 @@ impl StreamContext {
         self.llm_provider
             .as_ref()
             .expect("the provider should be set when asked for it")
+    }
+
+    fn get_provider_instance(&self) -> ProviderInstance {
+        self.llm_provider().create_provider_instance()
     }
 
     fn select_llm_provider(&mut self) {
@@ -295,52 +295,39 @@ impl HttpContext for StreamContext {
             }
         };
 
-        let mut deserialized_body = match ChatCompletionsRequest::try_from(body_bytes.as_slice()) {
+        let provider_instance = self.get_provider_instance();
+
+        let mut deserialized_body = match provider_instance.parse_request(&body_bytes) {
             Ok(deserialized) => deserialized,
             Err(e) => {
                 debug!(
                     "on_http_request_body: request body: {}",
                     String::from_utf8_lossy(&body_bytes)
                 );
-                self.send_server_error(ServerError::OpenAIPError(e), Some(StatusCode::BAD_REQUEST));
+                self.send_server_error(
+                    ServerError::LogicError(format!("Request parsing error: {}", e)),
+                    Some(StatusCode::BAD_REQUEST),
+                );
                 return Action::Pause;
             }
         };
 
-        self.user_message = deserialized_body
-            .messages
-            .iter()
-            .filter(|m| m.role == "user")
-            .last()
-            .cloned();
+        // TODO: For now, we'll need to handle user_message extraction differently since it's OpenAI-specific
+        // This could be made generic by adding a trait method later
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
             None => None,
         };
 
-        let use_agent_orchestrator = match self.overrides.as_ref() {
+        let _use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
             None => false,
         };
 
-        let model_requested = deserialized_body.model.clone();
-        deserialized_body.model = match model_name {
-            Some(model_name) => model_name.clone(),
-            None => {
-                if use_agent_orchestrator {
-                    "agent_orchestrator".to_string()
-                } else {
-                    self.send_server_error(
-                      ServerError::BadRequest {
-                          why: format!("No model specified in request and couldn't determine model name from arch_config. Model name in req: {}, arch_config, provider: {}, model: {:?}", deserialized_body.model, self.llm_provider().name, self.llm_provider().model).to_string(),
-                      },
-                      Some(StatusCode::BAD_REQUEST),
-                  );
-                    return Action::Continue;
-                }
-            }
-        };
+        let model_requested = deserialized_body.extract_model().to_string();
+        // Note: We can't directly modify the model field through the trait,
+        // this would need to be handled differently in a full generic implementation
 
         info!(
             "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
@@ -349,32 +336,17 @@ impl HttpContext for StreamContext {
             model_name.unwrap_or(&"None".to_string()),
         );
 
-        if deserialized_body.stream.unwrap_or_default() {
+        if deserialized_body.is_streaming() {
             self.streaming_response = true;
         }
-        if deserialized_body.stream.unwrap_or_default()
-            && deserialized_body.stream_options.is_none()
-        {
-            deserialized_body.stream_options = Some(StreamOptions {
-                include_usage: true,
-            });
+        if deserialized_body.is_streaming() {
+            deserialized_body.set_streaming_options();
         }
 
         // only use the tokens from the messages, excluding the metadata and json tags
-        let input_tokens_str = deserialized_body
-            .messages
-            .iter()
-            .fold(String::new(), |acc, m| {
-                acc + " "
-                    + m.content
-                        .as_ref()
-                        .unwrap_or(&ContentType::Text(String::new()))
-                        .to_string()
-                        .as_str()
-            });
+        let input_tokens_str = deserialized_body.extract_messages_text();
         // enforce ratelimits on ingress
-        if let Err(e) = self.enforce_ratelimits(&deserialized_body.model, input_tokens_str.as_str())
-        {
+        if let Err(e) = self.enforce_ratelimits(&model_requested, input_tokens_str.as_str()) {
             self.send_server_error(
                 ServerError::ExceededRatelimit(e),
                 Some(StatusCode::TOO_MANY_REQUESTS),
@@ -387,11 +359,15 @@ impl HttpContext for StreamContext {
         let hermes_llm_provider = Provider::from(llm_provider_str.as_str());
 
         // convert chat completion request to llm provider specific request
-        let deserialized_body_bytes = match deserialized_body.to_bytes(hermes_llm_provider) {
+        let deserialized_body_bytes = match deserialized_body.to_provider_bytes(hermes_llm_provider)
+        {
             Ok(bytes) => bytes,
             Err(e) => {
                 warn!("Failed to serialize request body: {}", e);
-                self.send_server_error(ServerError::OpenAIPError(e), Some(StatusCode::BAD_REQUEST));
+                self.send_server_error(
+                    ServerError::LogicError(format!("Request serialization error: {}", e)),
+                    Some(StatusCode::BAD_REQUEST),
+                );
                 return Action::Pause;
             }
         };
@@ -484,12 +460,6 @@ impl HttpContext for StreamContext {
                             self.request_body_sent_time.unwrap(),
                             current_time_ns,
                         );
-                        if let Some(user_message) = self.user_message.as_ref() {
-                            if let Some(prompt) = user_message.content.as_ref() {
-                                llm_span
-                                    .add_attribute("user_prompt".to_string(), prompt.to_string());
-                            }
-                        }
                         llm_span.add_attribute(
                             "model".to_string(),
                             self.llm_provider().name.to_string(),
@@ -562,8 +532,11 @@ impl HttpContext for StreamContext {
         let hermes_llm_provider = Provider::from(llm_provider_str.as_str());
 
         if self.streaming_response {
-            let chat_completions_chunk_response_events =
-                match SseChatCompletionIter::try_from((body.as_slice(), &hermes_llm_provider)) {
+            // Use the provider instance to parse streaming response
+            let provider_instance = self.get_provider_instance();
+
+            let streaming_events =
+                match provider_instance.parse_streaming_response(&body, &hermes_llm_provider) {
                     Ok(events) => events,
                     Err(e) => {
                         warn!(
@@ -575,11 +548,11 @@ impl HttpContext for StreamContext {
                     }
                 };
 
-            for event in chat_completions_chunk_response_events {
-                match event {
+            for event_result in streaming_events {
+                match event_result {
                     Ok(event) => {
-                        if let Some(usage) = event.usage.as_ref() {
-                            self.response_tokens += usage.completion_tokens;
+                        if let Some(usage) = event.usage() {
+                            self.response_tokens += usage.completion_tokens();
                         }
                     }
                     Err(e) => {
@@ -611,30 +584,30 @@ impl HttpContext for StreamContext {
             }
         } else {
             debug!("non streaming response");
-            let chat_completions_response =
-                match ChatCompletionsResponse::try_from((body.as_slice(), &hermes_llm_provider)) {
-                    Ok(de) => de,
-                    Err(e) => {
-                        warn!(
-                            "could not parse response: {}, body str: {}",
-                            e,
-                            String::from_utf8_lossy(&body)
-                        );
-                        debug!(
-                            "on_http_response_body: S[{}], response body: {}",
-                            self.context_id,
-                            String::from_utf8_lossy(&body)
-                        );
-                        self.send_server_error(
-                            ServerError::OpenAIPError(e),
-                            Some(StatusCode::BAD_REQUEST),
-                        );
-                        return Action::Continue;
-                    }
-                };
+            let provider_instance = self.get_provider_instance();
+            let response = match provider_instance.parse_response(&body, &hermes_llm_provider) {
+                Ok(de) => de,
+                Err(e) => {
+                    warn!(
+                        "could not parse response: {}, body str: {}",
+                        e,
+                        String::from_utf8_lossy(&body)
+                    );
+                    debug!(
+                        "on_http_response_body: S[{}], response body: {}",
+                        self.context_id,
+                        String::from_utf8_lossy(&body)
+                    );
+                    self.send_server_error(
+                        ServerError::LogicError(format!("Response parsing error: {}", e)),
+                        Some(StatusCode::BAD_REQUEST),
+                    );
+                    return Action::Continue;
+                }
+            };
 
-            if let Some(usage) = chat_completions_response.usage {
-                self.response_tokens += usage.completion_tokens;
+            if let Some(usage) = response.usage() {
+                self.response_tokens += usage.completion_tokens();
             }
         }
 

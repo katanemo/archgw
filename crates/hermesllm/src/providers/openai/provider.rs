@@ -68,17 +68,36 @@ impl Iterator for OpenAIStreamingResponse {
 }
 
 impl ProviderInterface for OpenAIProvider {
-    type Request = ChatCompletionsRequest;
-    type Response = ChatCompletionsResponse;
-    type StreamingResponse = OpenAIStreamingResponse;
-    type Usage = Usage;
-
     fn has_compatible_api(&self, api_path: &str) -> bool {
         api_path == "/v1/chat/completions"
     }
 
     fn supported_apis(&self) -> Vec<&'static str> {
         vec!["/v1/chat/completions"]
+    }
+
+    fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
+        use crate::providers::traits::ProviderRequest;
+        match ChatCompletionsRequest::try_from_bytes(bytes) {
+            Ok(req) => Ok(req),
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+
+    fn parse_response(&self, bytes: &[u8], provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
+        use crate::providers::traits::ProviderResponse;
+        match ChatCompletionsResponse::try_from_bytes(bytes, &provider_id, mode) {
+            Ok(resp) => Ok(resp),
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+
+    fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        use crate::providers::traits::ProviderRequest;
+        match request.to_provider_bytes(provider_id, mode) {
+            Ok(bytes) => Ok(bytes),
+            Err(e) => Err(Box::new(e)),
+        }
     }
 }
 
@@ -130,6 +149,9 @@ impl ProviderRequest for ChatCompletionsRequest {
             })
     }
 }
+
+// Implement the helper trait for stream context integration
+impl crate::providers::traits::StreamContextHelpers for ChatCompletionsRequest {}
 
 impl TokenUsage for Usage {
     fn completion_tokens(&self) -> usize {

@@ -54,6 +54,31 @@ pub trait ProviderResponse: Sized {
 
     /// Get usage information if available
     fn usage(&self) -> Option<&Self::Usage>;
+
+    /// Extract token counts for metrics
+    fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
+        self.usage().map(|u| (u.prompt_tokens(), u.completion_tokens(), u.total_tokens()))
+    }
+}
+
+/// Helper trait for stream context integration
+pub trait StreamContextHelpers: ProviderRequest {
+    /// Get the model name for routing and metrics
+    fn get_model_for_routing(&self) -> String {
+        self.extract_model().to_string()
+    }
+
+    /// Get text for token counting and rate limiting
+    fn get_text_for_tokenization(&self) -> String {
+        self.extract_messages_text()
+    }
+
+    /// Prepare for streaming by setting appropriate options
+    fn prepare_for_streaming(&mut self) {
+        if self.is_streaming() {
+            self.set_streaming_options();
+        }
+    }
 }
 
 /// Trait for streaming response chunks
@@ -75,11 +100,6 @@ pub trait StreamingResponse: Iterator<Item = Result<Self::Chunk, Self::Error>> +
 
 /// Main provider interface trait
 pub trait ProviderInterface {
-    type Request: ProviderRequest;
-    type Response: ProviderResponse;
-    type StreamingResponse: StreamingResponse;
-    type Usage: TokenUsage;
-
     /// Check if this provider has a compatible API with the client request
     fn has_compatible_api(&self, api_path: &str) -> bool;
 
@@ -91,6 +111,47 @@ pub trait ProviderInterface {
         } else {
             ConversionMode::Compatible
         }
+    }
+
+    /// Parse a request from raw bytes - returns concrete ChatCompletionsRequest
+    fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>>;
+
+    /// Parse a response from raw bytes - returns concrete ChatCompletionsResponse
+    fn parse_response(&self, bytes: &[u8], provider_id: super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>>;
+
+    /// Convert a request to bytes for sending to upstream API
+    fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>;
+
+    /// Extract model name from request for routing (convenience method for stream_context)
+    fn extract_model_from_request(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> String {
+        use ProviderRequest;
+        request.extract_model().to_string()
+    }
+
+    /// Check if request is streaming (convenience method for stream_context)
+    fn is_request_streaming(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> bool {
+        use ProviderRequest;
+        request.is_streaming()
+    }
+
+    /// Prepare request for streaming (convenience method for stream_context)
+    fn prepare_request_for_streaming(&self, request: &mut crate::apis::openai::ChatCompletionsRequest) {
+        use ProviderRequest;
+        if request.is_streaming() {
+            request.set_streaming_options();
+        }
+    }
+
+    /// Extract text for tokenization (convenience method for stream_context)
+    fn extract_text_for_tokenization(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> String {
+        use ProviderRequest;
+        request.extract_messages_text()
+    }
+
+    /// Extract usage information from response (convenience method for stream_context)
+    fn extract_usage_from_response(&self, response: &crate::apis::openai::ChatCompletionsResponse) -> Option<(usize, usize, usize)> {
+        use ProviderResponse;
+        response.extract_usage_counts()
     }
 
     /// Get supported API endpoints for this provider

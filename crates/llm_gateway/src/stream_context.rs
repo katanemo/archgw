@@ -10,7 +10,7 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::{ConversionMode, Provider, ProviderId, ProviderRequest};
+use hermesllm::{ConversionMode, Provider, ProviderId};
 use http::StatusCode;
 use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
@@ -295,7 +295,7 @@ impl HttpContext for StreamContext {
 
         let provider = self.get_provider();
 
-        let mut deserialized_body = match provider.parse_request(&body_bytes) {
+        let mut deserialized_body = match provider.interface().parse_request(&body_bytes) {
             Ok(deserialized) => deserialized,
             Err(e) => {
                 debug!(
@@ -310,8 +310,8 @@ impl HttpContext for StreamContext {
             }
         };
 
-        // TODO: For now, we'll need to handle user_message extraction differently since it's OpenAI-specific
-        // This could be made generic by adding a trait method later
+        // TODO: For now, we'll work with the concrete ChatCompletionsRequest type
+        // In the future, this could be made more generic using trait objects
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
@@ -323,9 +323,10 @@ impl HttpContext for StreamContext {
             None => false,
         };
 
-        let model_requested = deserialized_body.extract_model().to_string();
-        // Note: We can't directly modify the model field through the trait,
-        // this would need to be handled differently in a full generic implementation
+        // Use the provider interface methods for cleaner interaction
+        let model_requested = provider
+            .interface()
+            .extract_model_from_request(&deserialized_body);
 
         info!(
             "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
@@ -334,15 +335,21 @@ impl HttpContext for StreamContext {
             model_name.unwrap_or(&"None".to_string()),
         );
 
-        if deserialized_body.is_streaming() {
+        // Use provider interface for streaming detection and setup
+        if provider
+            .interface()
+            .is_request_streaming(&deserialized_body)
+        {
             self.streaming_response = true;
-        }
-        if deserialized_body.is_streaming() {
-            deserialized_body.set_streaming_options();
+            provider
+                .interface()
+                .prepare_request_for_streaming(&mut deserialized_body);
         }
 
-        // only use the tokens from the messages, excluding the metadata and json tags
-        let input_tokens_str = deserialized_body.extract_messages_text();
+        // Use provider interface for text extraction
+        let input_tokens_str = provider
+            .interface()
+            .extract_text_for_tokenization(&deserialized_body);
         // enforce ratelimits on ingress
         if let Err(e) = self.enforce_ratelimits(&model_requested, input_tokens_str.as_str()) {
             self.send_server_error(
@@ -354,12 +361,14 @@ impl HttpContext for StreamContext {
         }
 
         let llm_provider_str = self.llm_provider().provider_interface.to_string();
-        let hermes_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
+        let _hermes_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
 
-        // convert chat completion request to llm provider specific request
-        let deserialized_body_bytes = match deserialized_body
-            .to_provider_bytes(hermes_llm_provider_id, ConversionMode::Compatible)
-        {
+        // Convert chat completion request to llm provider specific request using provider interface
+        let deserialized_body_bytes = match provider.interface().request_to_bytes(
+            &deserialized_body,
+            provider.id(),
+            ConversionMode::Compatible,
+        ) {
             Ok(bytes) => bytes,
             Err(e) => {
                 warn!("Failed to serialize request body: {}", e);
@@ -558,8 +567,12 @@ impl HttpContext for StreamContext {
         } else {
             debug!("non streaming response");
             let provider = self.get_provider();
-            let _response = match provider.parse_response(&body, ConversionMode::Compatible) {
-                Ok(response_box) => response_box,
+            let response = match provider.interface().parse_response(
+                &body,
+                provider.id(),
+                ConversionMode::Compatible,
+            ) {
+                Ok(response) => response,
                 Err(e) => {
                     warn!(
                         "could not parse response: {}, body str: {}",
@@ -579,9 +592,18 @@ impl HttpContext for StreamContext {
                 }
             };
 
-            // TODO: Extract usage information from the response box
-            // For now, we'll skip this until we have a better way to handle Any types
-            warn!("Response token counting not yet implemented with new provider structure");
+            // Use provider interface to extract usage information
+            if let Some((prompt_tokens, completion_tokens, total_tokens)) =
+                provider.interface().extract_usage_from_response(&response)
+            {
+                debug!(
+                    "Response usage: prompt={}, completion={}, total={}",
+                    prompt_tokens, completion_tokens, total_tokens
+                );
+                self.response_tokens = completion_tokens;
+            } else {
+                warn!("No usage information found in response");
+            }
         }
 
         debug!(

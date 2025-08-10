@@ -5,10 +5,24 @@
 
 pub mod traits;
 pub mod openai;
+pub mod groq;
+pub mod mistral;
+pub mod deepseek;
+pub mod arch;
+pub mod gemini;
+pub mod claude;
+pub mod github;
 
 // Re-export the main interfaces
 pub use traits::*;
 pub use openai::OpenAIProvider;
+pub use groq::GroqProvider;
+pub use mistral::MistralProvider;
+pub use deepseek::DeepseekProvider;
+pub use arch::ArchProvider;
+pub use gemini::GeminiProvider;
+pub use claude::ClaudeProvider;
+pub use github::GitHubProvider;
 
 use std::fmt::Display;
 
@@ -81,27 +95,29 @@ impl ProviderId {
 }
 
 /// Enum for dynamic dispatch of provider instances
-/// For now, most providers use OpenAI-compatible format
 pub enum Provider {
     OpenAI(OpenAIProvider, ProviderId),
-    // TODO: Add specific implementations when providers have different APIs
-    // Mistral(MistralProvider, ProviderId),
-    // Groq(GroqProvider, ProviderId),
-    // etc.
+    Groq(GroqProvider, ProviderId),
+    Mistral(MistralProvider, ProviderId),
+    Deepseek(DeepseekProvider, ProviderId),
+    Arch(ArchProvider, ProviderId),
+    Gemini(GeminiProvider, ProviderId),
+    Claude(ClaudeProvider, ProviderId),
+    GitHub(GitHubProvider, ProviderId),
 }
 
 impl Provider {
     /// Create a provider instance from a provider ID
     pub fn new(id: ProviderId) -> Self {
         match id {
-            // For now, all providers that support v1/chat/completions use OpenAI format
-            ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch => {
-                Provider::OpenAI(OpenAIProvider, id)
-            }
-            // TODO: Implement specific providers when they have different APIs
-            ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
-                Provider::OpenAI(OpenAIProvider, id) // Fallback to OpenAI for now
-            }
+            ProviderId::OpenAI => Provider::OpenAI(OpenAIProvider, id),
+            ProviderId::Groq => Provider::Groq(GroqProvider, id),
+            ProviderId::Mistral => Provider::Mistral(MistralProvider, id),
+            ProviderId::Deepseek => Provider::Deepseek(DeepseekProvider, id),
+            ProviderId::Arch => Provider::Arch(ArchProvider, id),
+            ProviderId::Gemini => Provider::Gemini(GeminiProvider, id),
+            ProviderId::Claude => Provider::Claude(ClaudeProvider, id),
+            ProviderId::GitHub => Provider::GitHub(GitHubProvider, id),
         }
     }
 
@@ -109,66 +125,27 @@ impl Provider {
     pub fn id(&self) -> ProviderId {
         match self {
             Provider::OpenAI(_, id) => *id,
+            Provider::Groq(_, id) => *id,
+            Provider::Mistral(_, id) => *id,
+            Provider::Deepseek(_, id) => *id,
+            Provider::Arch(_, id) => *id,
+            Provider::Gemini(_, id) => *id,
+            Provider::Claude(_, id) => *id,
+            Provider::GitHub(_, id) => *id,
         }
     }
 
-    /// Check if this provider has a compatible API with the client request
-    pub fn has_compatible_api(&self, api_path: &str) -> bool {
+    /// Get the provider interface implementation
+    pub fn interface(&self) -> &dyn ProviderInterface {
         match self {
-            Provider::OpenAI(provider, _) => provider.has_compatible_api(api_path),
-        }
-    }
-
-    /// Get the interface implementation for this provider
-    pub fn get_interface(&self, passthrough: bool) -> ConversionMode {
-        match self {
-            Provider::OpenAI(provider, _) => provider.get_interface(passthrough),
-        }
-    }
-
-    /// Parse a request from raw bytes - returns the concrete OpenAI request type for now
-    pub fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
-        match self {
-            Provider::OpenAI(_, _) => {
-                use crate::apis::openai::ChatCompletionsRequest;
-                use crate::providers::traits::ProviderRequest;
-
-                match ChatCompletionsRequest::try_from_bytes(bytes) {
-                    Ok(req) => Ok(req),
-                    Err(e) => Err(Box::new(e)),
-                }
-            }
-        }
-    }
-
-    /// Parse a response from raw bytes - returns the concrete OpenAI response type for now
-    pub fn parse_response(&self, bytes: &[u8], mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
-        match self {
-            Provider::OpenAI(_, _) => {
-                use crate::apis::openai::ChatCompletionsResponse;
-                use crate::providers::traits::ProviderResponse;
-
-                let provider_id = self.id();
-                match ChatCompletionsResponse::try_from_bytes(bytes, &provider_id, mode) {
-                    Ok(resp) => Ok(resp),
-                    Err(e) => Err(Box::new(e)),
-                }
-            }
-        }
-    }
-
-    /// Convert a request to bytes for sending to upstream API
-    pub fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        match self {
-            Provider::OpenAI(_, _) => {
-                use crate::providers::traits::ProviderRequest;
-
-                let provider_id = self.id();
-                match request.to_provider_bytes(provider_id, mode) {
-                    Ok(bytes) => Ok(bytes),
-                    Err(e) => Err(Box::new(e)),
-                }
-            }
+            Provider::OpenAI(provider, _) => provider,
+            Provider::Groq(provider, _) => provider,
+            Provider::Mistral(provider, _) => provider,
+            Provider::Deepseek(provider, _) => provider,
+            Provider::Arch(provider, _) => provider,
+            Provider::Gemini(provider, _) => provider,
+            Provider::Claude(provider, _) => provider,
+            Provider::GitHub(provider, _) => provider,
         }
     }
 }

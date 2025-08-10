@@ -13,14 +13,14 @@
 //!
 //! ```rust
 //! use hermesllm::apis::{
-//!     AnthropicMessagesRequest, ChatCompletionsRequest, MessagesRole, MessagesMessage,
+//!     MessagesRequest, ChatCompletionsRequest, MessagesRole, MessagesMessage,
 //!     MessagesMessageContent, MessagesSystemPrompt,
 //! };
 //! use hermesllm::clients::TransformError;
 //! use std::convert::TryInto;
 //!
 //! // Transform Anthropic to OpenAI
-//! let anthropic_req = AnthropicMessagesRequest {
+//! let anthropic_req = MessagesRequest {
 //!     model: "claude-3-sonnet".to_string(),
 //!     system: None,
 //!     messages: vec![],

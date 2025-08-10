@@ -46,18 +46,18 @@ mod tests {
     #[test]
     fn test_provider_instance_creation() {
         let provider = Provider::new(ProviderId::OpenAI);
-        assert!(provider.interface().has_compatible_api("/v1/chat/completions"));
-        assert!(!provider.interface().has_compatible_api("/v1/embeddings"));
+        assert!(provider.has_compatible_api("/v1/chat/completions"));
+        assert!(!provider.has_compatible_api("/v1/embeddings"));
     }
 
     #[test]
-    fn test_conversion_mode() {
+    fn test_provider_supported_apis() {
         let provider = Provider::new(ProviderId::OpenAI);
 
-        let compatible_mode = provider.interface().get_interface(false);
-        assert!(matches!(compatible_mode, ConversionMode::Compatible));
+        let supported_apis = provider.supported_apis();
+        assert!(supported_apis.contains(&"/v1/chat/completions"));
 
-        let passthrough_mode = provider.interface().get_interface(true);
-        assert!(matches!(passthrough_mode, ConversionMode::Passthrough));
+        // Test that provider supports the expected API endpoints
+        assert!(provider.has_compatible_api("/v1/chat/completions"));
     }
 }

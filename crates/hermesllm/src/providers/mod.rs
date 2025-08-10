@@ -134,18 +134,140 @@ impl Provider {
             Provider::GitHub(_, id) => *id,
         }
     }
+}
 
-    /// Get the provider interface implementation
-    pub fn interface(&self) -> &dyn ProviderInterface {
+// Implement traits directly on the Provider enum
+impl ProviderRequest for Provider {
+    type Error = openai::provider::OpenAIApiError;
+
+    fn try_from_bytes(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Self::Error> {
         match self {
-            Provider::OpenAI(provider, _) => provider,
-            Provider::Groq(provider, _) => provider,
-            Provider::Mistral(provider, _) => provider,
-            Provider::Deepseek(provider, _) => provider,
-            Provider::Arch(provider, _) => provider,
-            Provider::Gemini(provider, _) => provider,
-            Provider::Claude(provider, _) => provider,
-            Provider::GitHub(provider, _) => provider,
+            Provider::OpenAI(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Groq(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Mistral(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Deepseek(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Arch(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Gemini(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::Claude(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+            Provider::GitHub(provider, _) => ProviderRequest::try_from_bytes(provider, bytes),
+        }
+    }
+
+    fn to_provider_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            Provider::OpenAI(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Groq(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Mistral(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Deepseek(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Arch(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Gemini(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::Claude(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+            Provider::GitHub(provider, _) => ProviderRequest::to_provider_bytes(provider, request, provider_id, mode),
+        }
+    }
+
+    fn extract_model<'a>(&self, request: &'a crate::apis::openai::ChatCompletionsRequest) -> &'a str {
+        // Since all providers use the same implementation, just use the first one
+        &request.model
+    }
+
+    fn is_streaming(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> bool {
+        // Since all providers use the same implementation, just use the first one
+        request.stream.unwrap_or_default()
+    }
+
+    fn set_streaming_options(&self, request: &mut crate::apis::openai::ChatCompletionsRequest) {
+        match self {
+            Provider::OpenAI(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Groq(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Mistral(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Deepseek(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Arch(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Gemini(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::Claude(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+            Provider::GitHub(provider, _) => ProviderRequest::set_streaming_options(provider, request),
+        }
+    }
+
+    fn extract_messages_text(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> String {
+        match self {
+            Provider::OpenAI(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Groq(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Mistral(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Deepseek(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Arch(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Gemini(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::Claude(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+            Provider::GitHub(provider, _) => ProviderRequest::extract_messages_text(provider, request),
+        }
+    }
+}
+
+impl ProviderResponse for Provider {
+    type Error = openai::provider::OpenAIApiError;
+    type Usage = crate::apis::openai::Usage;
+
+    fn try_from_bytes(&self, bytes: &[u8], provider_id: &super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Self::Error> {
+        match self {
+            Provider::OpenAI(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Groq(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Mistral(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Deepseek(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Arch(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Gemini(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Claude(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::GitHub(provider, _) => ProviderResponse::try_from_bytes(provider, bytes, provider_id, mode),
+        }
+    }
+
+    fn usage<'a>(&self, response: &'a crate::apis::openai::ChatCompletionsResponse) -> Option<&'a Self::Usage> {
+        // Since all providers use the same implementation, just use the direct implementation
+        Some(&response.usage)
+    }
+}
+
+impl StreamingResponse for Provider {
+    type Error = openai::provider::OpenAIApiError;
+    type StreamingIter = openai::provider::OpenAIStreamingResponse;
+
+    fn try_from_bytes(&self, bytes: &[u8], provider_id: &super::ProviderId, mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {
+        match self {
+            Provider::OpenAI(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Groq(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Mistral(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Deepseek(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Arch(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Gemini(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::Claude(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+            Provider::GitHub(provider, _) => StreamingResponse::try_from_bytes(provider, bytes, provider_id, mode),
+        }
+    }
+}
+
+impl ProviderInterface for Provider {
+    fn has_compatible_api(&self, api_path: &str) -> bool {
+        match self {
+            Provider::OpenAI(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Groq(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Mistral(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Deepseek(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Arch(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Gemini(provider, _) => provider.has_compatible_api(api_path),
+            Provider::Claude(provider, _) => provider.has_compatible_api(api_path),
+            Provider::GitHub(provider, _) => provider.has_compatible_api(api_path),
+        }
+    }
+
+    fn supported_apis(&self) -> Vec<&'static str> {
+        match self {
+            Provider::OpenAI(provider, _) => provider.supported_apis(),
+            Provider::Groq(provider, _) => provider.supported_apis(),
+            Provider::Mistral(provider, _) => provider.supported_apis(),
+            Provider::Deepseek(provider, _) => provider.supported_apis(),
+            Provider::Arch(provider, _) => provider.supported_apis(),
+            Provider::Gemini(provider, _) => provider.supported_apis(),
+            Provider::Claude(provider, _) => provider.supported_apis(),
+            Provider::GitHub(provider, _) => provider.supported_apis(),
         }
     }
 }

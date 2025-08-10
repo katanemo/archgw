@@ -77,64 +77,58 @@ impl ProviderInterface for OpenAIProvider {
     }
 
     fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::providers::traits::ProviderRequest;
-        match ChatCompletionsRequest::try_from_bytes(bytes) {
+        match ProviderRequest::try_from_bytes(self, bytes) {
             Ok(req) => Ok(req),
             Err(e) => Err(Box::new(e)),
         }
     }
 
     fn parse_response(&self, bytes: &[u8], provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::providers::traits::ProviderResponse;
-        match ChatCompletionsResponse::try_from_bytes(bytes, &provider_id, mode) {
+        match ProviderResponse::try_from_bytes(self, bytes, &provider_id, mode) {
             Ok(resp) => Ok(resp),
             Err(e) => Err(Box::new(e)),
         }
     }
 
     fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::providers::traits::ProviderRequest;
-        match request.to_provider_bytes(provider_id, mode) {
+        match ProviderRequest::to_provider_bytes(self, request, provider_id, mode) {
             Ok(bytes) => Ok(bytes),
             Err(e) => Err(Box::new(e)),
         }
     }
 }
 
-// ============================================================================
-// Trait Implementations for OpenAI Types
-// ============================================================================
-
-impl ProviderRequest for ChatCompletionsRequest {
+// Direct trait implementations on OpenAIProvider
+impl ProviderRequest for OpenAIProvider {
     type Error = OpenAIApiError;
 
-    fn try_from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+    fn try_from_bytes(&self, bytes: &[u8]) -> Result<ChatCompletionsRequest, Self::Error> {
         let s = std::str::from_utf8(bytes)?;
         Ok(serde_json::from_str(s)?)
     }
 
-    fn to_provider_bytes(&self, _provider: super::super::ProviderId, _mode: ConversionMode) -> Result<Vec<u8>, Self::Error> {
-        Ok(serde_json::to_vec(self)?)
+    fn to_provider_bytes(&self, request: &ChatCompletionsRequest, _provider: super::super::ProviderId, _mode: ConversionMode) -> Result<Vec<u8>, Self::Error> {
+        Ok(serde_json::to_vec(request)?)
     }
 
-    fn extract_model(&self) -> &str {
-        &self.model
+    fn extract_model<'a>(&self, request: &'a ChatCompletionsRequest) -> &'a str {
+        &request.model
     }
 
-    fn is_streaming(&self) -> bool {
-        self.stream.unwrap_or_default()
+    fn is_streaming(&self, request: &ChatCompletionsRequest) -> bool {
+        request.stream.unwrap_or_default()
     }
 
-    fn set_streaming_options(&mut self) {
-        if self.stream_options.is_none() {
-            self.stream_options = Some(StreamOptions {
+    fn set_streaming_options(&self, request: &mut ChatCompletionsRequest) {
+        if request.stream_options.is_none() {
+            request.stream_options = Some(StreamOptions {
                 include_usage: Some(true),
             });
         }
     }
 
-    fn extract_messages_text(&self) -> String {
-        self.messages
+    fn extract_messages_text(&self, request: &ChatCompletionsRequest) -> String {
+        request.messages
             .iter()
             .fold(String::new(), |acc, m| {
                 acc + " " + &match &m.content {
@@ -150,8 +144,41 @@ impl ProviderRequest for ChatCompletionsRequest {
     }
 }
 
-// Implement the helper trait for stream context integration
-impl crate::providers::traits::StreamContextHelpers for ChatCompletionsRequest {}
+impl ProviderResponse for OpenAIProvider {
+    type Error = OpenAIApiError;
+    type Usage = Usage;
+
+    fn try_from_bytes(&self, bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<ChatCompletionsResponse, Self::Error> {
+        let s = std::str::from_utf8(bytes)?;
+        Ok(serde_json::from_str(s)?)
+    }
+
+    fn usage<'a>(&self, response: &'a ChatCompletionsResponse) -> Option<&'a Self::Usage> {
+        Some(&response.usage)
+    }
+
+    fn extract_usage_counts(&self, response: &ChatCompletionsResponse) -> Option<(usize, usize, usize)> {
+        Some((
+            response.usage.prompt_tokens as usize,
+            response.usage.completion_tokens as usize,
+            response.usage.total_tokens as usize,
+        ))
+    }
+}
+
+impl StreamingResponse for OpenAIProvider {
+    type Error = OpenAIApiError;
+    type StreamingIter = OpenAIStreamingResponse;
+
+    fn try_from_bytes(&self, bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {
+        let s = std::str::from_utf8(bytes)?;
+        Ok(OpenAIStreamingResponse::new(s.to_string()))
+    }
+}
+
+// ============================================================================
+// Trait Implementations for OpenAI Types (Keep for TokenUsage only)
+// ============================================================================
 
 impl TokenUsage for Usage {
     fn completion_tokens(&self) -> usize {
@@ -167,20 +194,6 @@ impl TokenUsage for Usage {
     }
 }
 
-impl ProviderResponse for ChatCompletionsResponse {
-    type Error = OpenAIApiError;
-    type Usage = Usage;
-
-    fn try_from_bytes(bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self, Self::Error> {
-        let s = std::str::from_utf8(bytes)?;
-        Ok(serde_json::from_str(s)?)
-    }
-
-    fn usage(&self) -> Option<&Self::Usage> {
-        Some(&self.usage)
-    }
-}
-
 impl StreamChunk for ChatCompletionsStreamResponse {
     type Usage = Usage;
 
@@ -191,9 +204,9 @@ impl StreamChunk for ChatCompletionsStreamResponse {
 
 impl StreamingResponse for OpenAIStreamingResponse {
     type Error = OpenAIApiError;
-    type Chunk = ChatCompletionsStreamResponse;
+    type StreamingIter = OpenAIStreamingResponse;
 
-    fn try_from_bytes(bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self, Self::Error> {
+    fn try_from_bytes(&self, bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {
         let s = std::str::from_utf8(bytes)?;
         Ok(OpenAIStreamingResponse::new(s.to_string()))
     }

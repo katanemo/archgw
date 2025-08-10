@@ -170,6 +170,7 @@ impl ProviderResponse for OpenAIProvider {
 
 impl StreamingResponse for OpenAIProvider {
     type Error = OpenAIApiError;
+    type StreamChunk = ChatCompletionsStreamResponse;
     type StreamingIter = OpenAIStreamingResponse;
 
     fn try_from_bytes(&self, bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {
@@ -206,6 +207,7 @@ impl StreamChunk for ChatCompletionsStreamResponse {
 
 impl StreamingResponse for OpenAIStreamingResponse {
     type Error = OpenAIApiError;
+    type StreamChunk = ChatCompletionsStreamResponse;
     type StreamingIter = OpenAIStreamingResponse;
 
     fn try_from_bytes(&self, bytes: &[u8], _provider: &super::super::ProviderId, _mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {

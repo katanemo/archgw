@@ -71,6 +71,7 @@ impl ProviderResponse for GroqProvider {
 
 impl StreamingResponse for GroqProvider {
     type Error = OpenAIApiError;
+    type StreamChunk = crate::apis::openai::ChatCompletionsStreamResponse;
     type StreamingIter = OpenAIStreamingResponse;
 
     fn try_from_bytes(&self, bytes: &[u8], provider: &super::super::ProviderId, mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {

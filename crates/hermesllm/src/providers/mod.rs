@@ -241,6 +241,7 @@ impl ProviderResponse for Provider {
 
 impl StreamingResponse for Provider {
     type Error = openai::provider::OpenAIApiError;
+    type StreamChunk = crate::apis::openai::ChatCompletionsStreamResponse;
     type StreamingIter = openai::provider::OpenAIStreamingResponse;
 
     fn try_from_bytes(&self, bytes: &[u8], provider_id: &super::ProviderId, mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error> {

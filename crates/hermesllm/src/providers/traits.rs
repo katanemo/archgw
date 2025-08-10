@@ -75,7 +75,8 @@ pub trait StreamChunk {
 /// Trait for streaming response iterators
 pub trait StreamingResponse {
     type Error: Error + Send + Sync + 'static;
-    type StreamingIter: Iterator<Item = Result<crate::apis::openai::ChatCompletionsStreamResponse, Self::Error>>;
+    type StreamChunk: StreamChunk;
+    type StreamingIter: Iterator<Item = Result<Self::StreamChunk, Self::Error>>;
 
     /// Parse streaming response from raw bytes
     fn try_from_bytes(&self, bytes: &[u8], provider: &super::ProviderId, mode: ConversionMode) -> Result<Self::StreamingIter, Self::Error>;

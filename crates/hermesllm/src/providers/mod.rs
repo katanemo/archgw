@@ -201,6 +201,19 @@ impl ProviderRequest for Provider {
             Provider::GitHub(provider, _) => ProviderRequest::extract_messages_text(provider, request),
         }
     }
+
+    fn extract_user_message(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> Option<String> {
+        match self {
+            Provider::OpenAI(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Groq(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Mistral(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Deepseek(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Arch(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Gemini(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::Claude(provider, _) => ProviderRequest::extract_user_message(provider, request),
+            Provider::GitHub(provider, _) => ProviderRequest::extract_user_message(provider, request),
+        }
+    }
 }
 
 impl ProviderResponse for Provider {

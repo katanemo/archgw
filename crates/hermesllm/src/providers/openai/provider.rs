@@ -75,27 +75,6 @@ impl ProviderInterface for OpenAIProvider {
     fn supported_apis(&self) -> Vec<&'static str> {
         vec!["/v1/chat/completions"]
     }
-
-    fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
-        match ProviderRequest::try_from_bytes(self, bytes) {
-            Ok(req) => Ok(req),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
-
-    fn parse_response(&self, bytes: &[u8], provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
-        match ProviderResponse::try_from_bytes(self, bytes, &provider_id, mode) {
-            Ok(resp) => Ok(resp),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
-
-    fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        match ProviderRequest::to_provider_bytes(self, request, provider_id, mode) {
-            Ok(bytes) => Ok(bytes),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
 }
 
 // Direct trait implementations on OpenAIProvider
@@ -141,6 +120,29 @@ impl ProviderRequest for OpenAIProvider {
                     }
                 }
             })
+    }
+
+    fn extract_user_message(&self, request: &ChatCompletionsRequest) -> Option<String> {
+        request.messages.last().and_then(|msg| {
+            match &msg.content {
+                MessageContent::Text(text) => Some(text.clone()),
+                MessageContent::Parts(parts) => {
+                    // Extract text from content parts, ignoring images
+                    let text_parts: Vec<String> = parts
+                        .iter()
+                        .filter_map(|part| match part {
+                            ContentPart::Text { text } => Some(text.clone()),
+                            ContentPart::ImageUrl { .. } => None,
+                        })
+                        .collect();
+                    if text_parts.is_empty() {
+                        None
+                    } else {
+                        Some(text_parts.join(" "))
+                    }
+                }
+            }
+        })
     }
 }
 

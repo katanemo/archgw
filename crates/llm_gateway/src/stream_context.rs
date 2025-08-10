@@ -10,7 +10,6 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::apis::openai::{ContentPart, MessageContent};
 use hermesllm::providers::traits::{
     ProviderRequest, ProviderResponse, StreamChunk, StreamingResponse, TokenUsage,
 };
@@ -333,26 +332,7 @@ impl HttpContext for StreamContext {
         let model_requested = provider.extract_model(&deserialized_body).to_string(); // Convert to owned string
 
         // Extract user message for tracing
-        self.user_message = deserialized_body.messages.last().and_then(|msg| {
-            match &msg.content {
-                MessageContent::Text(text) => Some(text.clone()),
-                MessageContent::Parts(parts) => {
-                    // Extract text from content parts, ignoring images
-                    let text_parts: Vec<String> = parts
-                        .iter()
-                        .filter_map(|part| match part {
-                            ContentPart::Text { text } => Some(text.clone()),
-                            ContentPart::ImageUrl { .. } => None,
-                        })
-                        .collect();
-                    if text_parts.is_empty() {
-                        None
-                    } else {
-                        Some(text_parts.join(" "))
-                    }
-                }
-            }
-        });
+        self.user_message = provider.extract_user_message(&deserialized_body);
 
         info!(
             "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",

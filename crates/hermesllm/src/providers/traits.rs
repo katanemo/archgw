@@ -35,6 +35,9 @@ pub trait ProviderRequest {
 
     /// Extract text content from messages for token counting
     fn extract_messages_text(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> String;
+
+    /// Extract the user message for tracing/logging purposes
+    fn extract_user_message(&self, request: &crate::apis::openai::ChatCompletionsRequest) -> Option<String>;
 }
 
 /// Trait for token usage information
@@ -85,19 +88,4 @@ pub trait ProviderInterface: ProviderRequest + ProviderResponse + StreamingRespo
 
     /// Get supported API endpoints for this provider
     fn supported_apis(&self) -> Vec<&'static str>;
-
-    /// Parse a request from raw bytes - delegates to ProviderRequest
-    fn parse_request(&self, bytes: &[u8]) -> Result<crate::apis::openai::ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
-        ProviderRequest::try_from_bytes(self, bytes).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    }
-
-    /// Parse a response from raw bytes - delegates to ProviderResponse
-    fn parse_response(&self, bytes: &[u8], provider_id: super::ProviderId, mode: ConversionMode) -> Result<crate::apis::openai::ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
-        ProviderResponse::try_from_bytes(self, bytes, &provider_id, mode).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    }
-
-    /// Convert a request to bytes - delegates to ProviderRequest
-    fn request_to_bytes(&self, request: &crate::apis::openai::ChatCompletionsRequest, provider_id: super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        ProviderRequest::to_provider_bytes(self, request, provider_id, mode).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-    }
 }

@@ -43,6 +43,11 @@ impl ProviderRequest for GitHubProvider {
         let openai_provider = OpenAIProvider;
         ProviderRequest::extract_messages_text(&openai_provider, request)
     }
+
+    fn extract_user_message(&self, request: &ChatCompletionsRequest) -> Option<String> {
+        let openai_provider = OpenAIProvider;
+        ProviderRequest::extract_user_message(&openai_provider, request)
+    }
 }
 
 impl ProviderResponse for GitHubProvider {
@@ -83,29 +88,5 @@ impl ProviderInterface for GitHubProvider {
     fn supported_apis(&self) -> Vec<&'static str> {
         // TODO: Update when GitHub API is fully implemented
         vec!["/models"]
-    }
-
-    fn parse_request(&self, bytes: &[u8]) -> Result<ChatCompletionsRequest, Box<dyn std::error::Error + Send + Sync>> {
-        // TODO: Implement GitHub-specific request parsing
-        match ProviderRequest::try_from_bytes(self, bytes) {
-            Ok(req) => Ok(req),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
-
-    fn parse_response(&self, bytes: &[u8], provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<ChatCompletionsResponse, Box<dyn std::error::Error + Send + Sync>> {
-        // TODO: Implement GitHub-specific response parsing
-        match ProviderResponse::try_from_bytes(self, bytes, &provider_id, mode) {
-            Ok(resp) => Ok(resp),
-            Err(e) => Err(Box::new(e)),
-        }
-    }
-
-    fn request_to_bytes(&self, request: &ChatCompletionsRequest, provider_id: super::super::ProviderId, mode: ConversionMode) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        // TODO: Implement GitHub-specific request serialization
-        match ProviderRequest::to_provider_bytes(self, request, provider_id, mode) {
-            Ok(bytes) => Ok(bytes),
-            Err(e) => Err(Box::new(e)),
-        }
     }
 }

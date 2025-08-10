@@ -60,4 +60,36 @@ mod tests {
         // Test that provider supports the expected API endpoints
         assert!(provider.has_compatible_api("/v1/chat/completions"));
     }
+
+    #[test]
+    fn test_provider_extract_user_message() {
+        use crate::apis::openai::{ChatCompletionsRequest, Message, MessageContent};
+
+        let provider = Provider::new(ProviderId::OpenAI);
+
+        // Test with text message
+        let request = ChatCompletionsRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![
+                Message {
+                    role: crate::apis::openai::Role::System,
+                    content: MessageContent::Text("You are a helpful assistant".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                Message {
+                    role: crate::apis::openai::Role::User,
+                    content: MessageContent::Text("Hello, world!".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let user_message = provider.extract_user_message(&request);
+        assert_eq!(user_message, Some("Hello, world!".to_string()));
+    }
 }

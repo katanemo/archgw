@@ -9,6 +9,10 @@ on:
 jobs:
   e2e_model_server_tests:
     runs-on: ubuntu-latest-m
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     defaults:
       run:
         working-directory: ./tests/modelserver
@@ -20,7 +24,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"  # auto-caches based on requirements files
 
       - name: install poetry
         run: |

@@ -490,18 +490,27 @@ impl ProviderResponse for ChatCompletionsResponse {
     }
 }
 
-// Implementation of TokenUsage for OpenAI Usage type
-impl TokenUsage for Usage {
-    fn completion_tokens(&self) -> usize {
-        self.completion_tokens as usize
-    }
+// ============================================================================
+// PARAMETERIZED CONVERSIONS FOR PROVIDER FUNCTIONS
+// ============================================================================
 
-    fn prompt_tokens(&self) -> usize {
-        self.prompt_tokens as usize
-    }
+use crate::providers::ProviderId;
 
-    fn total_tokens(&self) -> usize {
-        self.total_tokens as usize
+/// Parameterized conversion for ChatCompletionsRequest
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsRequest {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+/// Parameterized conversion for ChatCompletionsResponse
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsResponse {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
     }
 }
 
@@ -529,6 +538,21 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
                 Role::Assistant => "assistant",
                 Role::Tool => "tool",
             }))
+    }
+}
+
+// Implementation of TokenUsage for OpenAI Usage type
+impl TokenUsage for Usage {
+    fn completion_tokens(&self) -> usize {
+        self.completion_tokens as usize
+    }
+
+    fn prompt_tokens(&self) -> usize {
+        self.prompt_tokens as usize
+    }
+
+    fn total_tokens(&self) -> usize {
+        self.total_tokens as usize
     }
 }
 
@@ -607,29 +631,6 @@ where
     // Just marking that this type implements the trait - no additional methods needed
 }
 
-// ============================================================================
-// PARAMETERIZED CONVERSIONS FOR PROVIDER FUNCTIONS
-// ============================================================================
-
-use crate::providers::ProviderId;
-
-/// Parameterized conversion for ChatCompletionsRequest
-impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsRequest {
-    type Error = OpenAIStreamError;
-
-    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
-    }
-}
-
-/// Parameterized conversion for ChatCompletionsResponse
-impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsResponse {
-    type Error = OpenAIStreamError;
-
-    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -64,6 +64,9 @@ pub trait ProviderRequest: Send + Sync {
     /// Extract the model name from the request
     fn model(&self) -> &str;
 
+    /// Set the model name for the request
+    fn set_model(&mut self, model: String);
+
     /// Check if this is a streaming request
     fn is_streaming(&self) -> bool;
 

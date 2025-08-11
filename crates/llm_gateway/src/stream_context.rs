@@ -315,30 +315,54 @@ impl HttpContext for StreamContext {
             }
         };
 
-        // TODO: For now, we'll work with the concrete ChatCompletionsRequest type
-        // In the future, this could be made more generic using trait objects
-
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
             None => None,
         };
 
-        let _use_agent_orchestrator = match self.overrides.as_ref() {
+        let use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
             None => false,
         };
 
-        // Use the provider interface methods for cleaner interaction
-        let model_requested = deserialized_body.model().to_string(); // Convert to owned string
+        // Store the original model for logging
+        let model_requested = deserialized_body.model().to_string();
+
+        // Apply model name resolution logic using the trait method
+        let resolved_model = match model_name {
+            Some(model_name) => model_name.clone(),
+            None => {
+                if use_agent_orchestrator {
+                    "agent_orchestrator".to_string()
+                } else {
+                    self.send_server_error(
+                        ServerError::BadRequest {
+                            why: format!(
+                                "No model specified in request and couldn't determine model name from arch_config. Model name in req: {}, arch_config, provider: {}, model: {:?}",
+                                model_requested,
+                                self.llm_provider().name,
+                                self.llm_provider().model
+                            ),
+                        },
+                        Some(StatusCode::BAD_REQUEST),
+                    );
+                    return Action::Continue;
+                }
+            }
+        };
+
+        // Set the resolved model using the trait method
+        deserialized_body.set_model(resolved_model);
 
         // Extract user message for tracing
         self.user_message = deserialized_body.extract_user_message();
 
         info!(
-            "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
+            "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}, final model: {}",
             self.llm_provider().name,
             model_requested,
             model_name.unwrap_or(&"None".to_string()),
+            deserialized_body.model(),
         );
 
         // Use provider interface for streaming detection and setup
@@ -595,13 +619,13 @@ impl HttpContext for StreamContext {
                             }
                             Err(e) => {
                                 warn!("Error processing streaming chunk: {}", e);
+                                return Action::Continue;
                             }
                         }
                     }
                 }
                 Err(e) => {
                     warn!("Failed to parse streaming response: {}", e);
-                    return Action::Continue;
                 }
             }
         } else {

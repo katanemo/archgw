@@ -433,6 +433,10 @@ impl ProviderRequest for ChatCompletionsRequest {
         &self.model
     }
 
+    fn set_model(&mut self, model: String) {
+        self.model = model;
+    }
+
     fn is_streaming(&self) -> bool {
         self.stream.unwrap_or_default()
     }

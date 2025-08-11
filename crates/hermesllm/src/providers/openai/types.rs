@@ -260,15 +260,6 @@ where
     }
 }
 
-impl<'a> TryFrom<(&'a [u8], &'a ProviderId)> for SseChatCompletionIter<str::Lines<'a>> {
-    type Error = OpenAIError;
-
-    fn try_from(input: (&'a [u8], &'a ProviderId)) -> Result<Self> {
-        let s = std::str::from_utf8(input.0)?;
-        // Use input.provider as needed
-        Ok(SseChatCompletionIter::new(s.lines()))
-    }
-}
 
 impl<'a> TryFrom<&'a [u8]> for SseChatCompletionIter<str::Lines<'a>> {
     type Error = OpenAIError;

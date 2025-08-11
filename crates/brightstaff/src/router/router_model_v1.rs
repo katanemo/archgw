@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common::{
     configuration::{ModelUsagePreference, RoutingPreference},
     consts::{SYSTEM_ROLE, TOOL_ROLE, USER_ROLE},
@@ -32,21 +34,30 @@ Based on your analysis, provide your response in the following JSON formats if y
 pub type Result<T> = std::result::Result<T, RoutingModelError>;
 pub struct RouterModelV1 {
     llm_route_json_str: String,
+    llm_route_to_model_map: HashMap<String, String>,
     routing_model: String,
     max_token_length: usize,
 }
 impl RouterModelV1 {
     pub fn new(
-        llm_routes: Vec<RoutingPreference>,
+        llm_routes: HashMap<String, Vec<RoutingPreference>>,
         routing_model: String,
         max_token_length: usize,
     ) -> Self {
+        let llm_route_values: Vec<RoutingPreference> =
+            llm_routes.values().flatten().cloned().collect();
         let llm_route_json_str =
-            serde_json::to_string(&llm_routes).unwrap_or_else(|_| "[]".to_string());
+            serde_json::to_string(&llm_route_values).unwrap_or_else(|_| "[]".to_string());
+        let llm_route_to_model_map: HashMap<String, String> = llm_routes
+            .iter()
+            .flat_map(|(model, prefs)| prefs.iter().map(|pref| (pref.name.clone(), model.clone())))
+            .collect();
+
         RouterModelV1 {
             routing_model,
             max_token_length,
             llm_route_json_str,
+            llm_route_to_model_map,
         }
     }
 }
@@ -62,7 +73,7 @@ impl RouterModel for RouterModelV1 {
     fn generate_request(
         &self,
         messages: &[Message],
-        usage_preferences: &Option<Vec<ModelUsagePreference>>,
+        usage_preferences_from_request: &Option<Vec<ModelUsagePreference>>,
     ) -> ChatCompletionsRequest {
         // remove system prompt, tool calls, tool call response and messages without content
         // if content is empty its likely a tool call
@@ -139,31 +150,17 @@ impl RouterModel for RouterModelV1 {
             })
             .collect::<Vec<Message>>();
 
-        let llm_route_json = usage_preferences
-            .as_ref()
-            .map(|prefs| {
-                let llm_route: Vec<RoutingPreference> = prefs
-                    .iter()
-                    .map(|pref| RoutingPreference {
-                        name: pref.name.clone(),
-                        description: pref.usage.clone().unwrap_or_default(),
-                    })
-                    .collect();
-                serde_json::to_string(&llm_route).unwrap_or_default()
-            })
-            .unwrap_or_else(|| self.llm_route_json_str.clone());
-
-        let messages_content = ARCH_ROUTER_V1_SYSTEM_PROMPT
-            .replace("{routes}", &llm_route_json)
-            .replace(
-                "{conversation}",
-                &serde_json::to_string(&selected_conversation_list).unwrap_or_default(),
-            );
+        // Generate the router request message based on the usage preferences.
+        // If preferences are passed in request then we use them otherwise we use the default routing model preferences.
+        let router_message = match convert_to_router_preferences(usage_preferences_from_request) {
+            Some(prefs) => generate_router_message(&prefs, &selected_conversation_list),
+            None => generate_router_message(&self.llm_route_json_str, &selected_conversation_list),
+        };
 
         ChatCompletionsRequest {
             model: self.routing_model.clone(),
             messages: vec![Message {
-                content: Some(ContentType::Text(messages_content)),
+                content: Some(ContentType::Text(router_message)),
                 role: USER_ROLE.to_string(),
             }],
             temperature: Some(0.01),
@@ -171,25 +168,93 @@ impl RouterModel for RouterModelV1 {
         }
     }
 
-    fn parse_response(&self, content: &str) -> Result<Option<String>> {
+    fn parse_response(
+        &self,
+        content: &str,
+        usage_preferences: &Option<Vec<ModelUsagePreference>>,
+    ) -> Result<Option<(String, String)>> {
         if content.is_empty() {
             return Ok(None);
         }
         let router_resp_fixed = fix_json_response(content);
         let router_response: LlmRouterResponse = serde_json::from_str(router_resp_fixed.as_str())?;
 
-        let selected_llm = router_response.route.unwrap_or_default().to_string();
+        let selected_route = router_response.route.unwrap_or_default().to_string();
 
-        if selected_llm.is_empty() {
+        if selected_route.is_empty() || selected_route == "other" {
             return Ok(None);
         }
 
-        Ok(Some(selected_llm))
+        if let Some(usage_preferences) = usage_preferences {
+            // If usage preferences are defined, we need to find the model that matches the selected route
+            let model_name: Option<String> = usage_preferences
+                .iter()
+                .map(|pref| {
+                    pref.routing_preferences
+                        .iter()
+                        .find(|routing_pref| routing_pref.name == selected_route)
+                        .map(|_| pref.model.clone())
+                })
+                .find_map(|model| model);
+
+            if let Some(model_name) = model_name {
+                return Ok(Some((selected_route, model_name)));
+            } else {
+                warn!(
+                    "No matching model found for route: {}, usage preferences: {:?}",
+                    selected_route, usage_preferences
+                );
+                return Ok(None);
+            }
+        }
+
+        // If no usage preferences are passed in request then use the default routing model preferences
+        if let Some(model) = self.llm_route_to_model_map.get(&selected_route).cloned() {
+            return Ok(Some((selected_route, model)));
+        }
+
+        warn!(
+            "No model found for route: {}, router model preferences: {:?}",
+            selected_route, self.llm_route_to_model_map
+        );
+
+        Ok(None)
     }
 
     fn get_model_name(&self) -> String {
         self.routing_model.clone()
     }
+}
+
+fn generate_router_message(prefs: &str, selected_conversation_list: &Vec<Message>) -> String {
+    ARCH_ROUTER_V1_SYSTEM_PROMPT
+        .replace("{routes}", prefs)
+        .replace(
+            "{conversation}",
+            &serde_json::to_string(&selected_conversation_list).unwrap_or_default(),
+        )
+}
+
+fn convert_to_router_preferences(
+    prefs_from_request: &Option<Vec<ModelUsagePreference>>,
+) -> Option<String> {
+    if let Some(usage_preferences) = prefs_from_request {
+        let routing_preferences = usage_preferences
+            .iter()
+            .flat_map(|pref| {
+                pref.routing_preferences
+                    .iter()
+                    .map(|routing_pref| RoutingPreference {
+                        name: routing_pref.name.clone(),
+                        description: routing_pref.description.clone(),
+                    })
+            })
+            .collect::<Vec<RoutingPreference>>();
+
+        return Some(serde_json::to_string(&routing_preferences).unwrap_or_default());
+    }
+
+    None
 }
 
 fn fix_json_response(body: &str) -> String {
@@ -235,7 +300,7 @@ mod tests {
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -251,15 +316,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 {"route": "route_name"}
 "#;
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), usize::MAX);
 
@@ -310,15 +374,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 {"route": "route_name"}
 "#;
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), usize::MAX);
 
@@ -341,9 +404,11 @@ Based on your analysis, provide your response in the following JSON formats if y
         let conversation: Vec<Message> = serde_json::from_str(conversation_str).unwrap();
 
         let usage_preferences = Some(vec![ModelUsagePreference {
-            name: "code-generation".to_string(),
             model: "claude/claude-3-7-sonnet".to_string(),
-            usage: Some("generating new code snippets, functions, or boilerplate based on user prompts or requirements".to_string()),
+            routing_preferences: vec![RoutingPreference {
+                name: "code-generation".to_string(),
+                description: "generating new code snippets, functions, or boilerplate based on user prompts or requirements".to_string(),
+            }],
         }]);
         let req = router.generate_request(&conversation, &usage_preferences);
 
@@ -358,7 +423,7 @@ Based on your analysis, provide your response in the following JSON formats if y
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -375,15 +440,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 "#;
 
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), 235);
 
@@ -419,7 +483,7 @@ Based on your analysis, provide your response in the following JSON formats if y
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -436,15 +500,15 @@ Based on your analysis, provide your response in the following JSON formats if y
 "#;
 
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
+
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), 200);
 
@@ -480,7 +544,7 @@ Based on your analysis, provide your response in the following JSON formats if y
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -497,15 +561,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 "#;
 
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), 230);
 
@@ -549,7 +612,7 @@ Based on your analysis, provide your response in the following JSON formats if y
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -565,15 +628,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 {"route": "route_name"}
 "#;
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), usize::MAX);
 
@@ -619,7 +681,7 @@ Based on your analysis, provide your response in the following JSON formats if y
 You are a helpful assistant designed to find the best suited route.
 You are provided with route description within <routes></routes> XML tags:
 <routes>
-[{"name":"Image generation","description":"generating image"},{"name":"image conversion","description":"convert images to provided format"},{"name":"image search","description":"search image"},{"name":"Audio Processing","description":"Analyzing and interpreting audio input including speech, music, and environmental sounds"},{"name":"Speech Recognition","description":"Converting spoken language into written text"}]
+[{"name":"Image generation","description":"generating image"}]
 </routes>
 
 <conversation>
@@ -635,15 +697,14 @@ Based on your analysis, provide your response in the following JSON formats if y
 {"route": "route_name"}
 "#;
         let routes_str = r#"
-          [
-              {"name": "Image generation", "description": "generating image"},
-              {"name": "image conversion", "description": "convert images to provided format"},
-              {"name": "image search", "description": "search image"},
-              {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-              {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-          ]
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
         "#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
         let routing_model = "test-model".to_string();
         let router = RouterModelV1::new(llm_routes, routing_model.clone(), usize::MAX);
 
@@ -712,56 +773,64 @@ Based on your analysis, provide your response in the following JSON formats if y
     #[test]
     fn test_parse_response() {
         let routes_str = r#"
-[
-    {"name": "Image generation", "description": "generating image"},
-    {"name": "image conversion", "description": "convert images to provided format"},
-    {"name": "image search", "description": "search image"},
-    {"name": "Audio Processing", "description": "Analyzing and interpreting audio input including speech, music, and environmental sounds"},
-    {"name": "Speech Recognition", "description": "Converting spoken language into written text"}
-]
-"#;
-        let llm_routes = serde_json::from_str::<Vec<RoutingPreference>>(routes_str).unwrap();
+          {
+            "gpt-4o": [
+              {"name": "Image generation", "description": "generating image"}
+            ]
+        }
+        "#;
+        let llm_routes =
+            serde_json::from_str::<HashMap<String, Vec<RoutingPreference>>>(routes_str).unwrap();
 
         let router = RouterModelV1::new(llm_routes, "test-model".to_string(), 2000);
 
         // Case 1: Valid JSON with non-empty route
-        let input = r#"{"route": "route1"}"#;
-        let result = router.parse_response(input).unwrap();
-        assert_eq!(result, Some("route1".to_string()));
+        let input = r#"{"route": "Image generation"}"#;
+        let result = router.parse_response(input, &None).unwrap();
+        assert_eq!(
+            result,
+            Some(("Image generation".to_string(), "gpt-4o".to_string()))
+        );
 
         // Case 2: Valid JSON with empty route
         let input = r#"{"route": ""}"#;
-        let result = router.parse_response(input).unwrap();
+        let result = router.parse_response(input, &None).unwrap();
         assert_eq!(result, None);
 
         // Case 3: Valid JSON with null route
         let input = r#"{"route": null}"#;
-        let result = router.parse_response(input).unwrap();
+        let result = router.parse_response(input, &None).unwrap();
         assert_eq!(result, None);
 
         // Case 4: JSON missing route field
         let input = r#"{}"#;
-        let result = router.parse_response(input).unwrap();
+        let result = router.parse_response(input, &None).unwrap();
         assert_eq!(result, None);
 
         // Case 4.1: empty string
         let input = r#""#;
-        let result = router.parse_response(input).unwrap();
+        let result = router.parse_response(input, &None).unwrap();
         assert_eq!(result, None);
 
         // Case 5: Malformed JSON
         let input = r#"{"route": "route1""#; // missing closing }
-        let result = router.parse_response(input);
+        let result = router.parse_response(input, &None);
         assert!(result.is_err());
 
         // Case 6: Single quotes and \n in JSON
-        let input = "{'route': 'route2'}\\n";
-        let result = router.parse_response(input).unwrap();
-        assert_eq!(result, Some("route2".to_string()));
+        let input = "{'route': 'Image generation'}\\n";
+        let result = router.parse_response(input, &None).unwrap();
+        assert_eq!(
+            result,
+            Some(("Image generation".to_string(), "gpt-4o".to_string()))
+        );
 
         // Case 7: Code block marker
-        let input = "```json\n{\"route\": \"route1\"}\n```";
-        let result = router.parse_response(input).unwrap();
-        assert_eq!(result, Some("route1".to_string()));
+        let input = "```json\n{\"route\": \"Image generation\"}\n```";
+        let result = router.parse_response(input, &None).unwrap();
+        assert_eq!(
+            result,
+            Some(("Image generation".to_string(), "gpt-4o".to_string()))
+        );
     }
 }

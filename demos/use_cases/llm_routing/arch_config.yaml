@@ -13,6 +13,9 @@ llm_providers:
     model: openai/gpt-4o-mini
 
   - access_key: $OPENAI_API_KEY
+    model: openai/gpt-4.1
+
+  - access_key: $OPENAI_API_KEY
     model: openai/gpt-4o
     default: true
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use common::{
     configuration::{LlmProvider, ModelUsagePreference, RoutingPreference},
@@ -48,9 +48,14 @@ impl RouterService {
             .cloned()
             .collect::<Vec<LlmProvider>>();
 
-        let llm_routes: Vec<RoutingPreference> = providers_with_usage
+        let llm_routes: HashMap<String, Vec<RoutingPreference>> = providers_with_usage
             .iter()
-            .flat_map(|provider| provider.routing_preferences.clone().unwrap_or_default())
+            .filter_map(|provider| {
+                provider
+                    .routing_preferences
+                    .as_ref()
+                    .map(|prefs| (provider.name.clone(), prefs.clone()))
+            })
             .collect();
 
         let router_model = Arc::new(router_model_v1::RouterModelV1::new(
@@ -73,7 +78,7 @@ impl RouterService {
         messages: &[Message],
         trace_parent: Option<String>,
         usage_preferences: Option<Vec<ModelUsagePreference>>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<(String, String)>> {
         if !self.llm_usage_defined {
             return Ok(None);
         }
@@ -82,7 +87,7 @@ impl RouterService {
             .router_model
             .generate_request(messages, &usage_preferences);
 
-        info!(
+        debug!(
             "sending request to arch-router model: {}, endpoint: {}",
             self.router_model.get_model_name(),
             self.router_url
@@ -151,21 +156,21 @@ impl RouterService {
         if let Some(ContentType::Text(content)) =
             &chat_completion_response.choices[0].message.content
         {
-            let route_name = self.router_model.parse_response(content)?;
+            let parsed_response = self
+                .router_model
+                .parse_response(content, &usage_preferences)?;
             info!(
-                "router response: {}, selected_model: {:?}, response time: {}ms",
+                "arch-router determined route: {}, selected_model: {:?}, response time: {}ms",
                 content.replace("\n", "\\n"),
-                route_name,
+                parsed_response,
                 router_response_time.as_millis()
             );
 
-            if let Some(ref route) = route_name {
-                if route == "other" {
-                    return Ok(None);
-                }
+            if let Some(ref parsed_response) = parsed_response {
+                return Ok(Some(parsed_response.clone()));
             }
 
-            Ok(route_name)
+            Ok(None)
         } else {
             Ok(None)
         }

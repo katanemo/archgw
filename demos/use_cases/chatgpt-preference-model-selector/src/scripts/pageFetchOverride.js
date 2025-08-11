@@ -17,7 +17,7 @@
     }
 
     // Only intercept conversation fetches
-    if (pathname === '/backend-api/conversation') {
+    if (pathname === '/backend-api/conversation' || pathname === '/backend-api/f/conversation') {
       console.log(`${TAG} matched → proxy via content script`);
 
       const { port1, port2 } = new MessageChannel();

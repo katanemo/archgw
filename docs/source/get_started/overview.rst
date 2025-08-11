@@ -3,9 +3,9 @@
 
 Overview
 ============
-`Arch <https://github.com/katanemo/arch>`_ is an AI-native proxy server and the universal data plane for AI - one that is natively designed to handle and process AI prompts, not just network traffic.
+`Arch <https://github.com/katanemo/arch>`_ is a smart edge and AI gateway for AI-native apps - one that is natively designed to handle and process prompts, not just network traffic.
 
-Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch helps you move faster by handling the pesky *low-level* work in AI agent development—fast input clarification, intelligent agent routing, seamless prompt-to-tool integration, and unified LLM access and observability—all without locking you into a framework.
+Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
 
 
 In this documentation, you will learn how to quickly set up Arch to trigger API calls via prompts, apply prompt guardrails without writing any application-level logic,

@@ -1,6 +1,5 @@
 use brightstaff::handlers::chat_completions::chat_completions;
 use brightstaff::handlers::models::list_models;
-use brightstaff::handlers::preferences::{list_preferences, update_preferences};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
@@ -116,12 +115,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             .with_context(parent_cx)
                             .await
                     }
-                    (&Method::GET, "/v1/router/preferences") => {
-                        Ok(list_preferences(llm_providers).await)
-                    }
-                    (&Method::PUT, "/v1/router/preferences") => {
-                        update_preferences(req, llm_providers).await
-                    }
                     (&Method::GET, "/v1/models") => Ok(list_models(llm_providers).await),
                     (&Method::OPTIONS, "/v1/models") => {
                         let mut response = Response::new(empty());
@@ -156,7 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
 
         tokio::task::spawn(async move {
-            info!("Accepted connection from {:?}", peer_addr);
+            debug!("Accepted connection from {:?}", peer_addr);
             if let Err(err) = http1::Builder::new()
                 // .serve_connection(io, service_fn(chat_completion))
                 .serve_connection(io, service)

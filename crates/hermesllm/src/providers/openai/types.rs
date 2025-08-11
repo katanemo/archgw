@@ -36,8 +36,15 @@ pub enum MultiPartContentType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImageUrl {
+    pub url: String,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MultiPartContent {
     pub text: Option<String>,
+    pub image_url: Option<ImageUrl>,
     #[serde(rename = "type")]
     pub content_type: MultiPartContentType,
 }
@@ -307,10 +314,12 @@ mod tests {
             MultiPartContent {
                 text: Some("This is a text part.".to_string()),
                 content_type: MultiPartContentType::Text,
+                image_url: None,
             },
             MultiPartContent {
                 text: Some("https://example.com/image.png".to_string()),
                 content_type: MultiPartContentType::ImageUrl,
+                image_url: None,
             },
         ]);
         assert_eq!(multi_part_content.to_string(), "This is a text part.");
@@ -359,6 +368,61 @@ mod tests {
                 MultiPartContentType::Text
             );
             assert_eq!(multi_part_content[1].text, Some("hello world".to_string()));
+        } else {
+            panic!("Expected MultiPartContent");
+        }
+    }
+
+    #[test]
+    fn test_chat_completions_request_image_content() {
+        const CHAT_COMPLETIONS_REQUEST: &str = r#"
+            {
+              "stream": true,
+              "model": "openai/gpt-4o",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "describe this photo pls"
+                    },
+                    {
+                      "type": "image_url",
+                      "image_url": {
+                        "url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/...=="
+                      }
+                    }
+                  ]
+                }
+              ]
+            }"#;
+
+        let chat_completions_request: ChatCompletionsRequest =
+            serde_json::from_str(CHAT_COMPLETIONS_REQUEST).unwrap();
+        assert_eq!(chat_completions_request.model, "openai/gpt-4o");
+        if let Some(ContentType::MultiPart(multi_part_content)) =
+            chat_completions_request.messages[0].content.as_ref()
+        {
+            assert_eq!(multi_part_content.len(), 2);
+            assert_eq!(
+                multi_part_content[0].content_type,
+                MultiPartContentType::Text
+            );
+            assert_eq!(
+                multi_part_content[0].text,
+                Some("describe this photo pls".to_string())
+            );
+            assert_eq!(
+                multi_part_content[1].content_type,
+                MultiPartContentType::ImageUrl
+            );
+            assert_eq!(
+                multi_part_content[1].image_url,
+                Some(ImageUrl {
+                    url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/...==".to_string(),
+                })
+            );
         } else {
             panic!("Expected MultiPartContent");
         }

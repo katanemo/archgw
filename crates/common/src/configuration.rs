@@ -1,6 +1,5 @@
 use hermesllm::providers::openai::types::{ModelDetail, ModelObject, Models};
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -178,12 +177,10 @@ impl Display for LlmProviderType {
     }
 }
 
-#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelUsagePreference {
-    pub name: String,
     pub model: String,
-    pub usage: Option<String>,
+    pub routing_preferences: Vec<RoutingPreference>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

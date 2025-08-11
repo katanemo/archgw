@@ -35,45 +35,42 @@ make outbound LLM calls.
 Adding custom LLM Provider
 --------------------------
 
-We support any OpenAI compliant LLM for example mistral, openai, ollama etc. We offer first class support for openai and ollama. You can easily configure an LLM that communicates over the OpenAI API interface, by following the below guide.
+We support any OpenAI compliant LLM for example mistral, openai, ollama etc. We also offer first class support for OpenAI, Anthropic, DeepSeek, Mistral, Groq, and Ollama based models.
+You can easily configure an LLM that communicates over the OpenAI API interface, by following the below guide.
 
-For example following code block shows you how to add an ollama-supported LLM in the `arch_config.yaml` file.
-
-.. code-block:: yaml
-
-    - name: local-llama
-      provider_interface: openai
-      model: llama3.2
-      endpoint: host.docker.internal:11434
-
-
-For example following code block shows you how to add mistral llm provider in the `arch_config.yaml` file.
+For example following code block shows you how to add an ollama-supported LLM in the ``arch_config.yaml`` file.
 
 .. code-block:: yaml
 
-    - name: mistral-ai
-      provider_interface: openai
-      model: ministral-3b-latest
-      endpoint: api.mistral.ai:443
-      protocol: https
+    llm_providers:
+      - model: some_custom_llm_provider/llama3.2
+        provider_interface: openai
+        base_url: http://host.docker.internal:11434
 
+And in the following code block shows you how to add mistral llm provider in the ``arch_config.yaml`` file.
+
+.. code-block:: yaml
+
+    llm_providers:
+      - name: mistral/ministral-3b-latest
+        access_key: $MISTRAL_API_KEY
 
 Example: Using the OpenAI Python SDK
 ------------------------------------
 
 .. code-block:: python
 
-   from openai import OpenAI
+    from openai import OpenAI
 
-   # Initialize the Arch client
-   client = OpenAI(base_url="http://127.0.0.12000/")
+    # Initialize the Arch client
+    client = OpenAI(base_url="http://127.0.0.1:2000/")
 
-   # Define your LLM provider and prompt
-   llm_provider = "openai"
-   prompt = "What is the capital of France?"
+    # Define your model and messages
+    model = "llama3.2"
+    messages = [{"role": "user", "content": "What is the capital of France?"}]
 
-   # Send the prompt to the LLM through Arch
-   response = client.completions.create(llm_provider=llm_provider, prompt=prompt)
+    # Send the messages to the LLM through Arch
+    response = client.chat.completions.create(model=model, messages=messages)
 
-   # Print the response
-   print("LLM Response:", response)
+    # Print the response
+    print("LLM Response:", response.choices[0].message.content)

@@ -4,8 +4,8 @@
 <div align="center">
 
 
-_The proxy server and the universal data plane for AI-native apps._<br><br>
-Arch handles the *pesky low-level work* in building AI agents like clarifying vague user inputs, routing prompts to the right agents, calling tools for simple tasks, and unifying access to large language models (LLMs) - all without locking you into a framework. Move faster by focusing on the high-level logic of your agents.
+_Arch is a smart proxy server designed as a modular edge and AI gateway for agentic apps_<br><br>
+ Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
 
 
 [Quickstart](#Quickstart) •
@@ -80,9 +80,9 @@ Arch's CLI allows you to manage and interact with the Arch gateway efficiently. 
 > We recommend that developers create a new Python virtual environment to isolate dependencies before installing Arch. This ensures that archgw and its dependencies do not interfere with other packages on your system.
 
 ```console
-$ python -m venv venv
+$ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install archgw==0.3.5
+$ pip install archgw==0.3.7
 ```
 
 ### Build Agentic Apps with Arch Gateway
@@ -148,13 +148,10 @@ endpoints:
 ```sh
 
 $ archgw up arch_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.1.5
-...
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.7
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
-...
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!
-
 ```
 
 Once the gateway is up you can start interacting with at port 10000 using openai chat completion API.

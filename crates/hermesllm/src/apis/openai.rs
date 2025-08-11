@@ -3,6 +3,7 @@ use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
+use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
 use super::ApiDefinition;
 
 // ============================================================================
@@ -422,6 +423,212 @@ pub struct FunctionCallDelta {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StreamOptions {
     pub include_usage: Option<bool>,
+}
+
+/// ============================================================================
+/// OpenAI Provider Request Wrapper
+/// ============================================================================
+impl ProviderRequest for ChatCompletionsRequest {
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn is_streaming(&self) -> bool {
+        self.stream.unwrap_or_default()
+    }
+
+    fn set_streaming_options(&mut self) {
+        self.stream = Some(true);
+        if self.stream_options.is_none() {
+            self.stream_options = Some(StreamOptions { include_usage: Some(true) });
+        }
+    }
+
+    fn extract_messages_text(&self) -> String {
+        self.messages.iter().fold(String::new(), |acc, m| {
+            acc + " " + &match &m.content {
+                MessageContent::Text(text) => text.clone(),
+                MessageContent::Parts(parts) => parts.iter().map(|part| match part {
+                    ContentPart::Text { text } => text.clone(),
+                    ContentPart::ImageUrl { .. } => "[Image]".to_string(),
+                }).collect::<Vec<_>>().join(" ")
+            }
+        })
+    }
+
+    fn extract_user_message(&self) -> Option<String> {
+        self.messages.last().and_then(|msg| {
+            match &msg.content {
+                MessageContent::Text(text) => Some(text.clone()),
+                MessageContent::Parts(_) => None, // No user message in parts
+            }
+        })
+    }
+
+    fn to_provider_bytes(&self, mode: ConversionMode) -> Result<Vec<u8>, ProviderRequestError> {
+        match mode {
+            ConversionMode::Compatible | ConversionMode::Passthrough => {
+                serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
+                    message: format!("Failed to serialize OpenAI request: {}", e),
+                    source: Some(Box::new(e)),
+                })
+            }
+        }
+    }
+}
+
+// ============================================================================
+// STREAMING SUPPORT
+// ============================================================================
+
+use crate::providers::traits::{ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage};
+
+// Direct implementation of ProviderResponse on ChatCompletionsResponse
+impl ProviderResponse for ChatCompletionsResponse {
+    fn usage(&self) -> Option<&dyn TokenUsage> {
+        Some(&self.usage)
+    }
+}
+
+// Implementation of TokenUsage for OpenAI Usage type
+impl TokenUsage for Usage {
+    fn completion_tokens(&self) -> usize {
+        self.completion_tokens as usize
+    }
+
+    fn prompt_tokens(&self) -> usize {
+        self.prompt_tokens as usize
+    }
+
+    fn total_tokens(&self) -> usize {
+        self.total_tokens as usize
+    }
+}
+
+// Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
+impl ProviderStreamResponse for ChatCompletionsStreamResponse {
+    fn content_delta(&self) -> Option<&str> {
+        self.choices
+            .first()
+            .and_then(|choice| choice.delta.content.as_deref())
+    }
+
+    fn is_final(&self) -> bool {
+        self.choices
+            .first()
+            .map(|choice| choice.finish_reason.is_some())
+            .unwrap_or(false)
+    }
+
+    fn role(&self) -> Option<&str> {
+        self.choices
+            .first()
+            .and_then(|choice| choice.delta.role.as_ref().map(|r| match r {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            }))
+    }
+}
+
+// Error type for streaming operations
+#[derive(Debug, thiserror::Error)]
+pub enum OpenAIStreamError {
+    #[error("JSON parsing error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("UTF-8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("Invalid streaming data: {0}")]
+    InvalidStreamingData(String),
+}
+
+/// SSE-based streaming iterator for OpenAI chat completions
+/// Implements ProviderStreamResponseIter directly
+pub struct SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    lines: I,
+}
+
+impl<I> SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    pub fn new(lines: I) -> Self {
+        Self { lines }
+    }
+}
+
+impl<I> Iterator for SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for line in &mut self.lines {
+            let line = line.as_ref();
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.starts_with("data: ") {
+                let data = &line[6..]; // Remove "data: " prefix
+                if data == "[DONE]" {
+                    return None;
+                }
+
+                if data == r#"{"type": "ping"}"# {
+                    continue; // Skip ping messages - that is usually from anthropic
+                }
+
+                match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
+                    Ok(response) => return Some(Ok(Box::new(response))),
+                    Err(e) => return Some(Err(Box::new(
+                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing: {}, data: {}", e, data))
+                    ))),
+                }
+            }
+        }
+        None
+    }
+}
+
+impl<I> ProviderStreamResponseIter for SseChatCompletionIter<I>
+where
+    I: Iterator + Send + Sync,
+    I::Item: AsRef<str>,
+{
+    // Just marking that this type implements the trait - no additional methods needed
+}
+
+// ============================================================================
+// PARAMETERIZED CONVERSIONS FOR PROVIDER FUNCTIONS
+// ============================================================================
+
+use crate::providers::ProviderId;
+
+/// Parameterized conversion for ChatCompletionsRequest
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsRequest {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+/// Parameterized conversion for ChatCompletionsResponse
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsResponse {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
 }
 
 #[cfg(test)]

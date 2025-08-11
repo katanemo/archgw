@@ -178,13 +178,10 @@ impl Display for LlmProviderType {
 }
 
 impl LlmProviderType {
-    /// Create a Provider from this LlmProviderType
-    /// This is the main method for stream_context to get provider-specific interfaces
-    pub fn create_provider(&self) -> hermesllm::Provider {
-        use hermesllm::{ProviderId, Provider};
-
-        let provider_id = ProviderId::from(self.to_string().as_str());
-        Provider::new(provider_id)
+    /// Get the ProviderId for this LlmProviderType
+    /// Used with the new function-based hermesllm API
+    pub fn to_provider_id(&self) -> hermesllm::ProviderId {
+        hermesllm::ProviderId::from(self.to_string().as_str())
     }
 }
 
@@ -264,10 +261,10 @@ impl Display for LlmProvider {
 }
 
 impl LlmProvider {
-    /// Create a Provider for this LlmProvider
-    /// This is a convenience method that delegates to the provider_interface
-    pub fn create_provider(&self) -> hermesllm::Provider {
-        self.provider_interface.create_provider()
+    /// Get the ProviderId for this LlmProvider
+    /// Used with the new function-based hermesllm API
+    pub fn to_provider_id(&self) -> hermesllm::ProviderId {
+        self.provider_interface.to_provider_id()
     }
 }
 

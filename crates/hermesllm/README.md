@@ -35,15 +35,17 @@ _Replace the path with the appropriate location if using as a workspace member o
 Construct a chat completion request using the builder pattern:
 
 ```rust
-use hermesllm::Provider;
+use hermesllm::{create_provider, ProviderId};
 use hermesllm::providers::openai::types::ChatCompletionsRequest;
 
 let request = ChatCompletionsRequest::builder("gpt-3.5-turbo", vec![Message::new("Hi".to_string())])
     .build()
     .expect("Failed to build OpenAIRequest");
 
-// Convert to bytes for a specific provider
-let bytes = request.to_bytes(Provider::OpenAI)?;
+// Create a provider and convert request to bytes
+let provider = create_provider(ProviderId::OpenAI);
+let bytes = serde_json::to_vec(&request)?;
+let parsed_request = provider.try_request_from_bytes(&bytes)?;
 ```
 
 ## API Overview

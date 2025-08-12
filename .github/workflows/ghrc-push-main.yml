@@ -1,4 +1,4 @@
-name: Publish docker image (latest)
+name: Publish docker image to ghcr (latest)
 
 env:
   DOCKER_IMAGE: katanemo/archgw
@@ -47,6 +47,9 @@ jobs:
   # Build AMD64 image on GitHub's AMD64 runner
   build-amd64:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -79,6 +82,9 @@ jobs:
   # Combine ARM64 and AMD64 images into a multi-arch manifest
   create-manifest:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     needs: [build-arm64, build-amd64]  # Wait for both builds
     steps:
       - name: Log in to GitHub Container Registry

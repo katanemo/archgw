@@ -1,11 +1,11 @@
-name: Publish docker image to ghcr (latest)
+name: release - publish docker image to ghcr (latest)
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/archgw
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
 
 jobs:
   build-arm64:
@@ -24,7 +24,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
+            type=raw,value={{tag}}
 
       - name: Build and Push ARM64 Image
         uses: docker/build-push-action@v5
@@ -33,7 +33,6 @@ jobs:
           file: ./arch/Dockerfile
           platforms: linux/arm64
           push: true
-          # produce ghcr.io/<owner>/archgw:latest-arm64
           tags: ${{ steps.meta.outputs.tags }}-arm64
 
   build-amd64:
@@ -52,7 +51,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
+            type=raw,value={{tag}}
 
       - name: Build and Push AMD64 Image
         uses: docker/build-push-action@v5
@@ -79,10 +78,10 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
+            type=raw,value={{tag}}
 
       - name: Create Multi-Arch Manifest
         run: |
           docker buildx imagetools create -t ${{ steps.meta.outputs.tags }} \
-            ${{ env.IMAGE_NAME }}:latest-arm64 \
-            ${{ env.IMAGE_NAME }}:latest-amd64
+            ${{ steps.meta.outputs.tags }}-arm64 \
+            ${{ steps.meta.outputs.tags }}-amd64

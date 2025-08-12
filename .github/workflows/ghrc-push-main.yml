@@ -1,39 +1,31 @@
 name: Publish docker image to ghcr (latest)
 
 env:
-  DOCKER_IMAGE: katanemo/archgw
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/archgw
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
 jobs:
-  # Build ARM64 image on native ARM64 runner
   build-arm64:
     runs-on: [linux-arm64]
-    permissions:
-      contents: read
-      packages: write
+    permissions: { contents: read, packages: write }
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_IMAGE }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest  # Force the tag to be "latest"
+            type=raw,value=latest
 
       - name: Build and Push ARM64 Image
         uses: docker/build-push-action@v5
@@ -42,32 +34,26 @@ jobs:
           file: ./arch/Dockerfile
           platforms: linux/arm64
           push: true
+          # produce ghcr.io/<owner>/archgw:latest-arm64
           tags: ${{ steps.meta.outputs.tags }}-arm64
 
-  # Build AMD64 image on GitHub's AMD64 runner
   build-amd64:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    permissions: { contents: read, packages: write }
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_IMAGE }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest  # Force the tag to be "latest"
+            type=raw,value=latest
 
       - name: Build and Push AMD64 Image
         uses: docker/build-push-action@v5
@@ -78,33 +64,26 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}-amd64
 
-
-  # Combine ARM64 and AMD64 images into a multi-arch manifest
   create-manifest:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    needs: [build-arm64, build-amd64]  # Wait for both builds
+    needs: [build-arm64, build-amd64]
+    permissions: { contents: read, packages: write }
     steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKER_IMAGE }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest  # Force the tag to be "latest"
+            type=raw,value=latest
 
       - name: Create Multi-Arch Manifest
         run: |
-          # Combine the architecture-specific images into a "latest" manifest
           docker buildx imagetools create -t ${{ steps.meta.outputs.tags }} \
-            ${{ env.DOCKER_IMAGE }}:latest-arm64 \
-            ${{ env.DOCKER_IMAGE }}:latest-amd64
+            ${{ env.IMAGE_NAME }}:latest-arm64 \
+            ${{ env.IMAGE_NAME }}:latest-amd64

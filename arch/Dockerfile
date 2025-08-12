@@ -22,7 +22,7 @@ RUN set -eux; \
 RUN set -eux; \
   dpkg -r --force-depends libpam-modules libpam-modules-bin libpam-runtime libpam0g || true; \
   dpkg -P --force-all libpam-modules libpam-modules-bin libpam-runtime libpam0g || true; \
-  rm -rf /etc/pam.d /lib/x86_64-linux-gnu/security /usr/lib/security || true
+  rm -rf /etc/pam.d /lib/*/security /usr/lib/security || true
 
 
 COPY --from=builder /arch/target/wasm32-wasip1/release/prompt_gateway.wasm /etc/envoy/proxy-wasm-plugins/prompt_gateway.wasm

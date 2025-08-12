@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
+use std::fmt::Display;
+use thiserror::Error;
 
 use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
 use super::ApiDefinition;
@@ -116,8 +118,8 @@ pub enum Role {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
-    pub content: MessageContent,
     pub role: Role,
+    pub content: MessageContent,
     pub name: Option<String>,
     /// Tool calls made by the assistant (only present for assistant role)
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -169,6 +171,28 @@ impl ResponseMessage {
 pub enum MessageContent {
     Text(String),
     Parts(Vec<ContentPart>),
+}
+
+impl Display for MessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageContent::Text(text) => write!(f, "{}", text),
+            MessageContent::Parts(parts) => {
+                let text_parts: Vec<String> = parts
+                    .iter()
+                    .filter_map(|part| match part {
+                        ContentPart::Text { text } => Some(text.clone()),
+                        ContentPart::ImageUrl { .. } => {
+                            // skip image URLs or their data in text representation
+                            None
+                        }
+                    })
+                    .collect();
+                let combined_text = text_parts.join("\n");
+                write!(f, "{}", combined_text)
+            }
+        }
+    }
 }
 
 /// Individual content part within a message (text or image)
@@ -560,6 +584,26 @@ impl TokenUsage for Usage {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelDetail {
+    pub id: String,
+    pub object: String,
+    pub created: usize,
+    pub owned_by: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ModelObject {
+    #[serde(rename = "list")]
+    List,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Models {
+    pub object: ModelObject,
+    pub data: Vec<ModelDetail>,
+}
+
 // Error type for streaming operations
 #[derive(Debug, thiserror::Error)]
 pub enum OpenAIStreamError {
@@ -570,6 +614,22 @@ pub enum OpenAIStreamError {
     #[error("Invalid streaming data: {0}")]
     InvalidStreamingData(String),
 }
+
+#[derive(Debug, Error)]
+pub enum OpenAIError {
+    #[error("json error: {0}")]
+    JsonParseError(#[from] serde_json::Error),
+    #[error("utf8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("invalid streaming data err {source}, data: {data}")]
+    InvalidStreamingData {
+        source: serde_json::Error,
+        data: String,
+    },
+    #[error("unsupported provider: {provider}")]
+    UnsupportedProvider { provider: String },
+}
+
 
 /// SSE-based streaming iterator for OpenAI chat completions
 /// Implements ProviderStreamResponseIter directly

@@ -352,17 +352,16 @@ impl HttpContext for StreamContext {
         };
 
         // Set the resolved model using the trait method
-        deserialized_body.set_model(resolved_model);
+        deserialized_body.set_model(resolved_model.clone());
 
         // Extract user message for tracing
         self.user_message = deserialized_body.extract_user_message();
 
         info!(
-            "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}, final model: {}",
+            "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
             self.llm_provider().name,
             model_requested,
             model_name.unwrap_or(&"None".to_string()),
-            deserialized_body.model(),
         );
 
         // Use provider interface for streaming detection and setup
@@ -376,7 +375,7 @@ impl HttpContext for StreamContext {
         // Use provider interface for text extraction (after potential mutation)
         let input_tokens_str = deserialized_body.extract_messages_text();
         // enforce ratelimits on ingress
-        if let Err(e) = self.enforce_ratelimits(&model_requested, input_tokens_str.as_str()) {
+        if let Err(e) = self.enforce_ratelimits(&resolved_model, input_tokens_str.as_str()) {
             self.send_server_error(
                 ServerError::ExceededRatelimit(e),
                 Some(StatusCode::TOO_MANY_REQUESTS),

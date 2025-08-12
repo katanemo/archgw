@@ -4,7 +4,7 @@ use common::{
     configuration::{LlmProvider, ModelUsagePreference, RoutingPreference},
     consts::ARCH_PROVIDER_HINT_HEADER,
 };
-use hermesllm::providers::openai::types::{ChatCompletionsResponse, ContentType, Message};
+use hermesllm::apis::openai::{ChatCompletionsResponse, Message};
 use hyper::header;
 use thiserror::Error;
 use tracing::{debug, info, warn};
@@ -153,9 +153,7 @@ impl RouterService {
             return Ok(None);
         }
 
-        if let Some(ContentType::Text(content)) =
-            &chat_completion_response.choices[0].message.content
-        {
+        if let Some(content) = &chat_completion_response.choices[0].message.content {
             let parsed_response = self
                 .router_model
                 .parse_response(content, &usage_preferences)?;

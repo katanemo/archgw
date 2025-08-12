@@ -1,4 +1,4 @@
-use hermesllm::providers::openai::types::{ModelDetail, ModelObject, Models};
+use hermesllm::apis::openai::{ModelDetail, ModelObject, Models};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;

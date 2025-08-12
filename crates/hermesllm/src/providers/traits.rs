@@ -6,59 +6,6 @@
 use std::error::Error;
 use std::fmt;
 
-/// Conversion mode for provider requests/responses
-#[derive(Debug, Clone, Copy)]
-pub enum ConversionMode {
-    /// Compatible: Convert between different provider formats to ensure compatibility
-    Compatible,
-    /// Passthrough: Pass requests/responses through with minimal modification
-    Passthrough,
-}
-
-/// Error types for provider operations
-#[derive(Debug)]
-pub struct ProviderRequestError {
-    pub message: String,
-    pub source: Option<Box<dyn Error + Send + Sync>>,
-}
-
-#[derive(Debug)]
-pub struct ProviderResponseError {
-    pub message: String,
-    pub source: Option<Box<dyn Error + Send + Sync>>,
-}
-
-impl fmt::Display for ProviderRequestError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Provider request error: {}", self.message)
-    }
-}
-
-impl fmt::Display for ProviderResponseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Provider response error: {}", self.message)
-    }
-}
-
-impl Error for ProviderRequestError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
-    }
-}
-
-impl Error for ProviderResponseError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
-    }
-}
-
-/// Trait for token usage information
-pub trait TokenUsage {
-    fn completion_tokens(&self) -> usize;
-    fn prompt_tokens(&self) -> usize;
-    fn total_tokens(&self) -> usize;
-}
-
 /// Trait for provider-specific request types
 pub trait ProviderRequest: Send + Sync {
     /// Extract the model name from the request
@@ -107,11 +54,24 @@ pub trait ProviderStreamResponse: Send + Sync {
 }
 
 /// Trait for streaming response iterators
-///
-/// This trait ensures that implementing types are iterators that yield
-/// ProviderStreamResponse results.
 pub trait ProviderStreamResponseIter: Iterator<Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>> + Send + Sync {
     // No additional methods needed - just the Iterator constraint with proper bounds
+}
+
+/// Conversion mode for provider requests/responses
+#[derive(Debug, Clone, Copy)]
+pub enum ConversionMode {
+    /// Compatible: Convert between different provider formats to ensure compatibility
+    Compatible,
+    /// Passthrough: Pass requests/responses through with minimal modification
+    Passthrough,
+}
+
+/// Trait for token usage information
+pub trait TokenUsage {
+    fn completion_tokens(&self) -> usize;
+    fn prompt_tokens(&self) -> usize;
+    fn total_tokens(&self) -> usize;
 }
 
 // ============================================================================
@@ -152,14 +112,42 @@ pub trait ProviderStreamResponseIter: Iterator<Item = Result<Box<dyn ProviderStr
 
 use crate::ProviderId;
 
-/// Parse request from bytes using provider ID - returns generic ProviderRequest trait object
-pub fn try_request_from_bytes(bytes: &[u8], provider_id: &ProviderId) -> Result<Box<dyn ProviderRequest>, ProviderRequestError> {
+// ============================================================================
+// PROVIDER ADAPTER REGISTRY (Organizational Enhancement)
+// ============================================================================
+
+/// Provider adapter configuration
+#[derive(Debug, Clone)]
+pub struct ProviderConfig {
+    pub supported_apis: &'static [&'static str],
+    pub adapter_type: AdapterType,
+}
+
+#[derive(Debug, Clone)]
+pub enum AdapterType {
+    OpenAICompatible,
+    // Future: Claude, Gemini, etc.
+}
+
+/// Get provider configuration
+pub fn get_provider_config(provider_id: &ProviderId) -> ProviderConfig {
     match provider_id {
-        // All these providers currently use OpenAI-compatible chat completions API
-        // In the future, we can add provider-specific handling in separate match arms
         ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
         | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
+            ProviderConfig {
+                supported_apis: &["/v1/chat/completions"],
+                adapter_type: AdapterType::OpenAICompatible,
+            }
+        }
+    }
+}
 
+/// Parse request from bytes using provider ID - returns generic ProviderRequest trait object
+pub fn try_request_from_bytes(bytes: &[u8], provider_id: &ProviderId) -> Result<Box<dyn ProviderRequest>, ProviderRequestError> {
+    let config = get_provider_config(provider_id);
+
+    match config.adapter_type {
+        AdapterType::OpenAICompatible => {
             let request = crate::apis::openai::ChatCompletionsRequest::try_from((bytes, provider_id))
                 .map_err(|e| ProviderRequestError {
                     message: format!("Failed to parse request: {}", e),
@@ -175,9 +163,10 @@ pub fn try_request_from_bytes(bytes: &[u8], provider_id: &ProviderId) -> Result<
 
 /// Parse response from bytes using provider ID - returns generic ProviderResponse trait object
 pub fn try_response_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: ConversionMode) -> Result<Box<dyn ProviderResponse>, ProviderResponseError> {
-    match provider_id {
-        ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
+    let config = get_provider_config(provider_id);
+
+    match config.adapter_type {
+        AdapterType::OpenAICompatible => {
             // Parameterized conversion allows provider-specific response parsing
             let response = crate::apis::openai::ChatCompletionsResponse::try_from((bytes, provider_id))
                 .map_err(|e| ProviderResponseError {
@@ -192,13 +181,11 @@ pub fn try_response_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: Co
 }
 
 /// Create streaming response using provider ID - returns clean ProviderStreamResponseIter trait object
-///
-/// This function returns a ProviderStreamResponseIter that's just an iterator,
-/// eliminating the complex nested Result<Box<dyn Iterator<...>>> type completely.
 pub fn try_streaming_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: ConversionMode) -> Result<Box<dyn ProviderStreamResponseIter>, Box<dyn std::error::Error + Send + Sync>> {
-    match provider_id {
-        ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
+    let config = get_provider_config(provider_id);
+
+    match config.adapter_type {
+        AdapterType::OpenAICompatible => {
             // Parse SSE (Server-Sent Events) streaming data
             let s = std::str::from_utf8(bytes)?;
             let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
@@ -211,29 +198,50 @@ pub fn try_streaming_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: C
 }
 
 /// Check if provider has compatible API
-///
-/// Replaces the old ProviderInterface::has_compatible_api method.
-/// This function enables runtime API compatibility checking without needing a provider instance.
 pub fn has_compatible_api(provider_id: &ProviderId, api_path: &str) -> bool {
-    match provider_id {
-        // Currently all these providers support OpenAI chat completions API
-        // Future providers with different APIs will get their own match arms
-        ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
-            api_path == "/v1/chat/completions"
-        }
-    }
+    let config = get_provider_config(provider_id);
+    config.supported_apis.iter().any(|&supported| supported == api_path)
 }
 
 /// Get supported APIs for provider
-///
-/// Replaces the old ProviderInterface::supported_apis method.
-/// Returns a static list of supported API endpoints for the given provider.
 pub fn supported_apis(provider_id: &ProviderId) -> Vec<&'static str> {
-    match provider_id {
-        ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
-            vec!["/v1/chat/completions"]
-        }
+    let config = get_provider_config(provider_id);
+    config.supported_apis.to_vec()
+}
+
+/// Error types for provider operations
+#[derive(Debug)]
+pub struct ProviderRequestError {
+    pub message: String,
+    pub source: Option<Box<dyn Error + Send + Sync>>,
+}
+
+#[derive(Debug)]
+pub struct ProviderResponseError {
+    pub message: String,
+    pub source: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for ProviderRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Provider request error: {}", self.message)
+    }
+}
+
+impl fmt::Display for ProviderResponseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Provider response error: {}", self.message)
+    }
+}
+
+impl Error for ProviderRequestError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+    }
+}
+
+impl Error for ProviderResponseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
     }
 }

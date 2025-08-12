@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let peer_addr = stream.peer_addr()?;
         let io = TokioIo::new(stream);
 
-        let router_service = Arc::clone(&router_service);
+        let router_service: Arc<RouterService> = Arc::clone(&router_service);
         let llm_provider_endpoint = llm_provider_endpoint.clone();
 
         let llm_providers = llm_providers.clone();

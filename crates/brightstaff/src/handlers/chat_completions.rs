@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use common::configuration::ModelUsagePreference;
 use common::consts::ARCH_PROVIDER_HINT_HEADER;
-use hermesllm::providers::openai::types::ChatCompletionsRequest;
+use hermesllm::apis::openai::ChatCompletionsRequest;
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
@@ -93,7 +93,7 @@ pub async fn chat_completions(
         chat_completion_request.metadata.and_then(|metadata| {
             metadata
                 .get("archgw_preference_config")
-                .and_then(|value| value.as_str().map(String::from))
+                .map(|value| value.to_string())
         });
 
     let usage_preferences: Option<Vec<ModelUsagePreference>> = usage_preferences_str
@@ -105,9 +105,7 @@ pub async fn chat_completions(
             .messages
             .last()
             .map_or("None".to_string(), |msg| {
-                msg.content.as_ref().map_or("None".to_string(), |content| {
-                    content.to_string().replace('\n', "\\n")
-                })
+                msg.content.to_string().replace('\n', "\\n")
             });
 
     const MAX_MESSAGE_LENGTH: usize = 50;

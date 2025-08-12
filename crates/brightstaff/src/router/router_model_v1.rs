@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use common::{
     configuration::{ModelUsagePreference, RoutingPreference},
-    consts::{SYSTEM_ROLE, TOOL_ROLE, USER_ROLE},
 };
-use hermesllm::providers::openai::types::{ChatCompletionsRequest, ContentType, Message};
+use hermesllm::apis::openai::{ChatCompletionsRequest, MessageContent, Message, Role};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -80,7 +79,9 @@ impl RouterModel for RouterModelV1 {
         // when role == tool its tool call response
         let messages_vec = messages
             .iter()
-            .filter(|m| m.role != SYSTEM_ROLE && m.role != TOOL_ROLE && m.content.is_some())
+            .filter(|m| {
+                m.role != Role::System && m.role != Role::Tool && !m.content.to_string().is_empty()
+            })
             .collect::<Vec<&Message>>();
 
         // Following code is to ensure that the conversation does not exceed max token length
@@ -88,13 +89,7 @@ impl RouterModel for RouterModelV1 {
         let mut token_count = ARCH_ROUTER_V1_SYSTEM_PROMPT.len() / TOKEN_LENGTH_DIVISOR;
         let mut selected_messages_list_reversed: Vec<&Message> = vec![];
         for (selected_messsage_count, message) in messages_vec.iter().rev().enumerate() {
-            let message_token_count = message
-                .content
-                .as_ref()
-                .unwrap_or(&ContentType::Text("".to_string()))
-                .to_string()
-                .len()
-                / TOKEN_LENGTH_DIVISOR;
+            let message_token_count = message.content.to_string().len() / TOKEN_LENGTH_DIVISOR;
             token_count += message_token_count;
             if token_count > self.max_token_length {
                 debug!(
@@ -104,7 +99,7 @@ impl RouterModel for RouterModelV1 {
                       , selected_messsage_count,
                       messages_vec.len()
                   );
-                if message.role == USER_ROLE {
+                if message.role == Role::User {
                     // If message that exceeds max token length is from user, we need to keep it
                     selected_messages_list_reversed.push(message);
                 }
@@ -125,12 +120,12 @@ impl RouterModel for RouterModelV1 {
 
         // ensure that first and last selected message is from user
         if let Some(first_message) = selected_messages_list_reversed.first() {
-            if first_message.role != USER_ROLE {
+            if first_message.role != Role::User {
                 warn!("RouterModelV1: last message in the conversation is not from user, this may lead to incorrect routing");
             }
         }
         if let Some(last_message) = selected_messages_list_reversed.last() {
-            if last_message.role != USER_ROLE {
+            if last_message.role != Role::User {
                 warn!("RouterModelV1: first message in the conversation is not from user, this may lead to incorrect routing");
             }
         }
@@ -143,9 +138,10 @@ impl RouterModel for RouterModelV1 {
                 Message {
                     role: message.role.clone(),
                     // we can unwrap here because we have already filtered out messages without content
-                    content: Some(ContentType::Text(
-                        message.content.as_ref().unwrap().to_string(),
-                    )),
+                    content: MessageContent::Text(message.content.to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
                 }
             })
             .collect::<Vec<Message>>();
@@ -160,8 +156,11 @@ impl RouterModel for RouterModelV1 {
         ChatCompletionsRequest {
             model: self.routing_model.clone(),
             messages: vec![Message {
-                content: Some(ContentType::Text(router_message)),
-                role: USER_ROLE.to_string(),
+                content: MessageContent::Text(router_message),
+                role: Role::User,
+                name: None,
+                tool_calls: None,
+                tool_call_id: None,
             }],
             temperature: Some(0.01),
             ..Default::default()
@@ -347,9 +346,9 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let req = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -412,9 +411,9 @@ Based on your analysis, provide your response in the following JSON formats if y
         }]);
         let req = router.generate_request(&conversation, &usage_preferences);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -472,9 +471,9 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let req = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -533,9 +532,9 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let req = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -601,9 +600,9 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let req = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -670,9 +669,9 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let req = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]
@@ -716,14 +715,14 @@ Based on your analysis, provide your response in the following JSON formats if y
                                                   },
                                                   {
                                                     "role": "assistant",
-                                                    "content": null,
+                                                    "content": "",
                                                     "tool_calls": [
                                                       {
                                                         "id": "toolcall-abc123",
                                                         "type": "function",
                                                         "function": {
                                                           "name": "get_weather",
-                                                          "arguments": { "location": "Tokyo" }
+                                                          "arguments": "{ \"location\": \"Tokyo\" }"
                                                         }
                                                       }
                                                     ]
@@ -763,11 +762,11 @@ Based on your analysis, provide your response in the following JSON formats if y
 
         let conversation: Vec<Message> = serde_json::from_str(conversation_str).unwrap();
 
-        let req = router.generate_request(&conversation, &None);
+        let req: ChatCompletionsRequest = router.generate_request(&conversation, &None);
 
-        let prompt = req.messages[0].content.as_ref().unwrap();
+        let prompt = req.messages[0].content.to_string();
 
-        assert_eq!(expected_prompt, prompt.to_string());
+        assert_eq!(expected_prompt, prompt);
     }
 
     #[test]

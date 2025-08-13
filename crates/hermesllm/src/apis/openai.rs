@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 
-use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
 use super::ApiDefinition;
+use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -43,7 +43,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn supports_tools(&self) -> bool {
-         match self {
+        match self {
             OpenAIApi::ChatCompletions => true,
         }
     }
@@ -55,9 +55,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![
-            OpenAIApi::ChatCompletions,
-        ]
+        vec![OpenAIApi::ChatCompletions]
     }
 }
 
@@ -127,8 +125,6 @@ pub struct Message {
     pub tool_call_id: Option<String>,
 }
 
-
-
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ResponseMessage {
@@ -153,7 +149,9 @@ impl ResponseMessage {
     pub fn to_message(&self) -> Message {
         Message {
             role: self.role.clone(),
-            content: self.content.as_ref()
+            content: self
+                .content
+                .as_ref()
                 .map(|s| MessageContent::Text(s.clone()))
                 .unwrap_or(MessageContent::Text(String::new())),
             name: None, // Response messages don't have names in the same way request messages do
@@ -214,7 +212,6 @@ pub struct ImageUrl {
 }
 
 /// A single message in a chat conversation
-
 
 /// A tool call made by the assistant
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -315,7 +312,6 @@ pub enum StaticContentType {
     Parts(Vec<ContentPart>),
 }
 
-
 /// Chat completions API response
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -379,7 +375,6 @@ pub struct Choice {
     pub logprobs: Option<Value>,
 }
 
-
 // ============================================================================
 // STREAMING API TYPES
 // ============================================================================
@@ -398,7 +393,6 @@ pub struct ChatCompletionsStreamResponse {
     /// Specifies the processing type used for serving the request
     pub service_tier: Option<String>,
 }
-
 
 /// A choice in a streaming response
 #[skip_serializing_none]
@@ -468,19 +462,26 @@ impl ProviderRequest for ChatCompletionsRequest {
     fn set_streaming_options(&mut self) {
         self.stream = Some(true);
         if self.stream_options.is_none() {
-            self.stream_options = Some(StreamOptions { include_usage: Some(true) });
+            self.stream_options = Some(StreamOptions {
+                include_usage: Some(true),
+            });
         }
     }
 
     fn extract_messages_text(&self) -> String {
         self.messages.iter().fold(String::new(), |acc, m| {
-            acc + " " + &match &m.content {
-                MessageContent::Text(text) => text.clone(),
-                MessageContent::Parts(parts) => parts.iter().map(|part| match part {
-                    ContentPart::Text { text } => text.clone(),
-                    ContentPart::ImageUrl { .. } => "[Image]".to_string(),
-                }).collect::<Vec<_>>().join(" ")
-            }
+            acc + " "
+                + &match &m.content {
+                    MessageContent::Text(text) => text.clone(),
+                    MessageContent::Parts(parts) => parts
+                        .iter()
+                        .map(|part| match part {
+                            ContentPart::Text { text } => text.clone(),
+                            ContentPart::ImageUrl { .. } => "[Image]".to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                }
         })
     }
 
@@ -495,12 +496,11 @@ impl ProviderRequest for ChatCompletionsRequest {
 
     fn to_provider_bytes(&self, mode: ConversionMode) -> Result<Vec<u8>, ProviderRequestError> {
         match mode {
-            ConversionMode::Compatible | ConversionMode::Passthrough => {
-                serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
+            ConversionMode::Compatible | ConversionMode::Passthrough => serde_json::to_vec(&self)
+                .map_err(|e| ProviderRequestError {
                     message: format!("Failed to serialize OpenAI request: {}", e),
                     source: Some(Box::new(e)),
-                })
-            }
+                }),
         }
     }
 }
@@ -509,7 +509,9 @@ impl ProviderRequest for ChatCompletionsRequest {
 // STREAMING SUPPORT
 // ============================================================================
 
-use crate::providers::traits::{ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage};
+use crate::providers::traits::{
+    ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage,
+};
 
 // Direct implementation of ProviderResponse on ChatCompletionsResponse
 impl ProviderResponse for ChatCompletionsResponse {
@@ -558,14 +560,14 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
     }
 
     fn role(&self) -> Option<&str> {
-        self.choices
-            .first()
-            .and_then(|choice| choice.delta.role.as_ref().map(|r| match r {
+        self.choices.first().and_then(|choice| {
+            choice.delta.role.as_ref().map(|r| match r {
                 Role::System => "system",
                 Role::User => "user",
                 Role::Assistant => "assistant",
                 Role::Tool => "tool",
-            }))
+            })
+        })
     }
 }
 
@@ -630,7 +632,6 @@ pub enum OpenAIError {
     UnsupportedProvider { provider: String },
 }
 
-
 /// SSE-based streaming iterator for OpenAI chat completions
 /// Implements ProviderStreamResponseIter directly
 pub struct SseChatCompletionIter<I>
@@ -677,9 +678,11 @@ where
 
                 match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
                     Ok(response) => return Some(Ok(Box::new(response))),
-                    Err(e) => return Some(Err(Box::new(
-                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing: {}, data: {}", e, data))
-                    ))),
+                    Err(e) => {
+                        return Some(Err(Box::new(OpenAIStreamError::InvalidStreamingData(
+                            format!("Error parsing: {}, data: {}", e, data),
+                        ))))
+                    }
                 }
             }
         }
@@ -694,7 +697,6 @@ where
 {
     // Just marking that this type implements the trait - no additional methods needed
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -715,7 +717,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields are properly set
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -758,7 +761,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -795,7 +799,10 @@ mod tests {
         assert_eq!(serialized_json["messages"], original_json["messages"]);
         assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
         assert_eq!(serialized_json["stream"], original_json["stream"]);
-        assert_eq!(serialized_json["stream_options"], original_json["stream_options"]);
+        assert_eq!(
+            serialized_json["stream_options"],
+            original_json["stream_options"]
+        );
         assert_eq!(serialized_json["metadata"], original_json["metadata"]);
 
         // Handle temperature with floating point tolerance
@@ -876,7 +883,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate top-level fields
         assert_eq!(deserialized_request.model, "gpt-4-vision-preview");
@@ -912,7 +920,10 @@ mod tests {
         let assistant_message = &deserialized_request.messages[1];
         assert_eq!(assistant_message.role, Role::Assistant);
         if let MessageContent::Text(text) = &assistant_message.content {
-            assert_eq!(text, "I can see a beautiful cityscape. Let me check the weather for you.");
+            assert_eq!(
+                text,
+                "I can see a beautiful cityscape. Let me check the weather for you."
+            );
         } else {
             panic!("Expected text content for assistant message");
         }
@@ -926,7 +937,10 @@ mod tests {
         assert_eq!(tool_call.id, "call_weather123");
         assert_eq!(tool_call.call_type, "function");
         assert_eq!(tool_call.function.name, "get_weather");
-        assert_eq!(tool_call.function.arguments, "{\"location\": \"New York, NY\"}");
+        assert_eq!(
+            tool_call.function.arguments,
+            "{\"location\": \"New York, NY\"}"
+        );
 
         // Validate third message (tool response)
         let tool_message = &deserialized_request.messages[2];
@@ -936,7 +950,10 @@ mod tests {
         } else {
             panic!("Expected text content for tool message");
         }
-        assert_eq!(tool_message.tool_call_id, Some("call_weather123".to_string()));
+        assert_eq!(
+            tool_message.tool_call_id,
+            Some("call_weather123".to_string())
+        );
 
         // Validate tools array
         assert!(deserialized_request.tools.is_some());
@@ -946,7 +963,10 @@ mod tests {
         let tool = &tools[0];
         assert_eq!(tool.tool_type, "function");
         assert_eq!(tool.function.name, "get_weather");
-        assert_eq!(tool.function.description, Some("Get current weather information for a location".to_string()));
+        assert_eq!(
+            tool.function.description,
+            Some("Get current weather information for a location".to_string())
+        );
         assert_eq!(tool.function.strict, Some(true));
 
         // Validate tool parameters schema
@@ -1052,7 +1072,8 @@ mod tests {
             ]
         });
 
-        let deserialized_assistant: Message = serde_json::from_value(assistant_json.clone()).unwrap();
+        let deserialized_assistant: Message =
+            serde_json::from_value(assistant_json.clone()).unwrap();
         assert_eq!(deserialized_assistant.role, Role::Assistant);
         if let MessageContent::Text(content) = &deserialized_assistant.content {
             assert_eq!(content, "I'll help with that.");
@@ -1101,9 +1122,13 @@ mod tests {
             ]
         });
 
-        let deserialized_response: ResponseMessage = serde_json::from_value(response_json.clone()).unwrap();
+        let deserialized_response: ResponseMessage =
+            serde_json::from_value(response_json.clone()).unwrap();
         assert_eq!(deserialized_response.role, Role::Assistant);
-        assert_eq!(deserialized_response.content, Some("Response content".to_string()));
+        assert_eq!(
+            deserialized_response.content,
+            Some("Response content".to_string())
+        );
         assert!(deserialized_response.annotations.is_some());
         assert!(deserialized_response.refusal.is_none());
         assert!(deserialized_response.function_call.is_none());
@@ -1145,7 +1170,10 @@ mod tests {
         let none_deserialized: ToolChoice = serde_json::from_value(json!("none")).unwrap();
 
         assert_eq!(auto_deserialized, ToolChoice::Type(ToolChoiceType::Auto));
-        assert_eq!(required_deserialized, ToolChoice::Type(ToolChoiceType::Required));
+        assert_eq!(
+            required_deserialized,
+            ToolChoice::Type(ToolChoiceType::Required)
+        );
         assert_eq!(none_deserialized, ToolChoice::Type(ToolChoiceType::None));
 
         // Test that invalid string values fail deserialization (type safety!)

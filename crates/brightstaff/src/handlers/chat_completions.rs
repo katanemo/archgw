@@ -32,7 +32,10 @@ pub async fn chat_completions(
 
     let chat_request_bytes = request.collect().await?.to_bytes();
 
-    debug!("Received request body (raw utf8): {}", String::from_utf8_lossy(&chat_request_bytes));
+    debug!(
+        "Received request body (raw utf8): {}",
+        String::from_utf8_lossy(&chat_request_bytes)
+    );
 
     let chat_request_parsed = serde_json::from_slice::<serde_json::Value>(&chat_request_bytes)
         .inspect_err(|err| {
@@ -100,13 +103,12 @@ pub async fn chat_completions(
         .as_ref()
         .and_then(|s| serde_yaml::from_str(s).ok());
 
-    let latest_message_for_log =
-        chat_completion_request
-            .messages
-            .last()
-            .map_or("None".to_string(), |msg| {
-                msg.content.to_string().replace('\n', "\\n")
-            });
+    let latest_message_for_log = chat_completion_request
+        .messages
+        .last()
+        .map_or("None".to_string(), |msg| {
+            msg.content.to_string().replace('\n', "\\n")
+        });
 
     const MAX_MESSAGE_LENGTH: usize = 50;
     let latest_message_for_log = if latest_message_for_log.len() > MAX_MESSAGE_LENGTH {

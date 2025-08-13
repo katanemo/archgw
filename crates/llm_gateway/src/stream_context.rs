@@ -10,10 +10,8 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::{
-    try_request_from_bytes, try_response_from_bytes, try_streaming_from_bytes, ConversionMode,
-    ProviderId,
-};
+use hermesllm::providers::{LlmRequest, LlmRequestDetails};
+use hermesllm::{try_response_from_bytes, try_streaming_from_bytes, ConversionMode, ProviderId};
 use http::StatusCode;
 use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
@@ -300,13 +298,13 @@ impl HttpContext for StreamContext {
 
         let provider_id = self.get_provider_id();
 
-        let mut deserialized_body = match try_request_from_bytes(&body_bytes, &provider_id) {
-            Ok(deserialized) => deserialized,
+        let mut deserialized_body: LlmRequest = match LlmRequest::try_from(&LlmRequestDetails {
+            provider_id,
+            request_bytes: body_bytes.clone(),
+        }) {
+            Ok(request) => request,
             Err(e) => {
-                debug!(
-                    "on_http_request_body: request body: {}",
-                    String::from_utf8_lossy(&body_bytes)
-                );
+                warn!("Failed to parse request body: {}", e);
                 self.send_server_error(
                     ServerError::LogicError(format!("Request parsing error: {}", e)),
                     Some(StatusCode::BAD_REQUEST),
@@ -326,7 +324,7 @@ impl HttpContext for StreamContext {
         };
 
         // Store the original model for logging
-        let model_requested = deserialized_body.model().to_string();
+        let model_requested = deserialized_body.get_model().to_string();
 
         // Apply model name resolution logic using the trait method
         let resolved_model = match model_name {
@@ -355,7 +353,7 @@ impl HttpContext for StreamContext {
         deserialized_body.set_model(resolved_model.clone());
 
         // Extract user message for tracing
-        self.user_message = deserialized_body.extract_user_message();
+        self.user_message = deserialized_body.extract_recent_user_message();
 
         info!(
             "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
@@ -367,15 +365,10 @@ impl HttpContext for StreamContext {
         // Use provider interface for streaming detection and setup
         self.streaming_response = deserialized_body.is_streaming();
 
-        // Set streaming options if needed
-        if self.streaming_response {
-            deserialized_body.set_streaming_options();
-        }
-
         // Use provider interface for text extraction (after potential mutation)
-        let input_tokens_str = deserialized_body.extract_messages_text();
+        let input_tokens_str: String = deserialized_body.extract_messages_text().join(" ");
         // enforce ratelimits on ingress
-        if let Err(e) = self.enforce_ratelimits(&resolved_model, input_tokens_str.as_str()) {
+        if let Err(e) = self.enforce_ratelimits(&resolved_model, &input_tokens_str) {
             self.send_server_error(
                 ServerError::ExceededRatelimit(e),
                 Some(StatusCode::TOO_MANY_REQUESTS),
@@ -385,23 +378,21 @@ impl HttpContext for StreamContext {
         }
 
         let llm_provider_str = self.llm_provider().provider_interface.to_string();
-        let _hermes_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
+        let upstream_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
 
-        // Convert chat completion request to llm provider specific request using provider interface
-        let deserialized_body_bytes =
-            match deserialized_body.to_provider_bytes(ConversionMode::Compatible) {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    warn!("Failed to serialize request body: {}", e);
-                    self.send_server_error(
-                        ServerError::LogicError(format!("Request serialization error: {}", e)),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
-                }
-            };
+        let request_bytes = match deserialized_body.to_bytes(upstream_llm_provider_id) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                warn!("Failed to serialize request body: {}", e);
+                self.send_server_error(
+                    ServerError::LogicError(format!("Request serialization error: {}", e)),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
-        self.set_http_request_body(0, body_size, &deserialized_body_bytes);
+        self.set_http_request_body(0, body_size, &request_bytes);
 
         Action::Continue
     }

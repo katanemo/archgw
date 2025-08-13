@@ -37,7 +37,8 @@ pub trait ProviderResponse: Send + Sync {
 
     /// Extract token counts for metrics
     fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
-        self.usage().map(|u| (u.prompt_tokens(), u.completion_tokens(), u.total_tokens()))
+        self.usage()
+            .map(|u| (u.prompt_tokens(), u.completion_tokens(), u.total_tokens()))
     }
 }
 
@@ -54,7 +55,12 @@ pub trait ProviderStreamResponse: Send + Sync {
 }
 
 /// Trait for streaming response iterators
-pub trait ProviderStreamResponseIter: Iterator<Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>> + Send + Sync {
+pub trait ProviderStreamResponseIter:
+    Iterator<
+        Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>,
+    > + Send
+    + Sync
+{
     // No additional methods needed - just the Iterator constraint with proper bounds
 }
 
@@ -132,27 +138,35 @@ pub enum AdapterType {
 /// Get provider configuration
 pub fn get_provider_config(provider_id: &ProviderId) -> ProviderConfig {
     match provider_id {
-        ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
-            ProviderConfig {
-                supported_apis: &["/v1/chat/completions"],
-                adapter_type: AdapterType::OpenAICompatible,
-            }
-        }
+        ProviderId::OpenAI
+        | ProviderId::Groq
+        | ProviderId::Mistral
+        | ProviderId::Deepseek
+        | ProviderId::Arch
+        | ProviderId::Gemini
+        | ProviderId::Claude
+        | ProviderId::GitHub => ProviderConfig {
+            supported_apis: &["/v1/chat/completions"],
+            adapter_type: AdapterType::OpenAICompatible,
+        },
     }
 }
 
 /// Parse request from bytes using provider ID - returns generic ProviderRequest trait object
-pub fn try_request_from_bytes(bytes: &[u8], provider_id: &ProviderId) -> Result<Box<dyn ProviderRequest>, ProviderRequestError> {
+pub fn try_request_from_bytes(
+    bytes: &[u8],
+    provider_id: &ProviderId,
+) -> Result<Box<dyn ProviderRequest>, ProviderRequestError> {
     let config = get_provider_config(provider_id);
 
     match config.adapter_type {
         AdapterType::OpenAICompatible => {
-            let request = crate::apis::openai::ChatCompletionsRequest::try_from((bytes, provider_id))
-                .map_err(|e| ProviderRequestError {
-                    message: format!("Failed to parse request: {}", e),
-                    source: Some(Box::new(e)),
-                })?;
+            let request =
+                crate::apis::openai::ChatCompletionsRequest::try_from((bytes, provider_id))
+                    .map_err(|e| ProviderRequestError {
+                        message: format!("Failed to parse request: {}", e),
+                        source: Some(Box::new(e)),
+                    })?;
 
             // Return as trait object - this enables polymorphic usage
             // ChatCompletionsRequest implements ProviderRequest directly (no wrapper needed)
@@ -162,17 +176,22 @@ pub fn try_request_from_bytes(bytes: &[u8], provider_id: &ProviderId) -> Result<
 }
 
 /// Parse response from bytes using provider ID - returns generic ProviderResponse trait object
-pub fn try_response_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: ConversionMode) -> Result<Box<dyn ProviderResponse>, ProviderResponseError> {
+pub fn try_response_from_bytes(
+    bytes: &[u8],
+    provider_id: &ProviderId,
+    _mode: ConversionMode,
+) -> Result<Box<dyn ProviderResponse>, ProviderResponseError> {
     let config = get_provider_config(provider_id);
 
     match config.adapter_type {
         AdapterType::OpenAICompatible => {
             // Parameterized conversion allows provider-specific response parsing
-            let response = crate::apis::openai::ChatCompletionsResponse::try_from((bytes, provider_id))
-                .map_err(|e| ProviderResponseError {
-                    message: format!("Failed to parse response: {}", e),
-                    source: Some(Box::new(e)),
-                })?;
+            let response =
+                crate::apis::openai::ChatCompletionsResponse::try_from((bytes, provider_id))
+                    .map_err(|e| ProviderResponseError {
+                        message: format!("Failed to parse response: {}", e),
+                        source: Some(Box::new(e)),
+                    })?;
 
             // ChatCompletionsResponse implements ProviderResponse directly - no wrapper needed!
             Ok(Box::new(response) as Box<dyn ProviderResponse>)
@@ -181,7 +200,11 @@ pub fn try_response_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: Co
 }
 
 /// Create streaming response using provider ID - returns clean ProviderStreamResponseIter trait object
-pub fn try_streaming_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: ConversionMode) -> Result<Box<dyn ProviderStreamResponseIter>, Box<dyn std::error::Error + Send + Sync>> {
+pub fn try_streaming_from_bytes(
+    bytes: &[u8],
+    provider_id: &ProviderId,
+    _mode: ConversionMode,
+) -> Result<Box<dyn ProviderStreamResponseIter>, Box<dyn std::error::Error + Send + Sync>> {
     let config = get_provider_config(provider_id);
 
     match config.adapter_type {
@@ -200,7 +223,10 @@ pub fn try_streaming_from_bytes(bytes: &[u8], provider_id: &ProviderId, _mode: C
 /// Check if provider has compatible API
 pub fn has_compatible_api(provider_id: &ProviderId, api_path: &str) -> bool {
     let config = get_provider_config(provider_id);
-    config.supported_apis.iter().any(|&supported| supported == api_path)
+    config
+        .supported_apis
+        .iter()
+        .any(|&supported| supported == api_path)
 }
 
 /// Get supported APIs for provider
@@ -236,12 +262,16 @@ impl fmt::Display for ProviderResponseError {
 
 impl Error for ProviderRequestError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn Error + 'static))
     }
 }
 
 impl Error for ProviderResponseError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn Error + 'static))
     }
 }

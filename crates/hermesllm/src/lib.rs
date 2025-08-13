@@ -1,17 +1,15 @@
 //! hermesllm: A library for translating LLM API requests and responses
 //! between Mistral, Grok, Gemini, and OpenAI-compliant formats.
 
-pub mod providers;
 pub mod apis;
 pub mod clients;
+pub mod providers;
 
 // Re-export important types and traits
 pub use providers::{
-    ProviderId, ConversionMode,
-    ProviderRequest, ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter,
-    TokenUsage,
-    try_request_from_bytes, try_response_from_bytes, try_streaming_from_bytes,
-    has_compatible_api, supported_apis
+    has_compatible_api, supported_apis, try_request_from_bytes, try_response_from_bytes,
+    try_streaming_from_bytes, ConversionMode, ProviderId, ProviderRequest, ProviderResponse,
+    ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage,
 };
 
 #[cfg(test)]
@@ -28,7 +26,10 @@ mod tests {
 
     #[test]
     fn test_provider_api_compatibility() {
-        assert!(has_compatible_api(&ProviderId::OpenAI, "/v1/chat/completions"));
+        assert!(has_compatible_api(
+            &ProviderId::OpenAI,
+            "/v1/chat/completions"
+        ));
         assert!(!has_compatible_api(&ProviderId::OpenAI, "/v1/embeddings"));
     }
 
@@ -38,7 +39,10 @@ mod tests {
         assert!(apis.contains(&"/v1/chat/completions"));
 
         // Test that provider supports the expected API endpoints
-        assert!(has_compatible_api(&ProviderId::OpenAI, "/v1/chat/completions"));
+        assert!(has_compatible_api(
+            &ProviderId::OpenAI,
+            "/v1/chat/completions"
+        ));
     }
 
     #[test]
@@ -74,7 +78,11 @@ mod tests {
 data: [DONE]
 "#;
 
-        let result = try_streaming_from_bytes(sse_data.as_bytes(), &ProviderId::OpenAI, ConversionMode::Passthrough);
+        let result = try_streaming_from_bytes(
+            sse_data.as_bytes(),
+            &ProviderId::OpenAI,
+            ConversionMode::Passthrough,
+        );
         assert!(result.is_ok());
 
         let mut streaming_response = result.unwrap();

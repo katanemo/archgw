@@ -8,7 +8,7 @@ RUN cargo build --release -p brightstaff
 
 FROM docker.io/envoyproxy/envoy:v1.34-latest AS envoy
 
-FROM python:3.12-slim AS arch
+FROM python:3.13.6-slim AS arch
 # Purge PAM to avoid CVE-2025-6020 and install needed tools
 
 # 1) Install what you need while apt still works
@@ -23,7 +23,6 @@ RUN set -eux; \
   dpkg -r --force-depends libpam-modules libpam-modules-bin libpam-runtime libpam0g || true; \
   dpkg -P --force-all libpam-modules libpam-modules-bin libpam-runtime libpam0g || true; \
   rm -rf /etc/pam.d /lib/*/security /usr/lib/security || true
-
 
 COPY --from=builder /arch/target/wasm32-wasip1/release/prompt_gateway.wasm /etc/envoy/proxy-wasm-plugins/prompt_gateway.wasm
 COPY --from=builder /arch/target/wasm32-wasip1/release/llm_gateway.wasm /etc/envoy/proxy-wasm-plugins/llm_gateway.wasm
@@ -42,5 +41,3 @@ RUN pip install requests
 RUN mkdir -p /var/log/supervisor && touch /var/log/envoy.log /var/log/supervisor/supervisord.log
 
 ENTRYPOINT ["sh","-c", "/usr/bin/supervisord"]
-# ENTRYPOINT ["sh","-c", "python config_generator.py && envsubst < /etc/envoy/envoy.yaml > /etc/envoy.env_sub.yaml && envoy -c /etc/envoy.env_sub.yaml --log-level trace 2>&1 | tee /var/log/envoy.log"]
-# ENTRYPOINT ["sh","-c", "python config_generator.py && envsubst < /etc/envoy/envoy.yaml > /etc/envoy.env_sub.yaml && envoy -c /etc/envoy.env_sub.yaml --component-log-level wasm:info 2>&1 | tee /var/log/envoy.log"]

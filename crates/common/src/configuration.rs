@@ -1,4 +1,4 @@
-use hermesllm::providers::openai::types::{ModelDetail, ModelObject, Models};
+use hermesllm::apis::openai::{ModelDetail, ModelObject, Models};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -177,6 +177,14 @@ impl Display for LlmProviderType {
     }
 }
 
+impl LlmProviderType {
+    /// Get the ProviderId for this LlmProviderType
+    /// Used with the new function-based hermesllm API
+    pub fn to_provider_id(&self) -> hermesllm::ProviderId {
+        hermesllm::ProviderId::from(self.to_string().as_str())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelUsagePreference {
     pub model: String,
@@ -249,6 +257,14 @@ impl Default for LlmProvider {
 impl Display for LlmProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+impl LlmProvider {
+    /// Get the ProviderId for this LlmProvider
+    /// Used with the new function-based hermesllm API
+    pub fn to_provider_id(&self) -> hermesllm::ProviderId {
+        self.provider_interface.to_provider_id()
     }
 }
 

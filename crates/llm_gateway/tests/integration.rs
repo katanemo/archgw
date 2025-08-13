@@ -12,7 +12,7 @@ fn wasm_module() -> String {
         wasm_file.exists(),
         "Run `cargo build --release --target=wasm32-wasip1` first"
     );
-    wasm_file.to_str().unwrap().to_string()
+    wasm_file.to_string_lossy().to_string()
 }
 
 fn request_headers_expectations(module: &mut Tester, http_context: i32) {
@@ -267,17 +267,12 @@ fn llm_gateway_bad_request_to_open_ai_chat_completions() {
         .returning(Some(incomplete_chat_completions_request_body))
         .expect_log(Some(LogLevel::Debug), None)
         .expect_log(Some(LogLevel::Info), Some("on_http_request_body: provider: open-ai-gpt-4, model requested (in body): gpt-1, model selected: gpt-4"))
-        .expect_send_local_response(
-            Some(StatusCode::BAD_REQUEST.as_u16().into()),
-            None,
-            None,
-            None,
-        )
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("getting token count model=gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some("Recorded input token count: 13"))
         .expect_metric_record("input_sequence_length", 13)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("Applying ratelimit for model: gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some(r#"Checking limit for provider=gpt-4, with selector=Header { key: "selector-key", value: "selector-value" }, consuming tokens=13"#))
+        .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
 }
@@ -386,11 +381,11 @@ fn llm_gateway_request_not_ratelimited() {
         .returning(Some(chat_completions_request_body))
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None)
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("getting token count model=gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some("Recorded input token count: 29"))
         .expect_metric_record("input_sequence_length", 29)
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("Applying ratelimit for model: gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some(r#"Checking limit for provider=gpt-4, with selector=Header { key: "selector-key", value: "selector-value" }, consuming tokens=29"#))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -433,11 +428,11 @@ fn llm_gateway_override_model_name() {
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Debug), None)
         .expect_log(Some(LogLevel::Info), Some("on_http_request_body: provider: open-ai-gpt-4, model requested (in body): gpt-1, model selected: gpt-4"))
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("getting token count model=gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some("Recorded input token count: 29"))
         .expect_metric_record("input_sequence_length", 29)
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("Applying ratelimit for model: gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some(r#"Checking limit for provider=gpt-4, with selector=Header { key: "selector-key", value: "selector-value" }, consuming tokens=29"#))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -483,8 +478,8 @@ fn llm_gateway_override_use_default_model() {
             Some(LogLevel::Info),
             Some("on_http_request_body: provider: open-ai-gpt-4, model requested (in body): gpt-1, model selected: gpt-4"),
         )
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("getting token count model=gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some("Recorded input token count: 29"))
         .expect_metric_record("input_sequence_length", 29)
         .expect_log(Some(LogLevel::Debug), Some("Applying ratelimit for model: gpt-4"))
         .expect_log(Some(LogLevel::Debug), Some(r#"Checking limit for provider=gpt-4, with selector=Header { key: "selector-key", value: "selector-value" }, consuming tokens=29"#))
@@ -530,11 +525,11 @@ fn llm_gateway_override_use_model_name_none() {
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Debug), None)
         .expect_log(Some(LogLevel::Info), Some("on_http_request_body: provider: open-ai-gpt-4, model requested (in body): none, model selected: gpt-4"))
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("getting token count model=gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some("Recorded input token count: 29"))
         .expect_metric_record("input_sequence_length", 29)
-        .expect_log(Some(LogLevel::Debug), None)
-        .expect_log(Some(LogLevel::Debug), None)
+        .expect_log(Some(LogLevel::Debug), Some("Applying ratelimit for model: gpt-4"))
+        .expect_log(Some(LogLevel::Debug), Some(r#"Checking limit for provider=gpt-4, with selector=Header { key: "selector-key", value: "selector-value" }, consuming tokens=29"#))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();

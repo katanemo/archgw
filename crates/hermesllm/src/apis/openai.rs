@@ -2,8 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
+use std::fmt::Display;
+use thiserror::Error;
 
 use super::ApiDefinition;
+use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -40,7 +43,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn supports_tools(&self) -> bool {
-         match self {
+        match self {
             OpenAIApi::ChatCompletions => true,
         }
     }
@@ -52,9 +55,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![
-            OpenAIApi::ChatCompletions,
-        ]
+        vec![OpenAIApi::ChatCompletions]
     }
 }
 
@@ -115,16 +116,14 @@ pub enum Role {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
-    pub content: MessageContent,
     pub role: Role,
+    pub content: MessageContent,
     pub name: Option<String>,
     /// Tool calls made by the assistant (only present for assistant role)
     pub tool_calls: Option<Vec<ToolCall>>,
     /// ID of the tool call that this message is responding to (only present for tool role)
     pub tool_call_id: Option<String>,
 }
-
-
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -150,7 +149,9 @@ impl ResponseMessage {
     pub fn to_message(&self) -> Message {
         Message {
             role: self.role.clone(),
-            content: self.content.as_ref()
+            content: self
+                .content
+                .as_ref()
                 .map(|s| MessageContent::Text(s.clone()))
                 .unwrap_or(MessageContent::Text(String::new())),
             name: None, // Response messages don't have names in the same way request messages do
@@ -168,6 +169,28 @@ impl ResponseMessage {
 pub enum MessageContent {
     Text(String),
     Parts(Vec<ContentPart>),
+}
+
+impl Display for MessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageContent::Text(text) => write!(f, "{}", text),
+            MessageContent::Parts(parts) => {
+                let text_parts: Vec<String> = parts
+                    .iter()
+                    .filter_map(|part| match part {
+                        ContentPart::Text { text } => Some(text.clone()),
+                        ContentPart::ImageUrl { .. } => {
+                            // skip image URLs or their data in text representation
+                            None
+                        }
+                    })
+                    .collect();
+                let combined_text = text_parts.join("\n");
+                write!(f, "{}", combined_text)
+            }
+        }
+    }
 }
 
 /// Individual content part within a message (text or image)
@@ -189,7 +212,6 @@ pub struct ImageUrl {
 }
 
 /// A single message in a chat conversation
-
 
 /// A tool call made by the assistant
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -290,7 +312,6 @@ pub enum StaticContentType {
     Parts(Vec<ContentPart>),
 }
 
-
 /// Chat completions API response
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -354,7 +375,6 @@ pub struct Choice {
     pub logprobs: Option<Value>,
 }
 
-
 // ============================================================================
 // STREAMING API TYPES
 // ============================================================================
@@ -373,7 +393,6 @@ pub struct ChatCompletionsStreamResponse {
     /// Specifies the processing type used for serving the request
     pub service_tier: Option<String>,
 }
-
 
 /// A choice in a streaming response
 #[skip_serializing_none]
@@ -424,6 +443,261 @@ pub struct StreamOptions {
     pub include_usage: Option<bool>,
 }
 
+/// ============================================================================
+/// OpenAI Provider Request Wrapper
+/// ============================================================================
+impl ProviderRequest for ChatCompletionsRequest {
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn set_model(&mut self, model: String) {
+        self.model = model;
+    }
+
+    fn is_streaming(&self) -> bool {
+        self.stream.unwrap_or_default()
+    }
+
+    fn set_streaming_options(&mut self) {
+        self.stream = Some(true);
+        if self.stream_options.is_none() {
+            self.stream_options = Some(StreamOptions {
+                include_usage: Some(true),
+            });
+        }
+    }
+
+    fn extract_messages_text(&self) -> String {
+        self.messages.iter().fold(String::new(), |acc, m| {
+            acc + " "
+                + &match &m.content {
+                    MessageContent::Text(text) => text.clone(),
+                    MessageContent::Parts(parts) => parts
+                        .iter()
+                        .map(|part| match part {
+                            ContentPart::Text { text } => text.clone(),
+                            ContentPart::ImageUrl { .. } => "[Image]".to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                }
+        })
+    }
+
+    fn extract_user_message(&self) -> Option<String> {
+        self.messages.last().and_then(|msg| {
+            match &msg.content {
+                MessageContent::Text(text) => Some(text.clone()),
+                MessageContent::Parts(_) => None, // No user message in parts
+            }
+        })
+    }
+
+    fn to_provider_bytes(&self, mode: ConversionMode) -> Result<Vec<u8>, ProviderRequestError> {
+        match mode {
+            ConversionMode::Compatible | ConversionMode::Passthrough => serde_json::to_vec(&self)
+                .map_err(|e| ProviderRequestError {
+                    message: format!("Failed to serialize OpenAI request: {}", e),
+                    source: Some(Box::new(e)),
+                }),
+        }
+    }
+}
+
+// ============================================================================
+// STREAMING SUPPORT
+// ============================================================================
+
+use crate::providers::traits::{
+    ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage,
+};
+
+// Direct implementation of ProviderResponse on ChatCompletionsResponse
+impl ProviderResponse for ChatCompletionsResponse {
+    fn usage(&self) -> Option<&dyn TokenUsage> {
+        Some(&self.usage)
+    }
+}
+
+// ============================================================================
+// PARAMETERIZED CONVERSIONS FOR PROVIDER FUNCTIONS
+// ============================================================================
+
+use crate::providers::ProviderId;
+
+/// Parameterized conversion for ChatCompletionsRequest
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsRequest {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+/// Parameterized conversion for ChatCompletionsResponse
+impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsResponse {
+    type Error = OpenAIStreamError;
+
+    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+// Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
+impl ProviderStreamResponse for ChatCompletionsStreamResponse {
+    fn content_delta(&self) -> Option<&str> {
+        self.choices
+            .first()
+            .and_then(|choice| choice.delta.content.as_deref())
+    }
+
+    fn is_final(&self) -> bool {
+        self.choices
+            .first()
+            .map(|choice| choice.finish_reason.is_some())
+            .unwrap_or(false)
+    }
+
+    fn role(&self) -> Option<&str> {
+        self.choices.first().and_then(|choice| {
+            choice.delta.role.as_ref().map(|r| match r {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            })
+        })
+    }
+}
+
+// Implementation of TokenUsage for OpenAI Usage type
+impl TokenUsage for Usage {
+    fn completion_tokens(&self) -> usize {
+        self.completion_tokens as usize
+    }
+
+    fn prompt_tokens(&self) -> usize {
+        self.prompt_tokens as usize
+    }
+
+    fn total_tokens(&self) -> usize {
+        self.total_tokens as usize
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelDetail {
+    pub id: String,
+    pub object: String,
+    pub created: usize,
+    pub owned_by: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ModelObject {
+    #[serde(rename = "list")]
+    List,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Models {
+    pub object: ModelObject,
+    pub data: Vec<ModelDetail>,
+}
+
+// Error type for streaming operations
+#[derive(Debug, thiserror::Error)]
+pub enum OpenAIStreamError {
+    #[error("JSON parsing error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("UTF-8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("Invalid streaming data: {0}")]
+    InvalidStreamingData(String),
+}
+
+#[derive(Debug, Error)]
+pub enum OpenAIError {
+    #[error("json error: {0}")]
+    JsonParseError(#[from] serde_json::Error),
+    #[error("utf8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("invalid streaming data err {source}, data: {data}")]
+    InvalidStreamingData {
+        source: serde_json::Error,
+        data: String,
+    },
+    #[error("unsupported provider: {provider}")]
+    UnsupportedProvider { provider: String },
+}
+
+/// SSE-based streaming iterator for OpenAI chat completions
+/// Implements ProviderStreamResponseIter directly
+pub struct SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    lines: I,
+}
+
+impl<I> SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    pub fn new(lines: I) -> Self {
+        Self { lines }
+    }
+}
+
+impl<I> Iterator for SseChatCompletionIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for line in &mut self.lines {
+            let line = line.as_ref();
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.starts_with("data: ") {
+                let data = &line[6..]; // Remove "data: " prefix
+                if data == "[DONE]" {
+                    return None;
+                }
+
+                if data == r#"{"type": "ping"}"# {
+                    continue; // Skip ping messages - that is usually from anthropic
+                }
+
+                match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
+                    Ok(response) => return Some(Ok(Box::new(response))),
+                    Err(e) => {
+                        return Some(Err(Box::new(OpenAIStreamError::InvalidStreamingData(
+                            format!("Error parsing: {}, data: {}", e, data),
+                        ))))
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+impl<I> ProviderStreamResponseIter for SseChatCompletionIter<I>
+where
+    I: Iterator + Send + Sync,
+    I::Item: AsRef<str>,
+{
+    // Just marking that this type implements the trait - no additional methods needed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,7 +717,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields are properly set
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -486,7 +761,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -523,7 +799,10 @@ mod tests {
         assert_eq!(serialized_json["messages"], original_json["messages"]);
         assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
         assert_eq!(serialized_json["stream"], original_json["stream"]);
-        assert_eq!(serialized_json["stream_options"], original_json["stream_options"]);
+        assert_eq!(
+            serialized_json["stream_options"],
+            original_json["stream_options"]
+        );
         assert_eq!(serialized_json["metadata"], original_json["metadata"]);
 
         // Handle temperature with floating point tolerance
@@ -604,7 +883,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate top-level fields
         assert_eq!(deserialized_request.model, "gpt-4-vision-preview");
@@ -640,7 +920,10 @@ mod tests {
         let assistant_message = &deserialized_request.messages[1];
         assert_eq!(assistant_message.role, Role::Assistant);
         if let MessageContent::Text(text) = &assistant_message.content {
-            assert_eq!(text, "I can see a beautiful cityscape. Let me check the weather for you.");
+            assert_eq!(
+                text,
+                "I can see a beautiful cityscape. Let me check the weather for you."
+            );
         } else {
             panic!("Expected text content for assistant message");
         }
@@ -654,7 +937,10 @@ mod tests {
         assert_eq!(tool_call.id, "call_weather123");
         assert_eq!(tool_call.call_type, "function");
         assert_eq!(tool_call.function.name, "get_weather");
-        assert_eq!(tool_call.function.arguments, "{\"location\": \"New York, NY\"}");
+        assert_eq!(
+            tool_call.function.arguments,
+            "{\"location\": \"New York, NY\"}"
+        );
 
         // Validate third message (tool response)
         let tool_message = &deserialized_request.messages[2];
@@ -664,7 +950,10 @@ mod tests {
         } else {
             panic!("Expected text content for tool message");
         }
-        assert_eq!(tool_message.tool_call_id, Some("call_weather123".to_string()));
+        assert_eq!(
+            tool_message.tool_call_id,
+            Some("call_weather123".to_string())
+        );
 
         // Validate tools array
         assert!(deserialized_request.tools.is_some());
@@ -674,7 +963,10 @@ mod tests {
         let tool = &tools[0];
         assert_eq!(tool.tool_type, "function");
         assert_eq!(tool.function.name, "get_weather");
-        assert_eq!(tool.function.description, Some("Get current weather information for a location".to_string()));
+        assert_eq!(
+            tool.function.description,
+            Some("Get current weather information for a location".to_string())
+        );
         assert_eq!(tool.function.strict, Some(true));
 
         // Validate tool parameters schema
@@ -780,7 +1072,8 @@ mod tests {
             ]
         });
 
-        let deserialized_assistant: Message = serde_json::from_value(assistant_json.clone()).unwrap();
+        let deserialized_assistant: Message =
+            serde_json::from_value(assistant_json.clone()).unwrap();
         assert_eq!(deserialized_assistant.role, Role::Assistant);
         if let MessageContent::Text(content) = &deserialized_assistant.content {
             assert_eq!(content, "I'll help with that.");
@@ -829,9 +1122,13 @@ mod tests {
             ]
         });
 
-        let deserialized_response: ResponseMessage = serde_json::from_value(response_json.clone()).unwrap();
+        let deserialized_response: ResponseMessage =
+            serde_json::from_value(response_json.clone()).unwrap();
         assert_eq!(deserialized_response.role, Role::Assistant);
-        assert_eq!(deserialized_response.content, Some("Response content".to_string()));
+        assert_eq!(
+            deserialized_response.content,
+            Some("Response content".to_string())
+        );
         assert!(deserialized_response.annotations.is_some());
         assert!(deserialized_response.refusal.is_none());
         assert!(deserialized_response.function_call.is_none());
@@ -873,7 +1170,10 @@ mod tests {
         let none_deserialized: ToolChoice = serde_json::from_value(json!("none")).unwrap();
 
         assert_eq!(auto_deserialized, ToolChoice::Type(ToolChoiceType::Auto));
-        assert_eq!(required_deserialized, ToolChoice::Type(ToolChoiceType::Required));
+        assert_eq!(
+            required_deserialized,
+            ToolChoice::Type(ToolChoiceType::Required)
+        );
         assert_eq!(none_deserialized, ToolChoice::Type(ToolChoiceType::None));
 
         // Test that invalid string values fail deserialization (type safety!)

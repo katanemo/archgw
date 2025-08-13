@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use super::ApiDefinition;
 
@@ -47,9 +48,7 @@ impl ApiDefinition for AnthropicApi {
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![
-            AnthropicApi::Messages,
-        ]
+        vec![AnthropicApi::Messages]
     }
 }
 
@@ -93,7 +92,6 @@ pub struct McpServer {
     pub tool_configuration: Option<McpToolConfiguration>,
 }
 
-
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MessagesRequest {
@@ -114,9 +112,7 @@ pub struct MessagesRequest {
     pub stop_sequences: Option<Vec<String>>,
     pub tools: Option<Vec<MessagesTool>>,
     pub tool_choice: Option<MessagesToolChoice>,
-
 }
-
 
 // Messages API specific types
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -189,28 +185,16 @@ pub enum MessagesContentBlock {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagesImageSource {
-    Base64 {
-        media_type: String,
-        data: String,
-    },
-    Url {
-        url: String,
-    },
+    Base64 { media_type: String, data: String },
+    Url { url: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagesDocumentSource {
-    Base64 {
-        media_type: String,
-        data: String,
-    },
-    Url {
-        url: String,
-    },
-    File {
-        file_id: String,
-    },
+    Base64 { media_type: String, data: String },
+    Url { url: String },
+    File { file_id: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -218,6 +202,20 @@ pub enum MessagesDocumentSource {
 pub enum MessagesMessageContent {
     Single(String),
     Blocks(Vec<MessagesContentBlock>),
+}
+
+impl Display for MessagesMessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessagesMessageContent::Single(text) => write!(f, "{}", text),
+            MessagesMessageContent::Blocks(blocks) => {
+                for block in blocks {
+                    write!(f, "{:?} ", block)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -258,7 +256,6 @@ pub struct MessagesToolChoice {
     pub name: Option<String>,
     pub disable_parallel_tool_use: Option<bool>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -401,7 +398,8 @@ mod tests {
         });
 
         // Deserialize JSON into MessagesRequest
-        let deserialized_request: MessagesRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: MessagesRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields are properly set
         assert_eq!(deserialized_request.model, "claude-3-sonnet-20240229");
@@ -461,7 +459,8 @@ mod tests {
         });
 
         // Deserialize JSON into MessagesRequest
-        let deserialized_request: MessagesRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: MessagesRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields
         assert_eq!(deserialized_request.model, "claude-3-sonnet-20240229");
@@ -504,7 +503,10 @@ mod tests {
         assert_eq!(serialized_json["messages"], original_json["messages"]);
         assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
         assert_eq!(serialized_json["system"], original_json["system"]);
-        assert_eq!(serialized_json["service_tier"], original_json["service_tier"]);
+        assert_eq!(
+            serialized_json["service_tier"],
+            original_json["service_tier"]
+        );
         assert_eq!(serialized_json["thinking"], original_json["thinking"]);
         assert_eq!(serialized_json["metadata"], original_json["metadata"]);
 
@@ -593,7 +595,8 @@ mod tests {
         });
 
         // Deserialize JSON into MessagesRequest
-        let deserialized_request: MessagesRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: MessagesRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate top-level fields
         assert_eq!(deserialized_request.model, "claude-3-sonnet-20240229");
@@ -608,7 +611,10 @@ mod tests {
 
             // Validate text content block
             if let MessagesContentBlock::Text { text } = &content_blocks[0] {
-                assert_eq!(text, "What can you see in this image and what's the weather like?");
+                assert_eq!(
+                    text,
+                    "What can you see in this image and what's the weather like?"
+                );
             } else {
                 panic!("Expected text content block");
             }
@@ -636,20 +642,31 @@ mod tests {
 
             // Validate thinking content block
             if let MessagesContentBlock::Thinking { text } = &content_blocks[0] {
-                assert_eq!(text, "Let me analyze the image and then check the weather...");
+                assert_eq!(
+                    text,
+                    "Let me analyze the image and then check the weather..."
+                );
             } else {
                 panic!("Expected thinking content block");
             }
 
             // Validate text content block
             if let MessagesContentBlock::Text { text } = &content_blocks[1] {
-                assert_eq!(text, "I can see the image. Let me check the weather for you.");
+                assert_eq!(
+                    text,
+                    "I can see the image. Let me check the weather for you."
+                );
             } else {
                 panic!("Expected text content block");
             }
 
             // Validate tool use content block
-            if let MessagesContentBlock::ToolUse { ref id, ref name, ref input } = content_blocks[2] {
+            if let MessagesContentBlock::ToolUse {
+                ref id,
+                ref name,
+                ref input,
+            } = content_blocks[2]
+            {
                 assert_eq!(id, "toolu_weather123");
                 assert_eq!(name, "get_weather");
                 assert_eq!(input["location"], "San Francisco, CA");
@@ -667,7 +684,10 @@ mod tests {
 
         let tool = &tools[0];
         assert_eq!(tool.name, "get_weather");
-        assert_eq!(tool.description, Some("Get current weather information for a location".to_string()));
+        assert_eq!(
+            tool.description,
+            Some("Get current weather information for a location".to_string())
+        );
         assert_eq!(tool.input_schema["type"], "object");
         assert!(tool.input_schema["properties"]["location"].is_object());
 
@@ -713,10 +733,16 @@ mod tests {
         assert_eq!(deserialized_mcp.name, "test-server");
         assert_eq!(deserialized_mcp.server_type, McpServerType::Url);
         assert_eq!(deserialized_mcp.url, "https://example.com/mcp");
-        assert_eq!(deserialized_mcp.authorization_token, Some("secret-token".to_string()));
+        assert_eq!(
+            deserialized_mcp.authorization_token,
+            Some("secret-token".to_string())
+        );
 
         if let Some(tool_config) = &deserialized_mcp.tool_configuration {
-            assert_eq!(tool_config.allowed_tools, Some(vec!["tool1".to_string(), "tool2".to_string()]));
+            assert_eq!(
+                tool_config.allowed_tools,
+                Some(vec!["tool1".to_string(), "tool2".to_string()])
+            );
             assert_eq!(tool_config.enabled, Some(true));
         } else {
             panic!("Expected tool configuration");
@@ -732,7 +758,8 @@ mod tests {
             "url": "https://minimal.com/mcp"
         });
 
-        let deserialized_minimal: McpServer = serde_json::from_value(minimal_mcp_json.clone()).unwrap();
+        let deserialized_minimal: McpServer =
+            serde_json::from_value(minimal_mcp_json.clone()).unwrap();
         assert_eq!(deserialized_minimal.name, "minimal-server");
         assert_eq!(deserialized_minimal.server_type, McpServerType::Url);
         assert_eq!(deserialized_minimal.url, "https://minimal.com/mcp");
@@ -766,12 +793,16 @@ mod tests {
             }
         });
 
-        let deserialized_response: MessagesResponse = serde_json::from_value(response_json.clone()).unwrap();
+        let deserialized_response: MessagesResponse =
+            serde_json::from_value(response_json.clone()).unwrap();
         assert_eq!(deserialized_response.id, "msg_01ABC123");
         assert_eq!(deserialized_response.obj_type, "message");
         assert_eq!(deserialized_response.role, MessagesRole::Assistant);
         assert_eq!(deserialized_response.model, "claude-3-sonnet-20240229");
-        assert_eq!(deserialized_response.stop_reason, MessagesStopReason::EndTurn);
+        assert_eq!(
+            deserialized_response.stop_reason,
+            MessagesStopReason::EndTurn
+        );
         assert!(deserialized_response.stop_sequence.is_none());
         assert!(deserialized_response.container.is_none());
 
@@ -786,7 +817,10 @@ mod tests {
         // Check usage
         assert_eq!(deserialized_response.usage.input_tokens, 10);
         assert_eq!(deserialized_response.usage.output_tokens, 25);
-        assert_eq!(deserialized_response.usage.cache_creation_input_tokens, Some(5));
+        assert_eq!(
+            deserialized_response.usage.cache_creation_input_tokens,
+            Some(5)
+        );
         assert_eq!(deserialized_response.usage.cache_read_input_tokens, Some(3));
 
         let serialized_response_json = serde_json::to_value(&deserialized_response).unwrap();
@@ -802,7 +836,8 @@ mod tests {
             }
         });
 
-        let deserialized_event: MessagesStreamEvent = serde_json::from_value(stream_event_json.clone()).unwrap();
+        let deserialized_event: MessagesStreamEvent =
+            serde_json::from_value(stream_event_json.clone()).unwrap();
         if let MessagesStreamEvent::ContentBlockDelta { index, ref delta } = deserialized_event {
             assert_eq!(index, 0);
             if let MessagesContentDelta::TextDelta { text } = delta {
@@ -830,8 +865,14 @@ mod tests {
             }
         });
 
-        let deserialized_tool_use: MessagesContentBlock = serde_json::from_value(tool_use_json.clone()).unwrap();
-        if let MessagesContentBlock::ToolUse { ref id, ref name, ref input } = deserialized_tool_use {
+        let deserialized_tool_use: MessagesContentBlock =
+            serde_json::from_value(tool_use_json.clone()).unwrap();
+        if let MessagesContentBlock::ToolUse {
+            ref id,
+            ref name,
+            ref input,
+        } = deserialized_tool_use
+        {
             assert_eq!(id, "toolu_01ABC123");
             assert_eq!(name, "get_weather");
             assert_eq!(input["location"], "San Francisco, CA");
@@ -854,8 +895,14 @@ mod tests {
             ]
         });
 
-        let deserialized_tool_result: MessagesContentBlock = serde_json::from_value(tool_result_json.clone()).unwrap();
-        if let MessagesContentBlock::ToolResult { ref tool_use_id, ref is_error, ref content } = deserialized_tool_result {
+        let deserialized_tool_result: MessagesContentBlock =
+            serde_json::from_value(tool_result_json.clone()).unwrap();
+        if let MessagesContentBlock::ToolResult {
+            ref tool_use_id,
+            ref is_error,
+            ref content,
+        } = deserialized_tool_result
+        {
             assert_eq!(tool_use_id, "toolu_01ABC123");
             assert!(is_error.is_none());
             assert_eq!(content.len(), 1);

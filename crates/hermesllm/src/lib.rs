@@ -1,81 +1,105 @@
 //! hermesllm: A library for translating LLM API requests and responses
 //! between Mistral, Grok, Gemini, and OpenAI-compliant formats.
 
-pub mod providers;
 pub mod apis;
 pub mod clients;
+pub mod providers;
 
-
-use std::fmt::Display;
-pub enum Provider {
-    Arch,
-    Mistral,
-    Deepseek,
-    Groq,
-    Gemini,
-    OpenAI,
-    Claude,
-    Github,
-}
-
-impl From<&str> for Provider {
-    fn from(value: &str) -> Self {
-        match value.to_lowercase().as_str() {
-            "arch" => Provider::Arch,
-            "mistral" => Provider::Mistral,
-            "deepseek" => Provider::Deepseek,
-            "groq" => Provider::Groq,
-            "gemini" => Provider::Gemini,
-            "openai" => Provider::OpenAI,
-            "claude" => Provider::Claude,
-            "github" => Provider::Github,
-            _ => panic!("Unknown provider: {}", value),
-        }
-    }
-}
-
-impl Display for Provider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Provider::Arch => write!(f, "Arch"),
-            Provider::Mistral => write!(f, "Mistral"),
-            Provider::Deepseek => write!(f, "Deepseek"),
-            Provider::Groq => write!(f, "Groq"),
-            Provider::Gemini => write!(f, "Gemini"),
-            Provider::OpenAI => write!(f, "OpenAI"),
-            Provider::Claude => write!(f, "Claude"),
-            Provider::Github => write!(f, "Github"),
-        }
-    }
-}
+// Re-export important types and traits
+pub use providers::{
+    has_compatible_api, supported_apis, try_request_from_bytes, try_response_from_bytes,
+    try_streaming_from_bytes, ConversionMode, ProviderId, ProviderRequest, ProviderResponse,
+    ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage,
+};
 
 #[cfg(test)]
 mod tests {
-    use crate::providers::openai::types::{ChatCompletionsRequest, Message};
+    use super::*;
 
     #[test]
-    fn openai_builder() {
-        let request =
-            ChatCompletionsRequest::builder("gpt-3.5-turbo", vec![Message::new("Hi".to_string())])
-                .temperature(0.7)
-                .top_p(0.9)
-                .n(1)
-                .max_tokens(100)
-                .stream(false)
-                .stop(vec!["\n".to_string()])
-                .presence_penalty(0.0)
-                .frequency_penalty(0.0)
-                .build()
-                .expect("Failed to build OpenAIRequest");
+    fn test_provider_id_conversion() {
+        assert_eq!(ProviderId::from("openai"), ProviderId::OpenAI);
+        assert_eq!(ProviderId::from("mistral"), ProviderId::Mistral);
+        assert_eq!(ProviderId::from("groq"), ProviderId::Groq);
+        assert_eq!(ProviderId::from("arch"), ProviderId::Arch);
+    }
 
-        assert_eq!(request.model, "gpt-3.5-turbo");
-        assert_eq!(request.temperature, Some(0.7));
-        assert_eq!(request.top_p, Some(0.9));
-        assert_eq!(request.n, Some(1));
-        assert_eq!(request.max_tokens, Some(100));
-        assert_eq!(request.stream, Some(false));
-        assert_eq!(request.stop, Some(vec!["\n".to_string()]));
-        assert_eq!(request.presence_penalty, Some(0.0));
-        assert_eq!(request.frequency_penalty, Some(0.0));
+    #[test]
+    fn test_provider_api_compatibility() {
+        assert!(has_compatible_api(
+            &ProviderId::OpenAI,
+            "/v1/chat/completions"
+        ));
+        assert!(!has_compatible_api(&ProviderId::OpenAI, "/v1/embeddings"));
+    }
+
+    #[test]
+    fn test_provider_supported_apis() {
+        let apis = supported_apis(&ProviderId::OpenAI);
+        assert!(apis.contains(&"/v1/chat/completions"));
+
+        // Test that provider supports the expected API endpoints
+        assert!(has_compatible_api(
+            &ProviderId::OpenAI,
+            "/v1/chat/completions"
+        ));
+    }
+
+    #[test]
+    fn test_provider_request_parsing() {
+        // Test with a sample JSON request
+        let json_request = r#"{
+            "model": "gpt-4",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant"
+                },
+                {
+                    "role": "user",
+                    "content": "Hello!"
+                }
+            ]
+        }"#;
+
+        let result = try_request_from_bytes(json_request.as_bytes(), &ProviderId::OpenAI);
+        assert!(result.is_ok());
+
+        let request = result.unwrap();
+        assert_eq!(request.model(), "gpt-4");
+        assert_eq!(request.extract_user_message(), Some("Hello!".to_string()));
+    }
+
+    #[test]
+    fn test_provider_streaming_response() {
+        // Test streaming response parsing with sample SSE data
+        let sse_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
+
+data: [DONE]
+"#;
+
+        let result = try_streaming_from_bytes(
+            sse_data.as_bytes(),
+            &ProviderId::OpenAI,
+            ConversionMode::Passthrough,
+        );
+        assert!(result.is_ok());
+
+        let mut streaming_response = result.unwrap();
+
+        // Test that we can iterate over chunks - it's just an iterator now!
+        let first_chunk = streaming_response.next();
+        assert!(first_chunk.is_some());
+
+        let chunk_result = first_chunk.unwrap();
+        assert!(chunk_result.is_ok());
+
+        let chunk = chunk_result.unwrap();
+        assert_eq!(chunk.content_delta(), Some("Hello"));
+        assert!(!chunk.is_final());
+
+        // Test that stream ends properly
+        let final_chunk = streaming_response.next();
+        assert!(final_chunk.is_none());
     }
 }

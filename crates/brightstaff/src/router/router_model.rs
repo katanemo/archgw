@@ -1,5 +1,5 @@
 use common::configuration::ModelUsagePreference;
-use hermesllm::providers::openai::types::{ChatCompletionsRequest, Message};
+use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

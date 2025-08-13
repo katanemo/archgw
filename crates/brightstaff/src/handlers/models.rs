@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use common::configuration::{IntoModels, LlmProvider};
-use hermesllm::providers::openai::types::Models;
+use hermesllm::apis::openai::Models;
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{Response, StatusCode};
 use serde_json;

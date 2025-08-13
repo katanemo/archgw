@@ -20,7 +20,7 @@
 //! assert!(endpoints.contains(&"/v1/messages"));
 //! ```
 
-use crate::apis::{AnthropicApi, OpenAIApi, ApiDefinition};
+use crate::apis::{AnthropicApi, ApiDefinition, OpenAIApi};
 
 /// Check if the given endpoint path is supported
 pub fn is_supported_endpoint(endpoint: &str) -> bool {
@@ -116,15 +116,26 @@ mod tests {
 
         // All OpenAI endpoints should be in the result
         for endpoint in openai_endpoints {
-            assert!(endpoints.contains(&endpoint), "Missing OpenAI endpoint: {}", endpoint);
+            assert!(
+                endpoints.contains(&endpoint),
+                "Missing OpenAI endpoint: {}",
+                endpoint
+            );
         }
 
         // All Anthropic endpoints should be in the result
         for endpoint in anthropic_endpoints {
-            assert!(endpoints.contains(&endpoint), "Missing Anthropic endpoint: {}", endpoint);
+            assert!(
+                endpoints.contains(&endpoint),
+                "Missing Anthropic endpoint: {}",
+                endpoint
+            );
         }
 
         // Total should match
-        assert_eq!(endpoints.len(), OpenAIApi::all_variants().len() + AnthropicApi::all_variants().len());
+        assert_eq!(
+            endpoints.len(),
+            OpenAIApi::all_variants().len() + AnthropicApi::all_variants().len()
+        );
     }
 }

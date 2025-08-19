@@ -7,7 +7,7 @@ pub mod clients;
 
 // Re-export important types and traits
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
-pub use providers::response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, try_streaming_from_bytes};
+pub use providers::response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, ProviderResponseError, TokenUsage};
 pub use providers::id::ProviderId;
 pub use providers::adapters::{has_compatible_api, supported_apis};
 
@@ -71,7 +71,7 @@ mod tests {
 data: [DONE]
 "#;
 
-        let result = try_streaming_from_bytes(sse_data.as_bytes(), &ProviderId::OpenAI);
+        let result = ProviderStreamResponseIter::try_from((sse_data.as_bytes(), &ProviderId::OpenAI));
         assert!(result.is_ok());
 
         let mut streaming_response = result.unwrap();

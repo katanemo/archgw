@@ -8,7 +8,7 @@ use thiserror::Error;
 
 
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage};
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage, SseStreamIter};
 use super::ApiDefinition;
 
 // ============================================================================
@@ -600,27 +600,31 @@ impl ProviderResponse for ChatCompletionsResponse {
     }
 }
 
-/// SSE-based streaming iterator for OpenAI chat completions
-/// Implements ProviderStreamResponseIter directly
-pub struct SseChatCompletionIter<I>
+// ============================================================================
+// OPENAI SSE STREAMING ITERATOR
+// ============================================================================
+
+/// OpenAI-specific SSE streaming iterator
+/// Handles OpenAI's specific SSE format and ChatCompletionsStreamResponse parsing
+pub struct OpenAISseIter<I>
 where
     I: Iterator,
     I::Item: AsRef<str>,
 {
-    lines: I,
+    sse_stream: SseStreamIter<I>,
 }
 
-impl<I> SseChatCompletionIter<I>
+impl<I> OpenAISseIter<I>
 where
     I: Iterator,
     I::Item: AsRef<str>,
 {
-    pub fn new(lines: I) -> Self {
-        Self { lines }
+    pub fn new(sse_stream: SseStreamIter<I>) -> Self {
+        Self { sse_stream }
     }
 }
 
-impl<I> Iterator for SseChatCompletionIter<I>
+impl<I> Iterator for OpenAISseIter<I>
 where
     I: Iterator,
     I::Item: AsRef<str>,
@@ -628,7 +632,7 @@ where
     type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for line in &mut self.lines {
+        for line in &mut self.sse_stream.lines {
             let line = line.as_ref();
             if line.is_empty() {
                 continue;
@@ -640,14 +644,16 @@ where
                     return None;
                 }
 
+                // Skip ping messages (usually from other providers, but handle gracefully)
                 if data == r#"{"type": "ping"}"# {
-                    continue; // Skip ping messages - that is usually from anthropic
+                    continue;
                 }
 
+                // OpenAI-specific parsing of ChatCompletionsStreamResponse
                 match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
                     Ok(response) => return Some(Ok(Box::new(response))),
                     Err(e) => return Some(Err(Box::new(
-                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing: {}, data: {}", e, data))
+                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing OpenAI streaming data: {}, data: {}", e, data))
                     ))),
                 }
             }
@@ -655,15 +661,6 @@ where
         None
     }
 }
-
-impl<I> ProviderStreamResponseIter for SseChatCompletionIter<I>
-where
-    I: Iterator + Send + Sync,
-    I::Item: AsRef<str>,
-{
-    // Just marking that this type implements the trait - no additional methods needed
-}
-
 
 // Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
 impl ProviderStreamResponse for ChatCompletionsStreamResponse {

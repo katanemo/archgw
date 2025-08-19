@@ -10,9 +10,9 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
+use hermesllm::providers::response::ProviderStreamResponseIter;
 use hermesllm::{
-    try_streaming_from_bytes, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse,
-    ProviderResponseType,
+    ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse, ProviderResponseType,
 };
 use http::StatusCode;
 use log::{debug, info, warn};
@@ -572,7 +572,7 @@ impl HttpContext for StreamContext {
             // Since all providers use OpenAI-compatible streaming format
             let provider_id = self.get_provider_id();
 
-            match try_streaming_from_bytes(&body, &provider_id) {
+            match ProviderStreamResponseIter::try_from((&body[..], &provider_id)) {
                 Ok(mut streaming_response) => {
                     // Process each streaming chunk
                     while let Some(chunk_result) = streaming_response.next() {

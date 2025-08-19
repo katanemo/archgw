@@ -6,13 +6,10 @@ pub mod apis;
 pub mod clients;
 
 // Re-export important types and traits
-pub use providers::{
-    ProviderId, ConversionMode,
-    ProviderRequest, ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter,
-    TokenUsage,
-    try_request_from_bytes, try_response_from_bytes, try_streaming_from_bytes,
-    has_compatible_api, supported_apis
-};
+pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
+pub use providers::response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, try_streaming_from_bytes};
+pub use providers::id::ProviderId;
+pub use providers::adapters::{has_compatible_api, supported_apis};
 
 #[cfg(test)]
 mod tests {
@@ -58,7 +55,7 @@ mod tests {
             ]
         }"#;
 
-        let result = try_request_from_bytes(json_request.as_bytes(), &ProviderId::OpenAI);
+        let result: Result<ProviderRequestType, std::io::Error> = ProviderRequestType::try_from(json_request.as_bytes());
         assert!(result.is_ok());
 
         let request = result.unwrap();
@@ -74,7 +71,7 @@ mod tests {
 data: [DONE]
 "#;
 
-        let result = try_streaming_from_bytes(sse_data.as_bytes(), &ProviderId::OpenAI, ConversionMode::Passthrough);
+        let result = try_streaming_from_bytes(sse_data.as_bytes(), &ProviderId::OpenAI);
         assert!(result.is_ok());
 
         let mut streaming_response = result.unwrap();

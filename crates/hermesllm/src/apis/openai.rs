@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 
-use crate::{providers::ProviderRequestError, ConversionMode, ProviderRequest};
+
+
+use crate::providers::request::{ProviderRequest, ProviderRequestError};
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage};
 use super::ApiDefinition;
 
 // ============================================================================
@@ -126,8 +129,6 @@ pub struct Message {
     /// ID of the tool call that this message is responding to (only present for tool role)
     pub tool_call_id: Option<String>,
 }
-
-
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -449,9 +450,92 @@ pub struct StreamOptions {
     pub include_usage: Option<bool>,
 }
 
-/// ============================================================================
-/// OpenAI Provider Request Wrapper
-/// ============================================================================
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelDetail {
+    pub id: String,
+    pub object: String,
+    pub created: usize,
+    pub owned_by: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ModelObject {
+    #[serde(rename = "list")]
+    List,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Models {
+    pub object: ModelObject,
+    pub data: Vec<ModelDetail>,
+}
+
+
+// Error type for streaming operations
+#[derive(Debug, thiserror::Error)]
+pub enum OpenAIStreamError {
+    #[error("JSON parsing error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("UTF-8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("Invalid streaming data: {0}")]
+    InvalidStreamingData(String),
+}
+
+#[derive(Debug, Error)]
+pub enum OpenAIError {
+    #[error("json error: {0}")]
+    JsonParseError(#[from] serde_json::Error),
+    #[error("utf8 parsing error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+    #[error("invalid streaming data err {source}, data: {data}")]
+    InvalidStreamingData {
+        source: serde_json::Error,
+        data: String,
+    },
+    #[error("unsupported provider: {provider}")]
+    UnsupportedProvider { provider: String },
+}
+
+// ============================================================================
+/// Trait Implementations
+/// ===========================================================================
+
+
+/// Parameterized conversion for ChatCompletionsRequest
+impl TryFrom<&[u8]> for ChatCompletionsRequest {
+    type Error = OpenAIStreamError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+/// Parameterized conversion for ChatCompletionsResponse
+impl TryFrom<&[u8]> for ChatCompletionsResponse {
+    type Error = OpenAIStreamError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    }
+}
+
+/// Implementation of TokenUsage for OpenAI Usage type
+impl TokenUsage for Usage {
+    fn completion_tokens(&self) -> usize {
+        self.completion_tokens as usize
+    }
+
+    fn prompt_tokens(&self) -> usize {
+        self.prompt_tokens as usize
+    }
+
+    fn total_tokens(&self) -> usize {
+        self.total_tokens as usize
+    }
+}
+
+/// Implementation of ProviderRequest for ChatCompletionsRequest
 impl ProviderRequest for ChatCompletionsRequest {
     fn model(&self) -> &str {
         &self.model
@@ -493,143 +577,28 @@ impl ProviderRequest for ChatCompletionsRequest {
         })
     }
 
-    fn to_provider_bytes(&self, mode: ConversionMode) -> Result<Vec<u8>, ProviderRequestError> {
-        match mode {
-            ConversionMode::Compatible | ConversionMode::Passthrough => {
-                serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
-                    message: format!("Failed to serialize OpenAI request: {}", e),
-                    source: Some(Box::new(e)),
-                })
-            }
-        }
+    fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
+        serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
+            message: format!("Failed to serialize OpenAI request: {}", e),
+            source: Some(Box::new(e)),
+        })
     }
 }
 
-// ============================================================================
-// STREAMING SUPPORT
-// ============================================================================
-
-use crate::providers::traits::{ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, TokenUsage};
-
-// Direct implementation of ProviderResponse on ChatCompletionsResponse
+/// Implementation of ProviderResponse for ChatCompletionsResponse
 impl ProviderResponse for ChatCompletionsResponse {
     fn usage(&self) -> Option<&dyn TokenUsage> {
         Some(&self.usage)
     }
-}
 
-// ============================================================================
-// PARAMETERIZED CONVERSIONS FOR PROVIDER FUNCTIONS
-// ============================================================================
-
-use crate::providers::ProviderId;
-
-/// Parameterized conversion for ChatCompletionsRequest
-impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsRequest {
-    type Error = OpenAIStreamError;
-
-    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+    fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
+        Some((
+            self.usage.prompt_tokens(),
+            self.usage.completion_tokens(),
+            self.usage.total_tokens(),
+        ))
     }
 }
-
-/// Parameterized conversion for ChatCompletionsResponse
-impl TryFrom<(&[u8], &ProviderId)> for ChatCompletionsResponse {
-    type Error = OpenAIStreamError;
-
-    fn try_from((bytes, _provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
-    }
-}
-
-// Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
-impl ProviderStreamResponse for ChatCompletionsStreamResponse {
-    fn content_delta(&self) -> Option<&str> {
-        self.choices
-            .first()
-            .and_then(|choice| choice.delta.content.as_deref())
-    }
-
-    fn is_final(&self) -> bool {
-        self.choices
-            .first()
-            .map(|choice| choice.finish_reason.is_some())
-            .unwrap_or(false)
-    }
-
-    fn role(&self) -> Option<&str> {
-        self.choices
-            .first()
-            .and_then(|choice| choice.delta.role.as_ref().map(|r| match r {
-                Role::System => "system",
-                Role::User => "user",
-                Role::Assistant => "assistant",
-                Role::Tool => "tool",
-            }))
-    }
-}
-
-// Implementation of TokenUsage for OpenAI Usage type
-impl TokenUsage for Usage {
-    fn completion_tokens(&self) -> usize {
-        self.completion_tokens as usize
-    }
-
-    fn prompt_tokens(&self) -> usize {
-        self.prompt_tokens as usize
-    }
-
-    fn total_tokens(&self) -> usize {
-        self.total_tokens as usize
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModelDetail {
-    pub id: String,
-    pub object: String,
-    pub created: usize,
-    pub owned_by: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ModelObject {
-    #[serde(rename = "list")]
-    List,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Models {
-    pub object: ModelObject,
-    pub data: Vec<ModelDetail>,
-}
-
-// Error type for streaming operations
-#[derive(Debug, thiserror::Error)]
-pub enum OpenAIStreamError {
-    #[error("JSON parsing error: {0}")]
-    JsonError(#[from] serde_json::Error),
-    #[error("UTF-8 parsing error: {0}")]
-    Utf8Error(#[from] std::str::Utf8Error),
-    #[error("Invalid streaming data: {0}")]
-    InvalidStreamingData(String),
-}
-
-#[derive(Debug, Error)]
-pub enum OpenAIError {
-    #[error("json error: {0}")]
-    JsonParseError(#[from] serde_json::Error),
-    #[error("utf8 parsing error: {0}")]
-    Utf8Error(#[from] std::str::Utf8Error),
-    #[error("invalid streaming data err {source}, data: {data}")]
-    InvalidStreamingData {
-        source: serde_json::Error,
-        data: String,
-    },
-    #[error("unsupported provider: {provider}")]
-    UnsupportedProvider { provider: String },
-}
-
 
 /// SSE-based streaming iterator for OpenAI chat completions
 /// Implements ProviderStreamResponseIter directly
@@ -693,6 +662,34 @@ where
     I::Item: AsRef<str>,
 {
     // Just marking that this type implements the trait - no additional methods needed
+}
+
+
+// Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
+impl ProviderStreamResponse for ChatCompletionsStreamResponse {
+    fn content_delta(&self) -> Option<&str> {
+        self.choices
+            .first()
+            .and_then(|choice| choice.delta.content.as_deref())
+    }
+
+    fn is_final(&self) -> bool {
+        self.choices
+            .first()
+            .map(|choice| choice.finish_reason.is_some())
+            .unwrap_or(false)
+    }
+
+    fn role(&self) -> Option<&str> {
+        self.choices
+            .first()
+            .and_then(|choice| choice.delta.role.as_ref().map(|r| match r {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            }))
+    }
 }
 
 

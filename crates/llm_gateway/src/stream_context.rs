@@ -11,8 +11,8 @@ use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::{
-    try_request_from_bytes, try_response_from_bytes, try_streaming_from_bytes, ConversionMode,
-    ProviderId,
+    try_streaming_from_bytes, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse,
+    ProviderResponseType,
 };
 use http::StatusCode;
 use log::{debug, info, warn};
@@ -300,20 +300,21 @@ impl HttpContext for StreamContext {
 
         let provider_id = self.get_provider_id();
 
-        let mut deserialized_body = match try_request_from_bytes(&body_bytes, &provider_id) {
-            Ok(deserialized) => deserialized,
-            Err(e) => {
-                debug!(
-                    "on_http_request_body: request body: {}",
-                    String::from_utf8_lossy(&body_bytes)
-                );
-                self.send_server_error(
-                    ServerError::LogicError(format!("Request parsing error: {}", e)),
-                    Some(StatusCode::BAD_REQUEST),
-                );
-                return Action::Pause;
-            }
-        };
+        let mut deserialized_body =
+            match ProviderRequestType::try_from((&body_bytes[..], &provider_id)) {
+                Ok(deserialized) => deserialized,
+                Err(e) => {
+                    debug!(
+                        "on_http_request_body: request body: {}",
+                        String::from_utf8_lossy(&body_bytes)
+                    );
+                    self.send_server_error(
+                        ServerError::LogicError(format!("Request parsing error: {}", e)),
+                        Some(StatusCode::BAD_REQUEST),
+                    );
+                    return Action::Pause;
+                }
+            };
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
@@ -388,18 +389,17 @@ impl HttpContext for StreamContext {
         let _hermes_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
 
         // Convert chat completion request to llm provider specific request using provider interface
-        let deserialized_body_bytes =
-            match deserialized_body.to_provider_bytes(ConversionMode::Compatible) {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    warn!("Failed to serialize request body: {}", e);
-                    self.send_server_error(
-                        ServerError::LogicError(format!("Request serialization error: {}", e)),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
-                }
-            };
+        let deserialized_body_bytes = match deserialized_body.to_bytes() {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                warn!("Failed to serialize request body: {}", e);
+                self.send_server_error(
+                    ServerError::LogicError(format!("Request serialization error: {}", e)),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
         self.set_http_request_body(0, body_size, &deserialized_body_bytes);
 
@@ -572,7 +572,7 @@ impl HttpContext for StreamContext {
             // Since all providers use OpenAI-compatible streaming format
             let provider_id = self.get_provider_id();
 
-            match try_streaming_from_bytes(&body, &provider_id, ConversionMode::Compatible) {
+            match try_streaming_from_bytes(&body, &provider_id) {
                 Ok(mut streaming_response) => {
                     // Process each streaming chunk
                     while let Some(chunk_result) = streaming_response.next() {
@@ -630,8 +630,8 @@ impl HttpContext for StreamContext {
         } else {
             debug!("non streaming response");
             let provider_id = self.get_provider_id();
-            let response =
-                match try_response_from_bytes(&body, &provider_id, ConversionMode::Compatible) {
+            let response: ProviderResponseType =
+                match ProviderResponseType::try_from((&body[..], provider_id)) {
                     Ok(response) => response,
                     Err(e) => {
                         warn!(

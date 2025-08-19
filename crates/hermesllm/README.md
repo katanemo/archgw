@@ -1,120 +1,88 @@
 # hermesllm
 
-A Rust library for translating LLM (Large Language Model) API requests and responses between Mistral, Groq, Gemini, Deepseek, OpenAI, and other provider-compliant formats.
+A Rust library for handling LLM (Large Language Model) API requests and responses with unified abstractions across multiple providers.
 
 ## Features
 
-- Unified traits for chat completions across multiple LLM providers
-- Function-based API for runtime provider selection and conversion
-- Direct trait implementations on concrete types (no wrapper types needed)
-- Streaming and non-streaming response support
-- Type-safe provider identification and conversion
+- Unified request/response types with provider-specific parsing
+- Support for both streaming and non-streaming responses
+- Type-safe provider identification
+- OpenAI-compatible API structure with extensible provider support
 
 ## Supported Providers
 
-- Mistral
-- Deepseek
-- Groq
-- Gemini
 - OpenAI
+- Mistral
+- Groq
+- Deepseek
+- Gemini
 - Claude
-- Github
+- GitHub
 
 ## Installation
 
-Add the following to your `Cargo.toml`:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hermesllm = { git = "https://github.com/katanemo/archgw", subdir = "crates/hermesllm" }
+hermesllm = { path = "../hermesllm" }  # or appropriate path in workspace
 ```
-
-_Replace the path with the appropriate location if using as a workspace member or published crate._
 
 ## Usage
 
-### Basic Request/Response Handling
+### Basic Request Parsing
 
 ```rust
-use hermesllm::{ProviderId, try_request_from_bytes, try_response_from_bytes, ConversionMode};
+use hermesllm::providers::{ProviderRequestType, ProviderRequest, ProviderId};
 
-// Parse a request from raw bytes with provider-specific handling
-let provider_id = ProviderId::OpenAI;
+// Parse request from JSON bytes
 let request_bytes = r#"{"model": "gpt-4", "messages": [{"role": "user", "content": "Hello!"}]}"#;
-let request = try_request_from_bytes(request_bytes.as_bytes(), &provider_id)?;
 
-// Work with the request using trait methods
+// Parse with provider context
+let request = ProviderRequestType::try_from((request_bytes.as_bytes(), &ProviderId::OpenAI))?;
+
+// Access request properties
 println!("Model: {}", request.model());
+println!("User message: {:?}", request.extract_user_message());
 println!("Is streaming: {}", request.is_streaming());
-if let Some(user_msg) = request.extract_user_message() {
-    println!("User message: {}", user_msg);
+```
+
+### Working with Responses
+
+```rust
+use hermesllm::providers::{ProviderResponseType, ProviderResponse};
+
+// Parse response from provider
+let response_bytes = /* JSON response from LLM */;
+let response = ProviderResponseType::try_from((response_bytes, ProviderId::OpenAI))?;
+
+// Extract token usage
+if let Some((prompt, completion, total)) = response.extract_usage_counts() {
+    println!("Tokens used: {}/{}/{}", prompt, completion, total);
 }
 ```
 
-### Building Requests with the Builder Pattern
+### Handling Streaming Responses
 
 ```rust
-use hermesllm::apis::openai::{ChatCompletionsRequest, Message, Role, MessageContent};
+use hermesllm::providers::{ProviderStreamResponseIter, ProviderStreamResponse};
 
-// Build a request using the builder pattern
-let request = ChatCompletionsRequest {
-    model: "gpt-4".to_string(),
-    messages: vec![
-        Message {
-            role: Role::System,
-            content: MessageContent::Text("You are a helpful assistant".to_string()),
-            ..Default::default()
-        },
-        Message {
-            role: Role::User,
-            content: MessageContent::Text("What is the capital of France?".to_string()),
-            ..Default::default()
-        }
-    ],
-    temperature: Some(0.7),
-    max_tokens: Some(150),
-    ..Default::default()
-};
+// Create streaming iterator from SSE data
+let sse_data = /* Server-Sent Events data */;
+let mut stream = ProviderStreamResponseIter::try_from((sse_data, &ProviderId::OpenAI))?;
 
-// Convert to provider-specific format
-let provider_bytes = request.to_provider_bytes(ConversionMode::Compatible)?;
-```
-
-### Handling Responses
-
-```rust
-// Parse responses from provider
-let response_bytes = /* response JSON from LLM provider */;
-let response = try_response_from_bytes(&response_bytes, &provider_id, ConversionMode::Compatible)?;
-
-// Extract usage information
-if let Some((prompt_tokens, completion_tokens, total_tokens)) = response.extract_usage_counts() {
-    println!("Token usage: {}/{}/{}", prompt_tokens, completion_tokens, total_tokens);
-}
-```
-
-### Streaming Responses
-
-```rust
-// Handle streaming responses
-let stream_data = /* SSE stream data */;
-let streaming_iter = try_streaming_from_bytes(&stream_data, &provider_id, ConversionMode::Compatible)?;
-
-for chunk_result in streaming_iter {
+// Process streaming chunks
+for chunk_result in stream {
     match chunk_result {
         Ok(chunk) => {
             if let Some(content) = chunk.content_delta() {
                 print!("{}", content);
             }
             if chunk.is_final() {
-                println!("\nStream completed");
                 break;
             }
         }
-        Err(e) => {
-            eprintln!("Streaming error: {}", e);
-            break;
-        }
+        Err(e) => eprintln!("Stream error: {}", e),
     }
 }
 ```
@@ -122,63 +90,56 @@ for chunk_result in streaming_iter {
 ### Provider Compatibility
 
 ```rust
-use hermesllm::{ProviderId, has_compatible_api, supported_apis};
+use hermesllm::providers::{ProviderId, has_compatible_api, supported_apis};
 
-// Check if a provider supports a specific API
-let provider_id = ProviderId::Groq;
-if has_compatible_api(&provider_id, "/v1/chat/completions") {
-    println!("Groq supports chat completions API");
+// Check API compatibility
+let provider = ProviderId::Groq;
+if has_compatible_api(&provider, "/v1/chat/completions") {
+    println!("Provider supports chat completions");
 }
 
-// Get all supported APIs for a provider
-let apis = supported_apis(&provider_id);
-println!("Groq supports: {:?}", apis);
-
-// Runtime provider selection
-let provider_name = "mistral"; // Could come from config or request header
-let provider_id = ProviderId::from(provider_name);
+// List supported APIs
+let apis = supported_apis(&provider);
+println!("Supported APIs: {:?}", apis);
 ```
 
-## API Overview
+## Core Types
 
-### Core Functions
-- `try_request_from_bytes()`: Parse requests from bytes with provider-specific handling
-- `try_response_from_bytes()`: Parse responses from bytes with provider-specific handling
-- `try_streaming_from_bytes()`: Create streaming response iterators
-- `has_compatible_api()`: Check API compatibility for providers
-- `supported_apis()`: Get supported API endpoints for providers
-
-### Core Types
-- `ProviderId`: Enum for identifying providers (OpenAI, Mistral, Groq, etc.)
-- `ConversionMode`: Controls conversion behavior (Compatible, Passthrough)
+### Provider Types
+- `ProviderId` - Enum identifying supported providers (OpenAI, Mistral, Groq, etc.)
+- `ProviderRequestType` - Enum wrapping provider-specific request types
+- `ProviderResponseType` - Enum wrapping provider-specific response types
+- `ProviderStreamResponseIter` - Iterator for streaming response chunks
 
 ### Traits
-- `ProviderRequest`: Common interface for all request types
-- `ProviderResponse`: Common interface for all response types
-- `ProviderStreamResponse`: Interface for streaming response chunks
-- `ProviderStreamResponseIter`: Iterator trait for streaming responses
-- `TokenUsage`: Interface for token usage information
+- `ProviderRequest` - Common interface for all request types
+- `ProviderResponse` - Common interface for all response types
+- `ProviderStreamResponse` - Interface for streaming response chunks
+- `TokenUsage` - Interface for token usage information
 
-### Concrete Types
-- `ChatCompletionsRequest`: OpenAI-compatible chat completion requests
-- `ChatCompletionsResponse`: OpenAI-compatible chat completion responses
-- `SseChatCompletionIter`: Streaming response iterator for SSE format
+### OpenAI API Types
+- `ChatCompletionsRequest` - Chat completion request structure
+- `ChatCompletionsResponse` - Chat completion response structure
+- `Message`, `Role`, `MessageContent` - Message building blocks
 
 ## Architecture
 
-This library uses a function-based approach instead of traditional trait objects to enable:
+The library uses a type-safe enum-based approach that:
 
-- **Dynamic Provider Selection**: Runtime provider selection based on request headers or configuration
-- **No Wrapper Types**: Direct trait implementations on concrete types like `ChatCompletionsRequest`
-- **Type Erasure**: Functions return `Box<dyn ProviderRequest>` for polymorphic usage
-- **Parameterized Conversion**: `TryFrom<(&[u8], &ProviderId)>` pattern for provider-specific parsing
+- **Provides Type Safety**: All provider operations are checked at compile time
+- **Enables Runtime Provider Selection**: Provider can be determined from request headers or config
+- **Maintains Clean Abstractions**: Common traits hide provider-specific details
+- **Supports Extensibility**: New providers can be added by extending the enums
 
-The function-based design solves trait object limitations while maintaining clean abstractions and runtime flexibility.
+All requests are parsed into a common `ProviderRequestType` enum which implements the `ProviderRequest` trait, allowing uniform access to request properties regardless of the underlying provider format.
 
-## Contributing
+## Examples
 
-Contributions are welcome! Please open issues or pull requests for bug fixes, new features, or provider integrations.
+See the `src/lib.rs` tests for complete working examples of:
+- Parsing requests with provider context
+- Handling streaming responses
+- Working with token usage information
 
 ## License
 
-This project is licensed under the terms of the [MIT License](../LICENSE).
+This project is licensed under the MIT License.

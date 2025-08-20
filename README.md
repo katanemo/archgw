@@ -10,8 +10,8 @@ _Arch is a smart proxy server designed as a modular edge and AI gateway for agen
 
 [Quickstart](#Quickstart) •
 [Demos](#Demos) •
-[Build agentic apps with Arch](#Build-AI-Agent-with-Arch-Gateway) •
 [Route LLMs](#Use-Arch-as-a-LLM-Router) •
+[Build agentic apps with Arch](#Build-AI-Agent-with-Arch-Gateway) •
 [Documentation](https://docs.archgw.com) •
 [Contact](#Contact)
 
@@ -28,9 +28,9 @@ _Arch is a smart proxy server designed as a modular edge and AI gateway for agen
 
 AI demos are easy to hack. But once you move past the prototype stage, you’re stuck building and maintaining low-level plumbing code that slows down real innovation. For example:
 
-- **Routing & orchestration.** Frameworks handle routing and handoffs in tightly coupled ways, so if you want to plug in your own router, planner, or policy engine, you’re stuck with brittle overrides, a heavy refactor or abandoning the framework altogher.
+- **Routing & orchestration.** Frameworks handle routing and handoffs in tightly coupled ways, so if you want to plug in your own router, planner, or policy engine, you’re stuck with a heavy refactor or brittle overrides.
 - **Model integration churn.** Frameworks wire LLM integrates directly into their abstractions, making it hard to add or swap models without touching core application code —meaning you’ll have to bounce your app every time you want to experiment with a new provider or version.
-- **Prompt engineering overhead**. Input validation, clarifying vague user input, and coercing outputs into the right schema all pile up—turning what should be design work into low-level plumbing.
+- **Prompt engineering overhead**. Input validation, clarifying vague user input, and coercing outputs into the right schema all pile up—turning what should be design work into low-level plumbing work.
 - **Observability & governance.** Logging, tracing, cost controls, and guardrails are baked in as tightly coupled features, so bringing in best-of-breed solutions is painful and often requires digging through the guts of a framework.
 
 With Arch, you can move faster by focusing on higher-level objectives in a language and framework agnostic way. **Arch** was built by the contributors of [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:
@@ -84,6 +84,67 @@ $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
 $ pip install archgw==0.3.10
 ```
+
+### Use Arch as a unified access layer and LLM Router
+Arch supports two primary routing strategies for LLMs: model-based routing and preference-based routing.
+
+#### Model-based Routing
+Model-based routing allows you to configure static model names for routing. This is useful when you always want to use a specific model for certain tasks, or manually swap between models. Below an example configuration for model-based routing, and you can follow our [usage guide](demos/use_cases/README.md) on how to get working.
+
+```yaml
+version: v0.1.0
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - access_key: $OPENAI_API_KEY
+    model: openai/gpt-4o
+    default: true
+
+  - access_key: $MISTRAL_API_KEY
+    model: mistral/mistral-3b-latest
+```
+
+#### Preference-based Routing
+Preference-based routing is designed for more dynamic and intelligent selection of models. Instead of static model names, you write plain-language routing policies that describe the type of task or preference — for example:
+
+```yaml
+version: v0.1.0
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - model: openai/gpt-4.1
+    access_key: $OPENAI_API_KEY
+    default: true
+    routing_preferences:
+      - name: code generation
+        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
+
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code understanding
+        description: understand and explain existing code snippets, functions, or libraries
+```
+
+Arch uses a lightweight 1.5B autoregressive model to map prompts (and conversation context) to these policies. This approach adapts to intent drift, supports multi-turn conversations, and avoids the brittleness of embedding-based classifiers or manual if/else chains. No retraining is required when adding new models or updating policies — routing is governed entirely by human-readable rules. You can learn more about the design, benchmarks, and methodology behind preference-based routing in our paper:
+
+<div align="left">
+  <a href="https://arxiv.org/abs/2506.16655" target="_blank">
+    <img src="docs/source/_static/img/arch_router_paper_preview.png" alt="Arch Router Paper Preview">
+  </a>
+</div>
 
 ### Build Agentic Apps with Arch Gateway
 
@@ -181,67 +242,6 @@ $ curl --header 'Content-Type: application/json' \
 "Here is a list of the currencies that are supported for conversion from USD, along with their symbols:\n\n1. AUD - Australian Dollar\n2. BGN - Bulgarian Lev\n3. BRL - Brazilian Real\n4. CAD - Canadian Dollar\n5. CHF - Swiss Franc\n6. CNY - Chinese Renminbi Yuan\n7. CZK - Czech Koruna\n8. DKK - Danish Krone\n9. EUR - Euro\n10. GBP - British Pound\n11. HKD - Hong Kong Dollar\n12. HUF - Hungarian Forint\n13. IDR - Indonesian Rupiah\n14. ILS - Israeli New Sheqel\n15. INR - Indian Rupee\n16. ISK - Icelandic Króna\n17. JPY - Japanese Yen\n18. KRW - South Korean Won\n19. MXN - Mexican Peso\n20. MYR - Malaysian Ringgit\n21. NOK - Norwegian Krone\n22. NZD - New Zealand Dollar\n23. PHP - Philippine Peso\n24. PLN - Polish Złoty\n25. RON - Romanian Leu\n26. SEK - Swedish Krona\n27. SGD - Singapore Dollar\n28. THB - Thai Baht\n29. TRY - Turkish Lira\n30. USD - United States Dollar\n31. ZAR - South African Rand\n\nIf you want to convert USD to any of these currencies, you can select the one you are interested in."
 
 ```
-
-### Use Arch as a LLM Router
-Arch supports two primary routing strategies for LLMs: model-based routing and preference-based routing.
-
-#### Model-based Routing
-Model-based routing allows you to configure static model names for routing. This is useful when you always want to use a specific model for certain tasks, or manually swap between models. Below an example configuration for model-based routing, and you can follow our [usage guide](demos/use_cases/README.md) on how to get working.
-
-```yaml
-version: v0.1.0
-
-listeners:
-  egress_traffic:
-    address: 0.0.0.0
-    port: 12000
-    message_format: openai
-    timeout: 30s
-
-llm_providers:
-  - access_key: $OPENAI_API_KEY
-    model: openai/gpt-4o
-    default: true
-
-  - access_key: $MISTRAL_API_KEY
-    model: mistral/mistral-3b-latest
-```
-
-#### Preference-based Routing
-Preference-based routing is designed for more dynamic and intelligent selection of models. Instead of static model names, you write plain-language routing policies that describe the type of task or preference — for example:
-
-```yaml
-version: v0.1.0
-
-listeners:
-  egress_traffic:
-    address: 0.0.0.0
-    port: 12000
-    message_format: openai
-    timeout: 30s
-
-llm_providers:
-  - model: openai/gpt-4.1
-    access_key: $OPENAI_API_KEY
-    default: true
-    routing_preferences:
-      - name: code generation
-        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
-
-  - model: openai/gpt-4o-mini
-    access_key: $OPENAI_API_KEY
-    routing_preferences:
-      - name: code understanding
-        description: understand and explain existing code snippets, functions, or libraries
-```
-
-Arch uses a lightweight 1.5B autoregressive model to map prompts (and conversation context) to these policies. This approach adapts to intent drift, supports multi-turn conversations, and avoids the brittleness of embedding-based classifiers or manual if/else chains. No retraining is required when adding new models or updating policies — routing is governed entirely by human-readable rules. You can learn more about the design, benchmarks, and methodology behind preference-based routing in our paper:
-
-<div align="left">
-  <a href="https://arxiv.org/abs/2506.16655" target="_blank">
-    <img src="docs/source/_static/img/arch_router_paper_preview.png" alt="Arch Router Paper Preview">
-  </a>
-</div>
 
 ## [Observability](https://docs.archgw.com/guides/observability/observability.html)
 Arch is designed to support best-in class observability by supporting open standards. Please read our [docs](https://docs.archgw.com/guides/observability/observability.html) on observability for more details on tracing, metrics, and logs. The screenshot below is from our integration with Signoz (among others)

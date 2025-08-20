@@ -60,7 +60,7 @@ mod tests {
 
         let request = result.unwrap();
         assert_eq!(request.model(), "gpt-4");
-        assert_eq!(request.extract_user_message(), Some("Hello!".to_string()));
+        assert_eq!(request.get_recent_user_message(), Some("Hello!".to_string()));
     }
 
     #[test]

@@ -46,14 +46,11 @@ pub trait ProviderRequest: Send + Sync {
     /// Check if this is a streaming request
     fn is_streaming(&self) -> bool;
 
-    /// Set streaming options (e.g., include_usage)
-    fn set_streaming_options(&mut self);
-
     /// Extract text content from messages for token counting
     fn extract_messages_text(&self) -> String;
 
     /// Extract the user message for tracing/logging purposes
-    fn extract_user_message(&self) -> Option<String>;
+    fn get_recent_user_message(&self) -> Option<String>;
 
     /// Convert the request to bytes for transmission
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError>;
@@ -78,21 +75,15 @@ impl ProviderRequest for ProviderRequestType {
         }
     }
 
-    fn set_streaming_options(&mut self) {
-        match self {
-            Self::ChatCompletionsRequest(r) => r.set_streaming_options(),
-        }
-    }
-
     fn extract_messages_text(&self) -> String {
         match self {
             Self::ChatCompletionsRequest(r) => r.extract_messages_text(),
         }
     }
 
-    fn extract_user_message(&self) -> Option<String> {
+    fn get_recent_user_message(&self) -> Option<String> {
         match self {
-            Self::ChatCompletionsRequest(r) => r.extract_user_message(),
+            Self::ChatCompletionsRequest(r) => r.get_recent_user_message(),
         }
     }
 

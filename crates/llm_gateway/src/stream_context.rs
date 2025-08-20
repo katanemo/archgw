@@ -356,7 +356,7 @@ impl HttpContext for StreamContext {
         deserialized_body.set_model(resolved_model.clone());
 
         // Extract user message for tracing
-        self.user_message = deserialized_body.extract_user_message();
+        self.user_message = deserialized_body.get_recent_user_message();
 
         info!(
             "on_http_request_body: provider: {}, model requested (in body): {}, model selected: {}",
@@ -367,11 +367,6 @@ impl HttpContext for StreamContext {
 
         // Use provider interface for streaming detection and setup
         self.streaming_response = deserialized_body.is_streaming();
-
-        // Set streaming options if needed
-        if self.streaming_response {
-            deserialized_body.set_streaming_options();
-        }
 
         // Use provider interface for text extraction (after potential mutation)
         let input_tokens_str = deserialized_body.extract_messages_text();
@@ -384,9 +379,6 @@ impl HttpContext for StreamContext {
             self.metrics.ratelimited_rq.increment(1);
             return Action::Continue;
         }
-
-        let llm_provider_str = self.llm_provider().provider_interface.to_string();
-        let _hermes_llm_provider_id = ProviderId::from(llm_provider_str.as_str());
 
         // Convert chat completion request to llm provider specific request using provider interface
         let deserialized_body_bytes = match deserialized_body.to_bytes() {
@@ -562,17 +554,9 @@ impl HttpContext for StreamContext {
             );
         }
 
-        let llm_provider_str = self.llm_provider().provider_interface.to_string();
-        let _provider_id = ProviderId::from(llm_provider_str.as_str());
-
         if self.streaming_response {
             debug!("processing streaming response");
-
-            // Parse streaming response using OpenAI-compatible format
-            // Since all providers use OpenAI-compatible streaming format
-            let provider_id = self.get_provider_id();
-
-            match ProviderStreamResponseIter::try_from((&body[..], &provider_id)) {
+            match ProviderStreamResponseIter::try_from((&body[..], &self.get_provider_id())) {
                 Ok(mut streaming_response) => {
                     // Process each streaming chunk
                     while let Some(chunk_result) = streaming_response.next() {

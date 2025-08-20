@@ -549,13 +549,6 @@ impl ProviderRequest for ChatCompletionsRequest {
         self.stream.unwrap_or_default()
     }
 
-    fn set_streaming_options(&mut self) {
-        self.stream = Some(true);
-        if self.stream_options.is_none() {
-            self.stream_options = Some(StreamOptions { include_usage: Some(true) });
-        }
-    }
-
     fn extract_messages_text(&self) -> String {
         self.messages.iter().fold(String::new(), |acc, m| {
             acc + " " + &match &m.content {
@@ -568,7 +561,7 @@ impl ProviderRequest for ChatCompletionsRequest {
         })
     }
 
-    fn extract_user_message(&self) -> Option<String> {
+    fn get_recent_user_message(&self) -> Option<String> {
         self.messages.last().and_then(|msg| {
             match &msg.content {
                 MessageContent::Text(text) => Some(text.clone()),

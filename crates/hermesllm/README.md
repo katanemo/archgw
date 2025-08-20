@@ -43,7 +43,7 @@ let request = ProviderRequestType::try_from((request_bytes.as_bytes(), &Provider
 
 // Access request properties
 println!("Model: {}", request.model());
-println!("User message: {:?}", request.extract_user_message());
+println!("User message: {:?}", request.get_recent_user_message());
 println!("Is streaming: {}", request.is_streaming());
 ```
 

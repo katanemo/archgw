@@ -11,7 +11,7 @@ _Arch is a smart proxy server designed as a modular edge and AI gateway for agen
 [Quickstart](#Quickstart) •
 [Demos](#Demos) •
 [Route LLMs](#Use-Arch-as-a-LLM-Router) •
-[Build agentic apps with Arch](#Build-AI-Agent-with-Arch-Gateway) •
+[Build agentic apps with Arch](#Build-Agentic-Apps-with-Arch) •
 [Documentation](https://docs.archgw.com) •
 [Contact](#Contact)
 
@@ -85,7 +85,7 @@ $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
 $ pip install archgw==0.3.10
 ```
 
-### Use Arch as a unified access layer and LLM Router
+### Use Arch as a LLM Router
 Arch supports two primary routing strategies for LLMs: model-based routing and preference-based routing.
 
 #### Model-based Routing
@@ -146,7 +146,7 @@ Arch uses a lightweight 1.5B autoregressive model to map prompts (and conversati
   </a>
 </div>
 
-### Build Agentic Apps with Arch Gateway
+### Build Agentic Apps with Arch
 
 In following quickstart we will show you how easy it is to build AI agent with Arch gateway. We will build a currency exchange agent using following simple steps. For this demo we will use `https://api.frankfurter.dev/` to fetch latest price for currencies and assume USD as base currency.
 

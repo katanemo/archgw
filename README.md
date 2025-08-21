@@ -39,8 +39,8 @@ With Arch, you can move faster by focusing on higher-level objectives in a langu
 
 **Core Features**:
 
-  - `🚦 Route to Agents`. Engineered with purpose-built [LLMs](https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68) for fast (<100ms) agent routing and hand-off scenarios
-  - `🔗 Route to LLMs`: Unify access to hosted/local LLMs, including dynamic routing via [policies](#Preference-based-Routing). Model aliases [coming soon](https://github.com/katanemo/archgw/issues/557)
+  - `🚦 Route to Agents`: Engineered with purpose-built [LLMs](https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68) for fast (<100ms) routing and hand-off to agents
+  - `🔗 Route to LLMs`: Unify access to (hosted or local) LLMs. Supports [dynamic routing](#Preference-based-Routing), and model aliases [coming soon](https://github.com/katanemo/archgw/issues/557)
   - `⛨ Guardrails`: Centrally configure and prevent harmful outcomes and ensure safe user interactions
   - `⚡ Tools Use`: For common agentic scenarios let Arch instantly clarify and convert prompts to tools/API calls
   - `🕵 Observability`: W3C compatible request tracing and LLM metrics that instantly plugin with popular tools

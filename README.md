@@ -30,7 +30,7 @@ AI demos are easy to hack. But once you move past the prototype stage, you’re 
 
 - **Routing & orchestration.** Frameworks handle routing and handoffs in tightly coupled ways, so if you want to plug in your own router, planner, or policy engine, you’re stuck with a heavy refactor or brittle overrides.
 - **Model integration churn.** Frameworks wire LLM integrates directly into their abstractions, making it hard to add or swap models without touching core application code —meaning you’ll have to bounce your app every time you want to experiment with a new provider or version.
-- **Observability & governance.** Logging, tracing, cost controls, and guardrails are baked in as tightly coupled features, so bringing in best-of-breed solutions is painful and often requires digging through the guts of a framework.
+- **Observability & governance.** Logging, tracing, and guardrails are baked in as tightly coupled features, so bringing in best-of-breed solutions is painful and often requires digging through the guts of a framework.
 - **Prompt engineering overhead**. Input validation, clarifying vague user input, and coercing outputs into the right schema all pile up—turning what should be design work into low-level plumbing work.
 
 With Arch, you can move faster by focusing on higher-level objectives in a language and framework agnostic way. **Arch** was built by the contributors of [Envoy Proxy](https://www.envoyproxy.io/) with the belief that:

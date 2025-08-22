@@ -1,11 +1,13 @@
 
 use crate::apis::openai::ChatCompletionsRequest;
+use crate::apis::anthropic::MessagesRequest;
+use crate::clients::endpoints::SupportedApi;
 use super::{ProviderId, get_provider_config, AdapterType};
 use std::error::Error;
 use std::fmt;
 pub enum ProviderRequestType {
     ChatCompletionsRequest(ChatCompletionsRequest),
-    //MessagesRequest(MessagesRequest),
+    MessagesRequest(MessagesRequest),
     //add more request types here
 }
 
@@ -31,7 +33,42 @@ impl TryFrom<(&[u8], &ProviderId)> for ProviderRequestType {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
             }
-            // Future: handle other adapter types like Claude
+            AdapterType::AnthropicCompatible => {
+                // For Anthropic providers, try to parse as MessagesRequest first, fallback to ChatCompletionsRequest
+                if let Ok(messages_request) = MessagesRequest::try_from(bytes) {
+                    Ok(ProviderRequestType::MessagesRequest(messages_request))
+                } else {
+                    let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                    Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
+                }
+            }
+        }
+    }
+}
+
+/// Parse request based on endpoint and provider information
+impl TryFrom<(&[u8], &str, &ProviderId)> for ProviderRequestType {
+    type Error = std::io::Error;
+
+    fn try_from((bytes, endpoint, provider_id): (&[u8], &str, &ProviderId)) -> Result<Self, Self::Error> {
+        // Use SupportedApi to determine the appropriate request type
+        if let Some(api) = SupportedApi::from_endpoint(endpoint) {
+            match api {
+                SupportedApi::OpenAI(_) => {
+                    let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                    Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
+                }
+                SupportedApi::Anthropic(_) => {
+                    let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                    Ok(ProviderRequestType::MessagesRequest(messages_request))
+                }
+            }
+        } else {
+            // Fallback to provider-based parsing for unsupported endpoints
+            Self::try_from((bytes, provider_id))
         }
     }
 }
@@ -60,36 +97,42 @@ impl ProviderRequest for ProviderRequestType {
     fn model(&self) -> &str {
         match self {
             Self::ChatCompletionsRequest(r) => r.model(),
+            Self::MessagesRequest(r) => r.model(),
         }
     }
 
     fn set_model(&mut self, model: String) {
         match self {
             Self::ChatCompletionsRequest(r) => r.set_model(model),
+            Self::MessagesRequest(r) => r.set_model(model),
         }
     }
 
     fn is_streaming(&self) -> bool {
         match self {
             Self::ChatCompletionsRequest(r) => r.is_streaming(),
+            Self::MessagesRequest(r) => r.is_streaming(),
         }
     }
 
     fn extract_messages_text(&self) -> String {
         match self {
             Self::ChatCompletionsRequest(r) => r.extract_messages_text(),
+            Self::MessagesRequest(r) => r.extract_messages_text(),
         }
     }
 
     fn get_recent_user_message(&self) -> Option<String> {
         match self {
             Self::ChatCompletionsRequest(r) => r.get_recent_user_message(),
+            Self::MessagesRequest(r) => r.get_recent_user_message(),
         }
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         match self {
             Self::ChatCompletionsRequest(r) => r.to_bytes(),
+            Self::MessagesRequest(r) => r.to_bytes(),
         }
     }
 }

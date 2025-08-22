@@ -27,7 +27,10 @@ impl TryFrom<(&[u8], ProviderId)> for ProviderResponseType {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(chat_completions_response))
             }
-            // Future: handle other adapter types like Claude
+            AdapterType::AnthropicCompatible => {
+                // TODO: Implement MessagesResponse parsing for Anthropic-compatible providers
+                todo!("AnthropicCompatible response parsing not yet implemented");
+            }
         }
     }
 }
@@ -49,11 +52,10 @@ impl TryFrom<(&[u8], &ProviderId)> for ProviderStreamResponseIter {
                 let iter = crate::apis::openai::OpenAISseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::ChatCompletionsStream(iter))
             }
-            // Future: AdapterType::Claude => {
-            //     let sse_container = SseStreamIter::new(lines.into_iter());
-            //     let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
-            //     Ok(ProviderStreamResponseIter::MessagesStream(iter))
-            // }
+            AdapterType::AnthropicCompatible => {
+                // TODO: Implement Anthropic streaming support
+                todo!("AnthropicCompatible streaming not yet implemented");
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 use crate::metrics::Metrics;
 use common::configuration::{LlmProvider, LlmProviderType, Overrides};
 use common::consts::{
-    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, CHAT_COMPLETIONS_PATH, HEALTHZ_PATH,
-    RATELIMIT_SELECTOR_HEADER_KEY, REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
+    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, HEALTHZ_PATH, RATELIMIT_SELECTOR_HEADER_KEY,
+    REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
 };
 use common::errors::ServerError;
 use common::llm_providers::LlmProviders;
@@ -10,6 +10,7 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
+use hermesllm::clients::endpoints::SupportedApi;
 use hermesllm::providers::response::ProviderStreamResponseIter;
 use hermesllm::{
     ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse, ProviderResponseType,
@@ -31,7 +32,7 @@ pub struct StreamContext {
     ratelimit_selector: Option<Header>,
     streaming_response: bool,
     response_tokens: usize,
-    is_chat_completions_request: bool,
+    supported_api: Option<SupportedApi>,
     llm_providers: Rc<LlmProviders>,
     llm_provider: Option<Rc<LlmProvider>>,
     request_id: Option<String>,
@@ -60,7 +61,7 @@ impl StreamContext {
             ratelimit_selector: None,
             streaming_response: false,
             response_tokens: 0,
-            is_chat_completions_request: false,
+            supported_api: None,
             llm_providers,
             llm_provider: None,
             request_id: None,
@@ -212,7 +213,15 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        self.is_chat_completions_request = CHAT_COMPLETIONS_PATH == request_path;
+        // Check if this is a supported API endpoint
+        if SupportedApi::from_endpoint(&request_path).is_none() {
+            self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+            return Action::Continue;
+        }
+
+        // Get the SupportedApi for routing decisions
+        let supported_api = SupportedApi::from_endpoint(&request_path);
+        self.supported_api = supported_api;
 
         let use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
@@ -257,6 +266,39 @@ impl HttpContext for StreamContext {
         self.delete_content_length_header();
         self.save_ratelimit_header();
 
+        // Apply provider-specific path routing
+        match self.llm_provider.as_ref().unwrap().provider_interface {
+            LlmProviderType::Groq => {
+                if let Some(path) = self.get_http_request_header(":path") {
+                    if path.starts_with("/v1/") {
+                        let new_path = format!("/openai{}", path);
+                        self.set_http_request_header(":path", Some(new_path.as_str()));
+                    }
+                }
+            }
+            LlmProviderType::Gemini => {
+                if let Some(path) = self.get_http_request_header(":path") {
+                    if path == "/v1/chat/completions" {
+                        self.set_http_request_header(
+                            ":path",
+                            Some("/v1beta/openai/chat/completions"),
+                        );
+                    }
+                }
+            }
+            _ => {
+                // Use SupportedApi for endpoint routing
+                if let Some(api) = &self.supported_api {
+                    let provider_name = &self.llm_provider.as_ref().unwrap().name;
+                    let target_endpoint = api.target_endpoint_for_provider(provider_name);
+                    // Only update path if it's different from the original
+                    if target_endpoint != request_path {
+                        self.set_http_request_header(":path", Some(target_endpoint));
+                    }
+                }
+            }
+        }
+
         self.request_id = self.get_http_request_header(REQUEST_ID_HEADER);
         self.traceparent = self.get_http_request_header(TRACE_PARENT_HEADER);
 
@@ -299,22 +341,26 @@ impl HttpContext for StreamContext {
         };
 
         let provider_id = self.get_provider_id();
+        let request_path = self.get_http_request_header(":path").unwrap_or_default();
 
-        let mut deserialized_body =
-            match ProviderRequestType::try_from((&body_bytes[..], &provider_id)) {
-                Ok(deserialized) => deserialized,
-                Err(e) => {
-                    debug!(
-                        "on_http_request_body: request body: {}",
-                        String::from_utf8_lossy(&body_bytes)
-                    );
-                    self.send_server_error(
-                        ServerError::LogicError(format!("Request parsing error: {}", e)),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
-                }
-            };
+        let mut deserialized_body = match ProviderRequestType::try_from((
+            &body_bytes[..],
+            request_path.as_str(),
+            &provider_id,
+        )) {
+            Ok(deserialized) => deserialized,
+            Err(e) => {
+                debug!(
+                    "on_http_request_body: request body: {}",
+                    String::from_utf8_lossy(&body_bytes)
+                );
+                self.send_server_error(
+                    ServerError::LogicError(format!("Request parsing error: {}", e)),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
@@ -423,9 +469,12 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        if !self.is_chat_completions_request {
-            info!("on_http_response_body: non-chatcompletion request");
-            return Action::Continue;
+        match self.supported_api {
+            Some(SupportedApi::OpenAI(_)) => {}
+            _ => {
+                info!("on_http_response_body: non-chatcompletion request");
+                return Action::Continue;
+            }
         }
 
         let current_time = get_current_time().unwrap();

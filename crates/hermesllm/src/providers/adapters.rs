@@ -1,9 +1,21 @@
+//! Provider adapter configuration and API compatibility utilities.
+//
+// Note: For all request/response conversions between Anthropic and OpenAI APIs,
+// use the peer-reviewed and well-tested implementations in `clients/transformer.rs`.
+// This file should not contain conversion logic.
+
+/// Utility to check if a model is from the Claude/Anthropic family
+pub fn is_claude_family(model: &str) -> bool {
+    let model = model.to_lowercase();
+    model.contains("claude") || model.contains("anthropic")
+}
 use crate::providers::id::ProviderId;
 
 #[derive(Debug, Clone)]
 pub enum AdapterType {
     OpenAICompatible,
-    // Future: Claude, Gemini, etc.
+    AnthropicCompatible,
+    // Future: Gemini, etc.
 }
 
 /// Provider adapter configuration
@@ -29,10 +41,16 @@ pub fn supported_apis(provider_id: &ProviderId) -> Vec<&'static str> {
 pub fn get_provider_config(provider_id: &ProviderId) -> ProviderConfig {
     match provider_id {
         ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
+        | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub => {
             ProviderConfig {
                 supported_apis: &["/v1/chat/completions"],
                 adapter_type: AdapterType::OpenAICompatible,
+            }
+        }
+        ProviderId::Claude => {
+            ProviderConfig {
+                supported_apis: &["/v1/messages", "/v1/chat/completions"],
+                adapter_type: AdapterType::AnthropicCompatible,
             }
         }
     }

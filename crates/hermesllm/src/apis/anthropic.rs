@@ -4,6 +4,7 @@ use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 use super::ApiDefinition;
+use crate::providers::request::{ProviderRequest, ProviderRequestError};
 
 // Enum for all supported Anthropic APIs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -366,6 +367,88 @@ pub struct MessagesMessageDelta {
 impl MessagesRequest {
     pub fn api_type() -> AnthropicApi {
         AnthropicApi::Messages
+    }
+}
+
+impl TryFrom<&[u8]> for MessagesRequest {
+    type Error = serde_json::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes)
+    }
+}
+
+impl ProviderRequest for MessagesRequest {
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn set_model(&mut self, model: String) {
+        self.model = model;
+    }
+
+    fn is_streaming(&self) -> bool {
+        self.stream.unwrap_or(false)
+    }
+
+    fn extract_messages_text(&self) -> String {
+        let mut text_parts = Vec::new();
+
+        // Include system prompt if present
+        if let Some(system) = &self.system {
+            match system {
+                MessagesSystemPrompt::Single(s) => text_parts.push(s.clone()),
+                MessagesSystemPrompt::Blocks(blocks) => {
+                    for block in blocks {
+                        if let MessagesContentBlock::Text { text } = block {
+                            text_parts.push(text.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract text from all messages
+        for message in &self.messages {
+            match &message.content {
+                MessagesMessageContent::Single(text) => text_parts.push(text.clone()),
+                MessagesMessageContent::Blocks(blocks) => {
+                    for block in blocks {
+                        if let MessagesContentBlock::Text { text } = block {
+                            text_parts.push(text.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        text_parts.join(" ")
+    }
+
+    fn get_recent_user_message(&self) -> Option<String> {
+        // Find the most recent user message
+        for message in self.messages.iter().rev() {
+            if message.role == MessagesRole::User {
+                match &message.content {
+                    MessagesMessageContent::Single(text) => return Some(text.clone()),
+                    MessagesMessageContent::Blocks(blocks) => {
+                        for block in blocks {
+                            if let MessagesContentBlock::Text { text } = block {
+                                return Some(text.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
+        serde_json::to_vec(self).map_err(|e| ProviderRequestError {
+            message: format!("Failed to serialize MessagesRequest: {}", e),
+            source: Some(Box::new(e)),
+        })
     }
 }
 

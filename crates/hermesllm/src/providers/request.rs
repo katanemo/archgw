@@ -2,7 +2,6 @@
 use crate::apis::openai::ChatCompletionsRequest;
 use crate::apis::anthropic::MessagesRequest;
 use crate::clients::endpoints::SupportedApi;
-use super::{ProviderId, get_provider_config, AdapterType};
 use std::error::Error;
 use std::fmt;
 pub enum ProviderRequestType {
@@ -22,53 +21,23 @@ impl TryFrom<&[u8]> for ProviderRequestType {
     }
 }
 
-impl TryFrom<(&[u8], &ProviderId)> for ProviderRequestType {
+/// Parse request based on endpoint and provider information
+impl TryFrom<(&[u8], &SupportedApi)> for ProviderRequestType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        let config = get_provider_config(provider_id);
-        match config.adapter_type {
-            AdapterType::OpenAICompatible => {
+    fn try_from((bytes, endpoint): (&[u8], &SupportedApi)) -> Result<Self, Self::Error> {
+        // Use SupportedApi to determine the appropriate request type
+        match endpoint {
+            SupportedApi::OpenAI(_) => {
                 let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
-            }
-            AdapterType::AnthropicCompatible => {
-                // For Anthropic providers, try to parse as MessagesRequest first, fallback to ChatCompletionsRequest
-                if let Ok(messages_request) = MessagesRequest::try_from(bytes) {
-                    Ok(ProviderRequestType::MessagesRequest(messages_request))
-                } else {
-                    let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                    Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
-                }
-            }
-        }
-    }
-}
-
-/// Parse request based on endpoint and provider information
-impl TryFrom<(&[u8], &str, &ProviderId)> for ProviderRequestType {
-    type Error = std::io::Error;
-
-    fn try_from((bytes, endpoint, provider_id): (&[u8], &str, &ProviderId)) -> Result<Self, Self::Error> {
-        // Use SupportedApi to determine the appropriate request type
-        if let Some(api) = SupportedApi::from_endpoint(endpoint) {
-            match api {
-                SupportedApi::OpenAI(_) => {
-                    let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                    Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
                 }
                 SupportedApi::Anthropic(_) => {
                     let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                     Ok(ProviderRequestType::MessagesRequest(messages_request))
                 }
-            }
-        } else {
-            // Fallback to provider-based parsing for unsupported endpoints
-            Self::try_from((bytes, provider_id))
         }
     }
 }

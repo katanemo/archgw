@@ -1,11 +1,15 @@
+use crate::providers::id::ProviderId;
+
+use serde::Serialize;
 use std::error::Error;
 use std::fmt;
 
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::OpenAISseIter;
-use crate::providers::id::ProviderId;
-use crate::providers::adapters::{get_provider_config, AdapterType};
+use crate::clients::endpoints::SupportedApi;
+use std::convert::TryFrom;
 
+#[derive(Serialize)]
 pub enum ProviderResponseType {
     ChatCompletionsResponse(ChatCompletionsResponse),
     //MessagesResponse(MessagesResponse),
@@ -16,50 +20,49 @@ pub enum ProviderStreamResponseIter {
     //MessagesStream(AnthropicSseIter<std::vec::IntoIter<String>>),
 }
 
-impl TryFrom<(&[u8], ProviderId)> for ProviderResponseType {
+
+// --- Response transformation logic for client API compatibility ---
+impl TryFrom<(&[u8], &SupportedApi, &ProviderId)> for ProviderResponseType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, provider_id): (&[u8], ProviderId)) -> Result<Self, Self::Error> {
-        let config = get_provider_config(&provider_id);
-        match config.adapter_type {
-            AdapterType::OpenAICompatible => {
-                let chat_completions_response: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedApi, &ProviderId)) -> Result<Self, Self::Error> {
+        let upstream_api = provider_id.compatible_api_for_client(client_api);
+        match (&upstream_api, client_api) {
+            (SupportedApi::OpenAI(_), SupportedApi::OpenAI(_)) => {
+                let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                Ok(ProviderResponseType::ChatCompletionsResponse(chat_completions_response))
+                Ok(ProviderResponseType::ChatCompletionsResponse(resp))
             }
-            AdapterType::AnthropicCompatible => {
-                // TODO: Implement MessagesResponse parsing for Anthropic-compatible providers
-                todo!("AnthropicCompatible response parsing not yet implemented");
+            (SupportedApi::OpenAI(_), SupportedApi::Anthropic(_)) => {
+                // If you add a MessagesResponse variant, return it here. For now, just error or serialize as needed.
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "Anthropic response variant not implemented"))
             }
+            _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "Unsupported response transformation")),
         }
     }
 }
 
-impl TryFrom<(&[u8], &ProviderId)> for ProviderStreamResponseIter {
+impl TryFrom<(&[u8], &SupportedApi, &ProviderId)> for ProviderStreamResponseIter {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((bytes, provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        let config = get_provider_config(provider_id);
-
-        // Parse SSE (Server-Sent Events) streaming data - protocol layer
-        let s = std::str::from_utf8(bytes)?;
-        let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
-
-        match config.adapter_type {
-            AdapterType::OpenAICompatible => {
-                // Delegate to OpenAI-specific iterator implementation
-                let sse_container = SseStreamIter::new(lines.into_iter());
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedApi, &ProviderId)) -> Result<Self, Self::Error> {
+        let upstream_api = provider_id.compatible_api_for_client(client_api);
+        match (&upstream_api, client_api) {
+            (SupportedApi::OpenAI(_), SupportedApi::OpenAI(_)) => {
+                let s = std::str::from_utf8(bytes)?;
+                let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+                let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
                 let iter = crate::apis::openai::OpenAISseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::ChatCompletionsStream(iter))
             }
-            AdapterType::AnthropicCompatible => {
-                // TODO: Implement Anthropic streaming support
-                todo!("AnthropicCompatible streaming not yet implemented");
+            (SupportedApi::OpenAI(_), SupportedApi::Anthropic(_)) => {
+                // TODO: Implement streaming transformation from OpenAI to Anthropic
+                Err("Anthropic streaming response variant not implemented".into())
             }
+            _ => Err("Unsupported streaming response transformation".into()),
         }
     }
 }
-
 
 impl Iterator for ProviderStreamResponseIter {
     type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;

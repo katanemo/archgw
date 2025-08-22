@@ -66,28 +66,30 @@ mod tests {
     #[test]
     fn test_provider_streaming_response() {
         // Test streaming response parsing with sample SSE data
-        let sse_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
+    let sse_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
 
 data: [DONE]
 "#;
 
-        let result = ProviderStreamResponseIter::try_from((sse_data.as_bytes(), &ProviderId::OpenAI));
-        assert!(result.is_ok());
+    use crate::clients::endpoints::SupportedApi;
+    let api = SupportedApi::OpenAI(crate::apis::OpenAIApi::ChatCompletions);
+    let result = ProviderStreamResponseIter::try_from((sse_data.as_bytes(), &api, &ProviderId::OpenAI));
+    assert!(result.is_ok());
 
-        let mut streaming_response = result.unwrap();
+    let mut streaming_response = result.unwrap();
 
-        // Test that we can iterate over chunks - it's just an iterator now!
-        let first_chunk = streaming_response.next();
-        assert!(first_chunk.is_some());
+    // Test that we can iterate over chunks - it's just an iterator now!
+    let first_chunk = streaming_response.next();
+    assert!(first_chunk.is_some());
 
-        let chunk_result = first_chunk.unwrap();
-        assert!(chunk_result.is_ok());
+    let chunk_result = first_chunk.unwrap();
+    assert!(chunk_result.is_ok());
 
-        let chunk = chunk_result.unwrap();
-        assert_eq!(chunk.content_delta(), Some("Hello"));
-        assert!(!chunk.is_final());
+    let chunk = chunk_result.unwrap();
+    assert_eq!(chunk.content_delta(), Some("Hello"));
+    assert!(!chunk.is_final());
 
-        // Test that stream ends properly
+    // Test that stream ends properly
         let final_chunk = streaming_response.next();
         assert!(final_chunk.is_none());
     }

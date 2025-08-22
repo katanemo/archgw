@@ -31,14 +31,6 @@ pub enum SupportedApi {
 }
 
 impl SupportedApi {
-    /// Determine if a request/response conversion is required for the given model string
-    pub fn requires_conversion_for_model(&self, model: &str) -> bool {
-        use crate::providers::adapters::is_claude_family;
-        match self {
-            SupportedApi::Anthropic(AnthropicApi::Messages) => !is_claude_family(model),
-            SupportedApi::OpenAI(OpenAIApi::ChatCompletions) => is_claude_family(model),
-        }
-    }
     /// Create a SupportedApi from an endpoint path
     pub fn from_endpoint(endpoint: &str) -> Option<Self> {
         if let Some(openai_api) = OpenAIApi::from_endpoint(endpoint) {
@@ -60,14 +52,6 @@ impl SupportedApi {
         }
     }
 
-    /// Get the API family name
-    pub fn api_family(&self) -> &'static str {
-        match self {
-            SupportedApi::OpenAI(_) => "openai",
-            SupportedApi::Anthropic(_) => "anthropic",
-        }
-    }
-
     /// Determine the target endpoint for a given provider
     /// For /v1/messages: if provider is Anthropic, use /v1/messages; otherwise use /v1/chat/completions
     pub fn target_endpoint_for_provider(&self, provider: &str) -> &'static str {
@@ -81,23 +65,6 @@ impl SupportedApi {
                 }
             }
             _ => self.endpoint()
-        }
-    }
-
-    /// Check if request conversion is required for the given provider
-    /// True if we need to convert between Anthropic and OpenAI formats
-    pub fn requires_conversion(&self, provider: &str) -> bool {
-        match self {
-            SupportedApi::Anthropic(AnthropicApi::Messages) => {
-                // If provider is not Anthropic/Claude, we need to convert to OpenAI format
-                !(provider.to_lowercase().contains("anthropic") ||
-                  provider.to_lowercase().contains("claude"))
-            }
-            SupportedApi::OpenAI(OpenAIApi::ChatCompletions) => {
-                // If provider is Anthropic/Claude but request is OpenAI format, need conversion
-                provider.to_lowercase().contains("anthropic") ||
-                provider.to_lowercase().contains("claude")
-            }
         }
     }
 }

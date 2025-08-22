@@ -1,10 +1,14 @@
+use crate::providers::response::TokenUsage;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
+use std::error::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
+use crate::providers::response::{ProviderStreamResponse, SseStreamIter};
+use crate::clients::transformer::ExtractText;
 
 // Enum for all supported Anthropic APIs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -187,6 +191,19 @@ pub enum MessagesContentBlock {
     },
 }
 
+impl ExtractText for Vec<MessagesContentBlock> {
+    fn extract_text(&self) -> String {
+        self.iter()
+            .filter_map(|block| match block {
+                MessagesContentBlock::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagesImageSource {
@@ -219,6 +236,15 @@ pub enum MessagesDocumentSource {
 pub enum MessagesMessageContent {
     Single(String),
     Blocks(Vec<MessagesContentBlock>),
+}
+
+impl ExtractText for MessagesMessageContent {
+    fn extract_text(&self) -> String {
+        match self {
+            MessagesMessageContent::Single(text) => text.clone(),
+            MessagesMessageContent::Blocks(parts) => parts.extract_text()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -378,6 +404,27 @@ impl TryFrom<&[u8]> for MessagesRequest {
     }
 }
 
+impl TokenUsage for MessagesResponse {
+    fn completion_tokens(&self) -> usize {
+        self.usage.output_tokens as usize
+    }
+    fn prompt_tokens(&self) -> usize {
+        self.usage.input_tokens as usize
+    }
+    fn total_tokens(&self) -> usize {
+        (self.usage.input_tokens + self.usage.output_tokens) as usize
+    }
+}
+
+impl MessagesResponse {
+    pub fn usage(&self) -> Option<&dyn TokenUsage> {
+        Some(self)
+    }
+    pub fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
+        Some((self.usage.input_tokens as usize, self.usage.output_tokens as usize, (self.usage.input_tokens + self.usage.output_tokens) as usize))
+    }
+}
+
 impl ProviderRequest for MessagesRequest {
     fn model(&self) -> &str {
         &self.model
@@ -461,6 +508,91 @@ impl MessagesResponse {
 impl MessagesStreamEvent {
     pub fn api_type() -> AnthropicApi {
         AnthropicApi::Messages
+    }
+}
+
+impl MessagesRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MessagesRole::User => "user",
+            MessagesRole::Assistant => "assistant",
+        }
+    }
+}
+
+// Anthropic SSE streaming iterator for MessagesStreamEvent
+pub struct AnthropicSseIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    sse_stream: SseStreamIter<I>,
+}
+
+impl<I> AnthropicSseIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    pub fn new(sse_stream: SseStreamIter<I>) -> Self {
+        Self { sse_stream }
+    }
+}
+
+impl<I> Iterator for AnthropicSseIter<I>
+where
+    I: Iterator,
+    I::Item: AsRef<str>,
+{
+    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn Error + Send + Sync>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for line in &mut self.sse_stream.lines {
+            let line = line.as_ref();
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.starts_with("data: ") {
+                let data = &line[6..];
+                if data == "[DONE]" {
+                    return None;
+                }
+                // Anthropic-specific parsing of MessagesStreamEvent
+                match serde_json::from_str::<MessagesStreamEvent>(data) {
+                    Ok(event) => return Some(Ok(Box::new(event))),
+                    Err(e) => return Some(Err(Box::new(e))),
+                }
+            }
+        }
+        None
+    }
+}
+
+// Implement ProviderStreamResponse for MessagesStreamEvent
+impl ProviderStreamResponse for MessagesStreamEvent {
+    fn content_delta(&self) -> Option<&str> {
+        match self {
+            MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
+                if let MessagesContentDelta::TextDelta { text } = delta {
+                    Some(text)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn is_final(&self) -> bool {
+        matches!(self, MessagesStreamEvent::MessageStop)
+    }
+
+    fn role(&self) -> Option<&str> {
+        match self {
+            MessagesStreamEvent::MessageStart { message } => Some(message.role.as_str()),
+            _ => None,
+        }
     }
 }
 

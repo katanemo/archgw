@@ -5,11 +5,10 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 
-
-
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage, SseStreamIter};
 use super::ApiDefinition;
+use crate::clients::transformer::{ExtractText};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -172,6 +171,28 @@ impl ResponseMessage {
 pub enum MessageContent {
     Text(String),
     Parts(Vec<ContentPart>),
+}
+
+// Content Extraction
+impl ExtractText for MessageContent {
+    fn extract_text(&self) -> String {
+        match self {
+            MessageContent::Text(text) => text.clone(),
+            MessageContent::Parts(parts) => parts.extract_text()
+        }
+    }
+}
+
+impl ExtractText for Vec<ContentPart> {
+    fn extract_text(&self) -> String {
+        self.iter()
+            .filter_map(|part| match part {
+                ContentPart::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 impl Display for MessageContent {

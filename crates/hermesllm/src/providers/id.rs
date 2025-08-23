@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::clients::endpoints::SupportedApi;
+use crate::clients::endpoints::SupportedAPIs;
 use crate::apis::{OpenAIApi, AnthropicApi};
 
 /// Provider identifier enum - simple enum for identifying providers
@@ -33,16 +33,16 @@ impl From<&str> for ProviderId {
 
 impl ProviderId {
     /// Given a client API, return the compatible upstream API for this provider
-    pub fn compatible_api_for_client(&self, client_api: &SupportedApi) -> SupportedApi {
+    pub fn compatible_api_for_client(&self, client_api: &SupportedAPIs) -> SupportedAPIs {
         match (self, client_api) {
             // Claude/Anthropic providers natively support Anthropic APIs
-            (ProviderId::Claude, SupportedApi::Anthropic(_)) => client_api.clone(),
+            (ProviderId::Claude, SupportedAPIs::AnthropicMessagesAPI(_)) => client_api.clone(),
             // Claude/Anthropic providers can also support OpenAI chat completions by mapping to Anthropic Messages
-            (ProviderId::Claude, SupportedApi::OpenAI(OpenAIApi::ChatCompletions)) => SupportedApi::Anthropic(AnthropicApi::Messages),
+            (ProviderId::Claude, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
 
             // OpenAI-compatible providers only support OpenAI chat completions
-            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedApi::Anthropic(_)) => SupportedApi::OpenAI(OpenAIApi::ChatCompletions),
-            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedApi::OpenAI(_)) => SupportedApi::OpenAI(OpenAIApi::ChatCompletions),
+            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
 }

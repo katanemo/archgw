@@ -1,6 +1,6 @@
 use crate::apis::openai::ChatCompletionsRequest;
 use crate::apis::anthropic::MessagesRequest;
-use crate::clients::endpoints::SupportedApi;
+use crate::clients::endpoints::SupportedAPIs;
 use std::error::Error;
 use std::fmt;
 pub enum ProviderRequestType {
@@ -21,18 +21,18 @@ impl TryFrom<&[u8]> for ProviderRequestType {
 }
 
 /// Parse request based on endpoint and provider information
-impl TryFrom<(&[u8], &SupportedApi)> for ProviderRequestType {
+impl TryFrom<(&[u8], &SupportedAPIs)> for ProviderRequestType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, endpoint): (&[u8], &SupportedApi)) -> Result<Self, Self::Error> {
+    fn try_from((bytes, endpoint): (&[u8], &SupportedAPIs)) -> Result<Self, Self::Error> {
         // Use SupportedApi to determine the appropriate request type
         match endpoint {
-            SupportedApi::OpenAI(_) => {
+            SupportedAPIs::OpenAIChatCompletions(_) => {
                 let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
                 }
-                SupportedApi::Anthropic(_) => {
+                SupportedAPIs::AnthropicMessagesAPI(_) => {
                     let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                     Ok(ProviderRequestType::MessagesRequest(messages_request))
@@ -131,7 +131,7 @@ impl Error for ProviderRequestError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::endpoints::SupportedApi;
+    use crate::clients::endpoints::SupportedAPIs;
     use crate::apis::anthropic::AnthropicApi::Messages;
     use crate::apis::openai::OpenAIApi::ChatCompletions;
     use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
@@ -171,7 +171,7 @@ mod tests {
             ]
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let endpoint = SupportedApi::Anthropic(Messages);
+        let endpoint = SupportedAPIs::AnthropicMessagesAPI(Messages);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         assert!(result.is_ok());
         match result.unwrap() {
@@ -193,7 +193,7 @@ mod tests {
             ]
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let endpoint = SupportedApi::OpenAI(ChatCompletions);
+        let endpoint = SupportedAPIs::OpenAIChatCompletions(ChatCompletions);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         assert!(result.is_ok());
         match result.unwrap() {
@@ -216,7 +216,7 @@ mod tests {
         });
         let bytes = serde_json::to_vec(&req).unwrap();
         // Intentionally use OpenAI endpoint for Anthropic payload
-        let endpoint = SupportedApi::OpenAI(ChatCompletions);
+        let endpoint = SupportedAPIs::OpenAIChatCompletions(ChatCompletions);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         // Should parse as ChatCompletionsRequest, not error
         assert!(result.is_ok());

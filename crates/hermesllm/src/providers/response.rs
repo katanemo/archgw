@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::OpenAISseIter;
-use crate::clients::endpoints::SupportedApi;
+use crate::clients::endpoints::SupportedAPIs;
 use std::convert::TryFrom;
 
 use crate::apis::anthropic::MessagesResponse;
@@ -26,28 +26,28 @@ pub enum ProviderStreamResponseIter {
 
 
 // --- Response transformation logic for client API compatibility ---
-impl TryFrom<(&[u8], &SupportedApi, &ProviderId)> for ProviderResponseType {
+impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedApi, &ProviderId)) -> Result<Self, Self::Error> {
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
         match (&upstream_api, client_api) {
-            (SupportedApi::OpenAI(_), SupportedApi::OpenAI(_)) => {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(resp))
             }
-            (SupportedApi::Anthropic(_), SupportedApi::Anthropic(_)) => {
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::MessagesResponse(resp))
             }
-            (SupportedApi::OpenAI(_), SupportedApi::Anthropic(_)) => {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::MessagesResponse(resp))
             }
-            (SupportedApi::Anthropic(_), SupportedApi::OpenAI(_)) => {
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(resp))
@@ -56,34 +56,34 @@ impl TryFrom<(&[u8], &SupportedApi, &ProviderId)> for ProviderResponseType {
     }
 }
 
-impl TryFrom<(&[u8], &SupportedApi, &ProviderId)> for ProviderStreamResponseIter {
+impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderStreamResponseIter {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedApi, &ProviderId)) -> Result<Self, Self::Error> {
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
         match (&upstream_api, client_api) {
-            (SupportedApi::OpenAI(_), SupportedApi::OpenAI(_)) => {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let s = std::str::from_utf8(bytes)?;
                 let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
                 let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
                 let iter = crate::apis::openai::OpenAISseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::ChatCompletionsStream(iter))
             }
-            (SupportedApi::Anthropic(_), SupportedApi::Anthropic(_)) => {
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let s = std::str::from_utf8(bytes)?;
                 let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
                 let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
                 let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::MessagesStream(iter))
             }
-            (SupportedApi::OpenAI(_), SupportedApi::Anthropic(_)) => {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let s = std::str::from_utf8(bytes)?;
                 let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
                 let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
                 let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::MessagesStream(iter))
             }
-            (SupportedApi::Anthropic(_), SupportedApi::OpenAI(_)) => {
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let s = std::str::from_utf8(bytes)?;
                 let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
                 let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
@@ -202,7 +202,7 @@ impl Error for ProviderResponseError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::endpoints::SupportedApi;
+    use crate::clients::endpoints::SupportedAPIs;
     use crate::providers::id::ProviderId;
     use crate::apis::openai::OpenAIApi;
     use crate::apis::anthropic::AnthropicApi;
@@ -226,7 +226,7 @@ mod tests {
             "system_fingerprint": null
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedApi::OpenAI(OpenAIApi::ChatCompletions), &ProviderId::OpenAI));
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::OpenAI));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::ChatCompletionsResponse(r) => {
@@ -251,7 +251,7 @@ mod tests {
             "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedApi::Anthropic(AnthropicApi::Messages), &ProviderId::Claude));
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::Claude));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::MessagesResponse(r) => {
@@ -277,7 +277,7 @@ mod tests {
             "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedApi::Anthropic(AnthropicApi::Messages), &ProviderId::OpenAI));
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::OpenAI));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::MessagesResponse(r) => {
@@ -306,7 +306,7 @@ mod tests {
             "system_fingerprint": null
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedApi::OpenAI(OpenAIApi::ChatCompletions), &ProviderId::Claude));
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::Claude));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::ChatCompletionsResponse(r) => {

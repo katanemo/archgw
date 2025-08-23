@@ -71,8 +71,8 @@ mod tests {
 data: [DONE]
 "#;
 
-    use crate::clients::endpoints::SupportedApi;
-    let api = SupportedApi::OpenAI(crate::apis::OpenAIApi::ChatCompletions);
+    use crate::clients::endpoints::SupportedAPIs;
+    let api = SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
     let result = ProviderStreamResponseIter::try_from((sse_data.as_bytes(), &api, &ProviderId::OpenAI));
     assert!(result.is_ok());
 

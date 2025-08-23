@@ -4,6 +4,6 @@ pub mod endpoints;
 
 // Re-export the main items for easier access
 pub use lib::*;
-pub use endpoints::{SupportedApi, identify_provider};
+pub use endpoints::{SupportedAPIs, identify_provider};
 
 // Note: transformer module contains TryFrom trait implementations that are automatically available

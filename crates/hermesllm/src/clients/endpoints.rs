@@ -25,20 +25,20 @@ use crate::apis::{AnthropicApi, OpenAIApi, ApiDefinition};
 
 /// Unified enum representing all supported API endpoints across providers
 #[derive(Debug, Clone, PartialEq)]
-pub enum SupportedApi {
-    OpenAI(OpenAIApi),
-    Anthropic(AnthropicApi),
+pub enum SupportedAPIs {
+    OpenAIChatCompletions(OpenAIApi),
+    AnthropicMessagesAPI(AnthropicApi),
 }
 
-impl SupportedApi {
+impl SupportedAPIs {
     /// Create a SupportedApi from an endpoint path
     pub fn from_endpoint(endpoint: &str) -> Option<Self> {
         if let Some(openai_api) = OpenAIApi::from_endpoint(endpoint) {
-            return Some(SupportedApi::OpenAI(openai_api));
+            return Some(SupportedAPIs::OpenAIChatCompletions(openai_api));
         }
 
         if let Some(anthropic_api) = AnthropicApi::from_endpoint(endpoint) {
-            return Some(SupportedApi::Anthropic(anthropic_api));
+            return Some(SupportedAPIs::AnthropicMessagesAPI(anthropic_api));
         }
 
         None
@@ -47,16 +47,15 @@ impl SupportedApi {
     /// Get the endpoint path for this API
     pub fn endpoint(&self) -> &'static str {
         match self {
-            SupportedApi::OpenAI(api) => api.endpoint(),
-            SupportedApi::Anthropic(api) => api.endpoint(),
+            SupportedAPIs::OpenAIChatCompletions(api) => api.endpoint(),
+            SupportedAPIs::AnthropicMessagesAPI(api) => api.endpoint(),
         }
     }
 
-    /// Determine the target endpoint for a given provider
-    /// For /v1/messages: if provider is Anthropic, use /v1/messages; otherwise use /v1/chat/completions
+    //TODO: we need to clean this up. Why do we need this in the first place?
     pub fn target_endpoint_for_provider(&self, provider: &str) -> &'static str {
         match self {
-            SupportedApi::Anthropic(AnthropicApi::Messages) => {
+            SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
                 if provider.to_lowercase().contains("anthropic") ||
                    provider.to_lowercase().contains("claude") {
                     "/v1/messages"
@@ -108,15 +107,15 @@ mod tests {
     #[test]
     fn test_is_supported_endpoint() {
         // OpenAI endpoints
-        assert!(SupportedApi::from_endpoint("/v1/chat/completions").is_some());
+        assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
 
         // Anthropic endpoints
-        assert!(SupportedApi::from_endpoint("/v1/messages").is_some());
+        assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
 
         // Unsupported endpoints
-        assert!(!SupportedApi::from_endpoint("/v1/unknown").is_some());
-        assert!(!SupportedApi::from_endpoint("/v2/chat").is_some());
-        assert!(!SupportedApi::from_endpoint("").is_some());
+        assert!(!SupportedAPIs::from_endpoint("/v1/unknown").is_some());
+        assert!(!SupportedAPIs::from_endpoint("/v2/chat").is_some());
+        assert!(!SupportedAPIs::from_endpoint("").is_some());
     }
 
     #[test]

@@ -10,7 +10,7 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::clients::endpoints::SupportedApi;
+use hermesllm::clients::endpoints::SupportedAPIs;
 use hermesllm::providers::response::ProviderStreamResponseIter;
 use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 use http::StatusCode;
@@ -30,9 +30,9 @@ pub struct StreamContext {
     ratelimit_selector: Option<Header>,
     streaming_response: bool,
     response_tokens: usize,
-    supported_api: Option<SupportedApi>,
+    client_api: Option<SupportedAPIs>,
     /// The API that should be used for the upstream provider (after compatibility mapping)
-    resolved_api: Option<SupportedApi>,
+    resolved_api: Option<SupportedAPIs>,
     llm_providers: Rc<LlmProviders>,
     llm_provider: Option<Rc<LlmProvider>>,
     request_id: Option<String>,
@@ -61,7 +61,7 @@ impl StreamContext {
             ratelimit_selector: None,
             streaming_response: false,
             response_tokens: 0,
-            supported_api: None,
+            client_api: None,
             resolved_api: None,
             llm_providers,
             llm_provider: None,
@@ -214,26 +214,6 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        // Check if this is a supported API endpoint
-        if SupportedApi::from_endpoint(&request_path).is_none() {
-            self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
-            return Action::Continue;
-        }
-
-        // Get the SupportedApi for routing decisions
-        let supported_api = SupportedApi::from_endpoint(&request_path);
-        self.supported_api = supported_api;
-
-        // Determine the resolved (upstream) API using provider compatibility
-        if let (Some(api), Some(provider)) =
-            (self.supported_api.as_ref(), self.llm_provider.as_ref())
-        {
-            let provider_id = provider.to_provider_id();
-            self.resolved_api = Some(provider_id.compatible_api_for_client(api));
-        } else {
-            self.resolved_api = None;
-        }
-
         let use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
             None => false,
@@ -299,7 +279,7 @@ impl HttpContext for StreamContext {
             }
             _ => {
                 // Use SupportedApi for endpoint routing
-                if let Some(api) = &self.supported_api {
+                if let Some(api) = &self.client_api {
                     let provider_name = &self.llm_provider.as_ref().unwrap().name;
                     let target_endpoint = api.target_endpoint_for_provider(provider_name);
                     // Only update path if it's different from the original
@@ -312,6 +292,26 @@ impl HttpContext for StreamContext {
 
         self.request_id = self.get_http_request_header(REQUEST_ID_HEADER);
         self.traceparent = self.get_http_request_header(TRACE_PARENT_HEADER);
+
+        // Check if this is a supported API endpoint
+        if SupportedAPIs::from_endpoint(&request_path).is_none() {
+            self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+            return Action::Continue;
+        }
+
+        // Get the SupportedApi for routing decisions
+        let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
+        self.client_api = supported_api;
+
+        // Debug: log provider, client API, resolved API, and request path
+        if let (Some(api), Some(provider)) = (self.client_api.as_ref(), self.llm_provider.as_ref())
+        {
+            let provider_id = provider.to_provider_id();
+            let resolved_api = provider_id.compatible_api_for_client(api);
+            self.resolved_api = Some(resolved_api);
+        } else {
+            self.resolved_api = None;
+        }
 
         Action::Continue
     }
@@ -484,8 +484,9 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        match self.supported_api {
-            Some(SupportedApi::OpenAI(_)) => {}
+        match self.client_api {
+            Some(SupportedAPIs::OpenAIChatCompletions(_)) => {}
+            Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {}
             _ => {
                 info!("on_http_response_body: non-chatcompletion request");
                 return Action::Continue;
@@ -619,7 +620,7 @@ impl HttpContext for StreamContext {
         }
 
         let provider_id = self.get_provider_id();
-        let supported_api = self.supported_api.as_ref();
+        let supported_api = self.client_api.as_ref();
 
         if self.streaming_response {
             debug!("processing streaming response");

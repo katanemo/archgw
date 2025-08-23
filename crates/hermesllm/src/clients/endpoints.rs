@@ -9,10 +9,10 @@
 //! use hermesllm::clients::endpoints::supported_endpoints;
 //!
 //! // Check if we support an endpoint
-//! use hermesllm::clients::endpoints::SupportedApi;
-//! assert!(SupportedApi::from_endpoint("/v1/chat/completions").is_some());
-//! assert!(SupportedApi::from_endpoint("/v1/messages").is_some());
-//! assert!(!SupportedApi::from_endpoint("/v1/unknown").is_some());
+//! use hermesllm::clients::endpoints::SupportedAPIs;
+//! assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
+//! assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
+//! assert!(!SupportedAPIs::from_endpoint("/v1/unknown").is_some());
 //!
 //! // Get all supported endpoints
 //! let endpoints = supported_endpoints();

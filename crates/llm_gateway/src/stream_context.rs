@@ -681,7 +681,7 @@ impl HttpContext for StreamContext {
             match (supported_api, self.resolved_api.as_ref()) {
                 (Some(supported_api), Some(_)) => {
                     match ProviderResponseType::try_from((&body[..], supported_api, &provider_id)) {
-                        Ok(response) => match serde_json::to_vec(&response) {
+                        Ok(response) => match response.as_json_bytes() {
                             Ok(bytes) => {
                                 self.set_http_response_body(0, bytes.len(), &bytes);
                             }

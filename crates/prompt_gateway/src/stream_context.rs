@@ -129,6 +129,9 @@ impl StreamContext {
         body: Vec<u8>,
         mut callout_context: StreamCallContext,
     ) {
+        // Debug: print raw bytes in hex to diagnose extra data
+        debug!("raw upstream response bytes (hex): {}",
+            body.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
         let body_str = String::from_utf8(body).unwrap();
         info!("on_http_call_response: model server response received");
         debug!("response body: {}", body_str);
@@ -662,6 +665,9 @@ impl StreamContext {
     }
 
     pub fn default_target_handler(&self, body: Vec<u8>, mut callout_context: StreamCallContext) {
+        // Debug: print raw bytes in hex to diagnose extra data
+        debug!("raw upstream response bytes (hex): {}",
+            body.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
         let prompt_target = self
             .prompt_targets
             .get(callout_context.prompt_target_name.as_ref().unwrap())

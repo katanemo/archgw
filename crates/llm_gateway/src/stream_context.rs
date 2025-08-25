@@ -11,7 +11,7 @@ use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::clients::endpoints::SupportedAPIs;
-use hermesllm::providers::response::ProviderStreamResponseIter;
+use hermesllm::providers::response::{ProviderResponse, ProviderStreamResponseIter};
 use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 use http::StatusCode;
 use log::{debug, info, warn};
@@ -85,6 +85,18 @@ impl StreamContext {
         self.llm_provider().to_provider_id()
     }
 
+    //This function assumes that the provider has been set.
+    fn update_upstream_path(&mut self, request_path: &str) {
+        let hermes_provider_id = self.llm_provider().to_provider_id();
+        if let Some(api) = &self.client_api {
+            let target_endpoint =
+                api.target_endpoint_for_provider(&hermes_provider_id, request_path);
+            if target_endpoint != request_path {
+                self.set_http_request_header(":path", Some(&target_endpoint));
+            }
+        }
+    }
+
     fn select_llm_provider(&mut self) {
         let provider_hint = self
             .get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
@@ -94,28 +106,6 @@ impl StreamContext {
             &self.llm_providers,
             provider_hint,
         ));
-
-        match self.llm_provider.as_ref().unwrap().provider_interface {
-            LlmProviderType::Groq => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path.starts_with("/v1/") {
-                        let new_path = format!("/openai{}", path);
-                        self.set_http_request_header(":path", Some(new_path.as_str()));
-                    }
-                }
-            }
-            LlmProviderType::Gemini => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path == "/v1/chat/completions" {
-                        self.set_http_request_header(
-                            ":path",
-                            Some("/v1beta/openai/chat/completions"),
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
 
         debug!(
             "request received: llm provider hint: {}, selected provider: {}",
@@ -227,10 +217,35 @@ impl HttpContext for StreamContext {
             self.llm_provider = Some(Rc::new(LlmProvider {
                 name: routing_header_value.to_string(),
                 provider_interface: LlmProviderType::OpenAI,
-                ..Default::default()
+                ..Default::default() //TODO: THiS IS BROKEN. WHY ARE WE ASSUMING OPENAI FOR UPSTREAM?
             }));
         } else {
+            //TODO: Fix this brittle code path. We need to return values and have compile time
             self.select_llm_provider();
+
+            // Check if this is a supported API endpoint
+            if SupportedAPIs::from_endpoint(&request_path).is_none() {
+                self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+                return Action::Continue;
+            }
+
+            // Get the SupportedApi for routing decisions
+            let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
+            self.client_api = supported_api;
+
+            // Debug: log provider, client API, resolved API, and request path
+            if let (Some(api), Some(provider)) =
+                (self.client_api.as_ref(), self.llm_provider.as_ref())
+            {
+                let provider_id = provider.to_provider_id();
+                self.resolved_api = Some(provider_id.compatible_api_for_client(api));
+            } else {
+                self.resolved_api = None;
+            }
+
+            //We need to update the upstream path if there is a variation for a provider like Gemini/Groq, etc.
+            self.update_upstream_path(&request_path);
+
             if self.llm_provider().endpoint.is_some() {
                 self.add_http_request_header(
                     ARCH_ROUTING_HEADER,
@@ -257,61 +272,8 @@ impl HttpContext for StreamContext {
         self.delete_content_length_header();
         self.save_ratelimit_header();
 
-        // Apply provider-specific path routing
-        match self.llm_provider.as_ref().unwrap().provider_interface {
-            LlmProviderType::Groq => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path.starts_with("/v1/") {
-                        let new_path = format!("/openai{}", path);
-                        self.set_http_request_header(":path", Some(new_path.as_str()));
-                    }
-                }
-            }
-            LlmProviderType::Gemini => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path == "/v1/chat/completions" {
-                        self.set_http_request_header(
-                            ":path",
-                            Some("/v1beta/openai/chat/completions"),
-                        );
-                    }
-                }
-            }
-            _ => {
-                // Use SupportedApi for endpoint routing
-                if let Some(api) = &self.client_api {
-                    let provider_name = &self.llm_provider.as_ref().unwrap().name;
-                    let target_endpoint = api.target_endpoint_for_provider(provider_name);
-                    // Only update path if it's different from the original
-                    if target_endpoint != request_path {
-                        self.set_http_request_header(":path", Some(target_endpoint));
-                    }
-                }
-            }
-        }
-
         self.request_id = self.get_http_request_header(REQUEST_ID_HEADER);
         self.traceparent = self.get_http_request_header(TRACE_PARENT_HEADER);
-
-        // Check if this is a supported API endpoint
-        if SupportedAPIs::from_endpoint(&request_path).is_none() {
-            self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
-            return Action::Continue;
-        }
-
-        // Get the SupportedApi for routing decisions
-        let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
-        self.client_api = supported_api;
-
-        // Debug: log provider, client API, resolved API, and request path
-        if let (Some(api), Some(provider)) = (self.client_api.as_ref(), self.llm_provider.as_ref())
-        {
-            let provider_id = provider.to_provider_id();
-            let resolved_api = provider_id.compatible_api_for_client(api);
-            self.resolved_api = Some(resolved_api);
-        } else {
-            self.resolved_api = None;
-        }
 
         Action::Continue
     }
@@ -678,28 +640,22 @@ impl HttpContext for StreamContext {
             }
         } else {
             debug!("non streaming response");
-            match (supported_api, self.resolved_api.as_ref()) {
+            let provider_id = self.get_provider_id();
+            let supported_api = self.client_api.as_ref();
+
+            let response: ProviderResponseType = match (supported_api, self.resolved_api.as_ref()) {
                 (Some(supported_api), Some(_)) => {
                     match ProviderResponseType::try_from((&body[..], supported_api, &provider_id)) {
-                        Ok(response) => match response.as_json_bytes() {
-                            Ok(bytes) => {
-                                self.set_http_response_body(0, bytes.len(), &bytes);
-                            }
-                            Err(e) => {
-                                self.send_server_error(
-                                    ServerError::LogicError(format!(
-                                        "Response serialization error: {}",
-                                        e
-                                    )),
-                                    Some(StatusCode::BAD_REQUEST),
-                                );
-                                return Action::Continue;
-                            }
-                        },
+                        Ok(response) => response,
                         Err(e) => {
                             warn!(
                                 "could not parse response: {}, body str: {}",
                                 e,
+                                String::from_utf8_lossy(&body)
+                            );
+                            debug!(
+                                "on_http_response_body: S[{}], response body: {}",
+                                self.context_id,
                                 String::from_utf8_lossy(&body)
                             );
                             self.send_server_error(
@@ -712,7 +668,21 @@ impl HttpContext for StreamContext {
                 }
                 _ => {
                     warn!("Missing supported_api or resolved_api for non-streaming response");
+                    return Action::Continue;
                 }
+            };
+
+            // Use provider interface to extract usage information
+            if let Some((prompt_tokens, completion_tokens, total_tokens)) =
+                response.extract_usage_counts()
+            {
+                debug!(
+                    "Response usage: prompt={}, completion={}, total={}",
+                    prompt_tokens, completion_tokens, total_tokens
+                );
+                self.response_tokens = completion_tokens;
+            } else {
+                warn!("No usage information found in response");
             }
         }
 

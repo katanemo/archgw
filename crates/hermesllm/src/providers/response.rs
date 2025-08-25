@@ -12,6 +12,7 @@ use std::convert::TryFrom;
 use crate::apis::anthropic::MessagesResponse;
 
 #[derive(Serialize)]
+#[serde(untagged)]
 pub enum ProviderResponseType {
     ChatCompletionsResponse(ChatCompletionsResponse),
     MessagesResponse(MessagesResponse),
@@ -104,19 +105,6 @@ impl Iterator for ProviderStreamResponseIter {
         }
     }
 }
-
-// Helper to serialize only the inner struct, not the enum wrapper.
-// This avoids the problem where serde serializes the enum variant as a wrapper object in JSON.
-impl ProviderResponseType {
-    /// Serialize the response as JSON bytes, omitting the enum wrapper.
-    pub fn as_json_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
-        match self {
-            ProviderResponseType::ChatCompletionsResponse(resp) => serde_json::to_vec(resp),
-            ProviderResponseType::MessagesResponse(resp) => serde_json::to_vec(resp),
-        }
-    }
-}
-
 pub trait ProviderResponse: Send + Sync {
     /// Get usage information if available - returns dynamic trait object
     fn usage(&self) -> Option<&dyn TokenUsage>;

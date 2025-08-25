@@ -21,7 +21,7 @@
 //! assert!(endpoints.contains(&"/v1/messages"));
 //! ```
 
-use crate::apis::{AnthropicApi, OpenAIApi, ApiDefinition};
+use crate::{apis::{AnthropicApi, ApiDefinition, OpenAIApi}, ProviderId};
 
 /// Unified enum representing all supported API endpoints across providers
 #[derive(Debug, Clone, PartialEq)]
@@ -52,18 +52,34 @@ impl SupportedAPIs {
         }
     }
 
-    //TODO: we need to clean this up. Why do we need this in the first place?
-    pub fn target_endpoint_for_provider(&self, provider: &str) -> &'static str {
+    pub fn target_endpoint_for_provider(&self, provider_id: &ProviderId, request_path: &str) -> String {
+        let default_endpoint = "/v1/chat/completions".to_string();
         match self {
             SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
-                if provider.to_lowercase().contains("anthropic") ||
-                   provider.to_lowercase().contains("claude") {
-                    "/v1/messages"
-                } else {
-                    "/v1/chat/completions"
+                match provider_id {
+                    ProviderId::Claude => "/v1/messages".to_string(),
+                    _ => default_endpoint,
                 }
             }
-            _ => self.endpoint()
+            _ => {
+                match provider_id {
+                    ProviderId::Groq => {
+                        if request_path.starts_with("/v1/") {
+                            format!("/openai{}", request_path)
+                        } else {
+                            default_endpoint
+                        }
+                    }
+                    ProviderId::Gemini => {
+                        if request_path.starts_with("/v1/") {
+                            "/v1beta/openai/chat/completions".to_string()
+                        } else {
+                            default_endpoint
+                        }
+                    }
+                    _ => default_endpoint,
+                }
+            }
         }
     }
 }

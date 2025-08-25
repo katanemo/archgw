@@ -1,8 +1,8 @@
 use crate::metrics::Metrics;
 use common::configuration::{LlmProvider, LlmProviderType, Overrides};
 use common::consts::{
-    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, CHAT_COMPLETIONS_PATH, HEALTHZ_PATH,
-    RATELIMIT_SELECTOR_HEADER_KEY, REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
+    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, HEALTHZ_PATH, RATELIMIT_SELECTOR_HEADER_KEY,
+    REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
 };
 use common::errors::ServerError;
 use common::llm_providers::LlmProviders;
@@ -10,10 +10,9 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::providers::response::ProviderStreamResponseIter;
-use hermesllm::{
-    ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse, ProviderResponseType,
-};
+use hermesllm::clients::endpoints::SupportedAPIs;
+use hermesllm::providers::response::{ProviderResponse, ProviderStreamResponseIter};
+use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 use http::StatusCode;
 use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
@@ -31,7 +30,9 @@ pub struct StreamContext {
     ratelimit_selector: Option<Header>,
     streaming_response: bool,
     response_tokens: usize,
-    is_chat_completions_request: bool,
+    client_api: Option<SupportedAPIs>,
+    /// The API that should be used for the upstream provider (after compatibility mapping)
+    resolved_api: Option<SupportedAPIs>,
     llm_providers: Rc<LlmProviders>,
     llm_provider: Option<Rc<LlmProvider>>,
     request_id: Option<String>,
@@ -60,7 +61,8 @@ impl StreamContext {
             ratelimit_selector: None,
             streaming_response: false,
             response_tokens: 0,
-            is_chat_completions_request: false,
+            client_api: None,
+            resolved_api: None,
             llm_providers,
             llm_provider: None,
             request_id: None,
@@ -83,6 +85,18 @@ impl StreamContext {
         self.llm_provider().to_provider_id()
     }
 
+    //This function assumes that the provider has been set.
+    fn update_upstream_path(&mut self, request_path: &str) {
+        let hermes_provider_id = self.llm_provider().to_provider_id();
+        if let Some(api) = &self.client_api {
+            let target_endpoint =
+                api.target_endpoint_for_provider(&hermes_provider_id, request_path);
+            if target_endpoint != request_path {
+                self.set_http_request_header(":path", Some(&target_endpoint));
+            }
+        }
+    }
+
     fn select_llm_provider(&mut self) {
         let provider_hint = self
             .get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
@@ -92,28 +106,6 @@ impl StreamContext {
             &self.llm_providers,
             provider_hint,
         ));
-
-        match self.llm_provider.as_ref().unwrap().provider_interface {
-            LlmProviderType::Groq => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path.starts_with("/v1/") {
-                        let new_path = format!("/openai{}", path);
-                        self.set_http_request_header(":path", Some(new_path.as_str()));
-                    }
-                }
-            }
-            LlmProviderType::Gemini => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path == "/v1/chat/completions" {
-                        self.set_http_request_header(
-                            ":path",
-                            Some("/v1beta/openai/chat/completions"),
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
 
         debug!(
             "request received: llm provider hint: {}, selected provider: {}",
@@ -212,8 +204,6 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        self.is_chat_completions_request = CHAT_COMPLETIONS_PATH == request_path;
-
         let use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
             None => false,
@@ -227,10 +217,35 @@ impl HttpContext for StreamContext {
             self.llm_provider = Some(Rc::new(LlmProvider {
                 name: routing_header_value.to_string(),
                 provider_interface: LlmProviderType::OpenAI,
-                ..Default::default()
+                ..Default::default() //TODO: THiS IS BROKEN. WHY ARE WE ASSUMING OPENAI FOR UPSTREAM?
             }));
         } else {
+            //TODO: Fix this brittle code path. We need to return values and have compile time
             self.select_llm_provider();
+
+            // Check if this is a supported API endpoint
+            if SupportedAPIs::from_endpoint(&request_path).is_none() {
+                self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+                return Action::Continue;
+            }
+
+            // Get the SupportedApi for routing decisions
+            let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
+            self.client_api = supported_api;
+
+            // Debug: log provider, client API, resolved API, and request path
+            if let (Some(api), Some(provider)) =
+                (self.client_api.as_ref(), self.llm_provider.as_ref())
+            {
+                let provider_id = provider.to_provider_id();
+                self.resolved_api = Some(provider_id.compatible_api_for_client(api));
+            } else {
+                self.resolved_api = None;
+            }
+
+            //We need to update the upstream path if there is a variation for a provider like Gemini/Groq, etc.
+            self.update_upstream_path(&request_path);
+
             if self.llm_provider().endpoint.is_some() {
                 self.add_http_request_header(
                     ARCH_ROUTING_HEADER,
@@ -298,23 +313,31 @@ impl HttpContext for StreamContext {
             }
         };
 
-        let provider_id = self.get_provider_id();
-
-        let mut deserialized_body =
-            match ProviderRequestType::try_from((&body_bytes[..], &provider_id)) {
-                Ok(deserialized) => deserialized,
-                Err(e) => {
-                    debug!(
-                        "on_http_request_body: request body: {}",
-                        String::from_utf8_lossy(&body_bytes)
-                    );
-                    self.send_server_error(
-                        ServerError::LogicError(format!("Request parsing error: {}", e)),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
+        let mut deserialized_body = match self.resolved_api.as_ref() {
+            Some(resolved_api) => {
+                match ProviderRequestType::try_from((&body_bytes[..], resolved_api)) {
+                    Ok(deserialized) => deserialized,
+                    Err(e) => {
+                        debug!(
+                            "on_http_request_body: request body: {}",
+                            String::from_utf8_lossy(&body_bytes)
+                        );
+                        self.send_server_error(
+                            ServerError::LogicError(format!("Request parsing error: {}", e)),
+                            Some(StatusCode::BAD_REQUEST),
+                        );
+                        return Action::Pause;
+                    }
                 }
-            };
+            }
+            None => {
+                self.send_server_error(
+                    ServerError::LogicError("No resolved API for provider".to_string()),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
@@ -423,9 +446,13 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        if !self.is_chat_completions_request {
-            info!("on_http_response_body: non-chatcompletion request");
-            return Action::Continue;
+        match self.client_api {
+            Some(SupportedAPIs::OpenAIChatCompletions(_)) => {}
+            Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {}
+            _ => {
+                info!("on_http_response_body: non-chatcompletion request");
+                return Action::Continue;
+            }
         }
 
         let current_time = get_current_time().unwrap();
@@ -554,87 +581,96 @@ impl HttpContext for StreamContext {
             );
         }
 
+        let provider_id = self.get_provider_id();
+        let supported_api = self.client_api.as_ref();
+
         if self.streaming_response {
             debug!("processing streaming response");
-            match ProviderStreamResponseIter::try_from((&body[..], &self.get_provider_id())) {
-                Ok(mut streaming_response) => {
-                    // Process each streaming chunk
-                    while let Some(chunk_result) = streaming_response.next() {
-                        match chunk_result {
-                            Ok(chunk) => {
-                                // Compute TTFT on first chunk
-                                if self.ttft_duration.is_none() {
-                                    let current_time = get_current_time().unwrap();
-                                    self.ttft_time = Some(current_time_ns());
-                                    match current_time.duration_since(self.start_time) {
-                                        Ok(duration) => {
-                                            let duration_ms = duration.as_millis();
-                                            info!(
-                                                "on_http_response_body: time to first token: {}ms",
-                                                duration_ms
-                                            );
-                                            self.ttft_duration = Some(duration);
-                                            self.metrics
-                                                .time_to_first_token
-                                                .record(duration_ms as u64);
+            match (supported_api, self.resolved_api.as_ref()) {
+                (Some(supported_api), Some(_)) => {
+                    match ProviderStreamResponseIter::try_from((
+                        &body[..],
+                        supported_api,
+                        &provider_id,
+                    )) {
+                        Ok(mut streaming_response) => {
+                            while let Some(chunk_result) = streaming_response.next() {
+                                match chunk_result {
+                                    Ok(chunk) => {
+                                        if self.ttft_duration.is_none() {
+                                            let current_time = get_current_time().unwrap();
+                                            self.ttft_time = Some(current_time_ns());
+                                            match current_time.duration_since(self.start_time) {
+                                                Ok(duration) => {
+                                                    let duration_ms = duration.as_millis();
+                                                    info!("on_http_response_body: time to first token: {}ms", duration_ms);
+                                                    self.ttft_duration = Some(duration);
+                                                    self.metrics
+                                                        .time_to_first_token
+                                                        .record(duration_ms as u64);
+                                                }
+                                                Err(e) => {
+                                                    warn!("SystemTime error: {:?}", e);
+                                                }
+                                            }
                                         }
-                                        Err(e) => {
-                                            warn!("SystemTime error: {:?}", e);
+                                        if chunk.is_final() {
+                                            debug!("Received final streaming chunk");
+                                        }
+                                        if let Some(content) = chunk.content_delta() {
+                                            let estimated_tokens = content.len() / 4;
+                                            self.response_tokens += estimated_tokens.max(1);
                                         }
                                     }
-                                }
-
-                                // For streaming responses, we handle token counting differently
-                                // The ProviderStreamResponse trait provides content_delta, is_final, and role
-                                // Token counting for streaming responses typically happens with final usage chunk
-                                if chunk.is_final() {
-                                    // For now, we'll implement basic token estimation
-                                    // In a complete implementation, the final chunk would contain usage information
-                                    debug!("Received final streaming chunk");
-                                }
-
-                                // For now, estimate tokens from content delta
-                                if let Some(content) = chunk.content_delta() {
-                                    // Rough estimation: ~4 characters per token
-                                    let estimated_tokens = content.len() / 4;
-                                    self.response_tokens += estimated_tokens.max(1);
+                                    Err(e) => {
+                                        warn!("Error processing streaming chunk: {}", e);
+                                        return Action::Continue;
+                                    }
                                 }
                             }
-                            Err(e) => {
-                                warn!("Error processing streaming chunk: {}", e);
-                                return Action::Continue;
-                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to parse streaming response: {}", e);
                         }
                     }
                 }
-                Err(e) => {
-                    warn!("Failed to parse streaming response: {}", e);
+                _ => {
+                    warn!("Missing supported_api or resolved_api for streaming response");
                 }
             }
         } else {
             debug!("non streaming response");
             let provider_id = self.get_provider_id();
-            let response: ProviderResponseType =
-                match ProviderResponseType::try_from((&body[..], provider_id)) {
-                    Ok(response) => response,
-                    Err(e) => {
-                        warn!(
-                            "could not parse response: {}, body str: {}",
-                            e,
-                            String::from_utf8_lossy(&body)
-                        );
-                        debug!(
-                            "on_http_response_body: S[{}], response body: {}",
-                            self.context_id,
-                            String::from_utf8_lossy(&body)
-                        );
-                        self.send_server_error(
-                            ServerError::LogicError(format!("Response parsing error: {}", e)),
-                            Some(StatusCode::BAD_REQUEST),
-                        );
-                        return Action::Continue;
+            let supported_api = self.client_api.as_ref();
+
+            let response: ProviderResponseType = match (supported_api, self.resolved_api.as_ref()) {
+                (Some(supported_api), Some(_)) => {
+                    match ProviderResponseType::try_from((&body[..], supported_api, &provider_id)) {
+                        Ok(response) => response,
+                        Err(e) => {
+                            warn!(
+                                "could not parse response: {}, body str: {}",
+                                e,
+                                String::from_utf8_lossy(&body)
+                            );
+                            debug!(
+                                "on_http_response_body: S[{}], response body: {}",
+                                self.context_id,
+                                String::from_utf8_lossy(&body)
+                            );
+                            self.send_server_error(
+                                ServerError::LogicError(format!("Response parsing error: {}", e)),
+                                Some(StatusCode::BAD_REQUEST),
+                            );
+                            return Action::Continue;
+                        }
                     }
-                };
+                }
+                _ => {
+                    warn!("Missing supported_api or resolved_api for non-streaming response");
+                    return Action::Continue;
+                }
+            };
 
             // Use provider interface to extract usage information
             if let Some((prompt_tokens, completion_tokens, total_tokens)) =

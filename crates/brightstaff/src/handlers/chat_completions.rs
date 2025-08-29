@@ -22,10 +22,10 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
         .boxed()
 }
 
-pub async fn chat_completions(
+pub async fn chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
-    llm_provider_endpoint: String,
+    full_qualified_llm_provider_url: String,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     let request_path = request.uri().path().to_string();
     let mut request_headers = request.headers().clone();
@@ -152,7 +152,7 @@ pub async fn chat_completions(
 
     debug!(
         "sending request to llm provider: {}, with model hint: {}",
-        llm_provider_endpoint, model_name
+            full_qualified_llm_provider_url, model_name
     );
 
     request_headers.insert(
@@ -174,7 +174,7 @@ pub async fn chat_completions(
     request_headers.remove(header::CONTENT_LENGTH);
 
     let llm_response = match reqwest::Client::new()
-        .post(llm_provider_endpoint)
+        .post(full_qualified_llm_provider_url)
         .headers(request_headers)
         .body(chat_request_parsed_bytes)
         .send()

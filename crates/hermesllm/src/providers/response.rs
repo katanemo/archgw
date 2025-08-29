@@ -1,5 +1,4 @@
 use crate::providers::id::ProviderId;
-
 use serde::Serialize;
 use std::error::Error;
 use std::fmt;

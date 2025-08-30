@@ -1,19 +1,3 @@
-use crate::metrics::Metrics;
-use common::configuration::{LlmProvider, LlmProviderType, Overrides};
-use common::consts::{
-    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, CHAT_COMPLETIONS_PATH, HEALTHZ_PATH,
-    RATELIMIT_SELECTOR_HEADER_KEY, REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
-};
-use common::errors::ServerError;
-use common::llm_providers::LlmProviders;
-use common::ratelimit::Header;
-use common::stats::{IncrementingMetric, RecordingMetric};
-use common::tracing::{Event, Span, TraceData, Traceparent};
-use common::{ratelimit, routing, tokenizer};
-use hermesllm::providers::response::ProviderStreamResponseIter;
-use hermesllm::{
-    ProviderId, ProviderRequest, ProviderRequestType, ProviderResponse, ProviderResponseType,
-};
 use http::StatusCode;
 use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
@@ -25,13 +9,32 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::metrics::Metrics;
+use common::configuration::{LlmProvider, LlmProviderType, Overrides};
+use common::consts::{
+    ARCH_PROVIDER_HINT_HEADER, ARCH_ROUTING_HEADER, HEALTHZ_PATH, RATELIMIT_SELECTOR_HEADER_KEY,
+    REQUEST_ID_HEADER, TRACE_PARENT_HEADER,
+};
+use common::errors::ServerError;
+use common::llm_providers::LlmProviders;
+use common::ratelimit::Header;
+use common::stats::{IncrementingMetric, RecordingMetric};
+use common::tracing::{Event, Span, TraceData, Traceparent};
+use common::{ratelimit, routing, tokenizer};
+use hermesllm::clients::endpoints::SupportedAPIs;
+use hermesllm::providers::response::{ProviderResponse, ProviderStreamResponseIter};
+use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
+
 pub struct StreamContext {
     context_id: u32,
     metrics: Rc<Metrics>,
     ratelimit_selector: Option<Header>,
     streaming_response: bool,
     response_tokens: usize,
-    is_chat_completions_request: bool,
+    /// The API that is requested by the client (before compatibility mapping)
+    client_api: Option<SupportedAPIs>,
+    /// The API that should be used for the upstream provider (after compatibility mapping)
+    resolved_api: Option<SupportedAPIs>,
     llm_providers: Rc<LlmProviders>,
     llm_provider: Option<Rc<LlmProvider>>,
     request_id: Option<String>,
@@ -60,7 +63,8 @@ impl StreamContext {
             ratelimit_selector: None,
             streaming_response: false,
             response_tokens: 0,
-            is_chat_completions_request: false,
+            client_api: None,
+            resolved_api: None,
             llm_providers,
             llm_provider: None,
             request_id: None,
@@ -83,6 +87,18 @@ impl StreamContext {
         self.llm_provider().to_provider_id()
     }
 
+    //This function assumes that the provider has been set.
+    fn update_upstream_path(&mut self, request_path: &str) {
+        let hermes_provider_id = self.llm_provider().to_provider_id();
+        if let Some(api) = &self.client_api {
+            let target_endpoint =
+                api.target_endpoint_for_provider(&hermes_provider_id, request_path);
+            if target_endpoint != request_path {
+                self.set_http_request_header(":path", Some(&target_endpoint));
+            }
+        }
+    }
+
     fn select_llm_provider(&mut self) {
         let provider_hint = self
             .get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
@@ -92,28 +108,6 @@ impl StreamContext {
             &self.llm_providers,
             provider_hint,
         ));
-
-        match self.llm_provider.as_ref().unwrap().provider_interface {
-            LlmProviderType::Groq => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path.starts_with("/v1/") {
-                        let new_path = format!("/openai{}", path);
-                        self.set_http_request_header(":path", Some(new_path.as_str()));
-                    }
-                }
-            }
-            LlmProviderType::Gemini => {
-                if let Some(path) = self.get_http_request_header(":path") {
-                    if path == "/v1/chat/completions" {
-                        self.set_http_request_header(
-                            ":path",
-                            Some("/v1beta/openai/chat/completions"),
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
 
         debug!(
             "request received: llm provider hint: {}, selected provider: {}",
@@ -199,6 +193,272 @@ impl StreamContext {
 
         Ok(())
     }
+
+    // === Helper methods extracted from on_http_response_body (no behavior change) ===
+    #[inline]
+    fn record_ttft_if_needed(&mut self) {
+        if self.ttft_duration.is_none() {
+            let current_time = get_current_time().unwrap();
+            self.ttft_time = Some(current_time_ns());
+            match current_time.duration_since(self.start_time) {
+                Ok(duration) => {
+                    let duration_ms = duration.as_millis();
+                    info!(
+                        "on_http_response_body: time to first token: {}ms",
+                        duration_ms
+                    );
+                    self.ttft_duration = Some(duration);
+                    self.metrics.time_to_first_token.record(duration_ms as u64);
+                }
+                Err(e) => {
+                    warn!("SystemTime error: {:?}", e);
+                }
+            }
+        }
+    }
+    fn handle_end_of_stream_metrics_and_traces(&mut self, current_time: SystemTime) {
+        // All streaming responses end with bytes=0 and end_stream=true
+        // Record the latency for the request
+        match current_time.duration_since(self.start_time) {
+            Ok(duration) => {
+                // Convert the duration to milliseconds
+                let duration_ms = duration.as_millis();
+                info!("on_http_response_body: request latency: {}ms", duration_ms);
+                // Record the latency to the latency histogram
+                self.metrics.request_latency.record(duration_ms as u64);
+
+                if self.response_tokens > 0 {
+                    // Compute the time per output token
+                    let tpot = duration_ms as u64 / self.response_tokens as u64;
+
+                    // Record the time per output token
+                    self.metrics.time_per_output_token.record(tpot);
+
+                    debug!(
+                        "time per token: {}ms, tokens per second: {}",
+                        tpot,
+                        1000 / tpot
+                    );
+                    // Record the tokens per second
+                    self.metrics.tokens_per_second.record(1000 / tpot);
+                }
+            }
+            Err(e) => {
+                warn!("SystemTime error: {:?}", e);
+            }
+        }
+        // Record the output sequence length
+        self.metrics
+            .output_sequence_length
+            .record(self.response_tokens as u64);
+
+        if let Some(traceparent) = self.traceparent.as_ref() {
+            let current_time_ns = current_time_ns();
+
+            match Traceparent::try_from(traceparent.to_string()) {
+                Err(e) => {
+                    warn!("traceparent header is invalid: {}", e);
+                }
+                Ok(traceparent) => {
+                    let mut trace_data = common::tracing::TraceData::new();
+                    let mut llm_span = Span::new(
+                        "egress_traffic".to_string(),
+                        Some(traceparent.trace_id),
+                        Some(traceparent.parent_id),
+                        self.request_body_sent_time.unwrap(),
+                        current_time_ns,
+                    );
+                    llm_span
+                        .add_attribute("model".to_string(), self.llm_provider().name.to_string());
+
+                    if let Some(user_message) = &self.user_message {
+                        llm_span.add_attribute("user_message".to_string(), user_message.clone());
+                    }
+
+                    if self.ttft_time.is_some() {
+                        llm_span.add_event(Event::new(
+                            "time_to_first_token".to_string(),
+                            self.ttft_time.unwrap(),
+                        ));
+                        trace_data.add_span(llm_span);
+                    }
+
+                    self.traces_queue.lock().unwrap().push_back(trace_data);
+                }
+            };
+        }
+    }
+
+    fn read_response_body(&mut self, body_size: usize) -> Result<Vec<u8>, Action> {
+        if self.streaming_response {
+            let chunk_start = 0;
+            let chunk_size = body_size;
+            debug!(
+                "on_http_response_body: streaming response reading, {}..{}",
+                chunk_start, chunk_size
+            );
+            let streaming_chunk = match self.get_http_response_body(0, chunk_size) {
+                Some(chunk) => chunk,
+                None => {
+                    warn!(
+                        "response body empty, chunk_start: {}, chunk_size: {}",
+                        chunk_start, chunk_size
+                    );
+                    return Err(Action::Continue);
+                }
+            };
+
+            if streaming_chunk.len() != chunk_size {
+                warn!(
+                    "chunk size mismatch: read: {} != requested: {}",
+                    streaming_chunk.len(),
+                    chunk_size
+                );
+            }
+            Ok(streaming_chunk)
+        } else {
+            if body_size == 0 {
+                return Err(Action::Continue);
+            }
+            debug!("non streaming response bytes read: 0:{}", body_size);
+            match self.get_http_response_body(0, body_size) {
+                Some(body) => Ok(body),
+                None => {
+                    warn!("non streaming response body empty");
+                    Err(Action::Continue)
+                }
+            }
+        }
+    }
+
+    fn debug_log_body(&self, body: &[u8]) {
+        if log::log_enabled!(log::Level::Debug) {
+            debug!(
+                "response data (converted to utf8): {}",
+                String::from_utf8_lossy(body)
+            );
+        }
+    }
+
+    fn handle_streaming_response(
+        &mut self,
+        body: &[u8],
+        supported_api: SupportedAPIs,
+        provider_id: ProviderId,
+    ) -> Result<Vec<u8>, Action> {
+        debug!("processing streaming response");
+        match (Some(supported_api), self.resolved_api.as_ref()) {
+            (Some(supported_api), Some(_)) => {
+                match ProviderStreamResponseIter::try_from((body, &supported_api, &provider_id)) {
+                    Ok(mut streaming_response) => {
+                        while let Some(chunk_result) = streaming_response.next() {
+                            match chunk_result {
+                                Ok(chunk) => {
+                                    self.record_ttft_if_needed();
+
+                                    if chunk.is_final() {
+                                        debug!("Received final streaming chunk");
+                                    }
+                                    if let Some(content) = chunk.content_delta() {
+                                        let estimated_tokens = content.len() / 4;
+                                        self.response_tokens += estimated_tokens.max(1);
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Error processing streaming chunk: {}", e);
+                                    return Err(Action::Continue);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse streaming response: {}", e);
+                    }
+                }
+            }
+            _ => {
+                warn!("Missing supported_api or resolved_api for streaming response");
+            }
+        }
+        // NOTE:
+        // We currently pass-through the original SSE bytes for streaming responses.
+        // Non-streaming responses are parsed into ProviderResponseType and re-serialized to
+        // normalize the payload to the client API. Doing the same for streaming would require
+        // a streaming serializer that emits normalized SSE events for the target client API.
+        // That doesn't exist yet in hermesllm; implementing it is a follow-up.
+        // TODO(salmanap): Add a normalized SSE serializer in hermesllm and use it here so both
+        // streaming and non-streaming paths perform the same compatibility mapping.
+        // Until then, we keep behavior unchanged and forward upstream SSE as-is.
+        // For consistency of the method contract, still return Vec<u8>.
+        Ok(body.to_vec())
+    }
+
+    fn handle_non_streaming_response(
+        &mut self,
+        body: &[u8],
+        supported_api: SupportedAPIs,
+        provider_id: ProviderId,
+    ) -> Result<Vec<u8>, Action> {
+        debug!(
+            "no streaming response data (converted to utf8): {}",
+            String::from_utf8_lossy(body)
+        );
+
+        let response: ProviderResponseType =
+            match (Some(&supported_api), self.resolved_api.as_ref()) {
+                (Some(supported_api), Some(_)) => {
+                    match ProviderResponseType::try_from((body, supported_api, &provider_id)) {
+                        Ok(response) => response,
+                        Err(e) => {
+                            warn!(
+                                "could not parse response: {}, body str: {}",
+                                e,
+                                String::from_utf8_lossy(body)
+                            );
+                            debug!(
+                                "on_http_response_body: S[{}], response body: {}",
+                                self.context_id,
+                                String::from_utf8_lossy(body)
+                            );
+                            self.send_server_error(
+                                ServerError::LogicError(format!("Response parsing error: {}", e)),
+                                Some(StatusCode::BAD_REQUEST),
+                            );
+                            return Err(Action::Continue);
+                        }
+                    }
+                }
+                _ => {
+                    warn!("Missing supported_api or resolved_api for non-streaming response");
+                    return Err(Action::Continue);
+                }
+            };
+
+        // Use provider interface to extract usage information
+        if let Some((prompt_tokens, completion_tokens, total_tokens)) =
+            response.extract_usage_counts()
+        {
+            debug!(
+                "Response usage: prompt={}, completion={}, total={}",
+                prompt_tokens, completion_tokens, total_tokens
+            );
+            self.response_tokens = completion_tokens;
+        } else {
+            warn!("No usage information found in response");
+        }
+        // Serialize the normalized response back to JSON bytes
+        match serde_json::to_vec(&response) {
+            Ok(bytes) => Ok(bytes),
+            Err(e) => {
+                warn!("Failed to serialize normalized response: {}", e);
+                self.send_server_error(
+                    ServerError::LogicError(format!("Response serialization error: {}", e)),
+                    Some(StatusCode::INTERNAL_SERVER_ERROR),
+                );
+                Err(Action::Continue)
+            }
+        }
+    }
 }
 
 // HttpContext is the trait that allows the Rust code to interact with HTTP objects.
@@ -211,8 +471,6 @@ impl HttpContext for StreamContext {
             self.send_http_response(200, vec![], None);
             return Action::Continue;
         }
-
-        self.is_chat_completions_request = CHAT_COMPLETIONS_PATH == request_path;
 
         let use_agent_orchestrator = match self.overrides.as_ref() {
             Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
@@ -227,10 +485,35 @@ impl HttpContext for StreamContext {
             self.llm_provider = Some(Rc::new(LlmProvider {
                 name: routing_header_value.to_string(),
                 provider_interface: LlmProviderType::OpenAI,
-                ..Default::default()
+                ..Default::default() //TODO: THiS IS BROKEN. WHY ARE WE ASSUMING OPENAI FOR UPSTREAM?
             }));
         } else {
+            //TODO: Fix this brittle code path. We need to return values and have compile time
             self.select_llm_provider();
+
+            // Check if this is a supported API endpoint
+            if SupportedAPIs::from_endpoint(&request_path).is_none() {
+                self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+                return Action::Continue;
+            }
+
+            // Get the SupportedApi for routing decisions
+            let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
+            self.client_api = supported_api;
+
+            // Debug: log provider, client API, resolved API, and request path
+            if let (Some(api), Some(provider)) =
+                (self.client_api.as_ref(), self.llm_provider.as_ref())
+            {
+                let provider_id = provider.to_provider_id();
+                self.resolved_api = Some(provider_id.compatible_api_for_client(api));
+            } else {
+                self.resolved_api = None;
+            }
+
+            //We need to update the upstream path if there is a variation for a provider like Gemini/Groq, etc.
+            self.update_upstream_path(&request_path);
+
             if self.llm_provider().endpoint.is_some() {
                 self.add_http_request_header(
                     ARCH_ROUTING_HEADER,
@@ -298,23 +581,31 @@ impl HttpContext for StreamContext {
             }
         };
 
-        let provider_id = self.get_provider_id();
-
-        let mut deserialized_body =
-            match ProviderRequestType::try_from((&body_bytes[..], &provider_id)) {
-                Ok(deserialized) => deserialized,
-                Err(e) => {
-                    debug!(
-                        "on_http_request_body: request body: {}",
-                        String::from_utf8_lossy(&body_bytes)
-                    );
-                    self.send_server_error(
-                        ServerError::LogicError(format!("Request parsing error: {}", e)),
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Pause;
+        let mut deserialized_body = match self.resolved_api.as_ref() {
+            Some(resolved_api) => {
+                match ProviderRequestType::try_from((&body_bytes[..], resolved_api)) {
+                    Ok(deserialized) => deserialized,
+                    Err(e) => {
+                        debug!(
+                            "on_http_request_body: request body: {}",
+                            String::from_utf8_lossy(&body_bytes)
+                        );
+                        self.send_server_error(
+                            ServerError::LogicError(format!("Request parsing error: {}", e)),
+                            Some(StatusCode::BAD_REQUEST),
+                        );
+                        return Action::Pause;
+                    }
                 }
-            };
+            }
+            None => {
+                self.send_server_error(
+                    ServerError::LogicError("No resolved API for provider".to_string()),
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Pause;
+            }
+        };
 
         let model_name = match self.llm_provider.as_ref() {
             Some(llm_provider) => llm_provider.model.as_ref(),
@@ -394,7 +685,6 @@ impl HttpContext for StreamContext {
         };
 
         self.set_http_request_body(0, body_size, &deserialized_body_bytes);
-
         Action::Continue
     }
 
@@ -423,230 +713,53 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        if !self.is_chat_completions_request {
-            info!("on_http_response_body: non-chatcompletion request");
-            return Action::Continue;
+        match self.client_api {
+            Some(SupportedAPIs::OpenAIChatCompletions(_)) => {}
+            Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {}
+            _ => {
+                info!("on_http_response_body: non-chatcompletion request");
+                return Action::Continue;
+            }
         }
 
         let current_time = get_current_time().unwrap();
         if end_of_stream && body_size == 0 {
-            // All streaming responses end with bytes=0 and end_stream=true
-            // Record the latency for the request
-            match current_time.duration_since(self.start_time) {
-                Ok(duration) => {
-                    // Convert the duration to milliseconds
-                    let duration_ms = duration.as_millis();
-                    info!("on_http_response_body: request latency: {}ms", duration_ms);
-                    // Record the latency to the latency histogram
-                    self.metrics.request_latency.record(duration_ms as u64);
-
-                    if self.response_tokens > 0 {
-                        // Compute the time per output token
-                        let tpot = duration_ms as u64 / self.response_tokens as u64;
-
-                        // Record the time per output token
-                        self.metrics.time_per_output_token.record(tpot);
-
-                        debug!(
-                            "time per token: {}ms, tokens per second: {}",
-                            tpot,
-                            1000 / tpot
-                        );
-                        // Record the tokens per second
-                        self.metrics.tokens_per_second.record(1000 / tpot);
-                    }
-                }
-                Err(e) => {
-                    warn!("SystemTime error: {:?}", e);
-                }
-            }
-            // Record the output sequence length
-            self.metrics
-                .output_sequence_length
-                .record(self.response_tokens as u64);
-
-            if let Some(traceparent) = self.traceparent.as_ref() {
-                let current_time_ns = current_time_ns();
-
-                match Traceparent::try_from(traceparent.to_string()) {
-                    Err(e) => {
-                        warn!("traceparent header is invalid: {}", e);
-                    }
-                    Ok(traceparent) => {
-                        let mut trace_data = common::tracing::TraceData::new();
-                        let mut llm_span = Span::new(
-                            "egress_traffic".to_string(),
-                            Some(traceparent.trace_id),
-                            Some(traceparent.parent_id),
-                            self.request_body_sent_time.unwrap(),
-                            current_time_ns,
-                        );
-                        llm_span.add_attribute(
-                            "model".to_string(),
-                            self.llm_provider().name.to_string(),
-                        );
-
-                        if let Some(user_message) = &self.user_message {
-                            llm_span
-                                .add_attribute("user_message".to_string(), user_message.clone());
-                        }
-
-                        if self.ttft_time.is_some() {
-                            llm_span.add_event(Event::new(
-                                "time_to_first_token".to_string(),
-                                self.ttft_time.unwrap(),
-                            ));
-                            trace_data.add_span(llm_span);
-                        }
-
-                        self.traces_queue.lock().unwrap().push_back(trace_data);
-                    }
-                };
-            }
-
+            self.handle_end_of_stream_metrics_and_traces(current_time);
             return Action::Continue;
         }
 
-        let body = if self.streaming_response {
-            let chunk_start = 0;
-            let chunk_size = body_size;
-            debug!(
-                "on_http_response_body: streaming response reading, {}..{}",
-                chunk_start, chunk_size
-            );
-            let streaming_chunk = match self.get_http_response_body(0, chunk_size) {
-                Some(chunk) => chunk,
-                None => {
-                    warn!(
-                        "response body empty, chunk_start: {}, chunk_size: {}",
-                        chunk_start, chunk_size
-                    );
-                    return Action::Continue;
-                }
-            };
-
-            if streaming_chunk.len() != chunk_size {
-                warn!(
-                    "chunk size mismatch: read: {} != requested: {}",
-                    streaming_chunk.len(),
-                    chunk_size
-                );
-            }
-            streaming_chunk
-        } else {
-            if body_size == 0 {
-                return Action::Continue;
-            }
-            debug!("non streaming response bytes read: 0:{}", body_size);
-            match self.get_http_response_body(0, body_size) {
-                Some(body) => body,
-                None => {
-                    warn!("non streaming response body empty");
-                    return Action::Continue;
-                }
-            }
+        let body = match self.read_response_body(body_size) {
+            Ok(bytes) => bytes,
+            Err(action) => return action,
         };
 
-        if log::log_enabled!(log::Level::Debug) {
-            debug!(
-                "response data (converted to utf8): {}",
-                String::from_utf8_lossy(&body)
-            );
-        }
+        self.debug_log_body(&body);
+
+        let provider_id = self.get_provider_id();
+        let supported_api_opt = self.client_api.clone();
 
         if self.streaming_response {
-            debug!("processing streaming response");
-            match ProviderStreamResponseIter::try_from((&body[..], &self.get_provider_id())) {
-                Ok(mut streaming_response) => {
-                    // Process each streaming chunk
-                    while let Some(chunk_result) = streaming_response.next() {
-                        match chunk_result {
-                            Ok(chunk) => {
-                                // Compute TTFT on first chunk
-                                if self.ttft_duration.is_none() {
-                                    let current_time = get_current_time().unwrap();
-                                    self.ttft_time = Some(current_time_ns());
-                                    match current_time.duration_since(self.start_time) {
-                                        Ok(duration) => {
-                                            let duration_ms = duration.as_millis();
-                                            info!(
-                                                "on_http_response_body: time to first token: {}ms",
-                                                duration_ms
-                                            );
-                                            self.ttft_duration = Some(duration);
-                                            self.metrics
-                                                .time_to_first_token
-                                                .record(duration_ms as u64);
-                                        }
-                                        Err(e) => {
-                                            warn!("SystemTime error: {:?}", e);
-                                        }
-                                    }
-                                }
-
-                                // For streaming responses, we handle token counting differently
-                                // The ProviderStreamResponse trait provides content_delta, is_final, and role
-                                // Token counting for streaming responses typically happens with final usage chunk
-                                if chunk.is_final() {
-                                    // For now, we'll implement basic token estimation
-                                    // In a complete implementation, the final chunk would contain usage information
-                                    debug!("Received final streaming chunk");
-                                }
-
-                                // For now, estimate tokens from content delta
-                                if let Some(content) = chunk.content_delta() {
-                                    // Rough estimation: ~4 characters per token
-                                    let estimated_tokens = content.len() / 4;
-                                    self.response_tokens += estimated_tokens.max(1);
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Error processing streaming chunk: {}", e);
-                                return Action::Continue;
-                            }
-                        }
+            if let Some(supported_api) = supported_api_opt {
+                match self.handle_streaming_response(&body, supported_api, provider_id) {
+                    Ok(serialized_body) => {
+                        self.set_http_response_body(0, body.len(), &serialized_body);
                     }
+                    Err(action) => return action,
                 }
-                Err(e) => {
-                    warn!("Failed to parse streaming response: {}", e);
-                }
+            } else {
+                warn!("Missing supported_api or resolved_api for streaming response");
             }
         } else {
-            debug!("non streaming response");
-            let provider_id = self.get_provider_id();
-            let response: ProviderResponseType =
-                match ProviderResponseType::try_from((&body[..], provider_id)) {
-                    Ok(response) => response,
-                    Err(e) => {
-                        warn!(
-                            "could not parse response: {}, body str: {}",
-                            e,
-                            String::from_utf8_lossy(&body)
-                        );
-                        debug!(
-                            "on_http_response_body: S[{}], response body: {}",
-                            self.context_id,
-                            String::from_utf8_lossy(&body)
-                        );
-                        self.send_server_error(
-                            ServerError::LogicError(format!("Response parsing error: {}", e)),
-                            Some(StatusCode::BAD_REQUEST),
-                        );
-                        return Action::Continue;
+            if let Some(supported_api) = supported_api_opt {
+                match self.handle_non_streaming_response(&body, supported_api, provider_id) {
+                    Ok(serialized_body) => {
+                        self.set_http_response_body(0, body.len(), &serialized_body);
                     }
-                };
-
-            // Use provider interface to extract usage information
-            if let Some((prompt_tokens, completion_tokens, total_tokens)) =
-                response.extract_usage_counts()
-            {
-                debug!(
-                    "Response usage: prompt={}, completion={}, total={}",
-                    prompt_tokens, completion_tokens, total_tokens
-                );
-                self.response_tokens = completion_tokens;
+                    Err(action) => return action,
+                }
             } else {
-                warn!("No usage information found in response");
+                warn!("Missing supported_api or resolved_api for non-streaming response");
+                return Action::Continue;
             }
         }
 

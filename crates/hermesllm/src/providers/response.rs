@@ -1,63 +1,98 @@
+use crate::providers::id::ProviderId;
+use serde::Serialize;
 use std::error::Error;
 use std::fmt;
+use std::convert::TryFrom;
 
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::OpenAISseIter;
-use crate::providers::id::ProviderId;
-use crate::providers::adapters::{get_provider_config, AdapterType};
+use crate::clients::endpoints::SupportedAPIs;
+use crate::apis::anthropic::AnthropicSseIter;
+use crate::apis::anthropic::MessagesResponse;
 
+#[derive(Serialize)]
+#[serde(untagged)]
 pub enum ProviderResponseType {
     ChatCompletionsResponse(ChatCompletionsResponse),
-    //MessagesResponse(MessagesResponse),
+    MessagesResponse(MessagesResponse),
 }
+
+
 
 pub enum ProviderStreamResponseIter {
     ChatCompletionsStream(OpenAISseIter<std::vec::IntoIter<String>>),
-    //MessagesStream(AnthropicSseIter<std::vec::IntoIter<String>>),
+    MessagesStream(AnthropicSseIter<std::vec::IntoIter<String>>),
 }
 
-impl TryFrom<(&[u8], ProviderId)> for ProviderResponseType {
+
+// --- Response transformation logic for client API compatibility ---
+impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, provider_id): (&[u8], ProviderId)) -> Result<Self, Self::Error> {
-        let config = get_provider_config(&provider_id);
-        match config.adapter_type {
-            AdapterType::OpenAICompatible => {
-                let chat_completions_response: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
+        let upstream_api = provider_id.compatible_api_for_client(client_api);
+        match (&upstream_api, client_api) {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
+                let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                Ok(ProviderResponseType::ChatCompletionsResponse(chat_completions_response))
+                Ok(ProviderResponseType::ChatCompletionsResponse(resp))
             }
-            // Future: handle other adapter types like Claude
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                let resp: MessagesResponse = serde_json::from_slice(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                Ok(ProviderResponseType::MessagesResponse(resp))
+            }
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                let resp: MessagesResponse = serde_json::from_slice(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                Ok(ProviderResponseType::MessagesResponse(resp))
+            }
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
+                let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                Ok(ProviderResponseType::ChatCompletionsResponse(resp))
+            }
         }
     }
 }
 
-impl TryFrom<(&[u8], &ProviderId)> for ProviderStreamResponseIter {
+impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderStreamResponseIter {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((bytes, provider_id): (&[u8], &ProviderId)) -> Result<Self, Self::Error> {
-        let config = get_provider_config(provider_id);
-
-        // Parse SSE (Server-Sent Events) streaming data - protocol layer
-        let s = std::str::from_utf8(bytes)?;
-        let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
-
-        match config.adapter_type {
-            AdapterType::OpenAICompatible => {
-                // Delegate to OpenAI-specific iterator implementation
-                let sse_container = SseStreamIter::new(lines.into_iter());
+    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
+        let upstream_api = provider_id.compatible_api_for_client(client_api);
+        match (&upstream_api, client_api) {
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
+                let s = std::str::from_utf8(bytes)?;
+                let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+                let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
                 let iter = crate::apis::openai::OpenAISseIter::new(sse_container);
                 Ok(ProviderStreamResponseIter::ChatCompletionsStream(iter))
             }
-            // Future: AdapterType::Claude => {
-            //     let sse_container = SseStreamIter::new(lines.into_iter());
-            //     let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
-            //     Ok(ProviderStreamResponseIter::MessagesStream(iter))
-            // }
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                let s = std::str::from_utf8(bytes)?;
+                let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+                let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
+                let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
+                Ok(ProviderStreamResponseIter::MessagesStream(iter))
+            }
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                let s = std::str::from_utf8(bytes)?;
+                let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+                let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
+                let iter = crate::apis::anthropic::AnthropicSseIter::new(sse_container);
+                Ok(ProviderStreamResponseIter::MessagesStream(iter))
+            }
+            (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
+                let s = std::str::from_utf8(bytes)?;
+                let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+                let sse_container = crate::providers::response::SseStreamIter::new(lines.into_iter());
+                let iter = crate::apis::openai::OpenAISseIter::new(sse_container);
+                Ok(ProviderStreamResponseIter::ChatCompletionsStream(iter))
+            }
         }
     }
 }
-
 
 impl Iterator for ProviderStreamResponseIter {
     type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
@@ -65,12 +100,10 @@ impl Iterator for ProviderStreamResponseIter {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             ProviderStreamResponseIter::ChatCompletionsStream(iter) => iter.next(),
-            // Future: ProviderStreamResponseIter::MessagesStream(iter) => iter.next(),
+            ProviderStreamResponseIter::MessagesStream(iter) => iter.next(),
         }
     }
 }
-
-
 pub trait ProviderResponse: Send + Sync {
     /// Get usage information if available - returns dynamic trait object
     fn usage(&self) -> Option<&dyn TokenUsage>;
@@ -123,14 +156,14 @@ impl ProviderResponse for ProviderResponseType {
     fn usage(&self) -> Option<&dyn TokenUsage> {
         match self {
             ProviderResponseType::ChatCompletionsResponse(resp) => resp.usage(),
-            // Future: ProviderResponseType::MessagesResponse(resp) => resp.usage(),
+            ProviderResponseType::MessagesResponse(resp) => resp.usage(),
         }
     }
 
     fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
         match self {
             ProviderResponseType::ChatCompletionsResponse(resp) => resp.extract_usage_counts(),
-            // Future: ProviderResponseType::MessagesResponse(resp) => resp.extract_usage_counts(),
+            ProviderResponseType::MessagesResponse(resp) => resp.extract_usage_counts(),
         }
     }
 }
@@ -163,5 +196,123 @@ impl fmt::Display for ProviderResponseError {
 impl Error for ProviderResponseError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clients::endpoints::SupportedAPIs;
+    use crate::providers::id::ProviderId;
+    use crate::apis::openai::OpenAIApi;
+    use crate::apis::anthropic::AnthropicApi;
+    use serde_json::json;
+
+    #[test]
+    fn test_openai_response_from_bytes() {
+        let resp = json!({
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": { "role": "assistant", "content": "Hello!" },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": { "prompt_tokens": 5, "completion_tokens": 7, "total_tokens": 12 },
+            "system_fingerprint": null
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap();
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::OpenAI));
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ProviderResponseType::ChatCompletionsResponse(r) => {
+                assert_eq!(r.model, "gpt-4");
+                assert_eq!(r.choices.len(), 1);
+            },
+            _ => panic!("Expected ChatCompletionsResponse variant"),
+        }
+    }
+
+    #[test]
+    fn test_anthropic_response_from_bytes() {
+        let resp = json!({
+            "id": "msg_01ABC123",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+                { "type": "text", "text": "Hello! How can I help you today?" }
+            ],
+            "model": "claude-3-sonnet-20240229",
+            "stop_reason": "end_turn",
+            "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap();
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::Claude));
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ProviderResponseType::MessagesResponse(r) => {
+                assert_eq!(r.model, "claude-3-sonnet-20240229");
+                assert_eq!(r.content.len(), 1);
+            },
+            _ => panic!("Expected MessagesResponse variant"),
+        }
+    }
+
+    #[test]
+    fn test_anthropic_response_from_bytes_with_openai_provider() {
+        // Simulate Anthropic response with OpenAI provider (should parse as MessagesResponse)
+        let resp = json!({
+            "id": "msg_01ABC123",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+                { "type": "text", "text": "Hello! How can I help you today?" }
+            ],
+            "model": "claude-3-sonnet-20240229",
+            "stop_reason": "end_turn",
+            "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap();
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::OpenAI));
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ProviderResponseType::MessagesResponse(r) => {
+                assert_eq!(r.model, "claude-3-sonnet-20240229");
+            },
+            _ => panic!("Expected MessagesResponse variant"),
+        }
+    }
+
+    #[test]
+    fn test_openai_response_from_bytes_with_claude_provider() {
+        // Simulate OpenAI response with Claude provider (should parse as ChatCompletionsResponse)
+        let resp = json!({
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": { "role": "assistant", "content": "Hello!" },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": { "prompt_tokens": 5, "completion_tokens": 7, "total_tokens": 12 },
+            "system_fingerprint": null
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap();
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::Claude));
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ProviderResponseType::ChatCompletionsResponse(r) => {
+                assert_eq!(r.model, "gpt-4");
+            },
+            _ => panic!("Expected ChatCompletionsResponse variant"),
+        }
     }
 }

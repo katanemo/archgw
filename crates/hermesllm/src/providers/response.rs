@@ -2,12 +2,12 @@ use crate::providers::id::ProviderId;
 use serde::Serialize;
 use std::error::Error;
 use std::fmt;
+use std::convert::TryFrom;
 
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::OpenAISseIter;
 use crate::clients::endpoints::SupportedAPIs;
-use std::convert::TryFrom;
-
+use crate::apis::anthropic::AnthropicSseIter;
 use crate::apis::anthropic::MessagesResponse;
 
 #[derive(Serialize)]
@@ -17,7 +17,7 @@ pub enum ProviderResponseType {
     MessagesResponse(MessagesResponse),
 }
 
-use crate::apis::anthropic::AnthropicSseIter;
+
 
 pub enum ProviderStreamResponseIter {
     ChatCompletionsStream(OpenAISseIter<std::vec::IntoIter<String>>),

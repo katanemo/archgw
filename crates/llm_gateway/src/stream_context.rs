@@ -399,7 +399,10 @@ impl StreamContext {
         supported_api: SupportedAPIs,
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
-        debug!("non streaming response");
+        debug!(
+            "no streaming response data (converted to utf8): {}",
+            String::from_utf8_lossy(body)
+        );
 
         let response: ProviderResponseType =
             match (Some(&supported_api), self.resolved_api.as_ref()) {
@@ -682,6 +685,10 @@ impl HttpContext for StreamContext {
             }
         };
 
+        debug!(
+            "Setting HTTP request body {}",
+            String::from_utf8_lossy(&deserialized_body_bytes)
+        );
         self.set_http_request_body(0, body_size, &deserialized_body_bytes);
 
         Action::Continue
@@ -728,7 +735,7 @@ impl HttpContext for StreamContext {
         }
 
         let body = match self.read_response_body(body_size) {
-            Ok(b) => b,
+            Ok(bytes) => bytes,
             Err(action) => return action,
         };
 
@@ -741,8 +748,8 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        // Write the normalized body back to the wire using the original body_size
-                        self.set_http_response_body(0, body_size, &serialized_body);
+                        // Pass-through: let the original streaming response continue unchanged
+                        self.set_http_response_body(0, serialized_body.len(), &serialized_body);
                     }
                     Err(action) => return action,
                 }
@@ -753,8 +760,7 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_non_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        // Write the normalized body back to the wire using the original body_size
-                        self.set_http_response_body(0, body_size, &serialized_body);
+                        self.set_http_response_body(0, serialized_body.len(), &serialized_body);
                     }
                     Err(action) => return action,
                 }

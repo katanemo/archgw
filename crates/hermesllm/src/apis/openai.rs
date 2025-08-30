@@ -349,6 +349,7 @@ pub struct ChatCompletionsResponse {
     pub choices: Vec<Choice>,
     pub usage: Usage,
     pub system_fingerprint: Option<String>,
+    pub service_tier: Option<String>,
 }
 
 /// Finish reason for completion
@@ -1159,5 +1160,85 @@ mod tests {
         // Test that invalid string values fail deserialization (type safety!)
         let invalid_result: Result<ToolChoice, _> = serde_json::from_value(json!("invalid"));
         assert!(invalid_result.is_err());
+    }
+
+    #[test]
+    fn test_chat_completions_response_with_service_tier() {
+        // Test that ChatCompletionsResponse can deserialize OpenAI responses with service_tier field
+        let json_response = r#"{
+            "id": "chatcmpl-CAJc2Df6QCc7Mv3RP0Cf2xlbDV1x2",
+            "object": "chat.completion",
+            "created": 1756574706,
+            "model": "gpt-4o-2024-08-06",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Test response content",
+                    "annotations": []
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 65,
+                "completion_tokens": 184,
+                "total_tokens": 249,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                }
+            },
+            "service_tier": "default",
+            "system_fingerprint": "fp_f33640a400"
+        }"#;
+
+        let response: ChatCompletionsResponse = serde_json::from_str(json_response).unwrap();
+
+        assert_eq!(response.id, "chatcmpl-CAJc2Df6QCc7Mv3RP0Cf2xlbDV1x2");
+        assert_eq!(response.object, "chat.completion");
+        assert_eq!(response.created, 1756574706);
+        assert_eq!(response.model, "gpt-4o-2024-08-06");
+        assert_eq!(response.service_tier, Some("default".to_string()));
+        assert_eq!(response.system_fingerprint, Some("fp_f33640a400".to_string()));
+        assert_eq!(response.choices.len(), 1);
+        assert_eq!(response.usage.prompt_tokens, 65);
+        assert_eq!(response.usage.completion_tokens, 184);
+        assert_eq!(response.usage.total_tokens, 249);
+    }
+
+    #[test]
+    fn test_chat_completions_response_without_service_tier() {
+        // Test that ChatCompletionsResponse can deserialize responses without service_tier (backward compatibility)
+        let json_response = r#"{
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Test response"
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30
+            }
+        }"#;
+
+        let response: ChatCompletionsResponse = serde_json::from_str(json_response).unwrap();
+
+        assert_eq!(response.id, "chatcmpl-123");
+        assert_eq!(response.service_tier, None); // Should be None when not present
+        assert_eq!(response.system_fingerprint, None);
     }
 }

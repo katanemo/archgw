@@ -211,6 +211,7 @@ impl TryFrom<MessagesResponse> for ChatCompletionsResponse {
             choices: vec![choice],
             usage,
             system_fingerprint: None,
+            service_tier: None,
         })
     }
 }

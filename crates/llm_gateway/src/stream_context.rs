@@ -446,7 +446,6 @@ impl StreamContext {
         } else {
             warn!("No usage information found in response");
         }
-
         // Serialize the normalized response back to JSON bytes
         match serde_json::to_vec(&response) {
             Ok(bytes) => Ok(bytes),
@@ -743,8 +742,7 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        // Pass-through: let the original streaming response continue unchanged
-                        self.set_http_response_body(0, serialized_body.len(), &serialized_body);
+                        self.set_http_response_body(0, body.len(), &serialized_body);
                     }
                     Err(action) => return action,
                 }
@@ -755,7 +753,7 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_non_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        self.set_http_response_body(0, serialized_body.len(), &serialized_body);
+                        self.set_http_response_body(0, body.len(), &serialized_body);
                     }
                     Err(action) => return action,
                 }

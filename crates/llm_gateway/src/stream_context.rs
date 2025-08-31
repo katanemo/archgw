@@ -399,11 +399,6 @@ impl StreamContext {
         supported_api: SupportedAPIs,
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
-        debug!(
-            "no streaming response data (converted to utf8): {}",
-            String::from_utf8_lossy(body)
-        );
-
         let response: ProviderResponseType =
             match (Some(&supported_api), self.resolved_api.as_ref()) {
                 (Some(supported_api), Some(_)) => {
@@ -448,7 +443,14 @@ impl StreamContext {
         }
         // Serialize the normalized response back to JSON bytes
         match serde_json::to_vec(&response) {
-            Ok(bytes) => Ok(bytes),
+            Ok(bytes) => {
+                debug!(
+                        "non streaming response data after serialization. length: {},  converted to utf8: {}",
+                        bytes.len(),
+                        String::from_utf8_lossy(&bytes)
+                    );
+                Ok(bytes)
+            }
             Err(e) => {
                 warn!("Failed to serialize normalized response: {}", e);
                 self.send_server_error(
@@ -694,6 +696,10 @@ impl HttpContext for StreamContext {
             self.context_id, end_of_stream
         );
 
+        self.remove_http_response_header("content-length");
+        // If upstream may compress, drop encoding so our new bytes are sent as-is.
+        self.remove_http_response_header("content-encoding");
+
         self.set_property(
             vec!["metadata", "filter_metadata", "llm_filter", "user_prompt"],
             Some("hello world from filter".as_bytes()),
@@ -742,7 +748,7 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        self.set_http_response_body(0, body.len(), &serialized_body);
+                        self.set_http_response_body(0, body_size, &serialized_body);
                     }
                     Err(action) => return action,
                 }
@@ -753,7 +759,7 @@ impl HttpContext for StreamContext {
             if let Some(supported_api) = supported_api_opt {
                 match self.handle_non_streaming_response(&body, supported_api, provider_id) {
                     Ok(serialized_body) => {
-                        self.set_http_response_body(0, body.len(), &serialized_body);
+                        self.set_http_response_body(0, body_size, &serialized_body);
                     }
                     Err(action) => return action,
                 }

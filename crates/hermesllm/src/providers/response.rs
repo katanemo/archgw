@@ -31,26 +31,43 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
 
     fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
+
+        // Step 1: Parse bytes using upstream API format (what the provider actually sent)
+        // Step 2: Return response type that matches client API format (what client expects)
         match (&upstream_api, client_api) {
+            // Upstream sent OpenAI format, client expects OpenAI format - direct pass-through
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(resp))
             }
+            // Upstream sent Anthropic format, client expects Anthropic format - direct pass-through
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::MessagesResponse(resp))
             }
-            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                let resp: MessagesResponse = serde_json::from_slice(bytes)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                Ok(ProviderResponseType::MessagesResponse(resp))
-            }
+            // Upstream sent Anthropic format, client expects OpenAI format - need transformation
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
+                // Parse as Anthropic Messages response first
+                let anthropic_resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                Ok(ProviderResponseType::ChatCompletionsResponse(resp))
+
+                // Transform to OpenAI ChatCompletions format using the transformer
+                let chat_resp: ChatCompletionsResponse = anthropic_resp.try_into()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Transformation error: {}", e)))?;
+                Ok(ProviderResponseType::ChatCompletionsResponse(chat_resp))
+            }
+            // Upstream sent OpenAI format, client expects Anthropic format - need transformation
+            (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                // Parse as OpenAI ChatCompletions response first
+                let openai_resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+                // Transform to Anthropic Messages format using the transformer
+                let messages_resp: MessagesResponse = openai_resp.try_into()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Transformation error: {}", e)))?;
+                Ok(ProviderResponseType::MessagesResponse(messages_resp))
             }
         }
     }
@@ -264,7 +281,39 @@ mod tests {
 
     #[test]
     fn test_anthropic_response_from_bytes_with_openai_provider() {
-        // Simulate Anthropic response with OpenAI provider (should parse as MessagesResponse)
+        // OpenAI provider receives OpenAI response but client expects Anthropic format
+        // Upstream API = OpenAI, Client API = Anthropic -> parse OpenAI, convert to Anthropic
+        let resp = json!({
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": { "role": "assistant", "content": "Hello! How can I help you today?" },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": { "prompt_tokens": 10, "completion_tokens": 25, "total_tokens": 35 }
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap();
+        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::OpenAI));
+        assert!(result.is_ok());
+        match result.unwrap() {
+            ProviderResponseType::MessagesResponse(r) => {
+                assert_eq!(r.model, "gpt-4");
+                assert_eq!(r.usage.input_tokens, 10);
+                assert_eq!(r.usage.output_tokens, 25);
+            },
+            _ => panic!("Expected MessagesResponse variant"),
+        }
+    }
+
+    #[test]
+    fn test_openai_response_from_bytes_with_claude_provider() {
+        // Claude provider receives Anthropic response but client expects OpenAI format
+        // Upstream API = Anthropic, Client API = OpenAI -> parse Anthropic, convert to OpenAI
         let resp = json!({
             "id": "msg_01ABC123",
             "type": "message",
@@ -277,40 +326,13 @@ mod tests {
             "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::OpenAI));
-        assert!(result.is_ok());
-        match result.unwrap() {
-            ProviderResponseType::MessagesResponse(r) => {
-                assert_eq!(r.model, "claude-3-sonnet-20240229");
-            },
-            _ => panic!("Expected MessagesResponse variant"),
-        }
-    }
-
-    #[test]
-    fn test_openai_response_from_bytes_with_claude_provider() {
-        // Simulate OpenAI response with Claude provider (should parse as ChatCompletionsResponse)
-        let resp = json!({
-            "id": "chatcmpl-123",
-            "object": "chat.completion",
-            "created": 1234567890,
-            "model": "gpt-4",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": { "role": "assistant", "content": "Hello!" },
-                    "finish_reason": "stop"
-                }
-            ],
-            "usage": { "prompt_tokens": 5, "completion_tokens": 7, "total_tokens": 12 },
-            "system_fingerprint": null
-        });
-        let bytes = serde_json::to_vec(&resp).unwrap();
         let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::Claude));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::ChatCompletionsResponse(r) => {
-                assert_eq!(r.model, "gpt-4");
+                assert_eq!(r.model, "claude-3-sonnet-20240229");
+                assert_eq!(r.usage.prompt_tokens, 10);
+                assert_eq!(r.usage.completion_tokens, 25);
             },
             _ => panic!("Expected ChatCompletionsResponse variant"),
         }

@@ -343,13 +343,12 @@ impl StreamContext {
     fn handle_streaming_response(
         &mut self,
         body: &[u8],
-        supported_api: SupportedAPIs,
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
         debug!("processing streaming response");
-        match (Some(supported_api), self.resolved_api.as_ref()) {
-            (Some(supported_api), Some(_)) => {
-                match ProviderStreamResponseIter::try_from((body, &supported_api, &provider_id)) {
+        match self.client_api.as_ref() {
+            Some(client_api) => {
+                match ProviderStreamResponseIter::try_from((body, client_api, &provider_id)) {
                     Ok(mut streaming_response) => {
                         while let Some(chunk_result) = streaming_response.next() {
                             match chunk_result {
@@ -376,10 +375,11 @@ impl StreamContext {
                     }
                 }
             }
-            _ => {
-                warn!("Missing supported_api or resolved_api for streaming response");
+            None => {
+                warn!("Missing client_api for non-streaming response");
+                return Err(Action::Continue);
             }
-        }
+        };
         // NOTE:
         // We currently pass-through the original SSE bytes for streaming responses.
         // Non-streaming responses are parsed into ProviderResponseType and re-serialized to
@@ -396,38 +396,36 @@ impl StreamContext {
     fn handle_non_streaming_response(
         &mut self,
         body: &[u8],
-        supported_api: SupportedAPIs,
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
-        let response: ProviderResponseType =
-            match (Some(&supported_api), self.resolved_api.as_ref()) {
-                (Some(supported_api), Some(_)) => {
-                    match ProviderResponseType::try_from((body, supported_api, &provider_id)) {
-                        Ok(response) => response,
-                        Err(e) => {
-                            warn!(
-                                "could not parse response: {}, body str: {}",
-                                e,
-                                String::from_utf8_lossy(body)
-                            );
-                            debug!(
-                                "on_http_response_body: S[{}], response body: {}",
-                                self.context_id,
-                                String::from_utf8_lossy(body)
-                            );
-                            self.send_server_error(
-                                ServerError::LogicError(format!("Response parsing error: {}", e)),
-                                Some(StatusCode::BAD_REQUEST),
-                            );
-                            return Err(Action::Continue);
-                        }
+        let response: ProviderResponseType = match self.client_api.as_ref() {
+            Some(client_api) => {
+                match ProviderResponseType::try_from((body, client_api, &provider_id)) {
+                    Ok(response) => response,
+                    Err(e) => {
+                        warn!(
+                            "could not parse response: {}, body str: {}",
+                            e,
+                            String::from_utf8_lossy(body)
+                        );
+                        debug!(
+                            "on_http_response_body: S[{}], response body: {}",
+                            self.context_id,
+                            String::from_utf8_lossy(body)
+                        );
+                        self.send_server_error(
+                            ServerError::LogicError(format!("Response parsing error: {}", e)),
+                            Some(StatusCode::BAD_REQUEST),
+                        );
+                        return Err(Action::Continue);
                     }
                 }
-                _ => {
-                    warn!("Missing supported_api or resolved_api for non-streaming response");
-                    return Err(Action::Continue);
-                }
-            };
+            }
+            None => {
+                warn!("Missing client_api for non-streaming response");
+                return Err(Action::Continue);
+            }
+        };
 
         // Use provider interface to extract usage information
         if let Some((prompt_tokens, completion_tokens, total_tokens)) =
@@ -768,30 +766,19 @@ impl HttpContext for StreamContext {
         self.debug_log_body(&body);
 
         let provider_id = self.get_provider_id();
-        let supported_api_opt = self.client_api.clone();
-
         if self.streaming_response {
-            if let Some(supported_api) = supported_api_opt {
-                match self.handle_streaming_response(&body, supported_api, provider_id) {
-                    Ok(serialized_body) => {
-                        self.set_http_response_body(0, body_size, &serialized_body);
-                    }
-                    Err(action) => return action,
+            match self.handle_streaming_response(&body, provider_id) {
+                Ok(serialized_body) => {
+                    self.set_http_response_body(0, body_size, &serialized_body);
                 }
-            } else {
-                warn!("Missing supported_api or resolved_api for streaming response");
+                Err(action) => return action,
             }
         } else {
-            if let Some(supported_api) = supported_api_opt {
-                match self.handle_non_streaming_response(&body, supported_api, provider_id) {
-                    Ok(serialized_body) => {
-                        self.set_http_response_body(0, body_size, &serialized_body);
-                    }
-                    Err(action) => return action,
+            match self.handle_non_streaming_response(&body, provider_id) {
+                Ok(serialized_body) => {
+                    self.set_http_response_body(0, body_size, &serialized_body);
                 }
-            } else {
-                warn!("Missing supported_api or resolved_api for non-streaming response");
-                return Action::Continue;
+                Err(action) => return action,
             }
         }
 

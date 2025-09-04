@@ -6,7 +6,7 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage, SseStreamIter};
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
 use super::ApiDefinition;
 use crate::clients::transformer::{ExtractText};
 
@@ -615,68 +615,6 @@ impl ProviderResponse for ChatCompletionsResponse {
     }
 }
 
-// ============================================================================
-// OPENAI SSE STREAMING ITERATOR
-// ============================================================================
-
-/// OpenAI-specific SSE streaming iterator
-/// Handles OpenAI's specific SSE format and ChatCompletionsStreamResponse parsing
-pub struct OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    sse_stream: SseStreamIter<I>,
-}
-
-impl<I> OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    pub fn new(sse_stream: SseStreamIter<I>) -> Self {
-        Self { sse_stream }
-    }
-}
-
-impl<I> Iterator for OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for line in &mut self.sse_stream.lines {
-            let line = line.as_ref();
-            if line.is_empty() {
-                continue;
-            }
-
-            if line.starts_with("data: ") {
-                let data = &line[6..]; // Remove "data: " prefix
-                if data == "[DONE]" {
-                    return None;
-                }
-
-                // Skip ping messages (usually from other providers, but handle gracefully)
-                if data == r#"{"type": "ping"}"# {
-                    continue;
-                }
-
-                // OpenAI-specific parsing of ChatCompletionsStreamResponse
-                match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
-                    Ok(response) => return Some(Ok(Box::new(response))),
-                    Err(e) => return Some(Err(Box::new(
-                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing OpenAI streaming data: {}, data: {}", e, data))
-                    ))),
-                }
-            }
-        }
-        None
-    }
-}
-
 // Direct implementation of ProviderStreamResponse trait on ChatCompletionsStreamResponse
 impl ProviderStreamResponse for ChatCompletionsStreamResponse {
     fn content_delta(&self) -> Option<&str> {
@@ -702,6 +640,7 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
                 Role::Tool => "tool",
             }))
     }
+
 }
 
 

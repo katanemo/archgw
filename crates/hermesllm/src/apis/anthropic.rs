@@ -3,11 +3,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
-use std::error::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderStreamResponse, SseStreamIter};
+use crate::providers::response::ProviderStreamResponse;
 use crate::clients::transformer::ExtractText;
 
 // Enum for all supported Anthropic APIs
@@ -520,55 +519,6 @@ impl MessagesRole {
     }
 }
 
-// Anthropic SSE streaming iterator for MessagesStreamEvent
-pub struct AnthropicSseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    sse_stream: SseStreamIter<I>,
-}
-
-impl<I> AnthropicSseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    pub fn new(sse_stream: SseStreamIter<I>) -> Self {
-        Self { sse_stream }
-    }
-}
-
-impl<I> Iterator for AnthropicSseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn Error + Send + Sync>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for line in &mut self.sse_stream.lines {
-            let line = line.as_ref();
-            if line.is_empty() {
-                continue;
-            }
-
-            if line.starts_with("data: ") {
-                let data = &line[6..];
-                if data == "[DONE]" {
-                    return None;
-                }
-                // Anthropic-specific parsing of MessagesStreamEvent
-                match serde_json::from_str::<MessagesStreamEvent>(data) {
-                    Ok(event) => return Some(Ok(Box::new(event))),
-                    Err(e) => return Some(Err(Box::new(e))),
-                }
-            }
-        }
-        None
-    }
-}
-
 // Implement ProviderStreamResponse for MessagesStreamEvent
 impl ProviderStreamResponse for MessagesStreamEvent {
     fn content_delta(&self) -> Option<&str> {
@@ -594,6 +544,7 @@ impl ProviderStreamResponse for MessagesStreamEvent {
             _ => None,
         }
     }
+
 }
 
 #[cfg(test)]

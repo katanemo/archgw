@@ -47,7 +47,7 @@ pub fn get_provider_config(provider_id: &ProviderId) -> ProviderConfig {
                 adapter_type: AdapterType::OpenAICompatible,
             }
         }
-        ProviderId::Claude => {
+        ProviderId::Anthropic => {
             ProviderConfig {
                 supported_apis: &["/v1/messages", "/v1/chat/completions"],
                 adapter_type: AdapterType::AnthropicCompatible,

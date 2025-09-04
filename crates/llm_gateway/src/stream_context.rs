@@ -22,7 +22,7 @@ use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::clients::endpoints::SupportedAPIs;
-use hermesllm::providers::response::{ProviderResponse, ProviderStreamResponseIter};
+use hermesllm::providers::response::{ProviderResponse, SseEvent, SseStreamIter};
 use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 
 pub struct StreamContext {
@@ -129,9 +129,19 @@ impl StreamContext {
                     ),
                 })?;
 
-        let authorization_header_value = format!("Bearer {}", llm_provider_api_key_value);
-
-        self.set_http_request_header("Authorization", Some(&authorization_header_value));
+        // Set API-specific headers based on the resolved upstream API
+        match self.resolved_api.as_ref() {
+            Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                // Anthropic API requires x-api-key and anthropic-version headers
+                self.set_http_request_header("x-api-key", Some(llm_provider_api_key_value));
+                self.set_http_request_header("anthropic-version", Some("2023-06-01"));
+            }
+            Some(SupportedAPIs::OpenAIChatCompletions(_)) | None => {
+                // OpenAI and default: use Authorization Bearer token
+                let authorization_header_value = format!("Bearer {}", llm_provider_api_key_value);
+                self.set_http_request_header("Authorization", Some(&authorization_header_value));
+            }
+        }
 
         Ok(())
     }
@@ -334,7 +344,7 @@ impl StreamContext {
     fn debug_log_body(&self, body: &[u8]) {
         if log::log_enabled!(log::Level::Debug) {
             debug!(
-                "response data (converted to utf8): {}",
+                "raw response data (converted to utf8): {}",
                 String::from_utf8_lossy(body)
             );
         }
@@ -348,49 +358,67 @@ impl StreamContext {
         debug!("processing streaming response");
         match self.client_api.as_ref() {
             Some(client_api) => {
-                match ProviderStreamResponseIter::try_from((body, client_api, &provider_id)) {
-                    Ok(mut streaming_response) => {
-                        while let Some(chunk_result) = streaming_response.next() {
-                            match chunk_result {
-                                Ok(chunk) => {
-                                    self.record_ttft_if_needed();
+                let client_api = client_api.clone(); // Clone to avoid borrowing issues
+                let upstream_api = provider_id.compatible_api_for_client(&client_api);
 
-                                    if chunk.is_final() {
-                                        debug!("Received final streaming chunk");
-                                    }
-                                    if let Some(content) = chunk.content_delta() {
-                                        let estimated_tokens = content.len() / 4;
-                                        self.response_tokens += estimated_tokens.max(1);
-                                    }
+                // Parse body into SSE iterator using TryFrom
+                let sse_iter: SseStreamIter<std::vec::IntoIter<String>> =
+                    match SseStreamIter::try_from(body) {
+                        Ok(iter) => iter,
+                        Err(e) => {
+                            warn!("Failed to parse body into SSE iterator: {}", e);
+                            return Err(Action::Continue);
+                        }
+                    };
+
+                let mut response_buffer = Vec::new();
+
+                // Process each SSE event
+                for sse_event in sse_iter {
+                    // Transform event if upstream API != client API
+                    let transformed_event: SseEvent =
+                        match SseEvent::try_from((sse_event, &upstream_api, &client_api)) {
+                            Ok(event) => event,
+                            Err(e) => {
+                                warn!("Failed to transform SSE event: {}", e);
+                                return Err(Action::Continue);
+                            }
+                        };
+
+                    // Extract ProviderStreamResponse for processing (token counting, etc.)
+                    if !transformed_event.is_done() {
+                        match transformed_event.to_provider_stream_response(&client_api) {
+                            Ok(provider_response) => {
+                                self.record_ttft_if_needed();
+
+                                if provider_response.is_final() {
+                                    debug!("Received final streaming chunk");
                                 }
-                                Err(e) => {
-                                    warn!("Error processing streaming chunk: {}", e);
-                                    return Err(Action::Continue);
+
+                                if let Some(content) = provider_response.content_delta() {
+                                    let estimated_tokens = content.len() / 4;
+                                    self.response_tokens += estimated_tokens.max(1);
                                 }
+                            }
+                            Err(e) => {
+                                warn!("Error processing streaming chunk: {}", e);
+                                return Err(Action::Continue);
                             }
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to parse streaming response: {}", e);
-                    }
+
+                    // Add transformed event to response buffer
+                    let bytes: Vec<u8> = transformed_event.into();
+                    response_buffer.extend_from_slice(&bytes);
                 }
+
+                Ok(response_buffer)
             }
             None => {
                 warn!("Missing client_api for non-streaming response");
-                return Err(Action::Continue);
+                Err(Action::Continue)
             }
-        };
-        // NOTE:
-        // We currently pass-through the original SSE bytes for streaming responses.
-        // Non-streaming responses are parsed into ProviderResponseType and re-serialized to
-        // normalize the payload to the client API. Doing the same for streaming would require
-        // a streaming serializer that emits normalized SSE events for the target client API.
-        // That doesn't exist yet in hermesllm; implementing it is a follow-up.
-        // TODO(salmanap): Add a normalized SSE serializer in hermesllm and use it here so both
-        // streaming and non-streaming paths perform the same compatibility mapping.
-        // Until then, we keep behavior unchanged and forward upstream SSE as-is.
-        // For consistency of the method contract, still return Vec<u8>.
-        Ok(body.to_vec())
+        }
     }
 
     fn handle_non_streaming_response(

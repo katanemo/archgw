@@ -7,7 +7,7 @@ pub mod clients;
 
 // Re-export important types and traits
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
-pub use providers::response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, ProviderStreamResponseIter, ProviderResponseError, TokenUsage};
+pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, SseEvent, SseStreamIter};
 pub use providers::id::ProviderId;
 pub use providers::adapters::{has_compatible_api, supported_apis};
 
@@ -68,29 +68,38 @@ mod tests {
         // Test streaming response parsing with sample SSE data
     let sse_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
 
-data: [DONE]
-"#;
+    data: [DONE]
+    "#;
 
     use crate::clients::endpoints::SupportedAPIs;
     let api = SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
-    let result = ProviderStreamResponseIter::try_from((sse_data.as_bytes(), &api, &ProviderId::OpenAI));
-    assert!(result.is_ok());
 
-    let mut streaming_response = result.unwrap();
+    // Test the new simplified architecture - create SseStreamIter directly
+    let sse_iter = SseStreamIter::try_from(sse_data.as_bytes());
+    assert!(sse_iter.is_ok());
 
-    // Test that we can iterate over chunks - it's just an iterator now!
-    let first_chunk = streaming_response.next();
-    assert!(first_chunk.is_some());
+    let mut streaming_iter = sse_iter.unwrap();
 
-    let chunk_result = first_chunk.unwrap();
-    assert!(chunk_result.is_ok());
+    // Test that we can iterate over SseEvents
+    let first_event = streaming_iter.next();
+    assert!(first_event.is_some());
 
-    let chunk = chunk_result.unwrap();
-    assert_eq!(chunk.content_delta(), Some("Hello"));
-    assert!(!chunk.is_final());
+    let sse_event = first_event.unwrap();
 
-    // Test that stream ends properly
-        let final_chunk = streaming_response.next();
-        assert!(final_chunk.is_none());
+    // Test SseEvent properties
+    assert!(!sse_event.is_done());
+    assert!(sse_event.data.contains("Hello"));
+
+    // Test that we can parse the event into a provider stream response
+    let provider_response = sse_event.to_provider_stream_response(&api);
+    assert!(provider_response.is_ok());
+
+    let stream_response = provider_response.unwrap();
+    assert_eq!(stream_response.content_delta(), Some("Hello"));
+    assert!(!stream_response.is_final());
+
+    // Test that stream ends properly with [DONE] (SseStreamIter should stop before [DONE])
+    let final_event = streaming_iter.next();
+    assert!(final_event.is_none()); // Should be None because iterator stops at [DONE]
     }
 }

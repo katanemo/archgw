@@ -57,7 +57,7 @@ impl SupportedAPIs {
         match self {
             SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
                 match provider_id {
-                    ProviderId::Claude => "/v1/messages".to_string(),
+                    ProviderId::Anthropic => "/v1/messages".to_string(),
                     _ => default_endpoint,
                 }
             }

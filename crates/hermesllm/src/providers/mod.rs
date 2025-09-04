@@ -10,5 +10,5 @@ pub mod adapters;
 
 pub use id::ProviderId;
 pub use request::{ProviderRequestType, ProviderRequest, ProviderRequestError} ;
-pub use response::{ProviderResponseType, ProviderStreamResponseIter, ProviderResponse, ProviderStreamResponse, TokenUsage };
+pub use response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, TokenUsage };
 pub use adapters::*;

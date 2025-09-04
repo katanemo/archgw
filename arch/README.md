@@ -6,10 +6,19 @@
 $ rustup target add wasm32-wasip1
 ```
 
-## Building
+## Container Runtime Support
 
 ```sh
-$ cargo build --target wasm32-wasip1 --release
+# Build the gateway WASM modules (must be run from the crates directory)
+$ cd ../crates
+$ cargo build --target wasm32-wasip1 --release -p llm_gateway
+$ cargo build --target wasm32-wasip1 --release -p prompt_gateway
+```
+
+Or build both at once:
+```sh
+$ cd ../crates
+$ cargo build --target wasm32-wasip1 --release -p llm_gateway -p prompt_gateway
 ```
 
 ## Testing
@@ -25,12 +34,15 @@ $ cargo test
 
 - Build filter binary,
   ```
-  $ cargo build --target wasm32-wasip1 --release
+  $ cd ../crates
+  $ cargo build --target wasm32-wasip1 --release -p llm_gateway -p prompt_gateway
   ```
 - Start envoy with arch_config.yaml and test,
   ```
   $ docker compose -f docker-compose.dev.yaml up archgw
   ```
-- dev version of docker-compose file uses following files that are mounted inside the container. That means no docker rebuild is needed if any of these files change. Just restart the container and chagne will be picked up,
+- dev version of docker-compose file uses following files that are mounted inside the container. That means no docker rebuild is needed if any of these files change. Just restart the container and change will be picked up,
   - envoy.template.yaml
-  - intelligent_prompt_gateway.wasm
+  - llm_gateway.wasm
+  - prompt_gateway.wasm
+  - logs/ directory (for container logs)

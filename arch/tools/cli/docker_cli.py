@@ -1,6 +1,7 @@
 import subprocess
 import json
 import sys
+import os
 import requests
 
 from cli.consts import (
@@ -74,7 +75,7 @@ def docker_start_archgw_detached(
         *volume_mappings_args,
         *env_args,
         "--add-host",
-        "host.docker.internal:host-gateway",
+        f"{os.getenv('HOST_INTERNAL', 'host.docker.internal')}:{os.getenv('HOST_IP', 'host-gateway')}",
         ARCHGW_DOCKER_IMAGE,
     ]
 

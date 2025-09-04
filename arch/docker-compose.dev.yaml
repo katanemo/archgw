@@ -8,18 +8,20 @@ services:
       - "12000:12000"
       - "19901:9901"
     volumes:
-      - ${ARCH_CONFIG_FILE:-../demos/samples_python/weather_forecast/arch_config.yaml}:/app/arch_config.yaml
+      - ${ARCH_CONFIG_FILE:-../demos/samples_python/weather_forecast}:/app/arch_config.yaml
       - /etc/ssl/cert.pem:/etc/ssl/cert.pem
       - ./envoy.template.yaml:/app/envoy.template.yaml
       - ./arch_config_schema.yaml:/app/arch_config_schema.yaml
       - ./tools/cli/config_generator.py:/app/config_generator.py
       - ../crates/target/wasm32-wasip1/release/llm_gateway.wasm:/etc/envoy/proxy-wasm-plugins/llm_gateway.wasm
       - ../crates/target/wasm32-wasip1/release/prompt_gateway.wasm:/etc/envoy/proxy-wasm-plugins/prompt_gateway.wasm
-      - ~/archgw_logs:/var/log/
+      - ./logs:/var/log/
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "${HOST_INTERNAL:-host.docker.internal}:${HOST_IP:-host-gateway}"
+
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY:?error}
-      - OTEL_TRACING_HTTP_ENDPOINT=http://host.docker.internal:4318/v1/traces
+      - OTEL_TRACING_HTTP_ENDPOINT=http://${HOST_INTERNAL:-host.docker.internal}:4318/v1/traces
       - MODEL_SERVER_PORT=${MODEL_SERVER_PORT:-51000}
+      - HOST_INTERNAL=${HOST_INTERNAL:-host.docker.internal}

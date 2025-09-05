@@ -15,7 +15,8 @@ services:
       - ./tools/cli/config_generator.py:/app/config_generator.py
       - ../crates/target/wasm32-wasip1/release/llm_gateway.wasm:/etc/envoy/proxy-wasm-plugins/llm_gateway.wasm
       - ../crates/target/wasm32-wasip1/release/prompt_gateway.wasm:/etc/envoy/proxy-wasm-plugins/prompt_gateway.wasm
-      - ./logs:/var/log/
+      # Log volume location is now configurable via ARCHGW_LOGS_DIR (default: ~/archgw_logs)
+      - ${ARCHGW_LOGS_DIR:-~/archgw_logs}:/var/log/
     extra_hosts:
       - "${HOST_INTERNAL:-host.docker.internal}:${HOST_IP:-host-gateway}"
 

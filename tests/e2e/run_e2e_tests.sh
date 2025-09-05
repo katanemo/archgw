@@ -48,6 +48,8 @@ cd ../../
 archgw build
 cd -
 
+poetry install
+
 log startup arch gateway with function calling demo
 cd ../../
 tail -F ~/archgw_logs/modelserver.log &
@@ -59,7 +61,6 @@ cd -
 
 log running e2e tests
 log =================
-poetry install
 poetry run pytest
 
 log shutting down the arch gateway service

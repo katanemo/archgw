@@ -129,9 +129,6 @@ impl StreamContext {
         body: Vec<u8>,
         mut callout_context: StreamCallContext,
     ) {
-        // Debug: print raw bytes in hex to diagnose extra data
-        debug!("raw upstream response bytes (hex): {}",
-            body.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
         let body_str = String::from_utf8(body).unwrap();
         info!("on_http_call_response: model server response received");
         debug!("response body: {}", body_str);

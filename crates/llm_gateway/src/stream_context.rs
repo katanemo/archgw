@@ -77,6 +77,16 @@ impl StreamContext {
             user_message: None,
         }
     }
+
+    /// Returns the appropriate request identifier for logging.
+    /// Uses request_id (from x-request-id header) when available, otherwise falls back to context_id.
+    fn request_identifier(&self) -> String {
+        self.request_id
+            .as_ref()
+            .filter(|id| !id.is_empty()) // Filter out empty strings
+            .map(|id| id.clone())
+            .unwrap_or_else(|| self.context_id.to_string())
+    }
     fn llm_provider(&self) -> &LlmProvider {
         self.llm_provider
             .as_ref()
@@ -111,7 +121,7 @@ impl StreamContext {
 
         info!(
             "[ARCHGW_REQ_ID:{}] PROVIDER_SELECTION: hint='{}' -> selected='{}'",
-            self.context_id,
+            self.request_identifier(),
             self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
                 .unwrap_or("none".to_string()),
             self.llm_provider.as_ref().unwrap().name
@@ -186,7 +196,9 @@ impl StreamContext {
 
         info!(
             "[ARCHGW_REQ_ID:{}] TOKEN_COUNT: model='{}' input_tokens={}",
-            self.context_id, model, token_count
+            self.request_identifier(),
+            model,
+            token_count
         );
 
         // Record the token count to metrics.
@@ -198,7 +210,10 @@ impl StreamContext {
         if let Some(selector) = self.ratelimit_selector.take() {
             info!(
                 "[ARCHGW_REQ_ID:{}] RATELIMIT_CHECK: model='{}' selector='{}:{}'",
-                self.context_id, model, selector.key, selector.value
+                self.request_identifier(),
+                model,
+                selector.key,
+                selector.value
             );
             ratelimit::ratelimits(None).read().unwrap().check_limit(
                 model.to_owned(),
@@ -208,7 +223,8 @@ impl StreamContext {
         } else {
             debug!(
                 "[ARCHGW_REQ_ID:{}] RATELIMIT_SKIP: model='{}' (no selector)",
-                self.context_id, model
+                self.request_identifier(),
+                model
             );
         }
 
@@ -226,7 +242,8 @@ impl StreamContext {
                     let duration_ms = duration.as_millis();
                     info!(
                         "[ARCHGW_REQ_ID:{}] TIME_TO_FIRST_TOKEN: {}ms",
-                        self.context_id, duration_ms
+                        self.request_identifier(),
+                        duration_ms
                     );
                     self.ttft_duration = Some(duration);
                     self.metrics.time_to_first_token.record(duration_ms as u64);
@@ -234,7 +251,8 @@ impl StreamContext {
                 Err(e) => {
                     warn!(
                         "[ARCHGW_REQ_ID:{}] TIME_MEASUREMENT_ERROR: {:?}",
-                        self.context_id, e
+                        self.request_identifier(),
+                        e
                     );
                 }
             }
@@ -249,7 +267,9 @@ impl StreamContext {
                 let duration_ms = duration.as_millis();
                 info!(
                     "[ARCHGW_REQ_ID:{}] REQUEST_COMPLETE: latency={}ms tokens={}",
-                    self.context_id, duration_ms, self.response_tokens
+                    self.request_identifier(),
+                    duration_ms,
+                    self.response_tokens
                 );
                 // Record the latency to the latency histogram
                 self.metrics.request_latency.record(duration_ms as u64);
@@ -263,7 +283,7 @@ impl StreamContext {
 
                     info!(
                         "[ARCHGW_REQ_ID:{}] TOKEN_THROUGHPUT: time_per_token={}ms tokens_per_second={}",
-                        self.context_id,
+                        self.request_identifier(),
                         tpot,
                         1000 / tpot
                     );
@@ -322,14 +342,16 @@ impl StreamContext {
             let chunk_size = body_size;
             debug!(
                 "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_CHUNK: streaming=true chunk_size={}",
-                self.context_id, chunk_size
+                self.request_identifier(),
+                chunk_size
             );
             let streaming_chunk = match self.get_http_response_body(0, chunk_size) {
                 Some(chunk) => chunk,
                 None => {
                     warn!(
                         "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: empty chunk, size={}",
-                        self.context_id, chunk_size
+                        self.request_identifier(),
+                        chunk_size
                     );
                     return Err(Action::Continue);
                 }
@@ -338,7 +360,7 @@ impl StreamContext {
             if streaming_chunk.len() != chunk_size {
                 warn!(
                     "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_MISMATCH: expected={} actual={}",
-                    self.context_id,
+                    self.request_identifier(),
                     chunk_size,
                     streaming_chunk.len()
                 );
@@ -350,7 +372,8 @@ impl StreamContext {
             }
             debug!(
                 "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_COMPLETE: streaming=false body_size={}",
-                self.context_id, body_size
+                self.request_identifier(),
+                body_size
             );
             match self.get_http_response_body(0, body_size) {
                 Some(body) => Ok(body),
@@ -365,7 +388,7 @@ impl StreamContext {
     fn debug_log_body(&self, body: &[u8]) {
         debug!(
             "[ARCHGW_REQ_ID:{}] UPSTREAM_RAW_RESPONSE: body_size={} content={}",
-            self.context_id,
+            self.request_identifier(),
             body.len(),
             String::from_utf8_lossy(body)
         );
@@ -378,7 +401,7 @@ impl StreamContext {
     ) -> Result<Vec<u8>, Action> {
         debug!(
             "[ARCHGW_REQ_ID:{}] STREAMING_PROCESS: provider_id={:?} chunk_size={}",
-            self.context_id,
+            self.request_identifier(),
             provider_id,
             body.len()
         );
@@ -420,7 +443,8 @@ impl StreamContext {
                                 if provider_response.is_final() {
                                     debug!(
                                         "[ARCHGW_REQ_ID:{}] STREAMING_FINAL_CHUNK: total_tokens={}",
-                                        self.context_id, self.response_tokens
+                                        self.request_identifier(),
+                                        self.response_tokens
                                     );
                                 }
 
@@ -429,7 +453,7 @@ impl StreamContext {
                                     self.response_tokens += estimated_tokens.max(1);
                                     debug!(
                                         "[ARCHGW_REQ_ID:{}] STREAMING_TOKEN_UPDATE: delta_chars={} estimated_tokens={} total_tokens={}",
-                                        self.context_id,
+                                        self.request_identifier(),
                                         content.len(),
                                         estimated_tokens.max(1),
                                         self.response_tokens
@@ -439,7 +463,8 @@ impl StreamContext {
                             Err(e) => {
                                 warn!(
                                     "[ARCHGW_REQ_ID:{}] STREAMING_CHUNK_ERROR: {}",
-                                    self.context_id, e
+                                    self.request_identifier(),
+                                    e
                                 );
                                 return Err(Action::Continue);
                             }
@@ -467,7 +492,7 @@ impl StreamContext {
     ) -> Result<Vec<u8>, Action> {
         info!(
             "[ARCHGW_REQ_ID:{}] NON_STREAMING_PROCESS: provider_id={:?} body_size={}",
-            self.context_id,
+            self.request_identifier(),
             provider_id,
             body.len()
         );
@@ -479,7 +504,7 @@ impl StreamContext {
                     Err(e) => {
                         warn!(
                             "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_PARSE_ERROR: {} | body: {}",
-                            self.context_id,
+                            self.request_identifier(),
                             e,
                             String::from_utf8_lossy(body)
                         );
@@ -494,7 +519,7 @@ impl StreamContext {
             None => {
                 warn!(
                     "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: missing client_api",
-                    self.context_id
+                    self.request_identifier()
                 );
                 return Err(Action::Continue);
             }
@@ -506,7 +531,7 @@ impl StreamContext {
         {
             info!(
                 "[ARCHGW_REQ_ID:{}] RESPONSE_USAGE: prompt_tokens={} completion_tokens={} total_tokens={}",
-                self.context_id,
+                self.request_identifier(),
                 prompt_tokens,
                 completion_tokens,
                 total_tokens
@@ -515,7 +540,7 @@ impl StreamContext {
         } else {
             warn!(
                 "[ARCHGW_REQ_ID:{}] RESPONSE_USAGE: no usage information found",
-                self.context_id
+                self.request_identifier()
             );
         }
         // Serialize the normalized response back to JSON bytes
@@ -523,7 +548,7 @@ impl StreamContext {
             Ok(bytes) => {
                 debug!(
                     "[ARCHGW_REQ_ID:{}] CLIENT_RESPONSE_PAYLOAD: {}",
-                    self.context_id,
+                    self.request_identifier(),
                     String::from_utf8_lossy(&bytes)
                 );
                 Ok(bytes)
@@ -628,7 +653,9 @@ impl HttpContext for StreamContext {
     fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {
         debug!(
             "[ARCHGW_REQ_ID:{}] REQUEST_BODY_CHUNK: bytes={} end_stream={}",
-            self.context_id, body_size, end_of_stream
+            self.request_identifier(),
+            body_size,
+            end_of_stream
         );
 
         // Let the client send the gateway all the data before sending to the LLM_provider.
@@ -665,14 +692,14 @@ impl HttpContext for StreamContext {
             Some(the_client_api) => {
                 info!(
                     "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_RECEIVED: api={:?} body_size={}",
-                    self.context_id,
+                    self.request_identifier(),
                     the_client_api,
                     body_bytes.len()
                 );
 
                 debug!(
                     "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_PAYLOAD: {}",
-                    self.context_id,
+                    self.request_identifier(),
                     String::from_utf8_lossy(&body_bytes)
                 );
 
@@ -681,7 +708,7 @@ impl HttpContext for StreamContext {
                     Err(e) => {
                         warn!(
                             "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_PARSE_ERROR: {} | body: {}",
-                            self.context_id,
+                            self.request_identifier(),
                             e,
                             String::from_utf8_lossy(&body_bytes)
                         );
@@ -724,7 +751,7 @@ impl HttpContext for StreamContext {
                 } else {
                     warn!(
                         "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION_ERROR: no model specified | req_model='{}' provider='{}' config_model={:?}",
-                        self.context_id,
+                        self.request_identifier(),
                         model_requested,
                         self.llm_provider().name,
                         self.llm_provider().model
@@ -753,7 +780,7 @@ impl HttpContext for StreamContext {
 
         info!(
             "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION: req_model='{}' -> resolved_model='{}' provider='{}' streaming={}",
-            self.context_id,
+            self.request_identifier(),
             model_requested,
             resolved_model,
             self.llm_provider().name,
@@ -776,55 +803,56 @@ impl HttpContext for StreamContext {
         }
 
         // Convert chat completion request to llm provider specific request using provider interface
-        let serialized_body_bytes_upstream = match self.resolved_api.as_ref() {
-            Some(upstream) => {
-                info!(
+        let serialized_body_bytes_upstream =
+            match self.resolved_api.as_ref() {
+                Some(upstream) => {
+                    info!(
                     "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORM: client_api={:?} -> upstream_api={:?}",
-                    self.context_id, self.client_api, upstream
+                    self.request_identifier(), self.client_api, upstream
                 );
 
-                match ProviderRequestType::try_from((&deserialized_client_request, upstream)) {
-                    Ok(request) => {
-                        debug!(
-                            "[ARCHGW_REQ_ID:{}] UPSTREAM_REQUEST_PAYLOAD: {}",
-                            self.context_id,
-                            String::from_utf8_lossy(&request.to_bytes().unwrap_or_default())
-                        );
+                    match ProviderRequestType::try_from((&deserialized_client_request, upstream)) {
+                        Ok(request) => {
+                            debug!(
+                                "[ARCHGW_REQ_ID:{}] UPSTREAM_REQUEST_PAYLOAD: {}",
+                                self.request_identifier(),
+                                String::from_utf8_lossy(&request.to_bytes().unwrap_or_default())
+                            );
 
-                        match request.to_bytes() {
-                            Ok(bytes) => bytes,
-                            Err(e) => {
-                                warn!("Failed to serialize request body: {}", e);
-                                self.send_server_error(
-                                    ServerError::LogicError(format!(
-                                        "Request serialization error: {}",
-                                        e
-                                    )),
-                                    Some(StatusCode::BAD_REQUEST),
-                                );
-                                return Action::Pause;
+                            match request.to_bytes() {
+                                Ok(bytes) => bytes,
+                                Err(e) => {
+                                    warn!("Failed to serialize request body: {}", e);
+                                    self.send_server_error(
+                                        ServerError::LogicError(format!(
+                                            "Request serialization error: {}",
+                                            e
+                                        )),
+                                        Some(StatusCode::BAD_REQUEST),
+                                    );
+                                    return Action::Pause;
+                                }
                             }
                         }
-                    }
-                    Err(e) => {
-                        warn!("Failed to create provider request: {}", e);
-                        self.send_server_error(
-                            ServerError::LogicError(format!("Provider request error: {}", e)),
-                            Some(StatusCode::BAD_REQUEST),
-                        );
-                        return Action::Pause;
+                        Err(e) => {
+                            warn!("Failed to create provider request: {}", e);
+                            self.send_server_error(
+                                ServerError::LogicError(format!("Provider request error: {}", e)),
+                                Some(StatusCode::BAD_REQUEST),
+                            );
+                            return Action::Pause;
+                        }
                     }
                 }
-            }
-            None => {
-                warn!("No upstream API resolved");
-                self.send_server_error(
-                    ServerError::LogicError("No upstream API resolved".into()),
-                    Some(StatusCode::BAD_REQUEST),
-                );
-                return Action::Pause;
-            }
-        };
+                None => {
+                    warn!("No upstream API resolved");
+                    self.send_server_error(
+                        ServerError::LogicError("No upstream API resolved".into()),
+                        Some(StatusCode::BAD_REQUEST),
+                    );
+                    return Action::Pause;
+                }
+            };
 
         self.set_http_request_body(0, body_size, &serialized_body_bytes_upstream);
         Action::Continue

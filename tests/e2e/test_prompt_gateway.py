@@ -3,9 +3,12 @@ import pytest
 import requests
 from deepdiff import DeepDiff
 import re
+import anthropic
+import openai
 
 from common import (
     PROMPT_GATEWAY_ENDPOINT,
+    LLM_GATEWAY_ENDPOINT,
     PREFILL_LIST,
     get_arch_messages,
     get_data_chunks,
@@ -352,3 +355,50 @@ def test_prompt_gateway_prompt_guard_jailbreak(stream):
             response_json.get("choices")[0]["message"]["content"]
             == "Looks like you're curious about my abilities, but I can only provide assistance for weather forecasting."
         )
+
+
+def test_claude_v1_messages_api():
+    """Test Claude client using /v1/messages API through llm_gateway (port 12000)"""
+    # Get the base URL from the LLM gateway endpoint
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+
+    client = anthropic.Anthropic(
+        api_key="test-key", base_url=base_url  # Dummy key for testing
+    )
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",  # Use working model from smoke test
+        max_tokens=50,
+        messages=[
+            {
+                "role": "user",
+                "content": "Hello, please respond with exactly: Hello from Claude!",
+            }
+        ],
+    )
+
+    assert message.content[0].text == "Hello from Claude!"
+
+
+def test_openai_gpt4o_mini_v1_messages_api():
+    """Test OpenAI GPT-4o-mini using /v1/chat/completions API through llm_gateway (port 12000)"""
+    # Get the base URL from the LLM gateway endpoint
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+
+    client = openai.OpenAI(
+        api_key="test-key",  # Dummy key for testing
+        base_url=f"{base_url}/v1",  # OpenAI needs /v1 suffix in base_url
+    )
+
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=50,
+        messages=[
+            {
+                "role": "user",
+                "content": "Hello, please respond with exactly: Hello from GPT-4o-mini!",
+            }
+        ],
+    )
+
+    assert completion.choices[0].message.content == "Hello from GPT-4o-mini!"

@@ -858,14 +858,8 @@ impl HttpContext for StreamContext {
         Action::Continue
     }
 
-    fn on_http_response_headers(&mut self, _num_headers: usize, end_of_stream: bool) -> Action {
-        debug!(
-            "on_http_response_headers [S={}] end_stream={}",
-            self.context_id, end_of_stream
-        );
-
+    fn on_http_response_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
         self.remove_http_response_header("content-length");
-        // If upstream may compress, drop encoding so our new bytes are sent as-is.
         self.remove_http_response_header("content-encoding");
 
         self.set_property(
@@ -877,11 +871,6 @@ impl HttpContext for StreamContext {
     }
 
     fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {
-        debug!(
-            "on_http_response_body [S={}] bytes={} end_stream={}",
-            self.context_id, body_size, end_of_stream
-        );
-
         if self.request_body_sent_time.is_none() {
             debug!("on_http_response_body: request body not sent, not doing any processing in llm filter");
             return Action::Continue;
@@ -891,7 +880,15 @@ impl HttpContext for StreamContext {
             Some(SupportedAPIs::OpenAIChatCompletions(_)) => {}
             Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {}
             _ => {
-                info!("on_http_response_body: non-chatcompletion request");
+                let api_info = match &self.client_api {
+                    Some(api) => format!("{}", api),
+                    None => "None".to_string(),
+                };
+                info!(
+                    "[ARCHGW_REQ_ID:{}], UNSUPPORTED API: {}",
+                    self.request_identifier(),
+                    api_info
+                );
                 return Action::Continue;
             }
         }
@@ -925,12 +922,6 @@ impl HttpContext for StreamContext {
                 Err(action) => return action,
             }
         }
-
-        debug!(
-            "recv [S={}] total_tokens={} end_stream={}",
-            self.context_id, self.response_tokens, end_of_stream
-        );
-
         Action::Continue
     }
 }

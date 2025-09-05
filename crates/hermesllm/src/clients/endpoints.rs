@@ -22,12 +22,22 @@
 //! ```
 
 use crate::{apis::{AnthropicApi, ApiDefinition, OpenAIApi}, ProviderId};
+use std::fmt;
 
 /// Unified enum representing all supported API endpoints across providers
 #[derive(Debug, Clone, PartialEq)]
 pub enum SupportedAPIs {
     OpenAIChatCompletions(OpenAIApi),
     AnthropicMessagesAPI(AnthropicApi),
+}
+
+impl fmt::Display for SupportedAPIs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SupportedAPIs::OpenAIChatCompletions(api) => write!(f, "OpenAI API ({})", api.endpoint()),
+            SupportedAPIs::AnthropicMessagesAPI(api) => write!(f, "Anthropic API ({})", api.endpoint()),
+        }
+    }
 }
 
 impl SupportedAPIs {

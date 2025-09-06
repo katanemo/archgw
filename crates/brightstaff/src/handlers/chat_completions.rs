@@ -64,7 +64,6 @@ pub async fn chat(
     // remove metadata from the request
     let mut chat_request_user_preferences_removed = chat_request_parsed;
     if let Some(metadata) = chat_request_user_preferences_removed.get_mut("metadata") {
-        debug!("Removing metadata from request");
         if let Some(m) = metadata.as_object_mut() {
             m.remove("archgw_preference_config");
             debug!("Removed archgw_preference_config from metadata");
@@ -72,15 +71,15 @@ pub async fn chat(
 
         // if metadata is empty, remove it
         if metadata.as_object().map_or(false, |m| m.is_empty()) {
-            debug!("Removing empty metadata from request");
             chat_request_user_preferences_removed
                 .as_object_mut()
                 .map(|m| m.remove("metadata"));
+            debug!("Removed empty metadata from request");
         }
     }
 
     debug!(
-        "arch-router request received: {}",
+        "[BRIGHTSTAFF -> ARCH_ROUTER] REQ: {}",
         &serde_json::to_string(&chat_completion_request).unwrap()
     );
 
@@ -151,8 +150,8 @@ pub async fn chat(
     };
 
     debug!(
-        "sending request to llm provider: {}, with model hint: {}",
-            full_qualified_llm_provider_url, model_name
+        "[BRIGHTSTAFF -> ARCH_ROUTER] URL: {}, Model Hint: {}",
+        full_qualified_llm_provider_url, model_name
     );
 
     request_headers.insert(

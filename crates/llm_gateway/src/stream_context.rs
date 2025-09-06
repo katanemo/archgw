@@ -120,7 +120,7 @@ impl StreamContext {
         ));
 
         info!(
-            "[ARCHGW_REQ_ID:{}] PROVIDER_SELECTION: hint='{}' -> selected='{}'",
+            "[ARCHGW_REQ_ID:{}] PROVIDER_SELECTION: Hint='{}' -> Selected='{}'",
             self.request_identifier(),
             self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
                 .unwrap_or("none".to_string()),

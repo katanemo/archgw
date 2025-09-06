@@ -4,12 +4,17 @@
 pub mod providers;
 pub mod apis;
 pub mod clients;
-
 // Re-export important types and traits
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
 pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, SseEvent, SseStreamIter};
 pub use providers::id::ProviderId;
 pub use providers::adapters::{has_compatible_api, supported_apis};
+
+
+//TODO: Refactor such that commons doesn't depend on Hermes. For now this will clean up strings
+pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";
+pub const MESSAGES_PATH: &str = "/v1/messages";
+
 
 #[cfg(test)]
 mod tests {
@@ -25,17 +30,17 @@ mod tests {
 
     #[test]
     fn test_provider_api_compatibility() {
-        assert!(has_compatible_api(&ProviderId::OpenAI, "/v1/chat/completions"));
+        assert!(has_compatible_api(&ProviderId::OpenAI, CHAT_COMPLETIONS_PATH));
         assert!(!has_compatible_api(&ProviderId::OpenAI, "/v1/embeddings"));
     }
 
     #[test]
     fn test_provider_supported_apis() {
         let apis = supported_apis(&ProviderId::OpenAI);
-        assert!(apis.contains(&"/v1/chat/completions"));
+        assert!(apis.contains(&CHAT_COMPLETIONS_PATH));
 
         // Test that provider supports the expected API endpoints
-        assert!(has_compatible_api(&ProviderId::OpenAI, "/v1/chat/completions"));
+        assert!(has_compatible_api(&ProviderId::OpenAI, CHAT_COMPLETIONS_PATH));
     }
 
     #[test]

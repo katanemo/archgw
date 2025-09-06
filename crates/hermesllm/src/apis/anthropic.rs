@@ -8,6 +8,7 @@ use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::ProviderStreamResponse;
 use crate::clients::transformer::ExtractText;
+use crate::{MESSAGES_PATH};
 
 // Enum for all supported Anthropic APIs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,13 +22,13 @@ pub enum AnthropicApi {
 impl ApiDefinition for AnthropicApi {
     fn endpoint(&self) -> &'static str {
         match self {
-            AnthropicApi::Messages => "/v1/messages",
+            AnthropicApi::Messages => MESSAGES_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
-            "/v1/messages" => Some(AnthropicApi::Messages),
+            MESSAGES_PATH => Some(AnthropicApi::Messages),
             _ => None,
         }
     }
@@ -1044,13 +1045,13 @@ mod tests {
         let api = AnthropicApi::Messages;
 
         // Test trait methods
-        assert_eq!(api.endpoint(), "/v1/messages");
+        assert_eq!(api.endpoint(), MESSAGES_PATH);
         assert!(api.supports_streaming());
         assert!(api.supports_tools());
         assert!(api.supports_vision());
 
         // Test from_endpoint trait method
-        let found_api = AnthropicApi::from_endpoint("/v1/messages");
+        let found_api = AnthropicApi::from_endpoint(MESSAGES_PATH);
         assert_eq!(found_api, Some(AnthropicApi::Messages));
 
         let not_found = AnthropicApi::from_endpoint("/v1/unknown");

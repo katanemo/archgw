@@ -9,6 +9,7 @@ use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
 use super::ApiDefinition;
 use crate::clients::transformer::{ExtractText};
+use crate::{CHAT_COMPLETIONS_PATH};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -27,13 +28,13 @@ pub enum OpenAIApi {
 impl ApiDefinition for OpenAIApi {
     fn endpoint(&self) -> &'static str {
         match self {
-            OpenAIApi::ChatCompletions => "/v1/chat/completions",
+            OpenAIApi::ChatCompletions => CHAT_COMPLETIONS_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
-            "/v1/chat/completions" => Some(OpenAIApi::ChatCompletions),
+            CHAT_COMPLETIONS_PATH => Some(OpenAIApi::ChatCompletions),
             _ => None,
         }
     }
@@ -943,13 +944,13 @@ mod tests {
         let api = OpenAIApi::ChatCompletions;
 
         // Test trait methods
-        assert_eq!(api.endpoint(), "/v1/chat/completions");
+        assert_eq!(api.endpoint(), CHAT_COMPLETIONS_PATH);
         assert!(api.supports_streaming());
         assert!(api.supports_tools());
         assert!(api.supports_vision());
 
         // Test from_endpoint
-        let found_api = OpenAIApi::from_endpoint("/v1/chat/completions");
+        let found_api = OpenAIApi::from_endpoint(CHAT_COMPLETIONS_PATH);
         assert_eq!(found_api, Some(OpenAIApi::ChatCompletions));
 
         let not_found = OpenAIApi::from_endpoint("/v1/unknown");

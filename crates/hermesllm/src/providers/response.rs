@@ -148,31 +148,32 @@ impl fmt::Display for SseEvent {
     }
 }
 
+// Into implementation to convert SseEvent to bytes for response buffer
+impl Into<Vec<u8>> for SseEvent {
+    fn into(self) -> Vec<u8> {
+        format!("{}\n\n", self.raw_line).into_bytes()
+    }
+}
+
+
 // --- Response transformation logic for client API compatibility ---
 impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
     type Error = std::io::Error;
 
     fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
-
-        // Step 1: Parse bytes using upstream API format (what the provider actually sent)
-        // Step 2: Return response type that matches client API format (what client expects)
         match (&upstream_api, client_api) {
-            // Upstream sent OpenAI format, client expects OpenAI format - direct pass-through
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(resp))
             }
-            // Upstream sent Anthropic format, client expects Anthropic format - direct pass-through
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderResponseType::MessagesResponse(resp))
             }
-            // Upstream sent Anthropic format, client expects OpenAI format - need transformation
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                // Parse as Anthropic Messages response first
                 let anthropic_resp: MessagesResponse = serde_json::from_slice(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
@@ -181,9 +182,7 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Transformation error: {}", e)))?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(chat_resp))
             }
-            // Upstream sent OpenAI format, client expects Anthropic format - need transformation
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                // Parse as OpenAI ChatCompletions response first
                 let openai_resp: ChatCompletionsResponse = ChatCompletionsResponse::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
@@ -202,32 +201,23 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderStreamResponseTyp
 
     fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
-
-        // Step 1: Parse bytes using upstream API format (what the provider actually sent)
-        // Step 2: Return response type that matches client API format (what client expects)
         match (&upstream_api, client_api) {
-            // Upstream sent OpenAI format, client expects OpenAI format - direct pass-through
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
                 let resp: crate::apis::openai::ChatCompletionsStreamResponse = serde_json::from_slice(bytes)?;
                 Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(resp))
             }
-            // Upstream sent Anthropic format, client expects Anthropic format - direct pass-through
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 let resp: crate::apis::anthropic::MessagesStreamEvent = serde_json::from_slice(bytes)?;
                 Ok(ProviderStreamResponseType::MessagesStreamEvent(resp))
             }
-            // Upstream sent Anthropic format, client expects OpenAI format - need transformation
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                // Parse as Anthropic Messages stream event first
                 let anthropic_resp: crate::apis::anthropic::MessagesStreamEvent = serde_json::from_slice(bytes)?;
 
                 // Transform to OpenAI ChatCompletions stream format using the transformer
                 let chat_resp: crate::apis::openai::ChatCompletionsStreamResponse = anthropic_resp.try_into()?;
                 Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(chat_resp))
             }
-            // Upstream sent OpenAI format, client expects Anthropic format - need transformation
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                // Parse as OpenAI ChatCompletions stream response first
                 let openai_resp: crate::apis::openai::ChatCompletionsStreamResponse = serde_json::from_slice(bytes)?;
 
                 // Transform to Anthropic Messages stream format using the transformer
@@ -304,12 +294,6 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
     }
 }
 
-// Into implementation to convert SseEvent to bytes for response buffer
-impl Into<Vec<u8>> for SseEvent {
-    fn into(self) -> Vec<u8> {
-        format!("{}\n\n", self.raw_line).into_bytes()
-    }
-}
 
 
 #[derive(Debug)]

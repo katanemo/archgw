@@ -53,6 +53,7 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ARCH_API_KEY: ${{ secrets.ARCH_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           source venv/bin/activate
           cd demos/shared/test_runner && sh run_demo_tests.sh use_cases/preference_based_routing

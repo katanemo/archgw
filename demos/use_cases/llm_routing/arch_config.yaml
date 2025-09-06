@@ -23,10 +23,10 @@ llm_providers:
     model: mistral/ministral-3b-latest
 
   - access_key: $ANTHROPIC_API_KEY
-    model: claude/claude-3-7-sonnet-latest
+    model: anthropic/claude-3-7-sonnet-latest
 
   - access_key: $ANTHROPIC_API_KEY
-    model: claude/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-0
 
   - access_key: $DEEPSEEK_API_KEY
     model: deepseek/deepseek-reasoner

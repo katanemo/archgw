@@ -15,6 +15,8 @@ selenium = "^4.11.2"
 pytest-sugar = "^1.0.0"
 deepdiff = "^8.0.1"
 pytest-retry = "^1.6.3"
+anthropic = "^0.66.0"
+openai = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest-cov = "^4.1.0"

@@ -1,9 +1,11 @@
 use crate::providers::id::ProviderId;
+use crate::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH};
 
 #[derive(Debug, Clone)]
 pub enum AdapterType {
     OpenAICompatible,
-    // Future: Claude, Gemini, etc.
+    AnthropicCompatible,
+    // Future: Gemini, etc.
 }
 
 /// Provider adapter configuration
@@ -29,10 +31,16 @@ pub fn supported_apis(provider_id: &ProviderId) -> Vec<&'static str> {
 pub fn get_provider_config(provider_id: &ProviderId) -> ProviderConfig {
     match provider_id {
         ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek
-        | ProviderId::Arch | ProviderId::Gemini | ProviderId::Claude | ProviderId::GitHub => {
+        | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub => {
             ProviderConfig {
-                supported_apis: &["/v1/chat/completions"],
+                supported_apis: &[CHAT_COMPLETIONS_PATH],
                 adapter_type: AdapterType::OpenAICompatible,
+            }
+        }
+        ProviderId::Anthropic => {
+            ProviderConfig {
+                supported_apis: &[MESSAGES_PATH],
+                adapter_type: AdapterType::AnthropicCompatible,
             }
         }
     }

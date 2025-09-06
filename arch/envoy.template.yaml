@@ -526,13 +526,13 @@ static_resources:
               tls_minimum_protocol_version: TLSv1_2
               tls_maximum_protocol_version: TLSv1_3
 
-    - name: claude
+    - name: anthropic
       connect_timeout: 0.5s
       type: LOGICAL_DNS
       dns_lookup_family: V4_ONLY
       lb_policy: ROUND_ROBIN
       load_assignment:
-        cluster_name: claude
+        cluster_name: anthropic
         endpoints:
           - lb_endpoints:
               - endpoint:

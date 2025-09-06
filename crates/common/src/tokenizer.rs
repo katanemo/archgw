@@ -2,7 +2,7 @@ use log::debug;
 
 #[allow(dead_code)]
 pub fn token_count(model_name: &str, text: &str) -> Result<usize, String> {
-    debug!("getting token count model={}", model_name);
+    debug!("TOKENIZER: computing token count for model={}", model_name);
     //HACK: add support for tokenizing mistral and other models
     //filed issue https://github.com/katanemo/arch/issues/222
 

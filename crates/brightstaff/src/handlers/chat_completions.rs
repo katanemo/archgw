@@ -22,10 +22,10 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
         .boxed()
 }
 
-pub async fn chat_completions(
+pub async fn chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
-    llm_provider_endpoint: String,
+    full_qualified_llm_provider_url: String,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     let request_path = request.uri().path().to_string();
     let mut request_headers = request.headers().clone();
@@ -64,7 +64,6 @@ pub async fn chat_completions(
     // remove metadata from the request
     let mut chat_request_user_preferences_removed = chat_request_parsed;
     if let Some(metadata) = chat_request_user_preferences_removed.get_mut("metadata") {
-        debug!("Removing metadata from request");
         if let Some(m) = metadata.as_object_mut() {
             m.remove("archgw_preference_config");
             debug!("Removed archgw_preference_config from metadata");
@@ -72,15 +71,15 @@ pub async fn chat_completions(
 
         // if metadata is empty, remove it
         if metadata.as_object().map_or(false, |m| m.is_empty()) {
-            debug!("Removing empty metadata from request");
             chat_request_user_preferences_removed
                 .as_object_mut()
                 .map(|m| m.remove("metadata"));
+            debug!("Removed empty metadata from request");
         }
     }
 
     debug!(
-        "arch-router request received: {}",
+        "[BRIGHTSTAFF -> ARCH_ROUTER] REQ: {}",
         &serde_json::to_string(&chat_completion_request).unwrap()
     );
 
@@ -151,8 +150,8 @@ pub async fn chat_completions(
     };
 
     debug!(
-        "sending request to llm provider: {}, with model hint: {}",
-        llm_provider_endpoint, model_name
+        "[BRIGHTSTAFF -> ARCH_ROUTER] URL: {}, Model Hint: {}",
+        full_qualified_llm_provider_url, model_name
     );
 
     request_headers.insert(
@@ -174,7 +173,7 @@ pub async fn chat_completions(
     request_headers.remove(header::CONTENT_LENGTH);
 
     let llm_response = match reqwest::Client::new()
-        .post(llm_provider_endpoint)
+        .post(full_qualified_llm_provider_url)
         .headers(request_headers)
         .body(chat_request_parsed_bytes)
         .send()

@@ -811,7 +811,7 @@ impl HttpContext for StreamContext {
                     self.request_identifier(), self.client_api, upstream
                 );
 
-                    match ProviderRequestType::try_from((&deserialized_client_request, upstream)) {
+                    match ProviderRequestType::try_from((deserialized_client_request, upstream)) {
                         Ok(request) => {
                             debug!(
                                 "[ARCHGW_REQ_ID:{}] UPSTREAM_REQUEST_PAYLOAD: {}",

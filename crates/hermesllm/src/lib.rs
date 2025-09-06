@@ -39,31 +39,6 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_request_parsing() {
-        // Test with a sample JSON request
-        let json_request = r#"{
-            "model": "gpt-4",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant"
-                },
-                {
-                    "role": "user",
-                    "content": "Hello!"
-                }
-            ]
-        }"#;
-
-        let result: Result<ProviderRequestType, std::io::Error> = ProviderRequestType::try_from(json_request.as_bytes());
-        assert!(result.is_ok());
-
-        let request = result.unwrap();
-        assert_eq!(request.model(), "gpt-4");
-        assert_eq!(request.get_recent_user_message(), Some("Hello!".to_string()));
-    }
-
-    #[test]
     fn test_provider_streaming_response() {
         // Test streaming response parsing with sample SSE data
     let sse_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}

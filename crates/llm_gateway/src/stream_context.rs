@@ -145,7 +145,7 @@ impl StreamContext {
             Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 // Anthropic API requires x-api-key and anthropic-version headers
                 // Remove any existing Authorization header since Anthropic doesn't use it
-                self.set_http_request_header("authorization", None);
+                self.set_http_request_header("Authorization", None);
                 self.set_http_request_header("x-api-key", Some(llm_provider_api_key_value));
                 self.set_http_request_header("anthropic-version", Some("2023-06-01"));
             }
@@ -154,7 +154,7 @@ impl StreamContext {
                 // Remove any existing x-api-key header since OpenAI doesn't use it
                 self.set_http_request_header("x-api-key", None);
                 let authorization_header_value = format!("Bearer {}", llm_provider_api_key_value);
-                self.set_http_request_header("authorization", Some(&authorization_header_value));
+                self.set_http_request_header("Authorization", Some(&authorization_header_value));
             }
         }
 

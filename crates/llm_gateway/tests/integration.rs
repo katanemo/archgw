@@ -39,7 +39,8 @@ fn request_headers_expectations(module: &mut Tester, http_context: i32) {
             Some("x-arch-llm-provider"),
             Some("openai"),
         )
-        .expect_replace_header_map_value(
+        .expect_remove_header_map_value(Some(MapType::HttpRequestHeaders), Some("x-api-key"))
+        .expect_add_header_map_value(
             Some(MapType::HttpRequestHeaders),
             Some("Authorization"),
             Some("Bearer secret_key"),

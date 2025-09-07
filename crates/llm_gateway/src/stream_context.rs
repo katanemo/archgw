@@ -914,12 +914,6 @@ impl HttpContext for StreamContext {
         if self.streaming_response {
             match self.handle_streaming_response(&body, provider_id) {
                 Ok(serialized_body) => {
-                    debug!(
-                        "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORMED_RESPONSE: body_size={} content={}",
-                        self.request_identifier(),
-                        body.len(),
-                        String::from_utf8_lossy(&serialized_body)
-                    );
                     self.set_http_response_body(0, body_size, &serialized_body);
                 }
                 Err(action) => return action,

@@ -642,6 +642,9 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
             }))
     }
 
+    fn event_type(&self) -> Option<&str> {
+        None // OpenAI doesn't use event types in SSE
+    }
 }
 
 

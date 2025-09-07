@@ -546,6 +546,17 @@ impl ProviderStreamResponse for MessagesStreamEvent {
         }
     }
 
+    fn event_type(&self) -> Option<&str> {
+        Some(match self {
+            MessagesStreamEvent::MessageStart { .. } => "message_start",
+            MessagesStreamEvent::ContentBlockStart { .. } => "content_block_start",
+            MessagesStreamEvent::ContentBlockDelta { .. } => "content_block_delta",
+            MessagesStreamEvent::ContentBlockStop { .. } => "content_block_stop",
+            MessagesStreamEvent::MessageDelta { .. } => "message_delta",
+            MessagesStreamEvent::MessageStop => "message_stop",
+            MessagesStreamEvent::Ping => "ping",
+        })
+    }
 }
 
 #[cfg(test)]

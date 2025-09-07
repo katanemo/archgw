@@ -144,13 +144,17 @@ impl StreamContext {
         match self.resolved_api.as_ref() {
             Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 // Anthropic API requires x-api-key and anthropic-version headers
+                // Remove any existing Authorization header since Anthropic doesn't use it
+                self.set_http_request_header("authorization", None);
                 self.set_http_request_header("x-api-key", Some(llm_provider_api_key_value));
                 self.set_http_request_header("anthropic-version", Some("2023-06-01"));
             }
             Some(SupportedAPIs::OpenAIChatCompletions(_)) | None => {
                 // OpenAI and default: use Authorization Bearer token
+                // Remove any existing x-api-key header since OpenAI doesn't use it
+                self.set_http_request_header("x-api-key", None);
                 let authorization_header_value = format!("Bearer {}", llm_provider_api_key_value);
-                self.set_http_request_header("Authorization", Some(&authorization_header_value));
+                self.set_http_request_header("authorization", Some(&authorization_header_value));
             }
         }
 
@@ -426,7 +430,7 @@ impl StreamContext {
                 for sse_event in sse_iter {
                     // Transform event if upstream API != client API
                     let transformed_event: SseEvent =
-                        match SseEvent::try_from((sse_event, &upstream_api, &client_api)) {
+                        match SseEvent::try_from((&sse_event, &client_api, &upstream_api)) {
                             Ok(event) => event,
                             Err(e) => {
                                 warn!("Failed to transform SSE event: {}", e);
@@ -436,7 +440,7 @@ impl StreamContext {
 
                     // Extract ProviderStreamResponse for processing (token counting, etc.)
                     if !transformed_event.is_done() {
-                        match transformed_event.to_provider_stream_response(&client_api) {
+                        match transformed_event.provider_response() {
                             Ok(provider_response) => {
                                 self.record_ttft_if_needed();
 
@@ -910,6 +914,12 @@ impl HttpContext for StreamContext {
         if self.streaming_response {
             match self.handle_streaming_response(&body, provider_id) {
                 Ok(serialized_body) => {
+                    debug!(
+                        "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORMED_RESPONSE: body_size={} content={}",
+                        self.request_identifier(),
+                        body.len(),
+                        String::from_utf8_lossy(&serialized_body)
+                    );
                     self.set_http_response_body(0, body_size, &serialized_body);
                 }
                 Err(action) => return action,

@@ -52,7 +52,8 @@ mod tests {
     "#;
 
     use crate::clients::endpoints::SupportedAPIs;
-    let api = SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
+    let client_api = SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
+    let upstream_api =  SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
 
     // Test the new simplified architecture - create SseStreamIter directly
     let sse_iter = SseStreamIter::try_from(sse_data.as_bytes());
@@ -68,10 +69,17 @@ mod tests {
 
     // Test SseEvent properties
     assert!(!sse_event.is_done());
-    assert!(sse_event.data.contains("Hello"));
+    assert!(sse_event.data.as_ref().unwrap().contains("Hello"));
 
     // Test that we can parse the event into a provider stream response
-    let provider_response = sse_event.to_provider_stream_response(&api);
+    let transformed_event = SseEvent::try_from((&sse_event, &client_api, &upstream_api));
+    if let Err(e) = &transformed_event {
+        println!("Transform error: {:?}", e);
+    }
+    assert!(transformed_event.is_ok());
+
+    let transformed_event = transformed_event.unwrap();
+    let provider_response = transformed_event.provider_response();
     assert!(provider_response.is_ok());
 
     let stream_response = provider_response.unwrap();

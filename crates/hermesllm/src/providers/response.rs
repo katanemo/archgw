@@ -11,6 +11,13 @@ use crate::apis::anthropic::MessagesStreamEvent;
 use crate::clients::endpoints::SupportedAPIs;
 use crate::apis::anthropic::MessagesResponse;
 
+/// Trait for token usage information
+pub trait TokenUsage {
+    fn completion_tokens(&self) -> usize;
+    fn prompt_tokens(&self) -> usize;
+    fn total_tokens(&self) -> usize;
+}
+
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ProviderResponseType {
@@ -424,14 +431,6 @@ where
     }
 }
 
-/// Trait for token usage information
-pub trait TokenUsage {
-    fn completion_tokens(&self) -> usize;
-    fn prompt_tokens(&self) -> usize;
-    fn total_tokens(&self) -> usize;
-}
-
-
 #[derive(Debug)]
 pub struct ProviderResponseError {
     pub message: String,
@@ -547,18 +546,28 @@ mod tests {
 
     #[test]
     fn test_openai_response_from_bytes_with_claude_provider() {
-        // Claude provider receives Anthropic response but client expects OpenAI format
-        // Upstream API = Anthropic, Client API = OpenAI -> parse Anthropic, convert to OpenAI
+        // Claude provider using OpenAI-compatible API returns OpenAI format response
+        // Client API = OpenAI, Provider = Anthropic -> Anthropic returns OpenAI format via their compatible API
         let resp = json!({
-            "id": "msg_01ABC123",
-            "type": "message",
-            "role": "assistant",
-            "content": [
-                { "type": "text", "text": "Hello! How can I help you today?" }
-            ],
+            "id": "chatcmpl-01ABC123",
+            "object": "chat.completion",
+            "created": 1677652288,
             "model": "claude-3-sonnet-20240229",
-            "stop_reason": "end_turn",
-            "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "Hello! How can I help you today?"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 25,
+                "total_tokens": 35
+            }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
         let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::Anthropic));

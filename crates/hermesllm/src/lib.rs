@@ -8,7 +8,6 @@ pub mod clients;
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
 pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, SseEvent, SseStreamIter};
 pub use providers::id::ProviderId;
-pub use providers::adapters::{has_compatible_api, supported_apis};
 
 
 //TODO: Refactor such that commons doesn't depend on Hermes. For now this will clean up strings
@@ -26,21 +25,6 @@ mod tests {
         assert_eq!(ProviderId::from("mistral"), ProviderId::Mistral);
         assert_eq!(ProviderId::from("groq"), ProviderId::Groq);
         assert_eq!(ProviderId::from("arch"), ProviderId::Arch);
-    }
-
-    #[test]
-    fn test_provider_api_compatibility() {
-        assert!(has_compatible_api(&ProviderId::OpenAI, CHAT_COMPLETIONS_PATH));
-        assert!(!has_compatible_api(&ProviderId::OpenAI, "/v1/embeddings"));
-    }
-
-    #[test]
-    fn test_provider_supported_apis() {
-        let apis = supported_apis(&ProviderId::OpenAI);
-        assert!(apis.contains(&CHAT_COMPLETIONS_PATH));
-
-        // Test that provider supports the expected API endpoints
-        assert!(has_compatible_api(&ProviderId::OpenAI, CHAT_COMPLETIONS_PATH));
     }
 
     #[test]

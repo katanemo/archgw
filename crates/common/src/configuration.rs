@@ -14,10 +14,41 @@ pub struct Routing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tool {
+    pub name: String,
+    pub protocol: String,
+    pub endpoint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Listener {
+    pub port: u16,
+    pub protocol: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Agent {
+    pub name: String,
+    pub description: Option<String>,
+    pub instructions: Option<String>,
+    pub tools: Vec<Tool>,
+    pub listener: Listener,
+    pub model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmProviderV2 {
+  pub listener: Listener,
+  pub providers: Vec<LlmProvider>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
     pub llm_providers: Vec<LlmProvider>,
+    pub llm_providers_v2: Option<HashMap<String, LlmProviderV2>>,
     pub overrides: Option<Overrides>,
     pub system_prompt: Option<String>,
     pub prompt_guards: Option<PromptGuards>,
@@ -27,6 +58,7 @@ pub struct Configuration {
     pub tracing: Option<Tracing>,
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
+    pub agents: Option<Agent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

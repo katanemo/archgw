@@ -1,0 +1,31 @@
+### Step 1: Initialize session
+POST http://localhost:10101/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "ExampleClient",
+      "version": "1.0.0"
+    }
+  }
+}
+
+### Step 2: List tools (use session ID from previous response)
+POST http://localhost:10101/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+mcp-session-id: af2e2dace64c48f99ac3536faeaa3c68
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}

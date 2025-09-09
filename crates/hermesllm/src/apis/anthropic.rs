@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::ProviderStreamResponse;
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse};
 use crate::clients::transformer::ExtractText;
 use crate::{MESSAGES_PATH};
 
@@ -416,11 +416,11 @@ impl TokenUsage for MessagesResponse {
     }
 }
 
-impl MessagesResponse {
-    pub fn usage(&self) -> Option<&dyn TokenUsage> {
+impl ProviderResponse for MessagesResponse {
+    fn usage(&self) -> Option<&dyn TokenUsage> {
         Some(self)
     }
-    pub fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
+    fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
         Some((self.usage.input_tokens as usize, self.usage.output_tokens as usize, (self.usage.input_tokens + self.usage.output_tokens) as usize))
     }
 }

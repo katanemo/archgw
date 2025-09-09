@@ -119,7 +119,7 @@ pub struct SseEvent {
     pub raw_line: String,  // The complete line as received including "data: " prefix and "\n\n"
 
      #[serde(skip_serializing, skip_deserializing)]
-    pub raw_line_transformed: String,  // The complete line as received including "data: " prefix and "\n\n"
+    pub sse_transform_buffer: String,  // The complete line as received including "data: " prefix and "\n\n"
 
     #[serde(skip_serializing, skip_deserializing)]
     pub provider_stream_response: Option<ProviderStreamResponseType>,  // Parsed provider stream response object
@@ -159,7 +159,7 @@ impl FromStr for SseEvent {
 
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         if line.starts_with("data: ") {
-            let data = line[6..].to_string(); // Remove "data: " prefix
+            let data: String = line[6..].to_string(); // Remove "data: " prefix
             if data.is_empty() {
                 return Err(SseParseError {
                     message: "Empty data field is not a valid SSE event".to_string(),
@@ -168,9 +168,9 @@ impl FromStr for SseEvent {
             Ok(SseEvent {
                 data: Some(data),
                 event: None,
-                raw_line: format!("{}\n\n", line),
-                raw_line_transformed: format!("{}\n\n", line),
-                provider_stream_response: None, // Will be populated later via TryFrom
+                raw_line: line.to_string(),
+                sse_transform_buffer: line.to_string(),
+                provider_stream_response: None,
             })
         } else if line.starts_with("event: ") { //used by Anthropic
             let event_type = line[7..].to_string();
@@ -182,8 +182,8 @@ impl FromStr for SseEvent {
             Ok(SseEvent {
                 data: None,
                 event: Some(event_type),
-                raw_line: format!("{}\n\n", line),
-                raw_line_transformed: format!("{}\n\n", line),
+                raw_line: line.to_string(),
+                sse_transform_buffer: line.to_string(),
                 provider_stream_response: None,
             })
         } else {
@@ -196,14 +196,14 @@ impl FromStr for SseEvent {
 
 impl fmt::Display for SseEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.raw_line_transformed)
+        write!(f, "{}", self.sse_transform_buffer)
     }
 }
 
 // Into implementation to convert SseEvent to bytes for response buffer
 impl Into<Vec<u8>> for SseEvent {
     fn into(self) -> Vec<u8> {
-        format!("{}\n\n", self.raw_line_transformed).into_bytes()
+        format!("{}\n\n", self.sse_transform_buffer).into_bytes()
     }
 }
 
@@ -280,20 +280,20 @@ impl TryFrom<(&[u8], &SupportedAPIs, &SupportedAPIs)> for ProviderStreamResponse
 }
 
 // TryFrom implementation to convert raw bytes to SseEvent with parsed provider response
-impl TryFrom<(&SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
+impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((sse_event, client_api, upstream_api): (&SseEvent, &SupportedAPIs, &SupportedAPIs)) -> Result<Self, Self::Error> {
+    fn try_from((sse_event, client_api, upstream_api): (SseEvent, &SupportedAPIs, &SupportedAPIs)) -> Result<Self, Self::Error> {
         // Create a new transformed event based on the original
-        let mut transformed_event = sse_event.clone();
+        let mut transformed_event = sse_event;
 
         // If not [DONE] and has data, parse the data as a provider stream response (business logic layer)
-        if !transformed_event.is_done() && sse_event.data.is_some() {
-            let data_str = sse_event.data.as_ref().unwrap();
+        if !transformed_event.is_done() && transformed_event.data.is_some() {
+            let data_str = transformed_event.data.as_ref().unwrap();
             let data_bytes = data_str.as_bytes();
             let transformed_response = ProviderStreamResponseType::try_from((data_bytes, client_api, upstream_api))?;
             let transformed_json = serde_json::to_string(&transformed_response)?;
-            transformed_event.raw_line_transformed = format!("data: {}\n\n", transformed_json);
+            transformed_event.sse_transform_buffer = format!("data: {}\n\n", transformed_json);
             transformed_event.provider_stream_response = Some(transformed_response);
         }
 
@@ -318,10 +318,10 @@ impl TryFrom<(&SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
                                 }
                             });
                             // Format as proper SSE: MessageStart first, then ContentBlockStart
-                            transformed_event.raw_line_transformed = format!(
+                            transformed_event.sse_transform_buffer = format!(
                                 "event: {}\n{}\nevent: content_block_start\ndata: {}\n\n",
                                 event_type,
-                                transformed_event.raw_line_transformed,
+                                transformed_event.sse_transform_buffer,
                                 content_block_start_json,
                             );
                         } else if event_type == "message_delta" {
@@ -330,14 +330,14 @@ impl TryFrom<(&SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
                                 "index": 0
                             });
                             // Format as proper SSE: ContentBlockStop first, then MessageDelta
-                            transformed_event.raw_line_transformed = format!(
+                            transformed_event.sse_transform_buffer = format!(
                                 "event: content_block_stop\ndata: {}\n\nevent: {}\n{}",
                                 content_block_stop_json,
                                 event_type,
-                                transformed_event.raw_line_transformed
+                                transformed_event.sse_transform_buffer
                             );
                         } else {
-                            transformed_event.raw_line_transformed = format!("event: {}\n{}", event_type, transformed_event.raw_line_transformed);
+                            transformed_event.sse_transform_buffer = format!("event: {}\n{}", event_type, transformed_event.sse_transform_buffer);
                         }
                     }
                     // If event_type is None, we just keep the data line as-is without an event line
@@ -345,8 +345,8 @@ impl TryFrom<(&SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
                 }
             }
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                if sse_event.is_event_only() && sse_event.event.is_some() {
-                    transformed_event.raw_line_transformed = format!("\n"); // suppress the event upstream for OpenAI
+                if transformed_event.is_event_only() && transformed_event.event.is_some() {
+                    transformed_event.sse_transform_buffer = format!("\n"); // suppress the event upstream for OpenAI
                 }
             }
         }
@@ -585,11 +585,11 @@ mod tests {
     #[test]
     fn test_sse_event_parsing() {
         // Test valid SSE data line
-        let line = r#"data: {"id":"test","object":"chat.completion.chunk"}"#;
+        let line = "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n";
         let event: Result<SseEvent, _> = line.parse();
         assert!(event.is_ok());
         let event = event.unwrap();
-        assert_eq!(event.data, Some(r#"{"id":"test","object":"chat.completion.chunk"}"#.to_string()));
+        assert_eq!(event.data, Some("{\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n".to_string()));
 
         // Test conversion back to line using Display trait
         let wire_format = event.to_string();
@@ -626,7 +626,7 @@ mod tests {
             raw_line: r#"data: {"id":"test","object":"chat.completion.chunk"}
 
         "#.to_string(),
-            raw_line_transformed: r#"data: {"id":"test","object":"chat.completion.chunk"}
+            sse_transform_buffer: r#"data: {"id":"test","object":"chat.completion.chunk"}
 
         "#.to_string(),
             provider_stream_response: None,
@@ -654,7 +654,7 @@ mod tests {
             data: Some(r#"{"type": "ping"}"#.to_string()),
             event: None,
             raw_line: r#"data: {"type": "ping"}"#.to_string(),
-            raw_line_transformed: r#"data: {"type": "ping"}"#.to_string(),
+            sse_transform_buffer: r#"data: {"type": "ping"}"#.to_string(),
             provider_stream_response: None,
         };
         assert!(ping_event.should_skip());
@@ -665,7 +665,7 @@ mod tests {
             data: Some(r#"{"id": "test", "object": "chat.completion.chunk"}"#.to_string()),
             event: Some("content_block_delta".to_string()),
             raw_line: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#.to_string(),
-            raw_line_transformed: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#.to_string(),
+            sse_transform_buffer: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#.to_string(),
             provider_stream_response: None,
         };
         assert!(!normal_event.should_skip());
@@ -676,7 +676,7 @@ mod tests {
             data: Some("[DONE]".to_string()),
             event: None,
             raw_line: "data: [DONE]".to_string(),
-            raw_line_transformed: "data: [DONE]".to_string(),
+            sse_transform_buffer: "data: [DONE]".to_string(),
             provider_stream_response: None,
         };
         assert!(!done_event.should_skip());

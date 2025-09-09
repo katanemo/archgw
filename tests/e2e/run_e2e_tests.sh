@@ -48,6 +48,7 @@ cd ../../
 archgw build
 cd -
 
+# Once we build archgw we have to install the dependencies again to a new virtual environment.
 poetry install
 
 log startup arch gateway with function calling demo

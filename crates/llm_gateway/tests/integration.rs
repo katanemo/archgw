@@ -40,7 +40,7 @@ fn request_headers_expectations(module: &mut Tester, http_context: i32) {
             Some("openai"),
         )
         .expect_remove_header_map_value(Some(MapType::HttpRequestHeaders), Some("x-api-key"))
-        .expect_add_header_map_value(
+        .expect_replace_header_map_value(
             Some(MapType::HttpRequestHeaders),
             Some("Authorization"),
             Some("Bearer secret_key"),
@@ -277,7 +277,7 @@ fn llm_gateway_bad_request_to_open_ai_chat_completions() {
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID - RATELIMIT_CHECK
         .expect_log(Some(LogLevel::Debug), Some("Checking limit for provider=gpt-4, with selector=Header { key: \"selector-key\", value: \"selector-value\" }, consuming tokens=13"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID - RATELIMIT_CHECK
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -333,7 +333,7 @@ fn llm_gateway_request_ratelimited() {
         .returning(Some(chat_completions_request_body))
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] CLIENT_REQUEST_PAYLOAD: {\"messages\": [{\"role\": \"system\",\"content\": \"You are a helpful poetic assistant!, skilled in explaining complex programming concepts with creative flair. Be sure to be concise and to the point.\"},{\"role\": \"user\",\"content\": \"Compose a poem that explains the concept of recursion in programming. Compose a poem that explains the concept of recursion in programming. Compose a poem that explains the concept of recursion in programming. And also summarize it how a 4th graded would understand it. Compose a poem that explains the concept of recursion in programming. And also summarize it how a 4th graded would understand it.\"}],\"model\": \"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] CLIENT_REQUEST_PAYLOAD: {\"messages\": [{\"role\": \"system\",\"content\": \"You are a helpful poetic assistant!, skilled in explaining complex programming concepts with creative flair. Be sure to be concise and to the point.\"},{\"role\": \"user\",\"content\": \"Compose a poem that explains the concept of recursion in programming. Compose a poem that explains the concept of recursion in programming. Compose a poem that explains the concept of recursion in programming. And also summarize it how a 4th graded would understand it. Compose a poem that explains the concept of recursion in programming. And also summarize it how a 4th graded would understand it.\"}],\"model\": \"gpt-4\"}"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("TOKENIZER: computing token count for model=gpt-4"))
         .expect_log(Some(LogLevel::Info), None)// Dynamic request ID)
@@ -390,7 +390,7 @@ fn llm_gateway_request_not_ratelimited() {
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None)
          // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("TOKENIZER: computing token count for model=gpt-4"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
@@ -398,7 +398,7 @@ fn llm_gateway_request_not_ratelimited() {
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("Checking limit for provider=gpt-4, with selector=Header { key: \"selector-key\", value: \"selector-value\" }, consuming tokens=29"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -441,7 +441,7 @@ fn llm_gateway_override_model_name() {
         .returning(Some(chat_completions_request_body))
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("TOKENIZER: computing token count for model=gpt-4"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
@@ -449,7 +449,7 @@ fn llm_gateway_override_model_name() {
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("Checking limit for provider=gpt-4, with selector=Header { key: \"selector-key\", value: \"selector-value\" }, consuming tokens=29"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -492,7 +492,7 @@ fn llm_gateway_override_use_default_model() {
         .returning(Some(chat_completions_request_body))
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] CLIENT_REQUEST_PAYLOAD: {\"model\":\"gpt-1\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
         .expect_log(
             Some(LogLevel::Info),
             None // Dynamic request ID,
@@ -503,7 +503,7 @@ fn llm_gateway_override_use_default_model() {
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("Checking limit for provider=gpt-4, with selector=Header { key: \"selector-key\", value: \"selector-value\" }, consuming tokens=29"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();
@@ -547,7 +547,7 @@ fn llm_gateway_override_use_model_name_none() {
         // The actual call is not important in this test, we just need to grab the token_id
         .expect_log(Some(LogLevel::Info), None)
          // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] CLIENT_REQUEST_PAYLOAD: {\"model\":\"none\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] CLIENT_REQUEST_PAYLOAD: {\"model\":\"none\",\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}]}"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("TOKENIZER: computing token count for model=gpt-4"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
@@ -555,7 +555,7 @@ fn llm_gateway_override_use_model_name_none() {
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
         .expect_log(Some(LogLevel::Debug), Some("Checking limit for provider=gpt-4, with selector=Header { key: \"selector-key\", value: \"selector-value\" }, consuming tokens=29"))
         .expect_log(Some(LogLevel::Info), None) // Dynamic request ID)
-        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:2] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
+        .expect_log(Some(LogLevel::Debug), Some("[ARCHGW_REQ_ID:NO_REQUEST_ID] UPSTREAM_REQUEST_PAYLOAD: {\"messages\":[{\"role\":\"system\",\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\"},{\"role\":\"user\",\"content\":\"Compose a poem that explains the concept of recursion in programming.\"}],\"model\":\"gpt-4\"}"))
         .expect_set_buffer_bytes(Some(BufferType::HttpRequestBody), None)
         .execute_and_expect(ReturnType::Action(Action::Continue))
         .unwrap();

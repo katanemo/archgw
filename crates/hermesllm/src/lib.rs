@@ -56,7 +56,7 @@ mod tests {
     assert!(sse_event.data.as_ref().unwrap().contains("Hello"));
 
     // Test that we can parse the event into a provider stream response
-    let transformed_event = SseEvent::try_from((&sse_event, &client_api, &upstream_api));
+    let transformed_event = SseEvent::try_from((sse_event, &client_api, &upstream_api));
     if let Err(e) = &transformed_event {
         println!("Transform error: {:?}", e);
     }

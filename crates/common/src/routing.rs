@@ -33,8 +33,7 @@ pub fn get_llm_provider(
         return provider;
     }
 
-    //This is a fallback to the default provider if no specific provider is found.
-    //For example, if the client sends in gpt-4-1 and that's not configured in arch_config, we fall back to the default.
+
     if llm_providers.default().is_some() {
         return llm_providers.default().unwrap();
     }

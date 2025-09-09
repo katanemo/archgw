@@ -89,7 +89,6 @@ impl RootContext for FilterContext {
         );
 
         Some(Box::new(StreamContext::new(
-            context_id,
             Rc::clone(&self.metrics),
             Rc::clone(
                 self.llm_providers

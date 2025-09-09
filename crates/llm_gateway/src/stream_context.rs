@@ -26,7 +26,6 @@ use hermesllm::providers::response::{ProviderResponse, SseEvent, SseStreamIter};
 use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 
 pub struct StreamContext {
-    context_id: u32,
     metrics: Rc<Metrics>,
     ratelimit_selector: Option<Header>,
     streaming_response: bool,
@@ -50,14 +49,12 @@ pub struct StreamContext {
 
 impl StreamContext {
     pub fn new(
-        context_id: u32,
         metrics: Rc<Metrics>,
         llm_providers: Rc<LlmProviders>,
         traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
         overrides: Rc<Option<Overrides>>,
     ) -> Self {
         StreamContext {
-            context_id,
             metrics,
             overrides,
             ratelimit_selector: None,
@@ -79,13 +76,13 @@ impl StreamContext {
     }
 
     /// Returns the appropriate request identifier for logging.
-    /// Uses request_id (from x-request-id header) when available, otherwise falls back to context_id.
+    /// Uses request_id (from x-request-id header) when available, otherwise returns a literal indicating no request ID.
     fn request_identifier(&self) -> String {
         self.request_id
             .as_ref()
             .filter(|id| !id.is_empty()) // Filter out empty strings
             .map(|id| id.clone())
-            .unwrap_or_else(|| self.context_id.to_string())
+            .unwrap_or_else(|| "NO_REQUEST_ID".to_string())
     }
     fn llm_provider(&self) -> &LlmProvider {
         self.llm_provider
@@ -145,14 +142,14 @@ impl StreamContext {
             Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 // Anthropic API requires x-api-key and anthropic-version headers
                 // Remove any existing Authorization header since Anthropic doesn't use it
-                self.set_http_request_header("Authorization", None);
+                self.remove_http_request_header("Authorization");
                 self.set_http_request_header("x-api-key", Some(llm_provider_api_key_value));
                 self.set_http_request_header("anthropic-version", Some("2023-06-01"));
             }
             Some(SupportedAPIs::OpenAIChatCompletions(_)) | None => {
                 // OpenAI and default: use Authorization Bearer token
                 // Remove any existing x-api-key header since OpenAI doesn't use it
-                self.set_http_request_header("x-api-key", None);
+                self.remove_http_request_header("x-api-key");
                 let authorization_header_value = format!("Bearer {}", llm_provider_api_key_value);
                 self.set_http_request_header("Authorization", Some(&authorization_header_value));
             }
@@ -430,7 +427,7 @@ impl StreamContext {
                 for sse_event in sse_iter {
                     // Transform event if upstream API != client API
                     let transformed_event: SseEvent =
-                        match SseEvent::try_from((&sse_event, &client_api, &upstream_api)) {
+                        match SseEvent::try_from((sse_event, &client_api, &upstream_api)) {
                             Ok(event) => event,
                             Err(e) => {
                                 warn!("Failed to transform SSE event: {}", e);

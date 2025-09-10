@@ -1,8 +1,12 @@
 use crate::apis::openai::ChatCompletionsRequest;
 use crate::apis::anthropic::MessagesRequest;
 use crate::clients::endpoints::SupportedAPIs;
+
+use serde_json::Value;
 use std::error::Error;
 use std::fmt;
+use std::collections::HashMap;
+#[derive(Clone)]
 pub enum ProviderRequestType {
     ChatCompletionsRequest(ChatCompletionsRequest),
     MessagesRequest(MessagesRequest),
@@ -26,6 +30,11 @@ pub trait ProviderRequest: Send + Sync {
 
     /// Convert the request to bytes for transmission
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError>;
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>>;
+
+    /// Remove a metadata key from the request and return true if the key was present
+    fn remove_metadata_key(&mut self, key: &str) -> bool;
 }
 
 impl ProviderRequest for ProviderRequestType {
@@ -68,6 +77,20 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.to_bytes(),
             Self::MessagesRequest(r) => r.to_bytes(),
+        }
+    }
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>> {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.metadata(),
+            Self::MessagesRequest(r) => r.metadata(),
+        }
+    }
+
+    fn remove_metadata_key(&mut self, key: &str) -> bool {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.remove_metadata_key(key),
+            Self::MessagesRequest(r) => r.remove_metadata_key(key),
         }
     }
 }

@@ -497,6 +497,18 @@ impl ProviderRequest for MessagesRequest {
             source: Some(Box::new(e)),
         })
     }
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>> {
+       return  &self.metadata;
+    }
+
+    fn remove_metadata_key(&mut self, key: &str) -> bool {
+        if let Some(ref mut metadata) = self.metadata {
+            metadata.remove(key).is_some()
+        } else {
+            false
+        }
+    }
 }
 
 impl MessagesResponse {

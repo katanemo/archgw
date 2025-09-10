@@ -81,7 +81,7 @@ pub struct ChatCompletionsRequest {
     // Maximum tokens in the response has been deprecated, but we keep it for compatibility
     pub max_tokens: Option<u32>,
     pub modalities: Option<Vec<String>>,
-    pub metadata: Option<HashMap<String, String>>,
+    pub metadata: Option<HashMap<String, Value>>,
     pub n: Option<u32>,
     pub presence_penalty: Option<f32>,
     pub parallel_tool_calls: Option<bool>,
@@ -598,6 +598,18 @@ impl ProviderRequest for ChatCompletionsRequest {
             message: format!("Failed to serialize OpenAI request: {}", e),
             source: Some(Box::new(e)),
         })
+    }
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>> {
+        return &self.metadata;
+    }
+
+    fn remove_metadata_key(&mut self, key: &str) -> bool {
+        if let Some(ref mut metadata) = self.metadata {
+            metadata.remove(key).is_some()
+        } else {
+            false
+        }
     }
 }
 

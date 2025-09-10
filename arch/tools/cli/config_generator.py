@@ -99,38 +99,37 @@ def validate_and_render_schema():
     model_name_keys = set()
     model_usage_name_keys = set()
 
-    llm_gateway_listener = config_yaml.get("listeners", {}).get("egress_traffic", {})
-    if llm_gateway_listener.get("port") == None:
-        llm_gateway_listener["port"] = 12000
-
-    if (
-        llm_gateway_listener is None
-        and llm_gateway_listener
-        and config_yaml["llm_providers_v2"]
-    ):
-        raise Exception(
-            "Please provide either egress_traffic or llm_providers_v2, not both"
-        )
-
-    if config_yaml.get("llm_providers", None):
-        if config_yaml.get("llm_providers_v2", None) is not None:
-            raise Exception(
-                "Please provide either llm_providers or llm_providers_v2, not both"
-            )
-        config_yaml["llm_providers_v2"] = {
-            "default": {
-                "listener": {
-                    "port": llm_gateway_listener["port"],
-                    "protocol": llm_gateway_listener.get("message_format", "openai"),
-                },
-                "providers": config_yaml["llm_providers"],
+    # check if type is array or object
+    # if its dict its legacy format let's convert it to array
+    prompt_gateway_listener = None
+    llm_gateway_listener = None
+    if isinstance(config_yaml["listeners"], dict):
+        egress_traffic = config_yaml["listeners"].get("egress_traffic", None)
+        ingress_traffic = config_yaml["listeners"].get("ingress_traffic", None)
+        config_yaml["listeners"] = []
+        if ingress_traffic:
+            prompt_gateway_listener = {
+                "name": "ingress_traffic",
+                "port": ingress_traffic.get("port", 10000),
+                "address": ingress_traffic.get("address", "0.0.0.0"),
+                "timeout": ingress_traffic.get("timeout", "30s"),
             }
-        }
+            config_yaml["listeners"].append(prompt_gateway_listener)
+        if egress_traffic:
+            llm_gateway_listener = {
+                "name": "egress_traffic",
+                "port": egress_traffic.get("port", 12000),
+                "address": egress_traffic.get("address", "0.0.0.0"),
+                "timeout": egress_traffic.get("timeout", "30s"),
+                "llm_providers": config_yaml.get("llm_providers", []),
+            }
+            config_yaml["listeners"].append(llm_gateway_listener)
 
-    for llm_provider_name, provider_def in config_yaml["llm_providers_v2"].items():
-        provider_listener = provider_def["listener"]
+    for listener in config_yaml["listeners"]:
+        print("Processing listener: ", listener)
+        name = listener.get("name", None)
 
-        for llm_provider in provider_def["providers"]:
+        for llm_provider in listener.get("llm_providers", []):
             if llm_provider.get("usage", None):
                 llms_with_usage.append(llm_provider["name"])
             if llm_provider.get("name") in llm_provider_name_set:
@@ -243,15 +242,15 @@ def validate_and_render_schema():
     arch_config_string = yaml.dump(config_yaml)
     arch_llm_config_string = yaml.dump(config_yaml)
 
-    prompt_gateway_listener = config_yaml.get("listeners", {}).get(
-        "ingress_traffic", {}
-    )
-    if prompt_gateway_listener.get("port") == None:
-        prompt_gateway_listener["port"] = 10000  # default port for prompt gateway
-    if prompt_gateway_listener.get("address") == None:
-        prompt_gateway_listener["address"] = "127.0.0.1"
-    if prompt_gateway_listener.get("timeout") == None:
-        prompt_gateway_listener["timeout"] = "10s"
+    # prompt_gateway_listener = config_yaml.get("listeners", {}).get(
+    #     "ingress_traffic", {}
+    # )
+    # if prompt_gateway_listener.get("port") == None:
+    #     prompt_gateway_listener["port"] = 10000  # default port for prompt gateway
+    # if prompt_gateway_listener.get("address") == None:
+    #     prompt_gateway_listener["address"] = "127.0.0.1"
+    # if prompt_gateway_listener.get("timeout") == None:
+    #     prompt_gateway_listener["timeout"] = "10s"
 
     use_agent_orchestrator = config_yaml.get("overrides", {}).get(
         "use_agent_orchestrator", False

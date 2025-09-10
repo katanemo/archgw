@@ -90,45 +90,49 @@ def test_validate_and_render_happy_path_agent_config(monkeypatch):
     monkeypatch.setenv("TEMPLATE_ROOT", "../")
 
     arch_config = """
-version: v0.1.0
+version: v0.2.0
 
 agents:
-  - name: rag_assistant
-    description: t-mobile virtual assistant for device contracts.
-    instructions: |
-      You are a virtual assistant, here to help users answer questions from device contracts team.
-      Use following instructions to process the user request,
-      1. Use query_processor_agent to understand user queries
-      2. Use search_documents to fetch relevant information
-      3. Use response_generator_agent to formulate clear responses
-    model: openai/gpt-4o
-    tools:
-      - name: query_processor_agent
-        # Parses user queries and extracts metadata, also handles clarification workflow
-        protocol: openai
-        endpoint: https://localhost:10500
-      - name: search_documents
-        # Searches the document store for relevant information
-        protocol: openai
-        endpoint: https://localhost:10501
-      - name: response_generator_agent
-        # Generates a final response based on user query and retrieved context
-        protocol: openai
-        endpoint: https://localhost:10502
-    listener:
-      port: 8000
-      protocol: openai
-      path: /v1/chat/completions
+  - name: query_rewriter
+    kind: openai
+    endpoint: openai://localhost:10500
+  - name: context_builder
+    kind: openai
+    endpoint: openai://localhost:10501
+  - name: response_generator
+    kind: openai
+    endpoint: openai://localhost:10502
+  - name: research_agent
+    kind: openai
+    endpoint: https://localhost:10500
+  - name: input_guard_rails
+    kind: openai
+    endpoint: https://localhost:10503
 
-llm_providers_v2:
-  default:
-    listener:
-      port: 12000
-      protocol: openai
-    providers:
-      - access_key: --
+listeners:
+  - name: tmobile
+    router: arch_agent_v2
+    agents:
+      - name: simple_tmobile_rag_agent
+        description: t-mobile virtual assistant for device contracts.
+        filter_chain:
+          - query_rewriter
+          - context_builder
+          - response_generator
+      - name: research_agent
+        description: agent to research and gather information from various sources.
+        filter_chain:
+          - research_agent
+          - response_generator
+    port: 8000
+
+  - name: llm_provider
+    description: llm provider configuration
+    port: 12000
+    protocol: openai
+    llm_providers:
+      - access_key: ${OPENAI_API_KEY}
         model: openai/gpt-4o
-
 """
     arch_config_schema = ""
     with open("../arch_config_schema.yaml", "r") as file:

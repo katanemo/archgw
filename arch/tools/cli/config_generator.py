@@ -103,13 +103,17 @@ def validate_and_render_schema():
     if llm_gateway_listener.get("port") == None:
         llm_gateway_listener["port"] = 12000
 
-    if llm_gateway_listener and config_yaml["llm_providers_v2"]:
+    if (
+        llm_gateway_listener is None
+        and llm_gateway_listener
+        and config_yaml["llm_providers_v2"]
+    ):
         raise Exception(
             "Please provide either egress_traffic or llm_providers_v2, not both"
         )
 
-    if config_yaml["llm_providers"]:
-        if config_yaml["llm_providers_v2"] is not None:
+    if config_yaml.get("llm_providers", None):
+        if config_yaml.get("llm_providers_v2", None) is not None:
             raise Exception(
                 "Please provide either llm_providers or llm_providers_v2, not both"
             )

@@ -9,72 +9,12 @@ properties:
       - 0.1-beta
       - v0.2.0
 
-# sample provider
-# llm_providers_v2:
-#   default:
-#     listener:
-#       port: 12000
-#       protocol: openai
-#     providers:
-#       - access_key: ${OPENAI_API_KEY}
-#         model: openai/gpt-4o
-
+  agents:
+    type: array
+    items:
+      type: object
   llm_providers_v2:
     type: object
-    properties:
-      default:
-        type: object
-        properties:
-          listener:
-            type: object
-            properties:
-              port:
-                type: integer
-              protocol:
-                type: string
-          providers:
-            type: array
-            items:
-              type: object
-              properties:
-                name:
-                  type: string
-                access_key:
-                  type: string
-                model:
-                  type: string
-                default:
-                  type: boolean
-                base_url:
-                  type: string
-                http_host:
-                  type: string
-                provider_interface:
-                  type: string
-                  enum:
-                    - arch
-                    - claude
-                    - deepseek
-                    - groq
-                    - mistral
-                    - openai
-                    - gemini
-                routing_preferences:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      description:
-                        type: string
-                  additionalProperties: false
-                  required:
-                    - name
-                    - description
-              additionalProperties: false
-              required:
-                - model
   listeners:
     type: object
     additionalProperties: false
@@ -336,4 +276,3 @@ properties:
 additionalProperties: false
 required:
   - version
-  - llm_providers

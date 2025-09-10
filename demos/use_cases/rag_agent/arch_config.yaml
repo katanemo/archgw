@@ -13,15 +13,15 @@ agents:
     tools:
       - name: query_processor_agent
         # Parses user queries and extracts metadata, also handles clarification workflow
-        protocol: mcp
+        protocol: openai
         endpoint: https://localhost:10500
       - name: search_documents
         # Searches the document store for relevant information
-        protocol: mcp
+        protocol: openai
         endpoint: https://localhost:10501
       - name: response_generator_agent
         # Generates a final response based on user query and retrieved context
-        protocol: mcp
+        protocol: openai
         endpoint: https://localhost:10502
     listener:
       port: 8000

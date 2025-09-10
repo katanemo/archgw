@@ -6,12 +6,13 @@
 //! # Examples
 //!
 //! ```rust
-//! use hermesllm::clients::endpoints::{is_supported_endpoint, supported_endpoints};
+//! use hermesllm::clients::endpoints::supported_endpoints;
 //!
 //! // Check if we support an endpoint
-//! assert!(is_supported_endpoint("/v1/chat/completions"));
-//! assert!(is_supported_endpoint("/v1/messages"));
-//! assert!(!is_supported_endpoint("/v1/unknown"));
+//! use hermesllm::clients::endpoints::SupportedAPIs;
+//! assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
+//! assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
+//! assert!(!SupportedAPIs::from_endpoint("/v1/unknown").is_some());
 //!
 //! // Get all supported endpoints
 //! let endpoints = supported_endpoints();
@@ -20,22 +21,80 @@
 //! assert!(endpoints.contains(&"/v1/messages"));
 //! ```
 
-use crate::apis::{AnthropicApi, OpenAIApi, ApiDefinition};
+use crate::{apis::{AnthropicApi, ApiDefinition, OpenAIApi}, ProviderId};
+use std::fmt;
 
-/// Check if the given endpoint path is supported
-pub fn is_supported_endpoint(endpoint: &str) -> bool {
-    // Try OpenAI APIs
-    if OpenAIApi::from_endpoint(endpoint).is_some() {
-        return true;
-    }
-
-    // Try Anthropic APIs
-    if AnthropicApi::from_endpoint(endpoint).is_some() {
-        return true;
-    }
-
-    false
+/// Unified enum representing all supported API endpoints across providers
+#[derive(Debug, Clone, PartialEq)]
+pub enum SupportedAPIs {
+    OpenAIChatCompletions(OpenAIApi),
+    AnthropicMessagesAPI(AnthropicApi),
 }
+
+impl fmt::Display for SupportedAPIs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SupportedAPIs::OpenAIChatCompletions(api) => write!(f, "OpenAI API ({})", api.endpoint()),
+            SupportedAPIs::AnthropicMessagesAPI(api) => write!(f, "Anthropic API ({})", api.endpoint()),
+        }
+    }
+}
+
+impl SupportedAPIs {
+    /// Create a SupportedApi from an endpoint path
+    pub fn from_endpoint(endpoint: &str) -> Option<Self> {
+        if let Some(openai_api) = OpenAIApi::from_endpoint(endpoint) {
+            return Some(SupportedAPIs::OpenAIChatCompletions(openai_api));
+        }
+
+        if let Some(anthropic_api) = AnthropicApi::from_endpoint(endpoint) {
+            return Some(SupportedAPIs::AnthropicMessagesAPI(anthropic_api));
+        }
+
+        None
+    }
+
+    /// Get the endpoint path for this API
+    pub fn endpoint(&self) -> &'static str {
+        match self {
+            SupportedAPIs::OpenAIChatCompletions(api) => api.endpoint(),
+            SupportedAPIs::AnthropicMessagesAPI(api) => api.endpoint(),
+        }
+    }
+
+    pub fn target_endpoint_for_provider(&self, provider_id: &ProviderId, request_path: &str) -> String {
+        let default_endpoint = "/v1/chat/completions".to_string();
+        match self {
+            SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
+                match provider_id {
+                    ProviderId::Anthropic => "/v1/messages".to_string(),
+                    _ => default_endpoint,
+                }
+            }
+            _ => {
+                match provider_id {
+                    ProviderId::Groq => {
+                        if request_path.starts_with("/v1/") {
+                            format!("/openai{}", request_path)
+                        } else {
+                            default_endpoint
+                        }
+                    }
+                    ProviderId::Gemini => {
+                        if request_path.starts_with("/v1/") {
+                            "/v1beta/openai/chat/completions".to_string()
+                        } else {
+                            default_endpoint
+                        }
+                    }
+                    _ => default_endpoint,
+                }
+            }
+        }
+    }
+}
+
+
 
 /// Get all supported endpoint paths
 pub fn supported_endpoints() -> Vec<&'static str> {
@@ -74,15 +133,15 @@ mod tests {
     #[test]
     fn test_is_supported_endpoint() {
         // OpenAI endpoints
-        assert!(is_supported_endpoint("/v1/chat/completions"));
+        assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
 
         // Anthropic endpoints
-        assert!(is_supported_endpoint("/v1/messages"));
+        assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
 
         // Unsupported endpoints
-        assert!(!is_supported_endpoint("/v1/unknown"));
-        assert!(!is_supported_endpoint("/v2/chat"));
-        assert!(!is_supported_endpoint(""));
+        assert!(!SupportedAPIs::from_endpoint("/v1/unknown").is_some());
+        assert!(!SupportedAPIs::from_endpoint("/v2/chat").is_some());
+        assert!(!SupportedAPIs::from_endpoint("").is_some());
     }
 
     #[test]

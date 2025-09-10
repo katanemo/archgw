@@ -1,9 +1,14 @@
+use crate::providers::response::TokenUsage;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 use super::ApiDefinition;
+use crate::providers::request::{ProviderRequest, ProviderRequestError};
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse};
+use crate::clients::transformer::ExtractText;
+use crate::{MESSAGES_PATH};
 
 // Enum for all supported Anthropic APIs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,13 +22,13 @@ pub enum AnthropicApi {
 impl ApiDefinition for AnthropicApi {
     fn endpoint(&self) -> &'static str {
         match self {
-            AnthropicApi::Messages => "/v1/messages",
+            AnthropicApi::Messages => MESSAGES_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
-            "/v1/messages" => Some(AnthropicApi::Messages),
+            MESSAGES_PATH => Some(AnthropicApi::Messages),
             _ => None,
         }
     }
@@ -186,6 +191,19 @@ pub enum MessagesContentBlock {
     },
 }
 
+impl ExtractText for Vec<MessagesContentBlock> {
+    fn extract_text(&self) -> String {
+        self.iter()
+            .filter_map(|block| match block {
+                MessagesContentBlock::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagesImageSource {
@@ -218,6 +236,15 @@ pub enum MessagesDocumentSource {
 pub enum MessagesMessageContent {
     Single(String),
     Blocks(Vec<MessagesContentBlock>),
+}
+
+impl ExtractText for MessagesMessageContent {
+    fn extract_text(&self) -> String {
+        match self {
+            MessagesMessageContent::Single(text) => text.clone(),
+            MessagesMessageContent::Blocks(parts) => parts.extract_text()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -369,6 +396,121 @@ impl MessagesRequest {
     }
 }
 
+impl TryFrom<&[u8]> for MessagesRequest {
+    type Error = serde_json::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes)
+    }
+}
+
+impl TokenUsage for MessagesResponse {
+    fn completion_tokens(&self) -> usize {
+        self.usage.output_tokens as usize
+    }
+    fn prompt_tokens(&self) -> usize {
+        self.usage.input_tokens as usize
+    }
+    fn total_tokens(&self) -> usize {
+        (self.usage.input_tokens + self.usage.output_tokens) as usize
+    }
+}
+
+impl ProviderResponse for MessagesResponse {
+    fn usage(&self) -> Option<&dyn TokenUsage> {
+        Some(self)
+    }
+    fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
+        Some((self.usage.input_tokens as usize, self.usage.output_tokens as usize, (self.usage.input_tokens + self.usage.output_tokens) as usize))
+    }
+}
+
+impl ProviderRequest for MessagesRequest {
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn set_model(&mut self, model: String) {
+        self.model = model;
+    }
+
+    fn is_streaming(&self) -> bool {
+        self.stream.unwrap_or(false)
+    }
+
+    fn extract_messages_text(&self) -> String {
+        let mut text_parts = Vec::new();
+
+        // Include system prompt if present
+        if let Some(system) = &self.system {
+            match system {
+                MessagesSystemPrompt::Single(s) => text_parts.push(s.clone()),
+                MessagesSystemPrompt::Blocks(blocks) => {
+                    for block in blocks {
+                        if let MessagesContentBlock::Text { text } = block {
+                            text_parts.push(text.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract text from all messages
+        for message in &self.messages {
+            match &message.content {
+                MessagesMessageContent::Single(text) => text_parts.push(text.clone()),
+                MessagesMessageContent::Blocks(blocks) => {
+                    for block in blocks {
+                        if let MessagesContentBlock::Text { text } = block {
+                            text_parts.push(text.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        text_parts.join(" ")
+    }
+
+    fn get_recent_user_message(&self) -> Option<String> {
+        // Find the most recent user message
+        for message in self.messages.iter().rev() {
+            if message.role == MessagesRole::User {
+                match &message.content {
+                    MessagesMessageContent::Single(text) => return Some(text.clone()),
+                    MessagesMessageContent::Blocks(blocks) => {
+                        for block in blocks {
+                            if let MessagesContentBlock::Text { text } = block {
+                                return Some(text.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
+        serde_json::to_vec(self).map_err(|e| ProviderRequestError {
+            message: format!("Failed to serialize MessagesRequest: {}", e),
+            source: Some(Box::new(e)),
+        })
+    }
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>> {
+       return  &self.metadata;
+    }
+
+    fn remove_metadata_key(&mut self, key: &str) -> bool {
+        if let Some(ref mut metadata) = self.metadata {
+            metadata.remove(key).is_some()
+        } else {
+            false
+        }
+    }
+}
+
 impl MessagesResponse {
     pub fn api_type() -> AnthropicApi {
         AnthropicApi::Messages
@@ -378,6 +520,54 @@ impl MessagesResponse {
 impl MessagesStreamEvent {
     pub fn api_type() -> AnthropicApi {
         AnthropicApi::Messages
+    }
+}
+
+impl MessagesRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MessagesRole::User => "user",
+            MessagesRole::Assistant => "assistant",
+        }
+    }
+}
+
+// Implement ProviderStreamResponse for MessagesStreamEvent
+impl ProviderStreamResponse for MessagesStreamEvent {
+    fn content_delta(&self) -> Option<&str> {
+        match self {
+            MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
+                if let MessagesContentDelta::TextDelta { text } = delta {
+                    Some(text)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn is_final(&self) -> bool {
+        matches!(self, MessagesStreamEvent::MessageStop)
+    }
+
+    fn role(&self) -> Option<&str> {
+        match self {
+            MessagesStreamEvent::MessageStart { message } => Some(message.role.as_str()),
+            _ => None,
+        }
+    }
+
+    fn event_type(&self) -> Option<&str> {
+        Some(match self {
+            MessagesStreamEvent::MessageStart { .. } => "message_start",
+            MessagesStreamEvent::ContentBlockStart { .. } => "content_block_start",
+            MessagesStreamEvent::ContentBlockDelta { .. } => "content_block_delta",
+            MessagesStreamEvent::ContentBlockStop { .. } => "content_block_stop",
+            MessagesStreamEvent::MessageDelta { .. } => "message_delta",
+            MessagesStreamEvent::MessageStop => "message_stop",
+            MessagesStreamEvent::Ping => "ping",
+        })
     }
 }
 
@@ -878,13 +1068,13 @@ mod tests {
         let api = AnthropicApi::Messages;
 
         // Test trait methods
-        assert_eq!(api.endpoint(), "/v1/messages");
+        assert_eq!(api.endpoint(), MESSAGES_PATH);
         assert!(api.supports_streaming());
         assert!(api.supports_tools());
         assert!(api.supports_vision());
 
         // Test from_endpoint trait method
-        let found_api = AnthropicApi::from_endpoint("/v1/messages");
+        let found_api = AnthropicApi::from_endpoint(MESSAGES_PATH);
         assert_eq!(found_api, Some(AnthropicApi::Messages));
 
         let not_found = AnthropicApi::from_endpoint("/v1/unknown");

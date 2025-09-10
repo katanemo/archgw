@@ -33,6 +33,7 @@ pub fn get_llm_provider(
         return provider;
     }
 
+
     if llm_providers.default().is_some() {
         return llm_providers.default().unwrap();
     }

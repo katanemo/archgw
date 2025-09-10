@@ -44,8 +44,6 @@
 
 use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-// Import centralized types
 use crate::apis::*;
 use super::TransformError;
 
@@ -61,7 +59,7 @@ const DEFAULT_MAX_TOKENS: u32 = 4096;
 // ============================================================================
 
 /// Trait for extracting text content from various types
-trait ExtractText {
+pub trait ExtractText {
     fn extract_text(&self) -> String;
 }
 
@@ -213,6 +211,7 @@ impl TryFrom<MessagesResponse> for ChatCompletionsResponse {
             choices: vec![choice],
             usage,
             system_fingerprint: None,
+            service_tier: None,
         })
     }
 }
@@ -538,40 +537,6 @@ impl Into<Role> for MessagesRole {
             MessagesRole::User => Role::User,
             MessagesRole::Assistant => Role::Assistant,
         }
-    }
-}
-
-// Content Extraction
-impl ExtractText for MessageContent {
-    fn extract_text(&self) -> String {
-        match self {
-            MessageContent::Text(text) => text.clone(),
-            MessageContent::Parts(parts) => parts.extract_text()
-        }
-    }
-}
-
-impl ExtractText for Vec<ContentPart> {
-    fn extract_text(&self) -> String {
-        self.iter()
-            .filter_map(|part| match part {
-                ContentPart::Text { text } => Some(text.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-}
-
-impl ExtractText for Vec<MessagesContentBlock> {
-    fn extract_text(&self) -> String {
-        self.iter()
-            .filter_map(|block| match block {
-                MessagesContentBlock::Text { text } => Some(text.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 }
 

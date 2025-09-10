@@ -8,12 +8,12 @@ from urllib.parse import urlparse
 
 SUPPORTED_PROVIDERS = [
     "arch",
-    "claude",
     "deepseek",
     "groq",
     "mistral",
     "openai",
     "gemini",
+    "anthropic",
 ]
 
 

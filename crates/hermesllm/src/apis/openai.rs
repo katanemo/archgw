@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 
-
-
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage, SseStreamIter};
+use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
 use super::ApiDefinition;
+use crate::clients::transformer::{ExtractText};
+use crate::{CHAT_COMPLETIONS_PATH};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -28,13 +28,13 @@ pub enum OpenAIApi {
 impl ApiDefinition for OpenAIApi {
     fn endpoint(&self) -> &'static str {
         match self {
-            OpenAIApi::ChatCompletions => "/v1/chat/completions",
+            OpenAIApi::ChatCompletions => CHAT_COMPLETIONS_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
-            "/v1/chat/completions" => Some(OpenAIApi::ChatCompletions),
+            CHAT_COMPLETIONS_PATH => Some(OpenAIApi::ChatCompletions),
             _ => None,
         }
     }
@@ -81,7 +81,7 @@ pub struct ChatCompletionsRequest {
     // Maximum tokens in the response has been deprecated, but we keep it for compatibility
     pub max_tokens: Option<u32>,
     pub modalities: Option<Vec<String>>,
-    pub metadata: Option<HashMap<String, String>>,
+    pub metadata: Option<HashMap<String, Value>>,
     pub n: Option<u32>,
     pub presence_penalty: Option<f32>,
     pub parallel_tool_calls: Option<bool>,
@@ -172,6 +172,28 @@ impl ResponseMessage {
 pub enum MessageContent {
     Text(String),
     Parts(Vec<ContentPart>),
+}
+
+// Content Extraction
+impl ExtractText for MessageContent {
+    fn extract_text(&self) -> String {
+        match self {
+            MessageContent::Text(text) => text.clone(),
+            MessageContent::Parts(parts) => parts.extract_text()
+        }
+    }
+}
+
+impl ExtractText for Vec<ContentPart> {
+    fn extract_text(&self) -> String {
+        self.iter()
+            .filter_map(|part| match part {
+                ContentPart::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 impl Display for MessageContent {
@@ -328,6 +350,7 @@ pub struct ChatCompletionsResponse {
     pub choices: Vec<Choice>,
     pub usage: Usage,
     pub system_fingerprint: Option<String>,
+    pub service_tier: Option<String>,
 }
 
 /// Finish reason for completion
@@ -576,6 +599,18 @@ impl ProviderRequest for ChatCompletionsRequest {
             source: Some(Box::new(e)),
         })
     }
+
+    fn metadata(&self) -> &Option<HashMap<String, Value>> {
+        return &self.metadata;
+    }
+
+    fn remove_metadata_key(&mut self, key: &str) -> bool {
+        if let Some(ref mut metadata) = self.metadata {
+            metadata.remove(key).is_some()
+        } else {
+            false
+        }
+    }
 }
 
 /// Implementation of ProviderResponse for ChatCompletionsResponse
@@ -590,68 +625,6 @@ impl ProviderResponse for ChatCompletionsResponse {
             self.usage.completion_tokens(),
             self.usage.total_tokens(),
         ))
-    }
-}
-
-// ============================================================================
-// OPENAI SSE STREAMING ITERATOR
-// ============================================================================
-
-/// OpenAI-specific SSE streaming iterator
-/// Handles OpenAI's specific SSE format and ChatCompletionsStreamResponse parsing
-pub struct OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    sse_stream: SseStreamIter<I>,
-}
-
-impl<I> OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    pub fn new(sse_stream: SseStreamIter<I>) -> Self {
-        Self { sse_stream }
-    }
-}
-
-impl<I> Iterator for OpenAISseIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    type Item = Result<Box<dyn ProviderStreamResponse>, Box<dyn std::error::Error + Send + Sync>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for line in &mut self.sse_stream.lines {
-            let line = line.as_ref();
-            if line.is_empty() {
-                continue;
-            }
-
-            if line.starts_with("data: ") {
-                let data = &line[6..]; // Remove "data: " prefix
-                if data == "[DONE]" {
-                    return None;
-                }
-
-                // Skip ping messages (usually from other providers, but handle gracefully)
-                if data == r#"{"type": "ping"}"# {
-                    continue;
-                }
-
-                // OpenAI-specific parsing of ChatCompletionsStreamResponse
-                match serde_json::from_str::<ChatCompletionsStreamResponse>(data) {
-                    Ok(response) => return Some(Ok(Box::new(response))),
-                    Err(e) => return Some(Err(Box::new(
-                        OpenAIStreamError::InvalidStreamingData(format!("Error parsing OpenAI streaming data: {}, data: {}", e, data))
-                    ))),
-                }
-            }
-        }
-        None
     }
 }
 
@@ -679,6 +652,10 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
                 Role::Assistant => "assistant",
                 Role::Tool => "tool",
             }))
+    }
+
+    fn event_type(&self) -> Option<&str> {
+        None // OpenAI doesn't use event types in SSE
     }
 }
 
@@ -982,13 +959,13 @@ mod tests {
         let api = OpenAIApi::ChatCompletions;
 
         // Test trait methods
-        assert_eq!(api.endpoint(), "/v1/chat/completions");
+        assert_eq!(api.endpoint(), CHAT_COMPLETIONS_PATH);
         assert!(api.supports_streaming());
         assert!(api.supports_tools());
         assert!(api.supports_vision());
 
         // Test from_endpoint
-        let found_api = OpenAIApi::from_endpoint("/v1/chat/completions");
+        let found_api = OpenAIApi::from_endpoint(CHAT_COMPLETIONS_PATH);
         assert_eq!(found_api, Some(OpenAIApi::ChatCompletions));
 
         let not_found = OpenAIApi::from_endpoint("/v1/unknown");
@@ -1138,5 +1115,85 @@ mod tests {
         // Test that invalid string values fail deserialization (type safety!)
         let invalid_result: Result<ToolChoice, _> = serde_json::from_value(json!("invalid"));
         assert!(invalid_result.is_err());
+    }
+
+    #[test]
+    fn test_chat_completions_response_with_service_tier() {
+        // Test that ChatCompletionsResponse can deserialize OpenAI responses with service_tier field
+        let json_response = r#"{
+            "id": "chatcmpl-CAJc2Df6QCc7Mv3RP0Cf2xlbDV1x2",
+            "object": "chat.completion",
+            "created": 1756574706,
+            "model": "gpt-4o-2024-08-06",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Test response content",
+                    "annotations": []
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 65,
+                "completion_tokens": 184,
+                "total_tokens": 249,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                }
+            },
+            "service_tier": "default",
+            "system_fingerprint": "fp_f33640a400"
+        }"#;
+
+        let response: ChatCompletionsResponse = serde_json::from_str(json_response).unwrap();
+
+        assert_eq!(response.id, "chatcmpl-CAJc2Df6QCc7Mv3RP0Cf2xlbDV1x2");
+        assert_eq!(response.object, "chat.completion");
+        assert_eq!(response.created, 1756574706);
+        assert_eq!(response.model, "gpt-4o-2024-08-06");
+        assert_eq!(response.service_tier, Some("default".to_string()));
+        assert_eq!(response.system_fingerprint, Some("fp_f33640a400".to_string()));
+        assert_eq!(response.choices.len(), 1);
+        assert_eq!(response.usage.prompt_tokens, 65);
+        assert_eq!(response.usage.completion_tokens, 184);
+        assert_eq!(response.usage.total_tokens, 249);
+    }
+
+    #[test]
+    fn test_chat_completions_response_without_service_tier() {
+        // Test that ChatCompletionsResponse can deserialize responses without service_tier (backward compatibility)
+        let json_response = r#"{
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": "gpt-4",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Test response"
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30
+            }
+        }"#;
+
+        let response: ChatCompletionsResponse = serde_json::from_str(json_response).unwrap();
+
+        assert_eq!(response.id, "chatcmpl-123");
+        assert_eq!(response.service_tier, None); // Should be None when not present
+        assert_eq!(response.system_fingerprint, None);
     }
 }

@@ -1,9 +1,10 @@
-use brightstaff::handlers::chat_completions::chat_completions;
+use brightstaff::handlers::chat_completions::chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
+use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH};
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -67,10 +68,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         &serde_json::to_string(arch_config.as_ref()).unwrap()
     );
 
-    let llm_provider_endpoint = env::var("LLM_PROVIDER_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:12001/v1/chat/completions".to_string());
+    let llm_provider_url = env::var("LLM_PROVIDER_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:12001".to_string());
 
-    info!("llm provider endpoint: {}", llm_provider_endpoint);
+    info!("llm provider url: {}", llm_provider_url);
     info!("listening on http://{}", bind_address);
     let listener = TcpListener::bind(bind_address).await?;
 
@@ -88,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let router_service: Arc<RouterService> = Arc::new(RouterService::new(
         arch_config.llm_providers.clone(),
-        llm_provider_endpoint.clone(),
+        llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
         routing_model_name,
         routing_llm_provider,
     ));
@@ -99,19 +100,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
-        let llm_provider_endpoint = llm_provider_endpoint.clone();
+        let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
         let service = service_fn(move |req| {
+
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
-            let llm_provider_endpoint = llm_provider_endpoint.clone();
+            let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
 
             async move {
                 match (req.method(), req.uri().path()) {
-                    (&Method::POST, "/v1/chat/completions") => {
-                        chat_completions(req, router_service, llm_provider_endpoint)
+                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
+                        let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
+                        chat(req, router_service, fully_qualified_url)
                             .with_context(parent_cx)
                             .await
                     }

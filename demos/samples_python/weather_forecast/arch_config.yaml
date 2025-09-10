@@ -7,6 +7,12 @@ listeners:
     message_format: openai
     timeout: 30s
 
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
 endpoints:
   weather_forecast_service:
     endpoint: host.docker.internal:18083
@@ -23,6 +29,12 @@ llm_providers:
   - access_key: $OPENAI_API_KEY
     model: openai/gpt-4o
     default: true
+
+  - access_key: $OPENAI_API_KEY
+    model: openai/gpt-4o-mini
+
+  - access_key: $ANTHROPIC_API_KEY
+    model: anthropic/claude-sonnet-4-20250514
 
 system_prompt: |
   You are a helpful assistant.

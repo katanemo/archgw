@@ -15,7 +15,7 @@ agents:
         # Parses user queries and extracts metadata, also handles clarification workflow
         protocol: openai
         endpoint: https://localhost:10500
-      - name: search_documents
+      - name: search_documents_agent
         # Searches the document store for relevant information
         protocol: openai
         endpoint: https://localhost:10501

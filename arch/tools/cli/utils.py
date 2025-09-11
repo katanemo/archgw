@@ -28,9 +28,9 @@ def get_llm_provider_access_keys(arch_config_file):
 
     access_key_list = []
     for llm_provider in arch_config_yaml.get("llm_providers", []):
-        acess_key = llm_provider.get("access_key")
-        if acess_key is not None:
-            access_key_list.append(acess_key)
+        access_key = llm_provider.get("access_key")
+        if access_key is not None:
+            access_key_list.append(access_key)
 
     for prompt_target in arch_config_yaml.get("prompt_targets", []):
         for k, v in prompt_target.get("endpoint", {}).get("http_headers", {}).items():
@@ -43,6 +43,12 @@ def get_llm_provider_access_keys(arch_config_file):
                     access_key_list.append(auth_tokens[1])
                 else:
                     access_key_list.append(v)
+
+    for listener in arch_config_yaml.get("listeners", []):
+        for llm_provider in listener.get("llm_providers", []):
+            access_key = llm_provider.get("access_key")
+            if access_key is not None:
+                access_key_list.append(access_key)
 
     return access_key_list
 

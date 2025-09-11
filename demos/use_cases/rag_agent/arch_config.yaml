@@ -24,6 +24,11 @@ listeners:
           - query_rewriter
           - context_builder
           - response_generator
+      - name: research_agent
+        description: deep research agent that can perform searches and gather information.
+        filter_chain:
+          - research_agent
+          - response_generator
     port: 8001
 
   - name: egress_traffic
@@ -31,7 +36,7 @@ listeners:
     port: 12000
     protocol: openai
     llm_providers:
-      - access_key: ${OPENAI_API_KEY}
+      - access_key: $OPENAI_API_KEY
         model: openai/gpt-4o
-      - access_key: ${OPENAI_API_KEY}
+      - access_key: $OPENAI_API_KEY
         model: openai/gpt-4o-mini

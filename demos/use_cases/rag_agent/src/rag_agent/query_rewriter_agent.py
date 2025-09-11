@@ -1,9 +1,11 @@
+import json
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from openai import AsyncOpenAI
 import os
 import logging
+import uvicorn
 
 from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 
@@ -104,6 +106,8 @@ async def chat_completions(request: ChatCompletionRequest):
             )
             break
 
+    messages_history_json = json.dumps([msg.dict() for msg in updated_messages])
+
     response = ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
         created=int(time.time()),
@@ -111,10 +115,7 @@ async def chat_completions(request: ChatCompletionRequest):
         choices=[
             {
                 "index": 0,
-                "messages": [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in updated_messages
-                ],
+                "message": {"role": "user", "content": messages_history_json},
                 "finish_reason": "stop",
             }
         ],
@@ -138,3 +139,8 @@ async def health_check():
 def parse_query(query):
     """Parse the user query and returns metadata extracted from query."""
     return Response(query=query, metadata={"is_valid": True})
+
+
+def start_server(host: str = "localhost", port: int = 8000):
+    """Start the REST server."""
+    uvicorn.run(app, host=host, port=port)

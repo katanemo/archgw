@@ -18,12 +18,26 @@ mcp = None
 @click.option("--rest-port", "rest_port", default=8000, help="Port for REST server")
 def main(host, port, agent, transport, rest_server, rest_port):
     if rest_server:
-        print(f"Starting REST server on {host}:{rest_port}")
+        print(f"Starting REST server on {host}:{rest_port} for agent: {agent}")
 
-        from rag_agent.query_parser import start_server
+        if agent == "query_parser":
+            from rag_agent.query_rewriter_agent import start_server
 
-        start_server(host=host, port=rest_port)
-        return
+            start_server(host=host, port=rest_port)
+            return
+        elif agent == "content_builder":
+            from rag_agent.content_builder_agent import start_server
+
+            start_server(host=host, port=rest_port)
+            return
+        elif agent == "response_generator":
+            from rag_agent.response_generator_agent import start_server
+
+            start_server(host=host, port=rest_port)
+            return
+        else:
+            print("Please specify an agent to start with --agent option.")
+            return
 
     print(f"Starting agent(s): {agent if agent else 'all'}")
     global mcp

@@ -1,3 +1,4 @@
+import json
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
@@ -6,6 +7,7 @@ import os
 import logging
 import csv
 from pathlib import Path
+import uvicorn
 
 from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 
@@ -36,6 +38,8 @@ def load_knowledge_base():
     # Get the path to the CSV file relative to this script
     current_dir = Path(__file__).parent
     csv_path = current_dir / "basis_of_truth.csv"
+
+    print(f"Loading knowledge base from {csv_path}")
 
     try:
         knowledge_base = []
@@ -174,7 +178,7 @@ app = FastAPI(title="RAG Content Builder Agent", version="1.0.0")
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResponse:
     """Chat completions endpoint that augments user queries with relevant context from the knowledge base."""
     import time
     import uuid
@@ -185,6 +189,7 @@ async def chat_completions(request: ChatCompletionRequest):
 
     # Augment the user query with relevant context
     updated_messages = await augment_query_with_context(request.messages)
+    messages_history_json = json.dumps([msg.dict() for msg in updated_messages])
 
     response = ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
@@ -193,10 +198,7 @@ async def chat_completions(request: ChatCompletionRequest):
         choices=[
             {
                 "index": 0,
-                "messages": [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in updated_messages
-                ],
+                "message": {"role": "user", "content": messages_history_json},
                 "finish_reason": "stop",
             }
         ],
@@ -214,10 +216,15 @@ async def chat_completions(request: ChatCompletionRequest):
 def main():
     """Main function to initialize the knowledge base and start the server."""
     load_knowledge_base()
-    import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":
     main()
+
+
+def start_server(host: str = "localhost", port: int = 8000):
+    """Start the REST server."""
+    load_knowledge_base()
+    uvicorn.run(app, host=host, port=port)

@@ -1,3 +1,4 @@
+use brightstaff::handlers::agent_chat_completions::agent_chat;
 use brightstaff::handlers::chat_completions::chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::router::llm_router::RouterService;
@@ -62,6 +63,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let arch_config = Arc::new(config);
 
     let llm_providers = Arc::new(RwLock::new(arch_config.llm_providers.clone()));
+    let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
+    let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
 
     debug!(
         "arch_config: {:?}",
@@ -103,18 +106,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
+        let agents_list = agents_list.clone();
+        let listeners = listeners.clone();
         let service = service_fn(move |req| {
 
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
+            let agents_list = agents_list.clone();
+            let listeners = listeners.clone();
 
             async move {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
                         let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
                         chat(req, router_service, fully_qualified_url)
+                            .with_context(parent_cx)
+                            .await
+                    }
+                    (&Method::POST, "/agents/v1/chat/completions") => {
+                        let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
+                        agent_chat(req, router_service, fully_qualified_url, agents_list, listeners)
                             .with_context(parent_cx)
                             .await
                     }
@@ -143,6 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         Ok(response)
                     }
                     _ => {
+                        debug!("No route for {} {}", req.method(), req.uri().path());
                         let mut not_found = Response::new(empty());
                         *not_found.status_mut() = StatusCode::NOT_FOUND;
                         Ok(not_found)

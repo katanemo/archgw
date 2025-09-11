@@ -1,9 +1,11 @@
+import json
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 import os
 import logging
 import time
 import uuid
+import uvicorn
 
 from .api import ChatCompletionRequest, ChatCompletionResponse
 
@@ -64,6 +66,8 @@ async def chat_completions(request: ChatCompletionRequest):
         generated_response = response.choices[0].message.content.strip()
         logger.info(f"Response generated successfully")
 
+        updated_history = [{"role": "assistant", "content": generated_response}]
+
         return ChatCompletionResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
             created=int(time.time()),
@@ -71,7 +75,10 @@ async def chat_completions(request: ChatCompletionRequest):
             choices=[
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": generated_response},
+                    "message": {
+                        "role": "assistant",
+                        "content": json.dumps(updated_history),
+                    },
                     "finish_reason": "stop",
                 }
             ],
@@ -120,3 +127,8 @@ async def chat_completions(request: ChatCompletionRequest):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+def start_server(host: str = "localhost", port: int = 8000):
+    """Start the REST server."""
+    uvicorn.run(app, host=host, port=port)

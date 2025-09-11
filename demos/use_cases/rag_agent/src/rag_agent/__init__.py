@@ -3,11 +3,12 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = None
 
+
 @click.command()
-@click.option('--transport', 'transport', default='stdio')
-@click.option('--host', 'host', default='localhost')
-@click.option('--port', 'port', default=10101)
-@click.option('--agent', 'agent', default=None)
+@click.option("--transport", "transport", default="stdio")
+@click.option("--host", "host", default="localhost")
+@click.option("--port", "port", default=10101)
+@click.option("--agent", "agent", default=None)
 def main(host, port, agent, transport):
     print(f"Starting agent(s): {agent if agent else 'all'}")
     global mcp
@@ -26,5 +27,6 @@ def main(host, port, agent, transport):
     print("All agents loaded.")
     mcp.run(transport=transport)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

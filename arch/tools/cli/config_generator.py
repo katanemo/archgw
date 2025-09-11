@@ -113,15 +113,21 @@ def validate_and_render_schema():
                 "port": ingress_traffic.get("port", 10000),
                 "address": ingress_traffic.get("address", "0.0.0.0"),
                 "timeout": ingress_traffic.get("timeout", "30s"),
+                "protocol": "openai",
             }
             config_yaml["listeners"].append(prompt_gateway_listener)
         if egress_traffic:
+            llm_providers = []
+            if config_yaml.get("llm_providers"):
+                llm_providers = config_yaml["llm_providers"]
+                del config_yaml["llm_providers"]
             llm_gateway_listener = {
                 "name": "egress_traffic",
                 "port": egress_traffic.get("port", 12000),
                 "address": egress_traffic.get("address", "0.0.0.0"),
                 "timeout": egress_traffic.get("timeout", "30s"),
-                "llm_providers": config_yaml.get("llm_providers", []),
+                "llm_providers": llm_providers,
+                "protocol": "openai",
             }
             config_yaml["listeners"].append(llm_gateway_listener)
 
@@ -237,7 +243,9 @@ def validate_and_render_schema():
                 }
             )
 
-    config_yaml["llm_providers"] = updated_llm_providers
+    for listener in config_yaml["listeners"]:
+        if listener.get("name") == "egress_traffic":
+            listener["llm_providers"] = updated_llm_providers
 
     arch_config_string = yaml.dump(config_yaml)
     arch_llm_config_string = yaml.dump(config_yaml)
@@ -279,7 +287,7 @@ def validate_and_render_schema():
         "arch_config": arch_config_string,
         "arch_llm_config": arch_llm_config_string,
         "arch_clusters": inferred_clusters,
-        "arch_llm_providers": config_yaml["llm_providers"],
+        "arch_llm_providers": updated_llm_providers,
         "arch_tracing": arch_tracing,
         "local_llms": llms_with_endpoint,
         "agent_orchestrator": agent_orchestrator,

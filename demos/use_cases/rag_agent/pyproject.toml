@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.11.7",
     "fastapi>=0.104.1",
     "uvicorn>=0.24.0",
+    "openai>=1.0.0",
 ]
 
 [project.scripts]

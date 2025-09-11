@@ -9,7 +9,22 @@ mcp = None
 @click.option("--host", "host", default="localhost")
 @click.option("--port", "port", default=10101)
 @click.option("--agent", "agent", default=None)
-def main(host, port, agent, transport):
+@click.option(
+    "--rest-server",
+    "rest_server",
+    is_flag=True,
+    help="Start REST server instead of MCP server",
+)
+@click.option("--rest-port", "rest_port", default=8000, help="Port for REST server")
+def main(host, port, agent, transport, rest_server, rest_port):
+    if rest_server:
+        print(f"Starting REST server on {host}:{rest_port}")
+
+        from rag_agent.query_parser import start_server
+
+        start_server(host=host, port=rest_port)
+        return
+
     print(f"Starting agent(s): {agent if agent else 'all'}")
     global mcp
     mcp = FastMCP("RAG Agent Demo", host=host, port=port)

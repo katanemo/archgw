@@ -9,6 +9,8 @@ dependencies = [
     "mcp>=1.13.1",
     "fastmcp>=2.12.2",
     "pydantic>=2.11.7",
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
 ]
 
 [project.scripts]

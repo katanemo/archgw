@@ -43,7 +43,7 @@ def load_knowledge_base():
 
     try:
         knowledge_base = []
-        with open(csv_path, "r", encoding="utf-8") as file:
+        with open(csv_path, "r", encoding="utf-8-sig") as file:
             csv_reader = csv.DictReader(file)
             for row in csv_reader:
                 knowledge_base.append({"path": row["path"], "content": row["content"]})

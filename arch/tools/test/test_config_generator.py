@@ -81,6 +81,83 @@ tracing:
             validate_and_render_schema()
 
 
+def test_validate_and_render_happy_path_agent_config(monkeypatch):
+    monkeypatch.setenv("ARCH_CONFIG_FILE", "fake_arch_config.yaml")
+    monkeypatch.setenv("ARCH_CONFIG_SCHEMA_FILE", "fake_arch_config_schema.yaml")
+    monkeypatch.setenv("ENVOY_CONFIG_TEMPLATE_FILE", "./envoy.template.yaml")
+    monkeypatch.setenv("ARCH_CONFIG_FILE_RENDERED", "fake_arch_config_rendered.yaml")
+    monkeypatch.setenv("ENVOY_CONFIG_FILE_RENDERED", "fake_envoy.yaml")
+    monkeypatch.setenv("TEMPLATE_ROOT", "../")
+
+    arch_config = """
+version: v0.2.0
+
+agents:
+  - name: query_rewriter
+    kind: openai
+    endpoint: openai://localhost:10500
+  - name: context_builder
+    kind: openai
+    endpoint: openai://localhost:10501
+  - name: response_generator
+    kind: openai
+    endpoint: openai://localhost:10502
+  - name: research_agent
+    kind: openai
+    endpoint: https://localhost:10500
+  - name: input_guard_rails
+    kind: openai
+    endpoint: https://localhost:10503
+
+listeners:
+  - name: tmobile
+    router: arch_agent_v2
+    agents:
+      - name: simple_tmobile_rag_agent
+        description: t-mobile virtual assistant for device contracts.
+        filter_chain:
+          - query_rewriter
+          - context_builder
+          - response_generator
+      - name: research_agent
+        description: agent to research and gather information from various sources.
+        filter_chain:
+          - research_agent
+          - response_generator
+    port: 8000
+
+  - name: llm_provider
+    description: llm provider configuration
+    port: 12000
+    protocol: openai
+    llm_providers:
+      - access_key: ${OPENAI_API_KEY}
+        model: openai/gpt-4o
+"""
+    arch_config_schema = ""
+    with open("../arch_config_schema.yaml", "r") as file:
+        arch_config_schema = file.read()
+
+    m_open = mock.mock_open()
+    # Provide enough file handles for all open() calls in validate_and_render_schema
+    m_open.side_effect = [
+        mock.mock_open(read_data="").return_value,
+        mock.mock_open(read_data=arch_config).return_value,  # ARCH_CONFIG_FILE
+        mock.mock_open(
+            read_data=arch_config_schema
+        ).return_value,  # ARCH_CONFIG_SCHEMA_FILE
+        mock.mock_open(read_data=arch_config).return_value,  # ARCH_CONFIG_FILE
+        mock.mock_open(
+            read_data=arch_config_schema
+        ).return_value,  # ARCH_CONFIG_SCHEMA_FILE
+        mock.mock_open().return_value,  # ENVOY_CONFIG_FILE_RENDERED (write)
+        mock.mock_open().return_value,  # ARCH_CONFIG_FILE_RENDERED (write)
+    ]
+    with mock.patch("builtins.open", m_open):
+        with mock.patch("config_generator.Environment"):
+            validate_and_render_schema()
+
+
 arch_config_test_cases = [
     {
         "id": "duplicate_provider_name",

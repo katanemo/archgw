@@ -1,0 +1,42 @@
+version: v0.2.0
+
+agents:
+  - name: query_rewriter
+    kind: openai
+    endpoint: http://host.docker.internal:10500
+  - name: context_builder
+    kind: openai
+    endpoint: http://host.docker.internal:10501
+  - name: response_generator
+    kind: openai
+    endpoint: http://host.docker.internal:10502
+  - name: research_agent
+    kind: openai
+    endpoint: http://host.docker.internal:10503
+
+listeners:
+  - name: rag agent
+    router: arch_agent_v2
+    agents:
+      - name: simple_rag_agent
+        description: virtual assistant for device contracts.
+        filter_chain:
+          - query_rewriter
+          - context_builder
+          - response_generator
+      - name: research_agent
+        description: deep research agent that can perform searches and gather information.
+        filter_chain:
+          - research_agent
+          - response_generator
+    port: 8001
+
+  - name: egress_traffic
+    description: llm provider configuration
+    port: 12000
+    protocol: openai
+    llm_providers:
+      - access_key: $OPENAI_API_KEY
+        model: openai/gpt-4o
+      - access_key: $OPENAI_API_KEY
+        model: openai/gpt-4o-mini

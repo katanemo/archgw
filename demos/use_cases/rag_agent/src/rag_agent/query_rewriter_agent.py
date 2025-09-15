@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # Configuration for archgw LLM gateway
-LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
+LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:9000/v1")
 QUERY_REWRITE_MODEL = "gpt-4o-mini"
 
 # Initialize OpenAI client for archgw

@@ -126,6 +126,7 @@ def validate_and_render_schema():
     model_name_keys = set()
     model_usage_name_keys = set()
 
+    # legacy listeners
     # check if type is array or object
     # if its dict its legacy format let's convert it to array
     prompt_gateway_listener = {
@@ -344,6 +345,7 @@ def validate_and_render_schema():
         "arch_tracing": arch_tracing,
         "local_llms": llms_with_endpoint,
         "agent_orchestrator": agent_orchestrator,
+        "listeners": config_yaml["listeners"].copy(),
     }
 
     rendered = template.render(data)

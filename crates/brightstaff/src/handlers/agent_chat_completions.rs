@@ -35,11 +35,19 @@ pub async fn agent_chat(
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     // find listener that is running at port 8001 for agents
+    let listener_name = request.headers().get("x-arch-agent-listener-name");
     let listener = {
         let listeners = listeners.read().await;
-        listeners.iter().find(|l| l.port == 8001).cloned()
+        listeners.iter().find(|l| {
+            listener_name
+                .and_then(|name| name.to_str().ok())
+                .map(|name| l.name == name)
+                .unwrap_or(false)
+        }).cloned()
     }
     .unwrap();
+
+    info!("Handling request for listener: {}", listener.name);
 
     let request_path = request.uri().path().to_string();
     let mut request_headers = request.headers().clone();

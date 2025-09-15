@@ -42,8 +42,7 @@ listeners:
       - access_key: $OPENAI_API_KEY
         model: openai/gpt-4o-mini
     address: 0.0.0.0
-    port: 12000
+    port: 9000
 
 tracing:
   random_sampling: 100
-  trace_arch_internal: true

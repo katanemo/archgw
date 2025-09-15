@@ -7,6 +7,7 @@ properties:
       - v0.1
       - v0.1.0
       - 0.1-beta
+      - 0.2.0
   listeners:
     type: object
     additionalProperties: false
@@ -102,6 +103,19 @@ properties:
       additionalProperties: false
       required:
         - model
+
+  model_aliases:
+    type: object
+    patternProperties:
+      "^.*$":
+        type: object
+        properties:
+          target:
+            type: string
+        additionalProperties: false
+        required:
+          - target
+
   overrides:
     type: object
     properties:

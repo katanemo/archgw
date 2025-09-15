@@ -104,6 +104,20 @@ pub struct ChatCompletionsRequest {
     // pub web_search: Option<bool>, // GOOD FIRST ISSUE: Future support for web search
 }
 
+impl ChatCompletionsRequest {
+    /// Suppress max_tokens if the model is o3, o3-*, openrouter/o3, or openrouter/o3-*
+    pub fn suppress_max_tokens_if_o3(&mut self) {
+        let model = self.model.as_str();
+        let is_o3 = model == "o3"
+            || model.starts_with("o3-")
+            || model == "openrouter/o3"
+            || model.starts_with("openrouter/o3-");
+        if is_o3 {
+            self.max_tokens = None;
+        }
+    }
+}
+
 // ============================================================================
 // CHAT COMPLETIONS API TYPES
 // ============================================================================
@@ -530,7 +544,10 @@ impl TryFrom<&[u8]> for ChatCompletionsRequest {
     type Error = OpenAIStreamError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)
+       let mut req: ChatCompletionsRequest = serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)?;
+        // Use the centralized suppression logic
+        req.suppress_max_tokens_if_o3();
+        Ok(req)
     }
 }
 

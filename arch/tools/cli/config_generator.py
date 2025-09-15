@@ -208,6 +208,20 @@ def validate_and_render_schema():
 
     config_yaml["llm_providers"] = updated_llm_providers
 
+    # Validate model aliases if present
+    if "model_aliases" in config_yaml:
+        model_aliases = config_yaml["model_aliases"]
+        for alias_name, alias_config in model_aliases.items():
+            target = alias_config.get("target")
+            if not target:
+                raise Exception(
+                    f"Model alias '{alias_name}' must have a target specified"
+                )
+            if target not in model_name_keys:
+                raise Exception(
+                    f"Model alias '{alias_name}' targets '{target}' which is not defined as a model. Available models: {', '.join(sorted(model_name_keys))}"
+                )
+
     arch_config_string = yaml.dump(config_yaml)
     arch_llm_config_string = yaml.dump(config_yaml)
 

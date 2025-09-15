@@ -14,10 +14,16 @@ pub struct Routing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelAlias {
+    pub target: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
     pub llm_providers: Vec<LlmProvider>,
+    pub model_aliases: Option<HashMap<String, ModelAlias>>,
     pub overrides: Option<Overrides>,
     pub system_prompt: Option<String>,
     pub prompt_guards: Option<PromptGuards>,

@@ -101,6 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
         let llm_provider_url = llm_provider_url.clone();
+        let arch_config = Arc::clone(&arch_config);
 
         let llm_providers = llm_providers.clone();
         let service = service_fn(move |req| {
@@ -109,12 +110,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
+            let arch_config = Arc::clone(&arch_config);
 
             async move {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
                         let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
-                        chat(req, router_service, fully_qualified_url)
+                        chat(req, router_service, fully_qualified_url, arch_config)
                             .with_context(parent_cx)
                             .await
                     }

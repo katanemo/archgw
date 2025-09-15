@@ -1,7 +1,7 @@
 import json
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from openai import AsyncOpenAI
 import os
 import logging
@@ -26,7 +26,9 @@ archgw_client = AsyncOpenAI(
 )
 
 
-async def rewrite_query_with_archgw(messages: List[ChatMessage]) -> str:
+async def rewrite_query_with_archgw(
+    messages: List[ChatMessage], traceparent_header: str
+) -> str:
     # Prepare the system prompt for query rewriting
     system_prompt = """You are a query rewriter that improves user queries for better retrieval.
 
@@ -48,12 +50,16 @@ async def rewrite_query_with_archgw(messages: List[ChatMessage]) -> str:
 
     try:
         # Call archgw using OpenAI client
+        extra_headers = {}
+        if traceparent_header:
+            extra_headers["traceparent"] = traceparent_header
         logger.info(f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to rewrite query")
         response = await archgw_client.chat.completions.create(
             model=QUERY_REWRITE_MODEL,
             messages=rewrite_messages,
             temperature=0.3,
             max_tokens=200,
+            extra_headers=extra_headers,
         )
 
         rewritten_query = response.choices[0].message.content.strip()
@@ -81,20 +87,29 @@ app = FastAPI(title="RAG Agent Query Parser", version="1.0.0")
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(request_body: ChatCompletionRequest, request: Request):
     """Chat completions endpoint that rewrites the last user query using archgw."""
     import time
     import uuid
 
     logger.info(
-        f"Received chat completion request with {len(request.messages)} messages"
+        f"Received chat completion request with {len(request_body.messages)} messages"
     )
 
+    # Read traceparent header if present
+    traceparent_header = request.headers.get("traceparent")
+    if traceparent_header:
+        logger.info(f"Received traceparent header: {traceparent_header}")
+    else:
+        logger.info("No traceparent header found")
+
     # Call archgw to rewrite the last user query
-    rewritten_query = await rewrite_query_with_archgw(request.messages)
+    rewritten_query = await rewrite_query_with_archgw(
+        request_body.messages, traceparent_header
+    )
 
     # Create updated messages with the rewritten query
-    updated_messages = request.messages.copy()
+    updated_messages = request_body.messages.copy()
 
     # Find and update the last user message with the rewritten query
     for i in range(len(updated_messages) - 1, -1, -1):
@@ -111,7 +126,7 @@ async def chat_completions(request: ChatCompletionRequest):
     response = ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
         created=int(time.time()),
-        model=request.model,
+        model=request_body.model,
         choices=[
             {
                 "index": 0,

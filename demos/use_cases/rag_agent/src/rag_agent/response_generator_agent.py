@@ -1,5 +1,5 @@
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from openai import AsyncOpenAI
 import os
 import logging
@@ -28,11 +28,18 @@ app = FastAPI(title="RAG Agent Response Generator", version="1.0.0")
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(request_body: ChatCompletionRequest, request: Request):
     """Chat completions endpoint that generates a coherent response based on all context."""
     logger.info(
-        f"Received chat completion request with {len(request.messages)} messages"
+        f"Received chat completion request with {len(request_body.messages)} messages"
     )
+
+    # Read traceparent header if present
+    traceparent_header = request.headers.get("traceparent")
+    if traceparent_header:
+        logger.info(f"Received traceparent header: {traceparent_header}")
+    else:
+        logger.info("No traceparent header found")
 
     # Prepare the system prompt for response generation
     system_prompt = """You are a helpful assistant that generates coherent, contextual responses.
@@ -50,17 +57,24 @@ async def chat_completions(request: ChatCompletionRequest):
     response_messages = [{"role": "system", "content": system_prompt}]
 
     # Add conversation history
-    for msg in request.messages:
+    for msg in request_body.messages:
         response_messages.append({"role": msg.role, "content": msg.content})
 
     try:
         # Call archgw using OpenAI client
         logger.info(f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to generate response")
+
+        # Prepare extra headers if traceparent is provided
+        extra_headers = {}
+        if traceparent_header:
+            extra_headers["traceparent"] = traceparent_header
+
         response = await archgw_client.chat.completions.create(
             model=RESPONSE_MODEL,
             messages=response_messages,
-            temperature=request.temperature or 0.7,
-            max_tokens=request.max_tokens or 1000,
+            temperature=request_body.temperature or 0.7,
+            max_tokens=request_body.max_tokens or 1000,
+            extra_headers=extra_headers,
         )
 
         generated_response = response.choices[0].message.content.strip()
@@ -71,7 +85,7 @@ async def chat_completions(request: ChatCompletionRequest):
         return ChatCompletionResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
             created=int(time.time()),
-            model=request.model,
+            model=request_body.model,
             choices=[
                 {
                     "index": 0,
@@ -84,11 +98,11 @@ async def chat_completions(request: ChatCompletionRequest):
             ],
             usage={
                 "prompt_tokens": sum(
-                    len(msg.content.split()) for msg in request.messages
+                    len(msg.content.split()) for msg in request_body.messages
                 ),
                 "completion_tokens": len(generated_response.split()),
                 "total_tokens": sum(
-                    len(msg.content.split()) for msg in request.messages
+                    len(msg.content.split()) for msg in request_body.messages
                 )
                 + len(generated_response.split()),
             },

@@ -68,15 +68,41 @@ def validate_and_render_schema():
 
     endpoints = config_yaml.get("endpoints", {})
 
+    # Process agents section and convert to endpoints
+    agents = config_yaml.get("agents", [])
+    for agent in agents:
+        agent_name = agent.get("name")
+        agent_endpoint = agent.get("endpoint")
+
+        if agent_name and agent_endpoint:
+            urlparse_result = urlparse(agent_endpoint)
+            if urlparse_result.scheme and urlparse_result.hostname:
+                protocol = urlparse_result.scheme
+
+                port = urlparse_result.port
+                if port is None:
+                    if protocol == "http":
+                        port = 80
+                    else:
+                        port = 443
+
+                endpoints[agent_name] = {
+                    "endpoint": urlparse_result.hostname,
+                    "port": port,
+                    "protocol": protocol,
+                }
+
     # override the inferred clusters with the ones defined in the config
     for name, endpoint_details in endpoints.items():
         inferred_clusters[name] = endpoint_details
-        endpoint = inferred_clusters[name]["endpoint"]
-        protocol = inferred_clusters[name].get("protocol", "http")
-        (
-            inferred_clusters[name]["endpoint"],
-            inferred_clusters[name]["port"],
-        ) = get_endpoint_and_port(endpoint, protocol)
+        # Only call get_endpoint_and_port for manually defined endpoints, not agent-derived ones
+        if "port" not in endpoint_details:
+            endpoint = inferred_clusters[name]["endpoint"]
+            protocol = inferred_clusters[name].get("protocol", "http")
+            (
+                inferred_clusters[name]["endpoint"],
+                inferred_clusters[name]["port"],
+            ) = get_endpoint_and_port(endpoint, protocol)
 
     print("defined clusters from arch_config.yaml: ", json.dumps(inferred_clusters))
 

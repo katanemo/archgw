@@ -95,19 +95,19 @@ version: v0.2.0
 agents:
   - name: query_rewriter
     kind: openai
-    endpoint: openai://localhost:10500
+    endpoint: http://localhost:10500
   - name: context_builder
     kind: openai
-    endpoint: openai://localhost:10501
+    endpoint: http://localhost:10501
   - name: response_generator
     kind: openai
-    endpoint: openai://localhost:10502
+    endpoint: http://localhost:10502
   - name: research_agent
     kind: openai
-    endpoint: https://localhost:10500
+    endpoint: http://localhost:10500
   - name: input_guard_rails
     kind: openai
-    endpoint: https://localhost:10503
+    endpoint: http://localhost:10503
 
 listeners:
   - name: tmobile

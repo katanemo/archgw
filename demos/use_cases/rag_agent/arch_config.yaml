@@ -29,14 +29,21 @@ listeners:
         filter_chain:
           - research_agent
           - response_generator
+    protocol: openai
+    address: 0.0.0.0
     port: 8001
 
   - name: egress_traffic
     description: llm provider configuration
-    port: 12000
     protocol: openai
     llm_providers:
       - access_key: $OPENAI_API_KEY
         model: openai/gpt-4o
       - access_key: $OPENAI_API_KEY
         model: openai/gpt-4o-mini
+    address: 0.0.0.0
+    port: 12000
+
+tracing:
+  random_sampling: 100
+  trace_arch_internal: true

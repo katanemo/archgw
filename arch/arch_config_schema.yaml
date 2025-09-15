@@ -50,11 +50,12 @@ properties:
   endpoints:
     type: object
     patternProperties:
-      "^.*$":
+      "^[a-zA-Z][a-zA-Z0-9_]*$":
         type: object
         properties:
           endpoint:
             type: string
+            pattern: "^[a-zA-Z].*$"
           connect_timeout:
             type: string
           protocol:

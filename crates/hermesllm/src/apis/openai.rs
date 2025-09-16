@@ -162,6 +162,20 @@ pub struct ResponseMessage {
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
+impl Default for ResponseMessage {
+    fn default() -> Self {
+        ResponseMessage {
+            role: Role::Assistant,
+            content: None,
+            refusal: None,
+            annotations: None,
+            audio: None,
+            function_call: None,
+            tool_calls: None,
+        }
+    }
+}
+
 impl ResponseMessage {
     /// Convert ResponseMessage to Message for internal processing
     /// This is useful for transformations that need to work with the request Message type
@@ -367,6 +381,21 @@ pub struct ChatCompletionsResponse {
     pub service_tier: Option<String>,
 }
 
+impl Default for ChatCompletionsResponse {
+    fn default() -> Self {
+        ChatCompletionsResponse {
+            id: String::new(),
+            object: String::new(),
+            created: 0,
+            model: String::new(),
+            choices: vec![],
+            usage: Usage::default(),
+            system_fingerprint: None,
+            service_tier: None,
+        }
+    }
+}
+
 /// Finish reason for completion
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -387,6 +416,18 @@ pub struct Usage {
     pub total_tokens: u32,
     pub prompt_tokens_details: Option<PromptTokensDetails>,
     pub completion_tokens_details: Option<CompletionTokensDetails>,
+}
+
+impl Default for Usage {
+    fn default() -> Self {
+        Usage {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        }
+    }
 }
 
 /// Detailed breakdown of prompt tokens
@@ -417,6 +458,16 @@ pub struct Choice {
     pub logprobs: Option<Value>,
 }
 
+impl Default for Choice {
+    fn default() -> Self {
+        Choice {
+            index: 0,
+            message: ResponseMessage::default(),
+            finish_reason: None,
+            logprobs: None,
+        }
+    }
+}
 
 // ============================================================================
 // STREAMING API TYPES

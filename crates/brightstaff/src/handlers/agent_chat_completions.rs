@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common::api::open_ai::{ChatCompletionsResponse, Choice};
-use common::configuration::{ModelUsagePreference, RoutingPreference};
+use common::configuration::{AgentPipeline, ModelUsagePreference, RoutingPreference};
 use common::consts::{ARCH_PROVIDER_HINT_HEADER, ARCH_UPSTREAM_HOST_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::apis::{Role, Usage};
@@ -91,94 +91,77 @@ pub async fn agent_chat(
         .find(|(ty, _)| ty.as_str() == "traceparent")
         .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
 
-    let usage_preferences: Vec<ModelUsagePreference> = listener
-        .agents
-        .as_ref()
-        .unwrap()
-        .iter()
-        .map(|agent| ModelUsagePreference {
-            model: agent.name.clone(),
-            routing_preferences: vec![RoutingPreference {
-                name: agent.name.clone(),
-                description: agent
-                    .description
-                    .as_ref()
-                    .unwrap_or(&"".to_string())
-                    .clone(),
-            }],
-        })
-        .collect();
+    let agents_usage_preferences: Vec<ModelUsagePreference> =
+        convert_agent_description_to_routing_preferences(&listener.agents.as_ref().unwrap());
 
     debug!(
-        "Usage preferences for agent routing: {:?}",
-        usage_preferences
+        "Agents usage preferences for agent routing: {:?}",
+        agents_usage_preferences
     );
 
-    let selected_agent = match router_service
-        .determine_route(
-            &chat_completions_request.messages,
-            trace_parent.clone(),
-            Some(usage_preferences),
-        )
-        .await
-    {
-        Ok(route) => match route {
-            Some((_, model_name)) => Some(model_name),
-            None => {
-                debug!("No route determined");
-                None
-            }
-        },
-        Err(err) => {
-            let err_msg = format!("Failed to determine route: {}", err);
-            let mut internal_error = Response::new(full(err_msg));
-            *internal_error.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-            return Ok(internal_error);
+    let agent_pipeline = match agents_usage_preferences.len() > 1 {
+        false => {
+            debug!("Only one agent available, skipping routing");
+            listener.agents.as_ref().unwrap()[0].clone()
+        }
+        true => {
+            let selected_agent = match router_service
+                .determine_route(
+                    &chat_completions_request.messages,
+                    trace_parent.clone(),
+                    Some(agents_usage_preferences),
+                )
+                .await
+            {
+                Ok(route) => {
+                    match route {
+                        Some((_, agent_name)) => {
+                            debug!("Determined agent: {}", agent_name);
+                            listener
+                                .agents
+                                .as_ref()
+                                .unwrap()
+                                .iter()
+                                .find(|a| a.name == agent_name)
+                                .cloned()
+                                // selected agent must exist in the agent map
+                                .unwrap()
+                        }
+                        None => {
+                            debug!("No agent determined using routing preferences, using default agent");
+                            listener
+                                .agents
+                                .as_ref()
+                                .unwrap()
+                                .iter()
+                                .find(|a| a.default.unwrap_or(false))
+                                .cloned()
+                                .unwrap_or_else(|| {
+                                    warn!(
+                                    "No default agent found, routing request to first agent: {}",
+                                    listener.agents.as_ref().unwrap()[0].name
+                                );
+                                    listener.agents.as_ref().unwrap()[0].clone()
+                                })
+                        }
+                    }
+                }
+                Err(err) => {
+                    let err_msg = format!("Failed to determine route: {}", err);
+                    let mut internal_error = Response::new(full(err_msg));
+                    *internal_error.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+                    return Ok(internal_error);
+                }
+            };
+            selected_agent
         }
     };
-
-    // find agent to answer the request
-    let agent_pipeline = match selected_agent {
-        Some(agent_name) => listener
-            .agents
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|a| a.name == agent_name)
-            .cloned()
-            // selected agent must exist in the agent map
-            .unwrap(),
-        None => listener
-            .agents
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|a| a.default.unwrap_or(false))
-            .cloned()
-            .unwrap_or_else(|| {
-                warn!(
-                    "No default agent found, routing request to first agent: {}",
-                    listener.agents.as_ref().unwrap()[0].name
-                );
-                listener.agents.as_ref().unwrap()[0].clone()
-            }),
-    };
-
-    // process agent pipeline
 
     debug!("Processing agent pipeline: {}", agent_pipeline.name);
 
     let mut chat_completions_history = chat_completions_request.messages.clone();
 
-    // if let Some(trace_parent) = trace_parent {
-    //     request_headers.insert(
-    //         header::HeaderName::from_static("traceparent"),
-    //         header::HeaderValue::from_str(&trace_parent).unwrap(),
-    //     );
-    // }
-
     request_headers.remove(header::CONTENT_LENGTH);
-    // request_headers.remove("traceparent");
 
     for agent_name in agent_pipeline.filter_chain {
         debug!("Processing agent: {}", agent_name);
@@ -257,36 +240,41 @@ pub async fn agent_chat(
         hermesllm::apis::openai::ChatCompletionsResponse {
             model: "arch-agent".to_string(),
             choices: vec![hermesllm::apis::openai::Choice {
-                index: 0,
-                finish_reason: None,
                 message: {
                     hermesllm::apis::openai::ResponseMessage {
                         role: hermesllm::apis::openai::Role::Assistant,
                         content: last_response,
-                        refusal: None,
-                        annotations: None,
-                        audio: None,
-                        function_call: None,
-                        tool_calls: None,
+                        ..Default::default()
                     }
                 },
-                logprobs: None,
+                ..Default::default()
             }],
             usage: hermesllm::apis::openai::Usage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
+                ..Default::default()
             },
-            id: "00".to_string(),
-            object: "chat.completion".to_string(),
-            created: 0,
-            system_fingerprint: None,
-            service_tier: None,
+            ..Default::default()
         };
 
     let response_body = serde_json::to_string(&chat_completion_response).unwrap();
 
     return Ok(Response::new(full(response_body)));
+}
+
+fn convert_agent_description_to_routing_preferences(
+    agents: &Vec<AgentPipeline>,
+) -> Vec<ModelUsagePreference> {
+    agents
+        .iter()
+        .map(|agent| ModelUsagePreference {
+            model: agent.name.clone(),
+            routing_preferences: vec![RoutingPreference {
+                name: agent.name.clone(),
+                description: agent
+                    .description
+                    .as_ref()
+                    .unwrap_or(&"".to_string())
+                    .clone(),
+            }],
+        })
+        .collect()
 }

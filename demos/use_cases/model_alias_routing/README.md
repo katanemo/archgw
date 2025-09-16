@@ -1,6 +1,6 @@
-# Model Alias Testing Suite
+# Model Alias Demo Suite
 
-This directory contains comprehensive tests for the model alias feature in archgw.
+This directory contains demos for the model alias feature in archgw.
 
 ## Overview
 
@@ -9,168 +9,140 @@ Model aliases allow clients to use friendly, semantic names instead of provider-
 - `arch.reasoning.v1` → `gpt-4o` (capable model for complex reasoning)
 - `creative-model` → `claude-3-5-sonnet` (creative tasks)
 
-## Files
-
-- `model_alias.py` - Main test suite with comprehensive alias tests
-- `arch_config_with_aliases.yaml` - Configuration file with model aliases defined
-- `pyproject.toml` - Python dependencies
-- `README.md` - This file
-
-## Test Categories
-
-### 1. Model Alias Tests
-Tests that verify alias resolution works correctly:
-- OpenAI client with various aliases
-- Anthropic client with various aliases
-- Streaming and non-streaming requests
-- Error handling for non-existent aliases
-
-### 2. Direct Model Tests
-Tests using direct model names (for comparison):
-- Direct provider model names
-- Verification that direct models still work
-
-### 3. Legacy Tests
-Existing tests to ensure backwards compatibility
-
 ## Configuration
 
 The `arch_config_with_aliases.yaml` file defines several aliases:
 
 ```yaml
+# Model aliases - friendly names that map to actual provider names
 model_aliases:
-  # Task-specific aliases
+  # Alias for summarization tasks -> fast/cheap model
   arch.summarize.v1:
-    target: 4o-mini
+    target: gpt-4o-mini
+
+  # Alias for general purpose tasks -> latest model
+  arch.v1:
+    target: o3
+
+  # Alias for reasoning tasks -> capable model
   arch.reasoning.v1:
     target: gpt-4o
+
+  # Alias for creative tasks -> Claude model
   arch.creative.v1:
-    target: claude-3-5-sonnet
+    target: claude-3-5-sonnet-20241022
+
+  # Alias for quick responses -> fast model
+  arch.fast.v1:
+    target: claude-3-haiku-20240307
 
   # Semantic aliases
   summary-model:
-    target: 4o-mini
+    target: gpt-4o-mini
+
   chat-model:
     target: gpt-4o
+
+  creative-model:
+    target: claude-3-5-sonnet-20241022
 ```
 
-## Running Tests
+## Prerequisites
+- Install all dependencies as described in the main Arch README ([link](https://github.com/katanemo/arch/?tab=readme-ov-file#prerequisites))
+- Set your API keys in your environment:
+  - `export OPENAI_API_KEY=your-openai-key`
+  - `export ANTHROPIC_API_KEY=your-anthropic-key` (optional, but recommended for Anthropic tests)
 
-### Prerequisites
+## How to Run
 
-1. **Start archgw services** with the alias configuration:
-   ```bash
-   # From arch root directory
-   export ARCH_CONFIG_PATH_RENDERED=/path/to/arch_config_with_aliases.yaml
-   # Start your archgw services (brightstaff, llm_gateway, etc.)
+1. Start the demo:
+   ```sh
+   sh run_demo.sh
    ```
+   - This will create a `.env` file with your API keys (if not present).
+   - Starts Arch Gateway with model alias config (`arch_config_with_aliases.yaml`).
 
-2. **Set environment variables**:
-   ```bash
-   export OPENAI_API_KEY=your_openai_key
-   export ANTHROPIC_API_KEY=your_anthropic_key
-   export LLM_GATEWAY_ENDPOINT=http://localhost:12000/v1/chat/completions
+2. To stop the demo:
+   ```sh
+   sh run_demo.sh down
    ```
+   - This will stop Arch Gateway and any related services.
 
-3. **Install dependencies**:
-   ```bash
-   poetry install
-   ```
+## Example Requests
 
-### Run Tests
-
-#### Run specific test categories:
-```bash
-# Run only model alias tests (default)
-python model_alias.py alias
-
-# Run only direct model tests
-python model_alias.py direct
-
-# Run only legacy tests
-python model_alias.py legacy
-
-# Run all tests
-python model_alias.py all
+### OpenAI client with alias `arch.summarize.v1`
+```sh
+curl -sS -X POST "http://localhost:12000/v1/chat/completions" \
+  -H "Authorization: Bearer test-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "arch.summarize.v1",
+    "max_tokens": 50,
+    "messages": [
+      { "role": "user",
+        "content": "Hello, please respond with exactly: Hello from alias arch.summarize.v1!"
+      }
+    ]
+  }' | jq .
 ```
 
-#### Run individual tests with pytest:
-```bash
-# Run specific test function
-poetry run pytest -v -s model_alias.py::test_openai_client_with_alias_arch_summarize_v1
-
-# Run all alias tests
-poetry run pytest -v -s -k "alias"
-
-# Run with detailed logging
-poetry run pytest -v -s --log-cli-level=INFO model_alias.py
+### OpenAI client with alias `arch.v1`
+```sh
+curl -sS -X POST "http://localhost:12000/v1/chat/completions" \
+  -H "Authorization: Bearer test-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "arch.v1",
+    "max_tokens": 50,
+    "messages": [
+      { "role": "user",
+        "content": "Hello, please respond with exactly: Hello from alias arch.v1!"
+      }
+    ]
+  }' | jq .
 ```
 
-## Expected Behavior
+### Anthropic client with alias `arch.summarize.v1`
+```sh
+curl -sS -X POST "http://localhost:12000/v1/messages" \
+  -H "x-api-key: test-key" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "arch.summarize.v1",
+    "max_tokens": 50,
+    "messages": [
+      { "role": "user",
+        "content": "Hello, please respond with exactly: Hello from alias arch.summarize.v1 via Anthropic!"
+      }
+    ]
+  }' | jq .
+```
 
-### When Alias Exists
-1. Client sends request with alias (e.g., `"model": "arch.summarize.v1"`)
-2. Brightstaff resolves alias to actual model (`arch.summarize.v1` → `4o-mini`)
-3. Request is forwarded to LLM Gateway with resolved model name
-4. Response is returned to client
+### Anthropic client with alias `arch.v1`
+```sh
+curl -sS -X POST "http://localhost:12000/v1/messages" \
+  -H "x-api-key: test-key" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "arch.summarize.v1",
+    "max_tokens": 50,
+    "messages": [
+      { "role": "user",
+        "content": "Hello, please respond with exactly: Hello from alias arch.summarize.v1 via Anthropic!"
+      }
+    ]
+  }' | jq .
+```
 
-### When Alias Doesn't Exist
-1. Client sends request with unknown alias (e.g., `"model": "unknown.alias"`)
-2. Brightstaff treats it as a direct model name
-3. Request may succeed (if model exists) or fail (if model doesn't exist)
+## Notes
+- The `.env` file will be created automatically if missing, with your API keys.
+- If `ANTHROPIC_API_KEY` is not set, Anthropic requests will not work.
+- You can add more aliases in `arch_config_with_aliases.yaml`.
+- All curl examples use `jq .` for pretty-printing JSON responses.
 
 ## Troubleshooting
-
-### Test Failures
-
-1. **Connection errors**: Ensure archgw services are running on expected ports
-2. **Authentication errors**: Check API keys are set correctly
-3. **Model not found**: Verify the target models in aliases exist in your config
-4. **Alias not resolved**: Check alias is defined correctly in arch_config.yaml
-
-### Debugging
-
-1. **Check brightstaff logs** for alias resolution messages:
-   ```
-   Model alias resolved: 'arch.summarize.v1' -> '4o-mini'
-   ```
-
-2. **Verify configuration** is loaded:
-   ```bash
-   # Check if config file is being read
-   grep -i "model_aliases" /path/to/arch_config_with_aliases.yaml
-   ```
-
-3. **Test with direct model names** first to ensure basic functionality works
-
-## Adding New Tests
-
-To add a new alias test:
-
-1. Define the alias in `arch_config_with_aliases.yaml`
-2. Add a test function in `model_alias.py`:
-   ```python
-   def test_my_new_alias():
-       logger.info("Testing my new alias")
-       # ... test implementation
-   ```
-3. Add the test to the appropriate test runner function
-
-## Log Output
-
-The test suite provides detailed logging:
-- Test start/completion status
-- API request/response details
-- Alias resolution confirmations
-- Error details for failed tests
-- Summary statistics
-
-Example output:
-```
-============================================================
-RUNNING: OpenAI client with arch.summarize.v1 alias
-============================================================
-2024-09-14 10:30:15 - Testing OpenAI client with alias 'arch.summarize.v1' -> '4o-mini'
-2024-09-14 10:30:16 - Response from arch.summarize.v1 alias: Hello from alias arch.summarize.v1!
-✅ PASSED: OpenAI client with arch.summarize.v1 alias
-```
+- Ensure your API keys are set in your environment before running the demo.
+- If you see errors about missing keys, set them and re-run the script.
+- For more details, see the main Arch documentation.

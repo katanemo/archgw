@@ -1,7 +1,7 @@
 use std::sync::Arc;
-
+use std::collections::HashMap;
 use bytes::Bytes;
-use common::configuration::{Configuration, ModelUsagePreference};
+use common::configuration::{ModelAlias, ModelUsagePreference};
 use common::consts::ARCH_PROVIDER_HINT_HEADER;
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::clients::SupportedAPIs;
@@ -28,7 +28,7 @@ pub async fn chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
     full_qualified_llm_provider_url: String,
-    config: Arc<Configuration>,
+    model_aliases: Arc<Option<HashMap<String, ModelAlias>>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
 
     let request_path = request.uri().path().to_string();
@@ -48,21 +48,21 @@ pub async fn chat(
         }
     };
 
-    // === Model alias resolution: update model field in client_request immediately ===
+    // Model alias resolution: update model field in client_request immediately
     // This ensures all downstream objects use the resolved model
-    let original_model = client_request.model().to_string();
-    let resolved_model = if let Some(model_aliases) = &config.model_aliases {
-        if let Some(alias) = model_aliases.get(&original_model) {
+    let model_from_request = client_request.model().to_string();
+    let resolved_model = if let Some(model_aliases) = model_aliases.as_ref() {
+        if let Some(model_alias) = model_aliases.get(&model_from_request) {
             debug!(
-                "[BRIGHTSTAFF] Model Alias: 'From {}' -> 'To{}'",
-                original_model, alias.target
+                "Model Alias: 'From {}' -> 'To{}'",
+                model_from_request, model_alias.target
             );
-            alias.target.clone()
+            model_alias.target.clone()
         } else {
-            original_model.clone()
+            model_from_request.clone()
         }
     } else {
-        original_model.clone()
+        model_from_request.clone()
     };
     client_request.set_model(resolved_model.clone());
 
@@ -97,7 +97,7 @@ pub async fn chat(
         };
 
     debug!(
-        "[BRIGHTSTAFF -> ARCH_ROUTER] REQ: {}",
+        "[ARCH_ROUTER REQ]: {}",
         &serde_json::to_string(&chat_completions_request_for_arch_router).unwrap()
     );
 
@@ -153,7 +153,7 @@ pub async fn chat(
             Some((_, model_name)) => model_name,
             None => {
                debug!(
-                    "[BRIGHTSTAFF] No route determined, using default model from request: {}",
+                    "No route determined, using default model from request: {}",
                     chat_completions_request_for_arch_router.model
                 );
                 chat_completions_request_for_arch_router.model.clone()
@@ -169,7 +169,7 @@ pub async fn chat(
     };
 
     debug!(
-        "[BRIGHTSTAFF -> ARCH_ROUTER] URL: {}, Final Model: {}",
+        "[ARCH_ROUTER] URL: {}, Resolved Model: {}",
         full_qualified_llm_provider_url, model_name
     );
 

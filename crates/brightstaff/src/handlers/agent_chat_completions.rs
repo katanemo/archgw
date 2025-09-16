@@ -172,7 +172,7 @@ pub async fn agent_chat(
         request.messages = chat_completions_history.clone();
 
         let request_str = serde_json::to_string(&request).unwrap();
-        debug!("Sending request to agent {}: {}", agent_name, request_str);
+        debug!("Sending request to agent {}", agent_name);
 
         let mut agent_request_headers = request_headers.clone();
         agent_request_headers.insert(
@@ -224,8 +224,8 @@ pub async fn agent_chat(
             .unwrap();
 
         debug!(
-            "Received response from agent {}: {}",
-            agent_name, response_str
+            "Received response from agent {}",
+            agent_name
         );
 
         chat_completions_history = serde_json::from_str(response_str.as_str()).unwrap_or(vec![]);

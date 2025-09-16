@@ -1,4 +1,4 @@
-version: v0.2.0
+version: v0.3.0
 
 agents:
   - name: query_rewriter
@@ -26,9 +26,10 @@ listeners:
           - context_builder
           - response_generator
       - name: research_agent
-        description: deep research agent that can perform searches and gather information
+        description: deep research agent to handle complex queries that require fetching information from multiple sources
         filter_chain:
-          - research_agent
+          - query_rewriter
+          - context_builder
           - response_generator
     protocol: openai
     address: 0.0.0.0

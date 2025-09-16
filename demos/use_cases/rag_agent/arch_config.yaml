@@ -19,13 +19,14 @@ listeners:
     router: arch_agent_v2
     agents:
       - name: simple_rag_agent
-        description: virtual assistant for device contracts.
+        default: true
+        description: virtual assistant for device contracts for simple queries
         filter_chain:
           - query_rewriter
           - context_builder
           - response_generator
       - name: research_agent
-        description: deep research agent that can perform searches and gather information.
+        description: deep research agent that can perform searches and gather information
         filter_chain:
           - research_agent
           - response_generator

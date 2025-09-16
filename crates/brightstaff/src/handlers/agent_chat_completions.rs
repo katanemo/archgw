@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common::api::open_ai::{ChatCompletionsResponse, Choice};
-use common::configuration::ModelUsagePreference;
+use common::configuration::{ModelUsagePreference, RoutingPreference};
 use common::consts::{ARCH_PROVIDER_HINT_HEADER, ARCH_UPSTREAM_HOST_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::apis::{Role, Usage};
@@ -38,12 +38,15 @@ pub async fn agent_chat(
     let listener_name = request.headers().get("x-arch-agent-listener-name");
     let listener = {
         let listeners = listeners.read().await;
-        listeners.iter().find(|l| {
-            listener_name
-                .and_then(|name| name.to_str().ok())
-                .map(|name| l.name == name)
-                .unwrap_or(false)
-        }).cloned()
+        listeners
+            .iter()
+            .find(|l| {
+                listener_name
+                    .and_then(|name| name.to_str().ok())
+                    .map(|name| l.name == name)
+                    .unwrap_or(false)
+            })
+            .cloned()
     }
     .unwrap();
 
@@ -83,19 +86,89 @@ pub async fn agent_chat(
         map
     };
 
+    let trace_parent = request_headers
+        .iter()
+        .find(|(ty, _)| ty.as_str() == "traceparent")
+        .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
+
+    let usage_preferences: Vec<ModelUsagePreference> = listener
+        .agents
+        .as_ref()
+        .unwrap()
+        .iter()
+        .map(|agent| ModelUsagePreference {
+            model: agent.name.clone(),
+            routing_preferences: vec![RoutingPreference {
+                name: agent.name.clone(),
+                description: agent
+                    .description
+                    .as_ref()
+                    .unwrap_or(&"".to_string())
+                    .clone(),
+            }],
+        })
+        .collect();
+
+    debug!(
+        "Usage preferences for agent routing: {:?}",
+        usage_preferences
+    );
+
+    let selected_agent = match router_service
+        .determine_route(
+            &chat_completions_request.messages,
+            trace_parent.clone(),
+            Some(usage_preferences),
+        )
+        .await
+    {
+        Ok(route) => match route {
+            Some((_, model_name)) => Some(model_name),
+            None => {
+                debug!("No route determined");
+                None
+            }
+        },
+        Err(err) => {
+            let err_msg = format!("Failed to determine route: {}", err);
+            let mut internal_error = Response::new(full(err_msg));
+            *internal_error.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            return Ok(internal_error);
+        }
+    };
+
     // find agent to answer the request
-    let agent_pipeline = listener.agents.as_ref().unwrap()[0].clone(); // for now, just take the first agent pipeline
+    let agent_pipeline = match selected_agent {
+        Some(agent_name) => listener
+            .agents
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|a| a.name == agent_name)
+            .cloned()
+            // selected agent must exist in the agent map
+            .unwrap(),
+        None => listener
+            .agents
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|a| a.default.unwrap_or(false))
+            .cloned()
+            .unwrap_or_else(|| {
+                warn!(
+                    "No default agent found, routing request to first agent: {}",
+                    listener.agents.as_ref().unwrap()[0].name
+                );
+                listener.agents.as_ref().unwrap()[0].clone()
+            }),
+    };
 
     // process agent pipeline
 
     debug!("Processing agent pipeline: {}", agent_pipeline.name);
 
     let mut chat_completions_history = chat_completions_request.messages.clone();
-
-    // let trace_parent = request_headers
-    //     .iter()
-    //     .find(|(ty, _)| ty.as_str() == "traceparent")
-    //     .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
 
     // if let Some(trace_parent) = trace_parent {
     //     request_headers.insert(

@@ -23,6 +23,7 @@ pub struct Agent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPipeline {
     pub name: String,
+    pub default: Option<bool>,
     pub description: Option<String>,
     pub filter_chain: Vec<String>,
 }

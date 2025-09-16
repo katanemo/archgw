@@ -79,7 +79,10 @@ impl RouterService {
         trace_parent: Option<String>,
         usage_preferences: Option<Vec<ModelUsagePreference>>,
     ) -> Result<Option<(String, String)>> {
-        if !self.llm_usage_defined {
+        if usage_preferences.is_none()
+            || usage_preferences.as_ref().unwrap().len() < 2
+            || messages.is_empty()
+        {
             return Ok(None);
         }
 

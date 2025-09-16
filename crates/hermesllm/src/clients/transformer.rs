@@ -97,7 +97,7 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
         let openai_tools = req.tools.map(|tools| convert_anthropic_tools(tools));
         let (openai_tool_choice, parallel_tool_calls) = convert_anthropic_tool_choice(req.tool_choice);
 
-        Ok(ChatCompletionsRequest {
+        let mut _chat_completions_req: ChatCompletionsRequest = ChatCompletionsRequest {
             model: req.model,
             messages: openai_messages,
             temperature: req.temperature,
@@ -109,7 +109,9 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
             tool_choice: openai_tool_choice,
             parallel_tool_calls,
             ..Default::default()
-        })
+        };
+        _chat_completions_req.suppress_max_tokens_if_o3();
+        Ok(_chat_completions_req)
     }
 }
 

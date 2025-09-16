@@ -60,13 +60,22 @@ archgw up demos/samples_python/weather_forecast/arch_config.yaml
 kill $model_server_tail_pid
 cd -
 
-log running e2e tests
-log =================
-poetry run pytest
+log running e2e tests for prompt gateway
+log ====================================
+poetry run pytest test_prompt_gateway.py
 
-log shutting down the arch gateway service
-log ======================================
+log shutting down the arch gateway service for prompt_gateway demo
+log ===============================================================
 archgw down
+
+log startup arch gateway with model alias routing demo
+cd ../../
+archgw up demos/use_cases/model_alias_routing/arch_config_with_aliases.yaml
+cd -
+
+log running e2e tests for model alias routing
+log ========================================
+poetry run pytest test_model_alias_routing.py
 
 log shutting down the weather_forecast demo
 log =======================================

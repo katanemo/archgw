@@ -7,7 +7,8 @@ properties:
       - v0.1
       - v0.1.0
       - 0.1-beta
-      - v0.2.0
+      - 0.2.0
+      - v0.3.0
 
   agents:
     type: array
@@ -111,6 +112,19 @@ properties:
       additionalProperties: false
       required:
         - model
+
+  model_aliases:
+    type: object
+    patternProperties:
+      "^.*$":
+        type: object
+        properties:
+          target:
+            type: string
+        additionalProperties: false
+        required:
+          - target
+
   overrides:
     type: object
     properties:

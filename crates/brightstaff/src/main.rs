@@ -97,12 +97,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         routing_llm_provider,
     ));
 
+    let model_aliases = Arc::new(arch_config.model_aliases.clone());
+
+
     loop {
         let (stream, _) = listener.accept().await?;
         let peer_addr = stream.peer_addr()?;
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
+        let model_aliases = Arc::clone(&model_aliases);
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
@@ -114,6 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
+            let model_aliases = Arc::clone(&model_aliases);
             let agents_list = agents_list.clone();
             let listeners = listeners.clone();
 
@@ -121,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
                         let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
-                        chat(req, router_service, fully_qualified_url)
+                        chat(req, router_service, fully_qualified_url, model_aliases)
                             .with_context(parent_cx)
                             .await
                     }

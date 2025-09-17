@@ -56,7 +56,7 @@ properties:
         properties:
           endpoint:
             type: string
-            pattern: "^[a-zA-Z].*$"
+            pattern: "^.*$"
           connect_timeout:
             type: string
           protocol:

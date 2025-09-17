@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use hermesllm::apis::openai::{ChatCompletionsRequest, Message, Role, MessageContent};
+use hermesllm::apis::openai::{ChatCompletionsRequest, Message, MessageContent, Role};
 use hyper::header::HeaderMap;
 
-use crate::handlers::agent_selector::{AgentSelector, AgentSelectionError};
-use crate::handlers::pipeline_processor::{PipelineProcessor};
+use crate::handlers::agent_selector::{AgentSelectionError, AgentSelector};
+use crate::handlers::pipeline_processor::PipelineProcessor;
 use crate::handlers::response_handler::ResponseHandler;
 use crate::router::llm_router::RouterService;
 
@@ -127,16 +127,20 @@ mod integration_tests {
         let agent_selector = AgentSelector::new(router_service);
 
         // Test listener not found
-        let result = agent_selector
-            .find_listener(Some("nonexistent"), &[])
-            .await;
+        let result = agent_selector.find_listener(Some("nonexistent"), &[]).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AgentSelectionError::ListenerNotFound(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentSelectionError::ListenerNotFound(_)
+        ));
 
         // Test error response creation
         let error_response = ResponseHandler::create_internal_error("Pipeline failed");
-        assert_eq!(error_response.status(), hyper::StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            error_response.status(),
+            hyper::StatusCode::INTERNAL_SERVER_ERROR
+        );
 
         println!("✅ Error handling working correctly!");
     }

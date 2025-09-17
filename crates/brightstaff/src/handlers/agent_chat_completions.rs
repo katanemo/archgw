@@ -7,10 +7,10 @@ use http_body_util::BodyExt;
 use hyper::{Request, Response};
 use tracing::{debug, info, warn};
 
-use crate::router::llm_router::RouterService;
-use super::agent_selector::{AgentSelector, AgentSelectionError};
-use super::pipeline_processor::{PipelineProcessor, PipelineError};
+use super::agent_selector::{AgentSelectionError, AgentSelector};
+use super::pipeline_processor::{PipelineError, PipelineProcessor};
 use super::response_handler::ResponseHandler;
+use crate::router::llm_router::RouterService;
 
 /// Main errors for agent chat completions
 #[derive(Debug, thiserror::Error)]
@@ -38,7 +38,10 @@ pub async fn agent_chat(
         Ok(response) => Ok(response),
         Err(err) => {
             warn!("Agent chat error: {}", err);
-            Ok(ResponseHandler::create_internal_error(&format!("Internal error: {}", err)))
+            Ok(ResponseHandler::create_internal_error(&format!(
+                "Internal error: {}",
+                err
+            )))
         }
     }
 }
@@ -81,7 +84,10 @@ async fn handle_agent_chat(
 
     let chat_completions_request: ChatCompletionsRequest =
         serde_json::from_slice(&chat_request_bytes).map_err(|err| {
-            warn!("Failed to parse request body as ChatCompletionsRequest: {}", err);
+            warn!(
+                "Failed to parse request body as ChatCompletionsRequest: {}",
+                err
+            );
             AgentChatError::RequestParsing(err)
         })?;
 
@@ -93,11 +99,7 @@ async fn handle_agent_chat(
 
     // Select appropriate agent using arch router llm model
     let selected_agent = agent_selector
-        .select_agent(
-            &chat_completions_request.messages,
-            &listener,
-            trace_parent,
-        )
+        .select_agent(&chat_completions_request.messages, &listener, trace_parent)
         .await?;
 
     debug!("Processing agent pipeline: {}", selected_agent.name);

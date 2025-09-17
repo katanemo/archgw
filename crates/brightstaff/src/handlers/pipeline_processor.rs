@@ -78,13 +78,13 @@ impl PipelineProcessor {
             debug!("Received response from filter agent {}", agent_name);
 
             // Parse the response content as new message history
-            chat_completions_history = serde_json::from_str(&response_content).map_err(|err| {
-                warn!(
-                    "Failed to parse response from agent {}, response: {}",
-                    agent_name, response_content
-                );
-                err
-            })?;
+            chat_completions_history =
+                serde_json::from_str(&response_content).inspect_err(|err| {
+                    warn!(
+                        "Failed to parse response from agent {}, err: {}, response: {}",
+                        agent_name, err, response_content
+                    )
+                })?;
         }
 
         Ok(chat_completions_history)

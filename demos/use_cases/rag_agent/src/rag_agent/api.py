@@ -26,3 +26,11 @@ class ChatCompletionResponse(BaseModel):
     model: str
     choices: List[Dict[str, Any]]
     usage: Dict[str, int]
+
+
+class ChatCompletionStreamResponse(BaseModel):
+    id: str
+    object: str = "chat.completion.chunk"
+    created: int
+    model: str
+    choices: List[Dict[str, Any]]

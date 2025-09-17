@@ -1,0 +1,11 @@
+# evals_summarize.yaml
+task: summarize
+fixtures:
+  - id: sum-001
+    input: "Thread about a billing dispute…"
+    must_include: ["invoice"]
+    schema: SummarizeOut
+  - id: sum-002
+    input: "Thread about a shipping delay…"
+    must_include: ["status"]
+    schema: SummarizeOut

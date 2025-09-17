@@ -21,16 +21,85 @@ def getLogger(name="cli"):
 log = getLogger(__name__)
 
 
+def convert_legacy_llm_providers(
+    listeners: dict | list, llm_providers: list | None
+) -> tuple[list, dict | None, dict | None]:
+    llm_gateway_listener = {
+        "name": "egress_traffic",
+        "port": 12000,
+        "address": "0.0.0.0",
+        "timeout": "30s",
+        "llm_providers": [],
+        "protocol": "openai",
+    }
+
+    prompt_gateway_listener = {
+        "name": "ingress_traffic",
+        "port": 10000,
+        "address": "0.0.0.0",
+        "timeout": "30s",
+        "protocol": "openai",
+    }
+
+    if isinstance(listeners, dict):
+        # legacy listeners
+        # check if type is array or object
+        # if its dict its legacy format let's convert it to array
+        updated_listeners = []
+        ingress_traffic = listeners.get("ingress_traffic", {})
+        egress_traffic = listeners.get("egress_traffic", {})
+
+        llm_gateway_listener["port"] = egress_traffic.get(
+            "port", llm_gateway_listener["port"]
+        )
+        llm_gateway_listener["address"] = egress_traffic.get(
+            "address", llm_gateway_listener["address"]
+        )
+        llm_gateway_listener["timeout"] = egress_traffic.get(
+            "timeout", llm_gateway_listener["timeout"]
+        )
+        if llm_providers is None or llm_providers == []:
+            raise ValueError("llm_providers cannot be empty when using legacy format")
+
+        llm_gateway_listener["llm_providers"] = llm_providers
+        updated_listeners.append(llm_gateway_listener)
+
+        if ingress_traffic and ingress_traffic != {}:
+            prompt_gateway_listener["port"] = ingress_traffic.get(
+                "port", prompt_gateway_listener["port"]
+            )
+            prompt_gateway_listener["address"] = ingress_traffic.get(
+                "address", prompt_gateway_listener["address"]
+            )
+            prompt_gateway_listener["timeout"] = ingress_traffic.get(
+                "timeout", prompt_gateway_listener["timeout"]
+            )
+            updated_listeners.append(prompt_gateway_listener)
+
+        return updated_listeners, llm_gateway_listener, prompt_gateway_listener
+
+    llm_provider_set = False
+    for listener in listeners:
+        if listener.get("llm_providers") is not None:
+            if llm_provider_set:
+                raise ValueError(
+                    "Currently only one listener can have llm_providers set"
+                )
+            llm_gateway_listener = listener
+            llm_provider_set = True
+
+    return listeners, llm_gateway_listener, prompt_gateway_listener
+
+
 def get_llm_provider_access_keys(arch_config_file):
     with open(arch_config_file, "r") as file:
         arch_config = file.read()
         arch_config_yaml = yaml.safe_load(arch_config)
 
     access_key_list = []
-    for llm_provider in arch_config_yaml.get("llm_providers", []):
-        access_key = llm_provider.get("access_key")
-        if access_key is not None:
-            access_key_list.append(access_key)
+    listeners, _, _ = convert_legacy_llm_providers(
+        arch_config_yaml.get("listeners"), arch_config_yaml.get("llm_providers")
+    )
 
     for prompt_target in arch_config_yaml.get("prompt_targets", []):
         for k, v in prompt_target.get("endpoint", {}).get("http_headers", {}).items():
@@ -44,7 +113,7 @@ def get_llm_provider_access_keys(arch_config_file):
                 else:
                     access_key_list.append(v)
 
-    for listener in arch_config_yaml.get("listeners", []):
+    for listener in listeners:
         for llm_provider in listener.get("llm_providers", []):
             access_key = llm_provider.get("access_key")
             if access_key is not None:

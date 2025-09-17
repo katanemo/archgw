@@ -90,7 +90,7 @@ def test_validate_and_render_happy_path_agent_config(monkeypatch):
     monkeypatch.setenv("TEMPLATE_ROOT", "../")
 
     arch_config = """
-version: v0.2.0
+version: v0.3.0
 
 agents:
   - name: query_rewriter
@@ -347,3 +347,132 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
             with pytest.raises(Exception) as excinfo:
                 validate_and_render_schema()
             assert expected_error in str(excinfo.value)
+
+
+def test_convert_legacy_llm_providers():
+    from cli.utils import convert_legacy_llm_providers
+
+    listeners = {
+        "ingress_traffic": {
+            "address": "0.0.0.0",
+            "port": 10000,
+            "timeout": "30s",
+            "protocol": "openai",
+        },
+        "egress_traffic": {
+            "address": "0.0.0.0",
+            "port": 12000,
+            "timeout": "30s",
+            "protocol": "openai",
+        },
+    }
+    llm_providers = [
+        {
+            "model": "openai/gpt-4o",
+            "access_key": "test_key",
+        }
+    ]
+
+    updated_providers, llm_gateway, prompt_gateway = convert_legacy_llm_providers(
+        listeners, llm_providers
+    )
+    assert isinstance(updated_providers, list)
+    assert llm_gateway is not None
+    assert prompt_gateway is not None
+    assert updated_providers == [
+        {
+            "address": "0.0.0.0",
+            "llm_providers": [
+                {
+                    "access_key": "test_key",
+                    "model": "openai/gpt-4o",
+                },
+            ],
+            "name": "egress_traffic",
+            "port": 12000,
+            "protocol": "openai",
+            "timeout": "30s",
+        },
+        {
+            "address": "0.0.0.0",
+            "name": "ingress_traffic",
+            "port": 10000,
+            "protocol": "openai",
+            "timeout": "30s",
+        },
+    ]
+    assert llm_gateway == {
+        "address": "0.0.0.0",
+        "llm_providers": [
+            {
+                "access_key": "test_key",
+                "model": "openai/gpt-4o",
+            },
+        ],
+        "name": "egress_traffic",
+        "port": 12000,
+        "protocol": "openai",
+        "timeout": "30s",
+    }
+
+    assert prompt_gateway == {
+        "address": "0.0.0.0",
+        "name": "ingress_traffic",
+        "port": 10000,
+        "protocol": "openai",
+        "timeout": "30s",
+    }
+
+
+def test_convert_legacy_llm_providers_no_prompt_gateway():
+    from cli.utils import convert_legacy_llm_providers
+
+    listeners = {
+        "egress_traffic": {
+            "address": "0.0.0.0",
+            "port": 12000,
+            "timeout": "30s",
+            "protocol": "openai",
+        }
+    }
+    llm_providers = [
+        {
+            "model": "openai/gpt-4o",
+            "access_key": "test_key",
+        }
+    ]
+
+    updated_providers, llm_gateway, prompt_gateway = convert_legacy_llm_providers(
+        listeners, llm_providers
+    )
+    assert isinstance(updated_providers, list)
+    assert llm_gateway is not None
+    assert prompt_gateway is not None
+    assert updated_providers == [
+        {
+            "address": "0.0.0.0",
+            "llm_providers": [
+                {
+                    "access_key": "test_key",
+                    "model": "openai/gpt-4o",
+                },
+            ],
+            "name": "egress_traffic",
+            "port": 12000,
+            "protocol": "openai",
+            "timeout": "30s",
+        }
+    ]
+    assert llm_gateway == {
+        "address": "0.0.0.0",
+        "llm_providers": [
+            {
+                "access_key": "test_key",
+                "model": "openai/gpt-4o",
+            },
+        ],
+        "name": "egress_traffic",
+        "port": 12000,
+        "protocol": "openai",
+        "timeout": "30s",
+    }

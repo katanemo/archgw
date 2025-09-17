@@ -1,5 +1,6 @@
 import json
 import os
+from cli.utils import convert_legacy_llm_providers
 from jinja2 import Environment, FileSystemLoader
 import yaml
 from jsonschema import validate
@@ -66,6 +67,12 @@ def validate_and_render_schema():
     _ = yaml.safe_load(arch_config_schema)
     inferred_clusters = {}
 
+    listeners, llm_gateway, prompt_gateway = convert_legacy_llm_providers(
+        config_yaml.get("listeners"), config_yaml.get("llm_providers")
+    )
+
+    config_yaml["listeners"] = listeners
+
     endpoints = config_yaml.get("endpoints", {})
 
     # Process agents section and convert to endpoints
@@ -126,64 +133,62 @@ def validate_and_render_schema():
     model_name_keys = set()
     model_usage_name_keys = set()
 
-    # legacy listeners
-    # check if type is array or object
-    # if its dict its legacy format let's convert it to array
-    prompt_gateway_listener = {
-        "name": "ingress_traffic",
-        "port": 10000,
-        "address": "0.0.0.0",
-        "timeout": "30s",
-        "protocol": "openai",
-    }
-    llm_gateway_listener = {
-        "name": "egress_traffic",
-        "port": 12000,
-        "address": "0.0.0.0",
-        "timeout": "30s",
-        "llm_providers": [],
-        "protocol": "openai",
-    }
-    if isinstance(config_yaml["listeners"], dict):
-        ingress_traffic = config_yaml["listeners"].get("ingress_traffic", None)
-        egress_traffic = config_yaml["listeners"].get("egress_traffic", {})
-        config_yaml["listeners"] = []
+    # # legacy listeners
+    # # check if type is array or object
+    # # if its dict its legacy format let's convert it to array
+    # prompt_gateway_listener = {
+    #     "name": "ingress_traffic",
+    #     "port": 10000,
+    #     "address": "0.0.0.0",
+    #     "timeout": "30s",
+    #     "protocol": "openai",
+    # }
+    # llm_gateway_listener = {
+    #     "name": "egress_traffic",
+    #     "port": 12000,
+    #     "address": "0.0.0.0",
+    #     "timeout": "30s",
+    #     "llm_providers": [],
+    #     "protocol": "openai",
+    # }
+    # if isinstance(config_yaml["listeners"], dict):
+    #     ingress_traffic = config_yaml["listeners"].get("ingress_traffic", None)
+    #     egress_traffic = config_yaml["listeners"].get("egress_traffic", {})
+    #     config_yaml["listeners"] = []
 
-        llm_providers = []
-        if config_yaml.get("llm_providers"):
-            llm_providers = config_yaml["llm_providers"]
-            del config_yaml["llm_providers"]
-        llm_gateway_listener["port"] = egress_traffic.get(
-            "port", llm_gateway_listener["port"]
-        )
-        llm_gateway_listener["address"] = egress_traffic.get(
-            "address", llm_gateway_listener["address"]
-        )
-        llm_gateway_listener["timeout"] = egress_traffic.get(
-            "timeout", llm_gateway_listener["timeout"]
-        )
-        llm_gateway_listener["llm_providers"] = llm_providers
-        config_yaml["listeners"].append(llm_gateway_listener)
+    #     llm_providers = []
+    #     if config_yaml.get("llm_providers"):
+    #         llm_providers = config_yaml["llm_providers"]
+    #         del config_yaml["llm_providers"]
+    #     llm_gateway_listener["port"] = egress_traffic.get(
+    #         "port", llm_gateway_listener["port"]
+    #     )
+    #     llm_gateway_listener["address"] = egress_traffic.get(
+    #         "address", llm_gateway_listener["address"]
+    #     )
+    #     llm_gateway_listener["timeout"] = egress_traffic.get(
+    #         "timeout", llm_gateway_listener["timeout"]
+    #     )
+    #     llm_gateway_listener["llm_providers"] = llm_providers
+    #     config_yaml["listeners"].append(llm_gateway_listener)
 
-        if ingress_traffic:
-            prompt_gateway_listener["port"] = ingress_traffic.get(
-                "port", prompt_gateway_listener["port"]
-            )
-            prompt_gateway_listener["address"] = ingress_traffic.get(
-                "address", prompt_gateway_listener["address"]
-            )
-            prompt_gateway_listener["timeout"] = ingress_traffic.get(
-                "timeout", prompt_gateway_listener["timeout"]
-            )
-            config_yaml["listeners"].append(prompt_gateway_listener)
+    #     if ingress_traffic:
+    #         prompt_gateway_listener["port"] = ingress_traffic.get(
+    #             "port", prompt_gateway_listener["port"]
+    #         )
+    #         prompt_gateway_listener["address"] = ingress_traffic.get(
+    #             "address", prompt_gateway_listener["address"]
+    #         )
+    #         prompt_gateway_listener["timeout"] = ingress_traffic.get(
+    #             "timeout", prompt_gateway_listener["timeout"]
+    #         )
+    #         config_yaml["listeners"].append(prompt_gateway_listener)
 
-    for listener in config_yaml["listeners"]:
-        print("Processing listener: ", listener)
-        name = listener.get("name", None)
-
-        # TODO: for now we only support llm_providers under egress_traffic listener
-        if name != "egress_traffic":
+    for listener in listeners:
+        if listener.get("llm_providers") is None or listener.get("llm_providers") == []:
             continue
+        print("Processing listener with llm_providers: ", listener)
+        name = listener.get("name", None)
 
         for llm_provider in listener.get("llm_providers", []):
             if llm_provider.get("usage", None):
@@ -293,12 +298,18 @@ def validate_and_render_schema():
                 }
             )
 
-    for listener in config_yaml["listeners"]:
+    updated_llm_providers = []
+    for listener in listeners:
         print("Processing listener: ", listener)
-        if listener.get("name") == "egress_traffic":
+        llm_providers = listener.get("llm_providers", None)
+        if llm_providers is not None and llm_providers != []:
             print("processing egress traffic listener")
             print("updated_llm_providers: ", updated_llm_providers)
-            listener["llm_providers"] = deepcopy(updated_llm_providers)
+            if updated_llm_providers is not None and updated_llm_providers != []:
+                raise Exception(
+                    "Please provide llm_providers either under listeners or at root level, not both. Currently we don't support multiple listeners with llm_providers"
+                )
+            updated_llm_providers = deepcopy(llm_providers)
     config_yaml["llm_providers"] = updated_llm_providers
 
     # Validate model aliases if present
@@ -313,16 +324,6 @@ def validate_and_render_schema():
 
     arch_config_string = yaml.dump(config_yaml)
     arch_llm_config_string = yaml.dump(config_yaml)
-
-    # prompt_gateway_listener = config_yaml.get("listeners", {}).get(
-    #     "ingress_traffic", {}
-    # )
-    # if prompt_gateway_listener.get("port") == None:
-    #     prompt_gateway_listener["port"] = 10000  # default port for prompt gateway
-    # if prompt_gateway_listener.get("address") == None:
-    #     prompt_gateway_listener["address"] = "127.0.0.1"
-    # if prompt_gateway_listener.get("timeout") == None:
-    #     prompt_gateway_listener["timeout"] = "10s"
 
     use_agent_orchestrator = config_yaml.get("overrides", {}).get(
         "use_agent_orchestrator", False
@@ -346,8 +347,8 @@ def validate_and_render_schema():
     print("agent_orchestrator: ", agent_orchestrator)
 
     data = {
-        "prompt_gateway_listener": prompt_gateway_listener,
-        "llm_gateway_listener": llm_gateway_listener,
+        "prompt_gateway_listener": prompt_gateway,
+        "llm_gateway_listener": llm_gateway,
         "arch_config": arch_config_string,
         "arch_llm_config": arch_llm_config_string,
         "arch_clusters": inferred_clusters,
@@ -355,7 +356,7 @@ def validate_and_render_schema():
         "arch_tracing": arch_tracing,
         "local_llms": llms_with_endpoint,
         "agent_orchestrator": agent_orchestrator,
-        "listeners": config_yaml["listeners"].copy(),
+        "listeners": listeners,
     }
 
     rendered = template.render(data)

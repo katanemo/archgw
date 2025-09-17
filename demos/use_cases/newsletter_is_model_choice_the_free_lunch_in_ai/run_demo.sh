@@ -22,7 +22,7 @@ start_demo() {
   archgw up arch_config_with_aliases.yaml
 
   echo "\n\nArch started successfully."
-  echo "Please run the following command to test the setup: poetry run python bench.py\n"
+  echo "Please run the following command to test the setup: python bench.py\n"
 }
 
 # Function to stop the demo

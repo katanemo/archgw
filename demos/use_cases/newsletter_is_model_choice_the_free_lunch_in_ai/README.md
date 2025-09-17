@@ -93,7 +93,7 @@ See `arch_config.yaml` for a sample configuration mapping aliases to provider mo
 
 3. **Start Arch Gateway**
    ```sh
-   archgw up arch_config_with_aliases.yaml
+    run_demo.sh
    ```
 
 4. **Run the test harness:**

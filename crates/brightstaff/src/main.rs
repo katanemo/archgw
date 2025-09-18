@@ -142,8 +142,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         .with_context(parent_cx)
                         .await
                     }
-                    (&Method::GET, "/v1/models") => Ok(list_models(llm_providers).await),
-                    (&Method::OPTIONS, "/v1/models") => {
+                    (&Method::GET, "/v1/models" | "/agents/v1/models") => Ok(list_models(llm_providers).await),
+                    // hack for now to get openw-web-ui to work
+                    (&Method::OPTIONS, "/v1/models" | "/agents/v1/models") => {
                         let mut response = Response::new(empty());
                         *response.status_mut() = StatusCode::NO_CONTENT;
                         response

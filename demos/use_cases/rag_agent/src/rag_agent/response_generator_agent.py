@@ -75,6 +75,9 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         return StreamingResponse(
             stream_chat_completions(request_body, traceparent_header),
             media_type="text/plain",
+            headers={
+                "content-type": "text/event-stream",
+            },
         )
     else:
         return await non_streaming_chat_completions(request_body, traceparent_header)

@@ -15,7 +15,6 @@ SUPPORTED_PROVIDERS = [
     "gemini",
     "anthropic",
     "together_ai",
-    "lambda_ai",
     "azure_openai",
     "xai",
 ]

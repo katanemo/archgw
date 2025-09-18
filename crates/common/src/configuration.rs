@@ -171,8 +171,6 @@ pub enum LlmProviderType {
     XAI,
     #[serde(rename = "together_ai")]
     TogetherAI,
-    #[serde(rename = "lambda_ai")]
-    LambdaAI,
     #[serde(rename = "azure_openai")]
     AzureOpenAI,
 }
@@ -189,7 +187,6 @@ impl Display for LlmProviderType {
             LlmProviderType::OpenAI => write!(f, "openai"),
             LlmProviderType::XAI => write!(f, "xai"),
             LlmProviderType::TogetherAI => write!(f, "together_ai"),
-            LlmProviderType::LambdaAI => write!(f, "lambda_ai"),
             LlmProviderType::AzureOpenAI => write!(f, "azure_openai"),
         }
     }

@@ -31,12 +31,18 @@ llm_providers:
   name: mistral/mistral-8x7b
   provider_interface: mistral
 - base_url: http://mistral_local
+  cluster_name: mistral_mistral_local
   endpoint: mistral_local
   model: mistral-7b-instruct
   name: mistral/mistral-7b-instruct
   port: 80
   protocol: http
   provider_interface: mistral
+model_aliases:
+  arch.summarize.v1:
+    target: gpt-4o
+  arch.v1:
+    target: mistral-8x7b
 overrides:
   prompt_target_intent_matching_threshold: 0.6
 prompt_guards:

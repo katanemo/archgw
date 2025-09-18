@@ -41,6 +41,16 @@ llm_providers:
   - model: mistral/mistral-7b-instruct
     base_url: http://mistral_local
 
+# Model aliases - friendly names that map to actual provider names
+model_aliases:
+  # Alias for summarization tasks -> fast/cheap model
+  arch.summarize.v1:
+    target: gpt-4o
+
+  # Alias for general purpose tasks -> latest model
+  arch.v1:
+    target: mistral-8x7b
+
 # provides a way to override default settings for the arch system
 overrides:
   # By default Arch uses an NLI + embedding approach to match an incoming prompt to a prompt target.

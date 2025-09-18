@@ -16,7 +16,6 @@ pub enum ProviderId {
     AzureOpenAI,
     XAI,
     TogetherAI,
-    LambdaAI,
 }
 
 impl From<&str> for ProviderId {
@@ -33,7 +32,6 @@ impl From<&str> for ProviderId {
             "azure_openai" => ProviderId::AzureOpenAI,
             "xai" => ProviderId::XAI,
             "together_ai" => ProviderId::TogetherAI,
-            "lambda_ai" => ProviderId::LambdaAI,
             _ => panic!("Unknown provider: {}", value),
         }
     }
@@ -57,8 +55,7 @@ impl ProviderId {
             | ProviderId::GitHub
             | ProviderId::AzureOpenAI
             | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::LambdaAI,
+            | ProviderId::TogetherAI,
             SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             (ProviderId::OpenAI
@@ -70,8 +67,7 @@ impl ProviderId {
             | ProviderId::GitHub
             | ProviderId::AzureOpenAI
             | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::LambdaAI,
+            | ProviderId::TogetherAI,
             SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
@@ -91,7 +87,6 @@ impl Display for ProviderId {
             ProviderId::AzureOpenAI => write!(f, "azure_openai"),
             ProviderId::XAI => write!(f, "xai"),
             ProviderId::TogetherAI => write!(f, "together_ai"),
-            ProviderId::LambdaAI => write!(f, "lambda_ai"),
         }
     }
 }

@@ -37,6 +37,12 @@ llm_providers:
   - access_key: $GEMINI_API_KEY
     model: gemini/gemini-1.5-pro-latest
 
+  - model: xai/grok-4-latest
+    access_key: $GROK_API_KEY
+
+  - model: together_ai/openai/gpt-oss-20b
+    access_key: $TOGETHER_API_KEY
+
   - model: custom/test-model
     base_url: http://host.docker.internal:11223
     provider_interface: openai

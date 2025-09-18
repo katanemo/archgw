@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration for archgw LLM gateway
-LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:9000/v1")
+LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
 RESPONSE_MODEL = "gpt-4o"
 
 # System prompt for response generation
@@ -94,7 +94,7 @@ async def stream_chat_completions(
         )
 
         # Prepare extra headers if traceparent is provided
-        extra_headers = {}
+        extra_headers = {"x-envoy-max-retries": "3"}
         if traceparent_header:
             extra_headers["traceparent"] = traceparent_header
 
@@ -191,7 +191,7 @@ async def non_streaming_chat_completions(
         logger.info(f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to generate response")
 
         # Prepare extra headers if traceparent is provided
-        extra_headers = {}
+        extra_headers = {"x-envoy-max-retries": "3"}
         if traceparent_header:
             extra_headers["traceparent"] = traceparent_header
 

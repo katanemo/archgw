@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 # Configuration for archgw LLM gateway
-LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:9000/v1")
+LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
 RAG_MODEL = "gpt-4o-mini"
 
 # Initialize OpenAI client for archgw
@@ -91,7 +91,7 @@ async def find_relevant_passages(
         logger.info(f"Calling archgw to find relevant passages for query: '{query}'")
 
         # Prepare extra headers if traceparent is provided
-        extra_headers = {}
+        extra_headers = {"x-envoy-max-retries": "3"}
         if traceparent:
             extra_headers["traceparent"] = traceparent
 

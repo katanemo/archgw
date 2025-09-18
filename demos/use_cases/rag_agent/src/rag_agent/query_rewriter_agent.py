@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # Configuration for archgw LLM gateway
-LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:9000/v1")
+LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
 QUERY_REWRITE_MODEL = "gpt-4o-mini"
 
 # Initialize OpenAI client for archgw
@@ -50,7 +50,7 @@ async def rewrite_query_with_archgw(
 
     try:
         # Call archgw using OpenAI client
-        extra_headers = {}
+        extra_headers = {"x-envoy-max-retries": "3"}
         if traceparent_header:
             extra_headers["traceparent"] = traceparent_header
         logger.info(f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to rewrite query")

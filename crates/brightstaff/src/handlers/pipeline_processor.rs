@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common::configuration::{Agent, AgentPipeline};
-use common::consts::ARCH_UPSTREAM_HOST_HEADER;
+use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
 use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
 use hyper::header::HeaderMap;
 use tracing::{debug, warn};
@@ -112,6 +112,11 @@ impl PipelineProcessor {
                 .map_err(|_| PipelineError::AgentNotFound(agent.name.clone()))?,
         );
 
+        agent_headers.insert(
+            ENVOY_RETRY_HEADER,
+            hyper::header::HeaderValue::from_str("3").unwrap(),
+        );
+
         let response = self
             .client
             .post(&self.llm_endpoint)
@@ -158,6 +163,11 @@ impl PipelineProcessor {
             ARCH_UPSTREAM_HOST_HEADER,
             hyper::header::HeaderValue::from_str(&terminal_agent.name)
                 .map_err(|_| PipelineError::AgentNotFound(terminal_agent.name.clone()))?,
+        );
+
+        agent_headers.insert(
+            ENVOY_RETRY_HEADER,
+            hyper::header::HeaderValue::from_str("3").unwrap(),
         );
 
         let response = self

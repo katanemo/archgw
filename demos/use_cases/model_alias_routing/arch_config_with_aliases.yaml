@@ -8,6 +8,7 @@ listeners:
     timeout: 30s
 
 llm_providers:
+
   # OpenAI Models
   - model: openai/gpt-4o-mini
     access_key: $OPENAI_API_KEY

@@ -32,7 +32,7 @@ COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 WORKDIR /app
 COPY arch/requirements.txt .
 RUN pip install -r requirements.txt
-COPY arch/tools/cli/config_generator.py .
+COPY arch/tools .
 COPY arch/envoy.template.yaml .
 COPY arch/arch_config_schema.yaml .
 COPY arch/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

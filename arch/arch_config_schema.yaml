@@ -8,46 +8,55 @@ properties:
       - v0.1.0
       - 0.1-beta
       - 0.2.0
+      - v0.3.0
+
+  agents:
+    type: array
+    items:
+      type: object
   listeners:
-    type: object
-    additionalProperties: false
-    properties:
-      ingress_traffic:
-        type: object
-        properties:
-          address:
-            type: string
-          port:
-            type: integer
-          message_format:
-            type: string
-            enum:
-              - openai
-          timeout:
-            type: string
+    anyOf:
+      - type: array
+      - type: object
         additionalProperties: false
-      egress_traffic:
-        type: object
         properties:
-          address:
-            type: string
-          port:
-            type: integer
-          message_format:
-            type: string
-            enum:
-              - openai
-          timeout:
-            type: string
-        additionalProperties: false
+          ingress_traffic:
+            type: object
+            properties:
+              address:
+                type: string
+              port:
+                type: integer
+              message_format:
+                type: string
+                enum:
+                  - openai
+              timeout:
+                type: string
+            additionalProperties: false
+          egress_traffic:
+            type: object
+            properties:
+              address:
+                type: string
+              port:
+                type: integer
+              message_format:
+                type: string
+                enum:
+                  - openai
+              timeout:
+                type: string
+            additionalProperties: false
   endpoints:
     type: object
     patternProperties:
-      "^.*$":
+      "^[a-zA-Z][a-zA-Z0-9_]*$":
         type: object
         properties:
           endpoint:
             type: string
+            pattern: "^.*$"
           connect_timeout:
             type: string
           protocol:
@@ -282,4 +291,4 @@ properties:
 additionalProperties: false
 required:
   - version
-  - llm_providers
+  - listeners

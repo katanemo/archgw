@@ -19,6 +19,29 @@ pub struct ModelAlias {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Agent {
+    pub name: String,
+    pub kind: String,
+    pub endpoint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentPipeline {
+    pub name: String,
+    pub default: Option<bool>,
+    pub description: Option<String>,
+    pub filter_chain: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Listener {
+    pub name: String,
+    pub router: Option<String>,
+    pub agents: Option<Vec<AgentPipeline>>,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
@@ -33,6 +56,8 @@ pub struct Configuration {
     pub tracing: Option<Tracing>,
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
+    pub agents: Option<Vec<Agent>>,
+    pub listeners: Vec<Listener>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

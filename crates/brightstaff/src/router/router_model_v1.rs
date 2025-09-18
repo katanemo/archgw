@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use common::{
-    configuration::{ModelUsagePreference, RoutingPreference},
-};
-use hermesllm::apis::openai::{ChatCompletionsRequest, MessageContent, Message, Role};
+use common::configuration::{ModelUsagePreference, RoutingPreference};
+use hermesllm::apis::openai::{ChatCompletionsRequest, Message, MessageContent, Role};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 

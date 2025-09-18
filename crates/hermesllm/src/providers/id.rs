@@ -13,6 +13,10 @@ pub enum ProviderId {
     Anthropic,
     GitHub,
     Arch,
+    AzureOpenAI,
+    XAI,
+    TogetherAI,
+    LambdaAI,
 }
 
 impl From<&str> for ProviderId {
@@ -26,6 +30,10 @@ impl From<&str> for ProviderId {
             "anthropic" => ProviderId::Anthropic,
             "github" => ProviderId::GitHub,
             "arch" => ProviderId::Arch,
+            "azure_openai" => ProviderId::AzureOpenAI,
+            "xai" => ProviderId::XAI,
+            "together_ai" => ProviderId::TogetherAI,
+            "lambda_ai" => ProviderId::LambdaAI,
             _ => panic!("Unknown provider: {}", value),
         }
     }
@@ -40,8 +48,31 @@ impl ProviderId {
             (ProviderId::Anthropic, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // OpenAI-compatible providers only support OpenAI chat completions
-            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
-            (ProviderId::OpenAI | ProviderId::Groq | ProviderId::Mistral | ProviderId::Deepseek | ProviderId::Arch | ProviderId::Gemini | ProviderId::GitHub, SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (ProviderId::OpenAI
+            | ProviderId::Groq
+            | ProviderId::Mistral
+            | ProviderId::Deepseek
+            | ProviderId::Arch
+            | ProviderId::Gemini
+            | ProviderId::GitHub
+            | ProviderId::AzureOpenAI
+            | ProviderId::XAI
+            | ProviderId::TogetherAI
+            | ProviderId::LambdaAI,
+            SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+
+            (ProviderId::OpenAI
+            | ProviderId::Groq
+            | ProviderId::Mistral
+            | ProviderId::Deepseek
+            | ProviderId::Arch
+            | ProviderId::Gemini
+            | ProviderId::GitHub
+            | ProviderId::AzureOpenAI
+            | ProviderId::XAI
+            | ProviderId::TogetherAI
+            | ProviderId::LambdaAI,
+            SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
 }
@@ -57,6 +88,10 @@ impl Display for ProviderId {
             ProviderId::Anthropic => write!(f, "Anthropic"),
             ProviderId::GitHub => write!(f, "GitHub"),
             ProviderId::Arch => write!(f, "Arch"),
+            ProviderId::AzureOpenAI => write!(f, "azure_openai"),
+            ProviderId::XAI => write!(f, "xai"),
+            ProviderId::TogetherAI => write!(f, "together_ai"),
+            ProviderId::LambdaAI => write!(f, "lambda_ai"),
         }
     }
 }

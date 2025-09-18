@@ -13,7 +13,6 @@ agents:
   - name: research_agent
     kind: openai
     endpoint: http://host.docker.internal:10503
-
 listeners:
   - name: rag agent
     router: arch_agent_v2
@@ -21,12 +20,6 @@ listeners:
       - name: simple_rag_agent
         default: true
         description: virtual assistant for device contracts for simple queries
-        filter_chain:
-          - query_rewriter
-          - context_builder
-          - response_generator
-      - name: research_agent
-        description: deep research agent to handle complex queries that require fetching information from multiple sources
         filter_chain:
           - query_rewriter
           - context_builder

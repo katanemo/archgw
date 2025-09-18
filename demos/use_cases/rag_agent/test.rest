@@ -1,31 +1,52 @@
-### Step 1: Initialize session
-POST http://localhost:10101/mcp
+@baseUrl = http://0.0.0.0:10502
+@model = gpt-4o
+
+# Health Check
+GET {{baseUrl}}/health
+
+###
+
+# Test 1: Simple Non-Streaming Chat Completion
+POST {{baseUrl}}/v1/chat/completions
 Content-Type: application/json
-Accept: application/json, text/event-stream
 
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "ExampleClient",
-      "version": "1.0.0"
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello! Can you help me understand what machine learning is?"
     }
-  }
+  ]
 }
 
-### Step 2: List tools (use session ID from previous response)
-POST http://localhost:10101/mcp
+###
+
+# Test 2: Simple Streaming Chat Completion
+POST {{baseUrl}}/v1/chat/completions
 Content-Type: application/json
-Accept: application/json, text/event-stream
-mcp-session-id: af2e2dace64c48f99ac3536faeaa3c68
 
 {
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/list",
-  "params": {}
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Explain the concept of artificial intelligence in simple terms."
+    }
+  ],
+  "stream": true
+}
+
+### Test 3
+POST http://localhost:8001/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "user",
+      "content": "what is the effective date of the master agreement for arcadyan"
+    }
+  ]
 }

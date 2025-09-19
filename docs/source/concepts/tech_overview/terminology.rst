@@ -31,7 +31,7 @@ code to LLMs.
 
    When you start Arch, you specify a listener address/port that you want to bind downstream. But, Arch uses are predefined port
    that you can use (``127.0.0.1:12000``) to proxy egress calls originating from your application to LLMs (API-based or hosted).
-   For more details, check out :ref:`LLM provider <llm_provider>`.
+   For more details, check out :ref:`LLM providers <llm_providers>`.
 
 **Prompt Target**: Arch offers a primitive called :ref:`prompt target <prompt_target>` to help separate business logic from
 undifferentiated work in building generative AI apps. Prompt targets are endpoints that receive prompts that are processed by Arch.

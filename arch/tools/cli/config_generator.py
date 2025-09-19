@@ -17,6 +17,7 @@ SUPPORTED_PROVIDERS = [
     "together_ai",
     "azure_openai",
     "xai",
+    "ollama",
 ]
 
 
@@ -124,10 +125,12 @@ def validate_and_render_schema():
                 f"Invalid model name {model_name}. Please provide model name in the format <provider>/<model_id>."
             )
         provider = model_name_tokens[0]
-        # Validate azure_openai provider requires base_url
-        if provider == "azure_openai" and llm_provider.get("base_url") is None:
+        # Validate azure_openai and ollama provider requires base_url
+        if (provider == "azure_openai" or provider == "ollama") and llm_provider.get(
+            "base_url"
+        ) is None:
             raise Exception(
-                f"Provider 'azure_openai' requires 'base_url' to be set for model {model_name}"
+                f"Provider '{provider}' requires 'base_url' to be set for model {model_name}"
             )
 
         model_id = "/".join(model_name_tokens[1:])

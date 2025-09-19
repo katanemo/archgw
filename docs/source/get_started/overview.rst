@@ -3,10 +3,9 @@
 
 Overview
 ============
-`Arch <https://github.com/katanemo/arch>`_ is a smart edge and AI gateway for AI-native apps - one that is natively designed to handle and process prompts, not just network traffic.
+`Arch <https://github.com/katanemo/arch>`_ is a smart edge and AI gateway for AI agents - one that is natively designed to handle and process prompts, not just network traffic.
 
-Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
-
+Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a protocol-friendly and framework-agnostic infrastructure layer designed to help you build and ship agentic apps faster.
 
 In this documentation, you will learn how to quickly set up Arch to trigger API calls via prompts, apply prompt guardrails without writing any application-level logic,
 simplify the interaction with upstream LLMs, and improve observability all while simplifying your application development process.
@@ -53,8 +52,8 @@ Deep dive into essential ideas and mechanisms behind Arch:
 
         Learn about the technology stack
 
-    .. grid-item-card:: :octicon:`webhook` LLM Provider
-        :link: ../concepts/llm_provider.html
+    .. grid-item-card:: :octicon:`webhook` LLM Providers
+        :link: ../concepts/llm_providers/llm_providers.html
 
         Explore Arch’s LLM integration options
 

@@ -83,7 +83,7 @@ Arch's CLI allows you to manage and interact with the Arch gateway efficiently. 
 ```console
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install archgw==0.3.12
+$ pip install archgw==0.3.13
 ```
 
 ### Use Arch as a LLM Router
@@ -272,7 +272,7 @@ endpoints:
 ```sh
 
 $ archgw up arch_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.12
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.13
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!

@@ -5,10 +5,11 @@ LLM Routing
 
 With the rapid proliferation of large language models (LLM) — each optimized for different strengths, style, or latency/cost profile — routing has become an essential technique to operationalize the use of different models.
 
-Arch provides two distinct routing approaches to meet different use cases:
+Arch provides three distinct routing approaches to meet different use cases:
 
-1. **Static Model Selection**: Direct routing to specific models based on provider configuration and model aliases
-2. **Preference-Aligned Dynamic Routing**: Intelligent routing using the Arch-Router model based on context and user-defined preferences
+1. **Model-based Routing**: Direct routing to specific models using provider/model names
+2. **Alias-based Routing**: Semantic routing using custom aliases that map to underlying models
+3. **Preference-aligned Routing**: Intelligent routing using the Arch-Router model based on context and user-defined preferences
 
 This enables optimal performance, cost efficiency, and response quality by matching requests with the most suitable model from your available LLM fleet.
 
@@ -16,38 +17,44 @@ This enables optimal performance, cost efficiency, and response quality by match
 Routing Methods
 ---------------
 
-**Static Model Selection**
+**Model-based Routing**
 
-Static routing allows you to directly specify which model to use, either through:
+Direct routing allows you to specify exact provider and model combinations using the format ``provider/model-name``:
 
-- **Direct Model Names**: Use provider-specific names like ``openai/gpt-4o-mini``
-- **Model Aliases**: Use semantic names like ``fast-model`` or ``arch.summarize.v1`` (see :ref:`model_aliases`)
+- Use provider-specific names like ``openai/gpt-4o`` or ``anthropic/claude-3-5-sonnet-20241022``
+- Provides full control and transparency over which model handles each request
+- Ideal for production workloads where you want predictable routing behavior
 
-This approach is ideal when you know exactly which model you want to use for specific tasks or when implementing your own routing logic at the application level.
+**Alias-based Routing**
 
-**Preference-Aligned Dynamic Routing (Arch-Router)**
+Alias-based routing lets you create semantic model names that decouple your application from specific providers:
 
-Dynamic routing uses the Arch-Router model to automatically select the most appropriate LLM for each request based on:
+- Use meaningful names like ``fast-model``, ``reasoning-model``, or ``arch.summarize.v1`` (see :ref:`model_aliases`)
+- Maps semantic names to underlying provider models for easier experimentation and provider switching
+- Ideal for applications that want abstraction from specific model names while maintaining control
+
+**Preference-aligned Routing (Arch-Router)**
+
+Intelligent routing uses the Arch-Router model to automatically select the most appropriate LLM based on:
 
 - **Domain Analysis**: Identifies the subject matter (e.g., legal, healthcare, programming)
 - **Action Classification**: Determines the type of operation (e.g., summarization, code generation, translation)
 - **User-Defined Preferences**: Maps domains and actions to preferred models
+- Ideal for dynamic, context-aware routing that adapts to request content and intent
 
-This approach is ideal when you want intelligent, context-aware routing that adapts to the content and intent of each request.
 
+Model-based Routing Workflow
+----------------------------
 
-Static Model Selection Workflow
---------------------------------
-
-For static routing, the process is straightforward:
+For direct model routing, the process is straightforward:
 
 #. **Client Request**
 
-    The client specifies the exact model to use, either by provider name (``openai/gpt-4o``) or alias (``fast-model``).
+    The client specifies the exact model using provider/model format (``openai/gpt-4o``).
 
-#. **Model Resolution**
+#. **Provider Validation**
 
-    If using an alias, Arch resolves it to the actual provider model name.
+    Arch validates that the specified provider and model are configured and available.
 
 #. **Direct Routing**
 
@@ -58,8 +65,34 @@ For static routing, the process is straightforward:
     The response is returned to the client with optional metadata about the routing decision.
 
 
-Preference-Aligned Dynamic Routing Workflow (Arch-Router)
----------------------------------------
+Alias-based Routing Workflow
+-----------------------------
+
+For alias-based routing, the process includes name resolution:
+
+#. **Client Request**
+
+    The client specifies a semantic alias name (``reasoning-model``).
+
+#. **Alias Resolution**
+
+    Arch resolves the alias to the actual provider/model name based on configuration.
+
+#. **Model Selection**
+
+    If the alias maps to multiple models, Arch selects one based on availability and load balancing.
+
+#. **Request Forwarding**
+
+    The request is forwarded to the resolved model.
+
+#. **Response Handling**
+
+    The response is returned with optional metadata about the alias resolution.
+
+
+Preference-aligned Routing Workflow (Arch-Router)
+-------------------------------------------------
 
 For preference-aligned dynamic routing, the process involves intelligent analysis:
 
@@ -105,12 +138,12 @@ In summary, Arch-Router demonstrates:
 Implementing Routing
 --------------------
 
-**Static Model Selection**
+**Model-based Routing**
 
-For static routing, simply configure your LLM providers and optionally define model aliases:
+For direct model routing, configure your LLM providers with specific provider/model names:
 
 .. code-block:: yaml
-    :caption: Static Routing Configuration
+    :caption: Model-based Routing Configuration
 
     listeners:
       egress_traffic:
@@ -130,32 +163,72 @@ For static routing, simply configure your LLM providers and optionally define mo
       - model: anthropic/claude-3-5-sonnet-20241022
         access_key: $ANTHROPIC_API_KEY
 
-    # Optional: Define aliases for easier client usage
-    model_aliases:
-      fast-model:
-        target: gpt-4o-mini
-      smart-model:
-        target: gpt-4o
-      creative-model:
-        target: claude-3-5-sonnet-20241022
-
-Clients can then specify models directly:
+Clients specify exact models:
 
 .. code-block:: python
 
-    # Using provider model names
+    # Direct provider/model specification
     response = client.chat.completions.create(
         model="openai/gpt-4o-mini",
         messages=[{"role": "user", "content": "Hello!"}]
     )
 
-    # Using aliases
     response = client.chat.completions.create(
-        model="fast-model",
-        messages=[{"role": "user", "content": "Hello!"}]
+        model="anthropic/claude-3-5-sonnet-20241022",
+        messages=[{"role": "user", "content": "Write a story"}]
     )
 
-**Preference-Aligned Dynamic Routing (Arch-Router)**
+**Alias-based Routing**
+
+Configure semantic aliases that map to underlying models:
+
+.. code-block:: yaml
+    :caption: Alias-based Routing Configuration
+
+    listeners:
+      egress_traffic:
+        address: 0.0.0.0
+        port: 12000
+        message_format: openai
+        timeout: 30s
+
+    llm_providers:
+      - model: openai/gpt-4o-mini
+        access_key: $OPENAI_API_KEY
+
+      - model: openai/gpt-4o
+        access_key: $OPENAI_API_KEY
+
+      - model: anthropic/claude-3-5-sonnet-20241022
+        access_key: $ANTHROPIC_API_KEY
+
+    model_aliases:
+      # Model aliases - friendly names that map to actual provider names
+      fast-model:
+        target: gpt-4o-mini
+
+      reasoning-model:
+        target: gpt-4o
+
+      creative-model:
+        target: claude-3-5-sonnet-20241022
+
+Clients use semantic names:
+
+.. code-block:: python
+
+    # Using semantic aliases
+    response = client.chat.completions.create(
+        model="fast-model",  # Routes to best available fast model
+        messages=[{"role": "user", "content": "Quick summary please"}]
+    )
+
+    response = client.chat.completions.create(
+        model="reasoning-model",  # Routes to best reasoning model
+        messages=[{"role": "user", "content": "Solve this complex problem"}]
+    )
+
+**Preference-aligned Routing (Arch-Router)**
 
 To configure preference-aligned dynamic routing, you need to define routing preferences that map domains and actions to specific models:
 
@@ -227,7 +300,7 @@ You can combine static model selection with dynamic routing preferences for maxi
             description: creative writing and content generation
 
     model_aliases:
-      # Static aliases for direct routing
+      # Model aliases - friendly names that map to actual provider names
       fast-model:
         target: gpt-4o-mini
 

@@ -147,15 +147,15 @@ llm_providers:
     access_key: $ANTHROPIC_API_KEY
 
 model_aliases:
-  - alias: fast-model
-    models:
-      - openai/gpt-4o-mini
-      - anthropic/claude-3-5-haiku-20241022
+  # Model aliases - friendly names that map to actual model names
+  fast-model:
+    target: gpt-4o-mini
 
-  - alias: reasoning-model
-    models:
-      - openai/gpt-4o
-      - anthropic/claude-3-5-sonnet-20241022
+  reasoning-model:
+    target: gpt-4o
+
+  creative-model:
+    target: claude-3-5-sonnet-20241022
 ```
 
 Use semantic aliases in your application code:

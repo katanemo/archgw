@@ -108,7 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="error_target.html">Error Target</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../llm_provider.html">LLM Provider</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../prompt_target.html">Prompt Target</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
@@ -176,7 +181,7 @@ see <a class="reference internal" href="prompt.html#arch-overview-prompt-handlin
 <p>Arch automatically configures a listener to route requests from your application to upstream LLM API providers (or hosts).
 When you start Arch, it creates a listener for egress traffic based on the presence of the <code class="docutils literal notranslate"><span class="pre">listener</span></code> configuration
 section in the configuration file. Arch binds itself to a local address such as <code class="docutils literal notranslate"><span class="pre">127.0.0.1:12000/v1</span></code> or a DNS-based
-address like <code class="docutils literal notranslate"><span class="pre">arch.local:12000/v1</span></code> for outgoing traffic. For more details on LLM providers, read <a class="reference internal" href="../llm_provider.html#llm-provider"><span class="std std-ref">here</span></a>.</p>
+address like <code class="docutils literal notranslate"><span class="pre">arch.local:12000/v1</span></code> for outgoing traffic. For more details on LLM providers, read <a class="reference internal" href="../llm_providers/llm_providers.html#llm-providers"><span class="std std-ref">here</span></a>.</p>
 </section>
 <section id="configure-listener">
 <h2>Configure Listener<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configure-listener" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configure-listener'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>

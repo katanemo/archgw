@@ -108,7 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="error_target.html">Error Target</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../llm_provider.html">LLM Provider</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../prompt_target.html">Prompt Target</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
@@ -178,7 +183,7 @@ code to LLMs.</p>
 <p class="admonition-title">Note</p>
 <p>When you start Arch, you specify a listener address/port that you want to bind downstream. But, Arch uses are predefined port
 that you can use (<code class="docutils literal notranslate"><span class="pre">127.0.0.1:12000</span></code>) to proxy egress calls originating from your application to LLMs (API-based or hosted).
-For more details, check out <a class="reference internal" href="../llm_provider.html#llm-provider"><span class="std std-ref">LLM provider</span></a>.</p>
+For more details, check out <a class="reference internal" href="../llm_providers/llm_providers.html#llm-providers"><span class="std std-ref">LLM providers</span></a>.</p>
 </div>
 <p><strong>Prompt Target</strong>: Arch offers a primitive called <a class="reference internal" href="../prompt_target.html#prompt-target"><span class="std std-ref">prompt target</span></a> to help separate business logic from
 undifferentiated work in building generative AI apps. Prompt targets are endpoints that receive prompts that are processed by Arch.

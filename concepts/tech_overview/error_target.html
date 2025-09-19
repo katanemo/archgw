@@ -18,7 +18,7 @@
 <link href="./docs/concepts/tech_overview/error_target.html" rel="canonical"/>
 <link href="../../_static/favicon.ico" rel="icon"/>
 <link href="../../search.html" rel="search" title="Search"/>
-<link href="../llm_provider.html" rel="next" title="LLM Provider"/>
+<link href="../llm_providers/llm_providers.html" rel="next" title="LLM Providers"/>
 <link href="request_lifecycle.html" rel="prev" title="Request Lifecycle"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
@@ -108,7 +108,12 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Error Target</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../llm_provider.html">LLM Provider</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../prompt_target.html">Prompt Target</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
@@ -212,8 +217,8 @@ The errors are communicated to the application via headers like <code class="doc
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../llm_provider.html">
-        LLM Provider
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../llm_providers/llm_providers.html">
+        LLM Providers
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>

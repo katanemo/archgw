@@ -107,7 +107,12 @@
 <li class="toctree-l2"><a class="reference internal" href="concepts/tech_overview/error_target.html">Error Target</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="concepts/llm_provider.html">LLM Provider</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="concepts/llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="concepts/prompt_target.html">Prompt Target</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
@@ -185,7 +190,12 @@ Concepts</label><div class="sd-tab-content docutils">
 <li class="toctree-l2"><a class="reference internal" href="concepts/tech_overview/error_target.html">Error Target</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="concepts/llm_provider.html">LLM Provider</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts/llm_providers/llm_providers.html">LLM Providers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="concepts/prompt_target.html">Prompt Target</a></li>
 </ul>
 </div>

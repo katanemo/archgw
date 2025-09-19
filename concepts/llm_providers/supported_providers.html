@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+
+<html :class="{'dark': darkMode === 'dark' || (darkMode === 'system' &amp;&amp; window.matchMedia('(prefers-color-scheme: dark)').matches)}" class="scroll-smooth" data-content_root="../../" lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') || localStorage.setItem('darkMode', 'system'), activeSection: '' }" x-init="$watch('darkMode', val =&gt; localStorage.setItem('darkMode', val))">
+<head>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta charset="utf-8"/>
+<meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Supported Providers &amp; Configuration | Arch Docs v0.3.12</title>
+<meta content="Supported Providers &amp; Configuration | Arch Docs v0.3.12" property="og:title"/>
+<meta content="Supported Providers &amp; Configuration | Arch Docs v0.3.12" name="twitter:title"/>
+<link href="../../_static/pygments.css?v=466e7b45" rel="stylesheet" type="text/css"/>
+<link href="../../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
+<link href="../../_static/_static/custom.css" rel="stylesheet" type="text/css"/>
+<link href="../../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../../_static/awesome-sphinx-design.css?v=15e0fffa" rel="stylesheet" type="text/css"/>
+<link href="./docs/concepts/llm_providers/supported_providers.html" rel="canonical"/>
+<link href="../../_static/favicon.ico" rel="icon"/>
+<link href="../../search.html" rel="search" title="Search"/>
+<link href="client_libraries.html" rel="next" title="Client Libraries"/>
+<link href="llm_providers.html" rel="prev" title="LLM Providers"/>
+<script>
+    <!-- Prevent Flash of wrong theme -->
+      const userPreference = localStorage.getItem('darkMode');
+      let mode;
+      if (userPreference === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mode = 'dark';
+        document.documentElement.classList.add('dark');
+      } else {
+        mode = 'light';
+      }
+      if (!userPreference) {localStorage.setItem('darkMode', mode)}
+    </script>
+</head>
+<body :class="{ 'overflow-hidden': showSidebar }" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
+<div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
+      Skip to content
+    </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
+<div class="hidden mr-4 md:flex">
+<a class="flex items-center mr-6" href="../../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Arch Docs v0.3.12</span>
+</a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
+<svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
+</svg>
+<span class="sr-only">Toggle navigation menu</span>
+</button>
+<div class="flex items-center justify-between flex-1 space-x-2 sm:space-x-4 md:justify-end">
+<div class="flex-1 w-full md:w-auto md:flex-none"><form @keydown.k.window.meta="$refs.search.focus()" action="../../search.html" class="relative flex items-center group" id="searchbox" method="get">
+<input aria-label="Search the docs" class="inline-flex items-center font-medium transition-colors bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background border border-input hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground hover:placeholder-accent-foreground py-2 px-4 relative h-9 w-full justify-start rounded-[0.5rem] text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64" id="search-input" name="q" placeholder="Search ..." type="search" x-ref="search"/>
+<kbd class="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none text-muted-foreground items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex group-hover:bg-accent group-hover:text-accent-foreground">
+<span class="text-xs">⌘</span>
+    K
+  </kbd>
+</form>
+</div>
+<nav class="flex items-center space-x-1">
+<a href="https://github.com/katanemo/arch" rel="noopener nofollow" title="Visit repository on GitHub">
+<div class="inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md disabled:opacity-50 disabled:pointer-events-none hover:bg-accent hover:text-accent-foreground h-9 w-9">
+<svg fill="currentColor" height="26px" style="margin-top:-2px;display:inline" viewbox="0 0 45 44" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M22.477.927C10.485.927.76 10.65.76 22.647c0 9.596 6.223 17.736 14.853 20.608 1.087.2 1.483-.47 1.483-1.047 0-.516-.019-1.881-.03-3.693-6.04 1.312-7.315-2.912-7.315-2.912-.988-2.51-2.412-3.178-2.412-3.178-1.972-1.346.149-1.32.149-1.32 2.18.154 3.327 2.24 3.327 2.24 1.937 3.318 5.084 2.36 6.321 1.803.197-1.403.759-2.36 1.379-2.903-4.823-.548-9.894-2.412-9.894-10.734 0-2.37.847-4.31 2.236-5.828-.224-.55-.969-2.759.214-5.748 0 0 1.822-.584 5.972 2.226 1.732-.482 3.59-.722 5.437-.732 1.845.01 3.703.25 5.437.732 4.147-2.81 5.967-2.226 5.967-2.226 1.185 2.99.44 5.198.217 5.748 1.392 1.517 2.232 3.457 2.232 5.828 0 8.344-5.078 10.18-9.916 10.717.779.67 1.474 1.996 1.474 4.021 0 2.904-.027 5.247-.027 5.96 0 .58.392 1.256 1.493 1.044C37.981 40.375 44.2 32.24 44.2 22.647c0-11.996-9.726-21.72-21.722-21.72" fill="currentColor" fill-rule="evenodd"></path></svg>
+</div>
+</a>
+<button @click="darkMode = darkMode === 'light' ? 'dark' : 'light'" aria-label="Color theme switcher" class="relative inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md hover:bg-accent hover:text-accent-foreground h-9 w-9" type="button">
+<svg class="absolute transition-all scale-100 rotate-0 dark:-rotate-90 dark:scale-0" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 685q45.456 0 77.228-31.772Q589 621.456 589 576q0-45.456-31.772-77.228Q525.456 467 480 467q-45.456 0-77.228 31.772Q371 530.544 371 576q0 45.456 31.772 77.228Q434.544 685 480 685Zm0 91q-83 0-141.5-58.5T280 576q0-83 58.5-141.5T480 376q83 0 141.5 58.5T680 576q0 83-58.5 141.5T480 776ZM80 621.5q-19.152 0-32.326-13.174T34.5 576q0-19.152 13.174-32.326T80 530.5h80q19.152 0 32.326 13.174T205.5 576q0 19.152-13.174 32.326T160 621.5H80Zm720 0q-19.152 0-32.326-13.174T754.5 576q0-19.152 13.174-32.326T800 530.5h80q19.152 0 32.326 13.174T925.5 576q0 19.152-13.174 32.326T880 621.5h-80Zm-320-320q-19.152 0-32.326-13.174T434.5 256v-80q0-19.152 13.174-32.326T480 130.5q19.152 0 32.326 13.174T525.5 176v80q0 19.152-13.174 32.326T480 301.5Zm0 720q-19.152 0-32.326-13.17Q434.5 995.152 434.5 976v-80q0-19.152 13.174-32.326T480 850.5q19.152 0 32.326 13.174T525.5 896v80q0 19.152-13.174 32.33-13.174 13.17-32.326 13.17ZM222.174 382.065l-43-42Q165.5 327.391 166 308.239t13.174-33.065q13.435-13.674 32.587-13.674t32.065 13.674l42.239 43q12.674 13.435 12.555 31.706-.12 18.272-12.555 31.946-12.674 13.674-31.445 13.413-18.772-.261-32.446-13.174Zm494 494.761-42.239-43q-12.674-13.435-12.674-32.087t12.674-31.565Q686.609 756.5 705.38 757q18.772.5 32.446 13.174l43 41.761Q794.5 824.609 794 843.761t-13.174 33.065Q767.391 890.5 748.239 890.5t-32.065-13.674Zm-42-494.761Q660.5 369.391 661 350.62q.5-18.772 13.174-32.446l41.761-43Q728.609 261.5 747.761 262t33.065 13.174q13.674 13.435 13.674 32.587t-13.674 32.065l-43 42.239q-13.435 12.674-31.706 12.555-18.272-.12-31.946-12.555Zm-495 494.761Q165.5 863.391 165.5 844.239t13.674-32.065l43-42.239q13.435-12.674 32.087-12.674t31.565 12.674Q299.5 782.609 299 801.38q-.5 18.772-13.174 32.446l-41.761 43Q231.391 890.5 212.239 890t-33.065-13.174ZM480 576Z"></path>
+</svg>
+<svg class="absolute transition-all scale-0 rotate-90 dark:rotate-0 dark:scale-100" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 936q-151 0-255.5-104.5T120 576q0-138 90-239.5T440 218q25-3 39 18t-1 44q-17 26-25.5 55t-8.5 61q0 90 63 153t153 63q31 0 61.5-9t54.5-25q21-14 43-1.5t19 39.5q-14 138-117.5 229T480 936Zm0-80q88 0 158-48.5T740 681q-20 5-40 8t-40 3q-123 0-209.5-86.5T364 396q0-20 3-40t8-40q-78 32-126.5 102T200 576q0 116 82 198t198 82Zm-10-270Z"></path>
+</svg>
+</button>
+</nav>
+</div>
+</div>
+</header>
+<div class="flex-1"><div class="container flex-1 items-start md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full shrink-0 overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
+<a class="!justify-start text-sm md:!hidden bg-background" href="../../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Arch Docs v0.3.12</span>
+</a>
+<div class="relative overflow-hidden md:overflow-auto my-4 md:my-0 h-[calc(100vh-8rem)] md:h-auto">
+<div class="overflow-y-auto h-full w-full relative pr-6">
+
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-K2LXXSX6HB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-K2LXXSX6HB');
+</script>
+<nav class="table w-full min-w-full my-6 lg:my-8">
+<p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/intro_to_arch.html">Intro to Arch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current">
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/terminology.html">Terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/threading_model.html">Threading Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/listener.html">Listener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/prompt.html">Prompts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/model_serving.html">Model Serving</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tech_overview/error_target.html">Error Target</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../prompt_target.html">Prompt Target</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/prompt_guard.html">Prompt Guard</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/agent_routing.html">Agent Routing and Hand Off</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/function_calling.html">Function Calling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../guides/llm_router.html">LLM Routing</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../../guides/observability/observability.html">Observability<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../../guides/observability/tracing.html">Tracing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../guides/observability/monitoring.html">Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../guides/observability/access_logging.html">Access Logging</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Build with Arch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/agent.html">Agentic Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/rag.html">RAG Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/multi_turn.html">Multi-Turn</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../resources/configuration_reference.html">Configuration Reference</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<button @click="showSidebar = false" class="absolute md:hidden right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100" type="button">
+<svg class="h-4 w-4" fill="currentColor" height="24" stroke="none" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 632 284 828q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536 576l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480 632Z"></path>
+</svg>
+</button>
+</aside>
+<main class="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_300px]">
+<div class="w-full min-w-0 mx-auto">
+<nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
+<a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../../index.html">
+<span class="hidden md:inline">Arch Docs v0.3.12</span>
+<svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
+</svg>
+</a>
+<div class="mr-1">/</div><a class="hover:text-foreground overflow-hidden text-ellipsis whitespace-nowrap" href="llm_providers.html">LLM Providers</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Supported Providers &amp; Configuration</span>
+</nav>
+<div id="content" role="main">
+<section id="supported-providers-configuration">
+<span id="supported-providers"></span><h1>Supported Providers &amp; Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#supported-providers-configuration"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
+<p>Arch provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Model Support:</strong> Arch supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.</p>
+</div>
+<section id="configuration-structure">
+<h2>Configuration Structure<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configuration-structure" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configuration-structure'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>All providers are configured in the <code class="docutils literal notranslate"><span class="pre">llm_providers</span></code> section of your <code class="docutils literal notranslate"><span class="pre">arch_config.yaml</span></code> file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+</span><span id="line-2">
+</span><span id="line-3"><span class="nt">listeners</span><span class="p">:</span>
+</span><span id="line-4"><span class="w">  </span><span class="nt">egress_traffic</span><span class="p">:</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0.0.0</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12000</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">message_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+</span><span id="line-9">
+</span><span id="line-10"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-11"><span class="w">  </span><span class="c1"># Provider configurations go here</span>
+</span><span id="line-12"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">provider/model-name</span>
+</span><span id="line-13"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$API_KEY</span>
+</span><span id="line-14"><span class="w">    </span><span class="c1"># Additional provider-specific options</span>
+</span></code></pre></div>
+</div>
+<p><strong>Common Configuration Fields:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">model</span></code>: Provider prefix and model name (format: <code class="docutils literal notranslate"><span class="pre">provider/model-name</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">access_key</span></code>: API key for authentication (supports environment variables)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">default</span></code>: Mark a model as the default (optional, boolean)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: Custom name for the provider instance (optional)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">base_url</span></code>: Custom endpoint URL (required for some providers)</p></li>
+</ul>
+</section>
+<section id="provider-categories">
+<h2>Provider Categories<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#provider-categories" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#provider-categories'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p><strong>First-Class Providers</strong>
+Native integrations with built-in support for provider-specific features and authentication.</p>
+<p><strong>OpenAI-Compatible Providers</strong>
+Any provider that implements the OpenAI API interface can be configured using custom endpoints.</p>
+</section>
+<section id="supported-api-endpoints">
+<h2>Supported API Endpoints<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#supported-api-endpoints" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#supported-api-endpoints'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Arch supports the following standardized endpoints across providers:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 30.0%"/>
+<col style="width: 40.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Endpoint</p></th>
+<th class="head"><p>Purpose</p></th>
+<th class="head"><p>Supported Clients</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p></td>
+<td><p>OpenAI-style chat completions</p></td>
+<td><p>OpenAI SDK, cURL, custom clients</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/v1/messages</span></code></p></td>
+<td><p>Anthropic-style messages</p></td>
+<td><p>Anthropic SDK, cURL, custom clients</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="first-class-providers">
+<h2>First-Class Providers<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#first-class-providers" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#first-class-providers'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<section id="openai">
+<h3>OpenAI<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#openai" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#openai'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">openai/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your OpenAI API key from <a class="reference external" href="https://platform.openai.com/api-keys" rel="nofollow noopener">OpenAI Platform<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All OpenAI chat models including GPT-5, GPT-4o, GPT-4, GPT-3.5-turbo, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>GPT-5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/gpt-5</span></code></p></td>
+<td><p>Next-generation model (use any model name from OpenAI’s API)</p></td>
+</tr>
+<tr class="row-odd"><td><p>GPT-4o</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/gpt-4o</span></code></p></td>
+<td><p>Latest multimodal model</p></td>
+</tr>
+<tr class="row-even"><td><p>GPT-4o mini</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/gpt-4o-mini</span></code></p></td>
+<td><p>Fast, cost-effective model</p></td>
+</tr>
+<tr class="row-odd"><td><p>GPT-4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/gpt-4</span></code></p></td>
+<td><p>High-capability reasoning model</p></td>
+</tr>
+<tr class="row-even"><td><p>GPT-3.5 Turbo</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/gpt-3.5-turbo</span></code></p></td>
+<td><p>Balanced performance and cost</p></td>
+</tr>
+<tr class="row-odd"><td><p>o3-mini</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/o3-mini</span></code></p></td>
+<td><p>Reasoning-focused model (preview)</p></td>
+</tr>
+<tr class="row-even"><td><p>o3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">openai/o3</span></code></p></td>
+<td><p>Advanced reasoning model (preview)</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Latest models (examples - use any OpenAI chat model)</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o-mini</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-6">
+</span><span id="line-7"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-9">
+</span><span id="line-10"><span class="w">  </span><span class="c1"># Use any model name from OpenAI's API</span>
+</span><span id="line-11"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-5</span>
+</span><span id="line-12"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="anthropic">
+<h3>Anthropic<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#anthropic" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#anthropic'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">anthropic/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/messages</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your Anthropic API key from <a class="reference external" href="https://console.anthropic.com/settings/keys" rel="nofollow noopener">Anthropic Console<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All Anthropic Claude models including Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Claude Sonnet 4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-sonnet-4</span></code></p></td>
+<td><p>Next-generation model (use any model name from Anthropic’s API)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Claude 3.5 Sonnet</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-3-5-sonnet-20241022</span></code></p></td>
+<td><p>Latest high-performance model</p></td>
+</tr>
+<tr class="row-even"><td><p>Claude 3.5 Haiku</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-3-5-haiku-20241022</span></code></p></td>
+<td><p>Fast and efficient model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Claude 3 Opus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-3-opus-20240229</span></code></p></td>
+<td><p>Most capable model for complex tasks</p></td>
+</tr>
+<tr class="row-even"><td><p>Claude 3 Sonnet</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-3-sonnet-20240229</span></code></p></td>
+<td><p>Balanced performance model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Claude 3 Haiku</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">anthropic/claude-3-haiku-20240307</span></code></p></td>
+<td><p>Fastest model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Latest models (examples - use any Anthropic chat model)</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic/claude-3-5-sonnet-20241022</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ANTHROPIC_API_KEY</span>
+</span><span id="line-5">
+</span><span id="line-6"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic/claude-3-5-haiku-20241022</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ANTHROPIC_API_KEY</span>
+</span><span id="line-8">
+</span><span id="line-9"><span class="w">  </span><span class="c1"># Use any model name from Anthropic's API</span>
+</span><span id="line-10"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic/claude-sonnet-4</span>
+</span><span id="line-11"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ANTHROPIC_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="deepseek">
+<h3>DeepSeek<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#deepseek" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#deepseek'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">deepseek/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your DeepSeek API key from <a class="reference external" href="https://platform.deepseek.com/api_keys" rel="nofollow noopener">DeepSeek Platform<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All DeepSeek chat models including DeepSeek-Chat, DeepSeek-Coder, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>DeepSeek Chat</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">deepseek/deepseek-chat</span></code></p></td>
+<td><p>General purpose chat model</p></td>
+</tr>
+<tr class="row-odd"><td><p>DeepSeek Coder</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">deepseek/deepseek-coder</span></code></p></td>
+<td><p>Code-specialized model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deepseek/deepseek-chat</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$DEEPSEEK_API_KEY</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deepseek/deepseek-coder</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$DEEPSEEK_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="mistral-ai">
+<h3>Mistral AI<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#mistral-ai" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#mistral-ai'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">mistral/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your Mistral API key from <a class="reference external" href="https://console.mistral.ai/api-keys/" rel="nofollow noopener">Mistral AI Console<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All Mistral chat models including Mistral Large, Mistral Small, Ministral, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mistral Large</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mistral/mistral-large-latest</span></code></p></td>
+<td><p>Most capable model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Mistral Medium</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mistral/mistral-medium-latest</span></code></p></td>
+<td><p>Balanced performance</p></td>
+</tr>
+<tr class="row-even"><td><p>Mistral Small</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mistral/mistral-small-latest</span></code></p></td>
+<td><p>Fast and efficient</p></td>
+</tr>
+<tr class="row-odd"><td><p>Ministral 3B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mistral/ministral-3b-latest</span></code></p></td>
+<td><p>Compact model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong>
+<strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mistral/mistral-large-latest</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MISTRAL_API_KEY</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mistral/mistral-small-latest</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MISTRAL_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="groq">
+<h3>Groq<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#groq" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#groq'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">groq/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/openai/v1/chat/completions</span></code> (transformed internally)</p>
+<p><strong>Authentication:</strong> API Key - Get your Groq API key from <a class="reference external" href="https://console.groq.com/keys" rel="nofollow noopener">Groq Console<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All Groq chat models including Llama 3, Mixtral, Gemma, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Llama 3.1 8B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">groq/llama3-8b-8192</span></code></p></td>
+<td><p>Fast inference Llama model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Llama 3.1 70B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">groq/llama3-70b-8192</span></code></p></td>
+<td><p>Larger Llama model</p></td>
+</tr>
+<tr class="row-even"><td><p>Mixtral 8x7B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">groq/mixtral-8x7b-32768</span></code></p></td>
+<td><p>Mixture of experts model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">groq/llama3-8b-8192</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$GROQ_API_KEY</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">groq/mixtral-8x7b-32768</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$GROQ_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="google-gemini">
+<h3>Google Gemini<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#google-gemini" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#google-gemini'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">gemini/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1beta/openai/chat/completions</span></code> (transformed internally)</p>
+<p><strong>Authentication:</strong> API Key - Get your Google AI API key from <a class="reference external" href="https://aistudio.google.com/app/apikey" rel="nofollow noopener">Google AI Studio<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All Google Gemini chat models including Gemini 1.5 Pro, Gemini 1.5 Flash, and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Gemini 1.5 Pro</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gemini/gemini-1.5-pro</span></code></p></td>
+<td><p>Advanced reasoning and creativity</p></td>
+</tr>
+<tr class="row-odd"><td><p>Gemini 1.5 Flash</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gemini/gemini-1.5-flash</span></code></p></td>
+<td><p>Fast and efficient model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gemini/gemini-1.5-pro</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$GOOGLE_API_KEY</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gemini/gemini-1.5-flash</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$GOOGLE_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="together-ai">
+<h3>Together AI<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#together-ai" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#together-ai'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">together_ai/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your Together AI API key from <a class="reference external" href="https://api.together.xyz/settings/api-keys" rel="nofollow noopener">Together AI Settings<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All Together AI chat models including Llama, CodeLlama, Mixtral, Qwen, and hundreds of other open-source models.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Meta Llama 2 7B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">together_ai/meta-llama/Llama-2-7b-chat-hf</span></code></p></td>
+<td><p>Open source chat model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Meta Llama 2 13B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">together_ai/meta-llama/Llama-2-13b-chat-hf</span></code></p></td>
+<td><p>Larger open source model</p></td>
+</tr>
+<tr class="row-even"><td><p>Code Llama 34B</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">together_ai/codellama/CodeLlama-34b-Instruct-hf</span></code></p></td>
+<td><p>Code-specialized model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">together_ai/meta-llama/Llama-2-7b-chat-hf</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$TOGETHER_API_KEY</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">together_ai/codellama/CodeLlama-34b-Instruct-hf</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$TOGETHER_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="xai">
+<h3>xAI<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#xai" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#xai'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">xai/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
+<p><strong>Authentication:</strong> API Key - Get your xAI API key from <a class="reference external" href="https://console.x.ai/" rel="nofollow noopener">xAI Console<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+<p><strong>Supported Chat Models:</strong> All xAI chat models including Grok Beta and all future releases.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%"/>
+<col style="width: 20.0%"/>
+<col style="width: 50.0%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Model Name</p></th>
+<th class="head"><p>Model ID for Config</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Grok Beta</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xai/grok-beta</span></code></p></td>
+<td><p>Conversational AI model</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration Examples:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">xai/grok-beta</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$XAI_API_KEY</span>
+</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="providers-requiring-base-url">
+<h2>Providers Requiring Base URL<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#providers-requiring-base-url" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#providers-requiring-base-url'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<section id="azure-openai">
+<h3>Azure OpenAI<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#azure-openai" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#azure-openai'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">azure_openai/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/openai/deployments/{deployment-name}/chat/completions</span></code> (constructed automatically)</p>
+<p><strong>Authentication:</strong> API Key + Base URL - Get your Azure OpenAI API key from <a class="reference external" href="https://portal.azure.com/" rel="nofollow noopener">Azure Portal<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> → Your OpenAI Resource → Keys and Endpoint.</p>
+<p><strong>Supported Chat Models:</strong> All Azure OpenAI chat models including GPT-4o, GPT-4, GPT-3.5-turbo deployed in your Azure subscription.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Single deployment</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">azure_openai/gpt-4o</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$AZURE_OPENAI_API_KEY</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://your-resource.openai.azure.com</span>
+</span><span id="line-6">
+</span><span id="line-7"><span class="w">  </span><span class="c1"># Multiple deployments</span>
+</span><span id="line-8"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">azure_openai/gpt-4o-mini</span>
+</span><span id="line-9"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$AZURE_OPENAI_API_KEY</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://your-resource.openai.azure.com</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="ollama">
+<h3>Ollama<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#ollama" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#ollama'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">ollama/</span></code></p>
+<p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code> (Ollama’s OpenAI-compatible endpoint)</p>
+<p><strong>Authentication:</strong> None (Base URL only) - Install Ollama from <a class="reference external" href="https://ollama.com/" rel="nofollow noopener">Ollama.com<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> and pull your desired models.</p>
+<p><strong>Supported Chat Models:</strong> All chat models available in your local Ollama installation. Use <code class="docutils literal notranslate"><span class="pre">ollama</span> <span class="pre">list</span></code> to see installed models.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Local Ollama installation</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ollama/llama3.1</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:11434</span>
+</span><span id="line-5">
+</span><span id="line-6"><span class="w">  </span><span class="c1"># Ollama in Docker (from host)</span>
+</span><span id="line-7"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ollama/codellama</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.docker.internal:11434</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="openai-compatible-providers">
+<h3>OpenAI-Compatible Providers<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#openai-compatible-providers" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#openai-compatible-providers'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Supported Models:</strong> Any chat models from providers that implement the OpenAI Chat Completions API standard.</p>
+<p>For providers that implement the OpenAI API but aren’t natively supported:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Generic OpenAI-compatible provider</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom-provider/custom-model</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://api.customprovider.com</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">provider_interface</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$CUSTOM_API_KEY</span>
+</span><span id="line-7">
+</span><span id="line-8"><span class="w">  </span><span class="c1"># Local deployment</span>
+</span><span id="line-9"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local/llama2-7b</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8000</span>
+</span><span id="line-11"><span class="w">    </span><span class="nt">provider_interface</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai</span>
+</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="advanced-configuration">
+<h2>Advanced Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#advanced-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#advanced-configuration'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<section id="multiple-provider-instances">
+<h3>Multiple Provider Instances<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#multiple-provider-instances" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#multiple-provider-instances'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Configure multiple instances of the same provider:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Production OpenAI</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_PROD_KEY</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai-prod</span>
+</span><span id="line-6">
+</span><span id="line-7"><span class="w">  </span><span class="c1"># Development OpenAI (different key/quota)</span>
+</span><span id="line-8"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o-mini</span>
+</span><span id="line-9"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_DEV_KEY</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai-dev</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="default-model-configuration">
+<h3>Default Model Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#default-model-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#default-model-configuration'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Mark one model as the default for fallback scenarios:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o-mini</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">  </span><span class="c1"># Used when no specific model is requested</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="routing-preferences">
+<h3>Routing Preferences<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#routing-preferences" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#routing-preferences'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Configure routing preferences for dynamic model selection:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">routing_preferences</span><span class="p">:</span>
+</span><span id="line-5"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">complex_reasoning</span>
+</span><span id="line-6"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deep analysis, mathematical problem solving, and logical reasoning</span>
+</span><span id="line-7"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">code_review</span>
+</span><span id="line-8"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reviewing and analyzing existing code for bugs and improvements</span>
+</span><span id="line-9">
+</span><span id="line-10"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic/claude-3-5-sonnet-20241022</span>
+</span><span id="line-11"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ANTHROPIC_API_KEY</span>
+</span><span id="line-12"><span class="w">    </span><span class="nt">routing_preferences</span><span class="p">:</span>
+</span><span id="line-13"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">creative_writing</span>
+</span><span id="line-14"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">creative content generation, storytelling, and writing assistance</span>
+</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="model-selection-guidelines">
+<h2>Model Selection Guidelines<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#model-selection-guidelines" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#model-selection-guidelines'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p><strong>For Production Applications:</strong>
+- <strong>High Performance</strong>: OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet
+- <strong>Cost-Effective</strong>: OpenAI GPT-4o mini, Anthropic Claude 3.5 Haiku
+- <strong>Code Tasks</strong>: DeepSeek Coder, Together AI Code Llama
+- <strong>Local Deployment</strong>: Ollama with Llama 3.1 or Code Llama</p>
+<p><strong>For Development/Testing:</strong>
+- <strong>Fast Iteration</strong>: Groq models (optimized inference)
+- <strong>Local Testing</strong>: Ollama models
+- <strong>Cost Control</strong>: Smaller models like GPT-4o mini or Mistral Small</p>
+</section>
+<section id="see-also">
+<h2>See Also<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#see-also" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#see-also'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="client_libraries.html#client-libraries"><span class="std std-ref">Client Libraries</span></a> - Using different client libraries with providers</p></li>
+<li><p><a class="reference internal" href="model_aliases.html#model-aliases"><span class="std std-ref">Model Aliases</span></a> - Creating semantic model names</p></li>
+<li><p><a class="reference internal" href="../../guides/llm_router.html#llm-router"><span class="std std-ref">LLM Routing</span></a> - Setting up intelligent routing</p></li>
+<li><p><a class="reference internal" href="client_libraries.html#client-libraries"><span class="std std-ref">Client Libraries</span></a> - Using different client libraries</p></li>
+<li><p><a class="reference internal" href="model_aliases.html#model-aliases"><span class="std std-ref">Model Aliases</span></a> - Creating semantic model names</p></li>
+</ul>
+</section>
+</section>
+</div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
+<div class="mr-auto">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="llm_providers.html">
+<svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<polyline points="15 18 9 12 15 6"></polyline>
+</svg>
+        LLM Providers
+      </a>
+</div>
+<div class="ml-auto">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="client_libraries.html">
+        Client Libraries
+        <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</a>
+</div>
+</div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
+<div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
+<ul>
+<li><a :data-current="activeSection === '#configuration-structure'" class="reference internal" href="#configuration-structure">Configuration Structure</a></li>
+<li><a :data-current="activeSection === '#provider-categories'" class="reference internal" href="#provider-categories">Provider Categories</a></li>
+<li><a :data-current="activeSection === '#supported-api-endpoints'" class="reference internal" href="#supported-api-endpoints">Supported API Endpoints</a></li>
+<li><a :data-current="activeSection === '#first-class-providers'" class="reference internal" href="#first-class-providers">First-Class Providers</a><ul>
+<li><a :data-current="activeSection === '#openai'" class="reference internal" href="#openai">OpenAI</a></li>
+<li><a :data-current="activeSection === '#anthropic'" class="reference internal" href="#anthropic">Anthropic</a></li>
+<li><a :data-current="activeSection === '#deepseek'" class="reference internal" href="#deepseek">DeepSeek</a></li>
+<li><a :data-current="activeSection === '#mistral-ai'" class="reference internal" href="#mistral-ai">Mistral AI</a></li>
+<li><a :data-current="activeSection === '#groq'" class="reference internal" href="#groq">Groq</a></li>
+<li><a :data-current="activeSection === '#google-gemini'" class="reference internal" href="#google-gemini">Google Gemini</a></li>
+<li><a :data-current="activeSection === '#together-ai'" class="reference internal" href="#together-ai">Together AI</a></li>
+<li><a :data-current="activeSection === '#xai'" class="reference internal" href="#xai">xAI</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#providers-requiring-base-url'" class="reference internal" href="#providers-requiring-base-url">Providers Requiring Base URL</a><ul>
+<li><a :data-current="activeSection === '#azure-openai'" class="reference internal" href="#azure-openai">Azure OpenAI</a></li>
+<li><a :data-current="activeSection === '#ollama'" class="reference internal" href="#ollama">Ollama</a></li>
+<li><a :data-current="activeSection === '#openai-compatible-providers'" class="reference internal" href="#openai-compatible-providers">OpenAI-Compatible Providers</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#advanced-configuration'" class="reference internal" href="#advanced-configuration">Advanced Configuration</a><ul>
+<li><a :data-current="activeSection === '#multiple-provider-instances'" class="reference internal" href="#multiple-provider-instances">Multiple Provider Instances</a></li>
+<li><a :data-current="activeSection === '#default-model-configuration'" class="reference internal" href="#default-model-configuration">Default Model Configuration</a></li>
+<li><a :data-current="activeSection === '#routing-preferences'" class="reference internal" href="#routing-preferences">Routing Preferences</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#model-selection-guidelines'" class="reference internal" href="#model-selection-guidelines">Model Selection Guidelines</a></li>
+<li><a :data-current="activeSection === '#see-also'" class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</div>
+</aside>
+</main>
+</div>
+</div><footer class="py-6 border-t border-border md:py-0">
+<div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
+<div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Sep 19, 2025. </p>
+</div>
+</div>
+</footer>
+</div>
+<script src="../../_static/documentation_options.js?v=a9d256b5"></script>
+<script src="../../_static/doctools.js?v=9bcbadda"></script>
+<script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script defer="defer" src="../../_static/theme.js?v=073f68d9"></script>
+<script src="../../_static/design-tabs.js?v=f930bc37"></script>
+</body>
+</html>

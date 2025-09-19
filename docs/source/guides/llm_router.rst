@@ -17,7 +17,8 @@ This enables optimal performance, cost efficiency, and response quality by match
 Routing Methods
 ---------------
 
-**Model-based Routing**
+Model-based Routing
+~~~~~~~~~~~~~~~~~~~
 
 Direct routing allows you to specify exact provider and model combinations using the format ``provider/model-name``:
 
@@ -25,7 +26,8 @@ Direct routing allows you to specify exact provider and model combinations using
 - Provides full control and transparency over which model handles each request
 - Ideal for production workloads where you want predictable routing behavior
 
-**Alias-based Routing**
+Alias-based Routing
+~~~~~~~~~~~~~~~~~~~
 
 Alias-based routing lets you create semantic model names that decouple your application from specific providers:
 
@@ -33,14 +35,23 @@ Alias-based routing lets you create semantic model names that decouple your appl
 - Maps semantic names to underlying provider models for easier experimentation and provider switching
 - Ideal for applications that want abstraction from specific model names while maintaining control
 
-**Preference-aligned Routing (Arch-Router)**
+.. _preference_aligned_routing:
 
-Intelligent routing uses the Arch-Router model to automatically select the most appropriate LLM based on:
+Preference-aligned Routing (Arch-Router)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- **Domain Analysis**: Identifies the subject matter (e.g., legal, healthcare, programming)
-- **Action Classification**: Determines the type of operation (e.g., summarization, code generation, translation)
-- **User-Defined Preferences**: Maps domains and actions to preferred models
-- Ideal for dynamic, context-aware routing that adapts to request content and intent
+Traditional LLM routing approaches face significant limitations: they evaluate performance using benchmarks that often fail to capture human preferences, select from fixed model pools, and operate as "black boxes" without practical mechanisms for encoding user preferences.
+
+Arch's preference-aligned routing addresses these challenges by applying a fundamental engineering principle: decoupling. The framework separates route selection (matching queries to human-readable policies) from model assignment (mapping policies to specific LLMs). This separation allows you to define routing policies using descriptive labels like ``Domain: 'finance', Action: 'analyze_earnings_report'`` rather than cryptic identifiers, while independently configuring which models handle each policy.
+
+The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ model automatically selects the most appropriate LLM based on:
+
+- Domain Analysis: Identifies the subject matter (e.g., legal, healthcare, programming)
+- Action Classification: Determines the type of operation (e.g., summarization, code generation, translation)
+- User-Defined Preferences: Maps domains and actions to preferred models using transparent, configurable routing decisions
+- Human Preference Alignment: Uses domain-action mappings that capture subjective evaluation criteria, ensuring routing aligns with real-world user needs rather than just benchmark scores
+
+This approach supports seamlessly adding new models without retraining and is ideal for dynamic, context-aware routing that adapts to request content and intent.
 
 
 Model-based Routing Workflow
@@ -91,6 +102,8 @@ For alias-based routing, the process includes name resolution:
     The response is returned with optional metadata about the alias resolution.
 
 
+.. _preference_aligned_routing_workflow:
+
 Preference-aligned Routing Workflow (Arch-Router)
 -------------------------------------------------
 
@@ -114,7 +127,18 @@ For preference-aligned dynamic routing, the process involves intelligent analysi
 
 Arch-Router
 -------------------------
-The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ is a state-of-the-art **preference-based routing model** specifically designed for intelligent LLM selection. This model delivers production-ready performance with low latency and high accuracy.
+The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ is a state-of-the-art **preference-based routing model** specifically designed to address the limitations of traditional LLM routing. This compact 1.5B model delivers production-ready performance with low latency and high accuracy while solving key routing challenges.
+
+**Addressing Traditional Routing Limitations:**
+
+**Human Preference Alignment**
+Unlike benchmark-driven approaches, Arch-Router learns to match queries with human preferences by using domain-action mappings that capture subjective evaluation criteria, ensuring routing decisions align with real-world user needs.
+
+**Flexible Model Integration**
+The system supports seamlessly adding new models for routing without requiring retraining or architectural modifications, enabling dynamic adaptation to evolving model landscapes.
+
+**Preference-Encoded Routing**
+Provides a practical mechanism to encode user preferences through domain-action mappings, offering transparent and controllable routing decisions that can be customized for specific use cases.
 
 To support effective routing, Arch-Router introduces two key concepts:
 

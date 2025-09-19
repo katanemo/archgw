@@ -16,27 +16,20 @@ Core Capabilities
 -----------------
 
 **Multi-Provider Support**
-Connect to any combination of providers simultaneously:
+Connect to any combination of providers simultaneously (see :ref:`supported_providers` for full details):
 
 - **First-Class Providers**: Native integrations with OpenAI, Anthropic, DeepSeek, Mistral, Groq, Google Gemini, Together AI, xAI, Azure OpenAI, and Ollama
-- **OpenAI-Compatible Providers**: Support for any provider implementing OpenAI's API interface
+- **OpenAI-Compatible Providers**: Any provider implementing the OpenAI Chat Completions API standard
 
 **Intelligent Routing**
-Two powerful routing approaches to optimize model selection:
+Three powerful routing approaches to optimize model selection:
 
-- **Static Model Selection**: Direct routing using provider names or semantic model aliases
-- **Preference-Aligned Dynamic Routing**: Intelligent, context-aware routing using the Arch-Router model that analyzes prompts and selects optimal models based on domain and action preferences
-
-**Model Aliases & Management**
-Create semantic, version-controlled names for simplified model management:
-
-- **Semantic Naming**: Use descriptive names like ``fast-model``, ``reasoning-model``, or ``arch.summarize.v1``
-- **Environment Management**: Different aliases for dev/staging/production environments
-- **Version Control**: Implement versioning schemes for gradual model upgrades
-- **Future Features**: Planned support for guardrails, fallback chains, and traffic splitting
+- **Model-based Routing**: Direct routing to specific models using provider/model names (see :ref:`supported_providers`)
+- **Alias-based Routing**: Semantic routing using custom aliases (see :ref:`model_aliases`)
+- **Preference-aligned Routing**: Intelligent routing using the Arch-Router model (see :ref:`preference_aligned_routing`)
 
 **Unified Client Interface**
-Use your preferred client library without changing existing code:
+Use your preferred client library without changing existing code (see :ref:`client_libraries` for details):
 
 - **OpenAI Python SDK**: Full compatibility with all providers
 - **Anthropic Python SDK**: Native support with cross-provider capabilities
@@ -47,25 +40,11 @@ Key Benefits
 ------------
 
 - **Provider Flexibility**: Switch between providers without changing client code
-- **Intelligent Routing**: Automatically select the best model for each request
+- **Three Routing Methods**: Choose from model-based, alias-based, or preference-aligned routing (using `Arch-Router-1.5B <https://huggingface.co/katanemo/Arch-Router-1.5B>`_) strategies
 - **Cost Optimization**: Route requests to cost-effective models based on complexity
 - **Performance Optimization**: Use fast models for simple tasks, powerful models for complex reasoning
 - **Environment Management**: Configure different models for different environments
 - **Future-Proof**: Easy to add new providers and upgrade models
-
-Getting Started
----------------
-Dive into specific areas based on your needs:
-
-.. toctree::
-  :maxdepth: 2
-
-  supported_providers
-  client_libraries
-  model_aliases
-
-**3. Advanced Features**
-- **:ref:`llm_router`**: Learn about preference-aligned dynamic routing and intelligent model selection
 
 Common Use Cases
 ----------------
@@ -85,10 +64,17 @@ Common Use Cases
 - Apply consistent security and governance policies across all providers
 - Scale across regions using different provider endpoints
 
-Next Steps
-----------
+Advanced Features
+-----------------
+- :ref:`preference_aligned_routing` - Learn about preference-aligned dynamic routing and intelligent model selection
 
-1. **:ref:`supported_providers`** - See all supported providers, models, and configuration examples
-2. **:ref:`client_libraries`** - Start using with your preferred client
-3. **:ref:`model_aliases`** - Create semantic model names
-4. **:ref:`llm_router`** - Set up intelligent routing
+Getting Started
+---------------
+Dive into specific areas based on your needs:
+
+.. toctree::
+  :maxdepth: 2
+
+  supported_providers
+  client_libraries
+  model_aliases

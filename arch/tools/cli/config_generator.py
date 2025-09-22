@@ -256,7 +256,6 @@ def validate_and_render_schema():
             llm_provider["model"] = model_id
             llm_provider["provider_interface"] = provider
             llm_provider_name_set.add(llm_provider.get("name"))
-            provider = None
             if llm_provider.get("provider") and llm_provider.get("provider_interface"):
                 raise Exception(
                     "Please provide either provider or provider_interface, not both"

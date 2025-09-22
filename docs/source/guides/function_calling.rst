@@ -134,7 +134,7 @@ It will automatically validate parameters, and ensure that the required paramete
 
 
 Once a downstream function (API) is called, Arch Gateway takes the response and sends it an upstream LLM to complete the request (for summarization, Q/A, text generation tasks).
-For more details on how Arch Gateway enables you to centralize usage of LLMs, please read :ref:`LLM providers <llm_provider>`.
+For more details on how Arch Gateway enables you to centralize usage of LLMs, please read :ref:`LLM providers <llm_providers>`.
 
 By completing these steps, you enable Arch to manage the process from validation to response, ensuring users receive consistent, reliable results - and that you are focused
 on the stuff that matters most.

@@ -39,7 +39,7 @@ Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy
       :maxdepth: 2
 
       concepts/tech_overview/tech_overview
-      concepts/llm_provider
+      concepts/llm_providers/llm_providers
       concepts/prompt_target
 
   .. tab-item:: Guides

@@ -30,7 +30,7 @@ jobs:
 
       - name: build arch docker image
         run: |
-          cd ../../ && docker build -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.12 -t katanemo/archgw:latest
+          cd ../../ && docker build -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.13 -t katanemo/archgw:latest
 
       - name: start archgw
         env:
@@ -38,6 +38,7 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         run: |
           docker compose up | tee &> archgw.logs &
 

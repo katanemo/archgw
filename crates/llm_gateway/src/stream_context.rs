@@ -98,8 +98,14 @@ impl StreamContext {
     fn update_upstream_path(&mut self, request_path: &str) {
         let hermes_provider_id = self.llm_provider().to_provider_id();
         if let Some(api) = &self.client_api {
-            let target_endpoint =
-                api.target_endpoint_for_provider(&hermes_provider_id, request_path);
+            let target_endpoint = api.target_endpoint_for_provider(
+                &hermes_provider_id,
+                request_path,
+                self.llm_provider()
+                    .model
+                    .as_ref()
+                    .unwrap_or(&"".to_string()),
+            );
             if target_endpoint != request_path {
                 self.set_http_request_header(":path", Some(&target_endpoint));
             }
@@ -622,7 +628,12 @@ impl HttpContext for StreamContext {
             if self.llm_provider().endpoint.is_some() {
                 self.add_http_request_header(
                     ARCH_ROUTING_HEADER,
-                    &self.llm_provider().name.to_string(),
+                    &self
+                        .llm_provider()
+                        .cluster_name
+                        .as_ref()
+                        .unwrap()
+                        .to_string(),
                 );
             } else {
                 self.add_http_request_header(

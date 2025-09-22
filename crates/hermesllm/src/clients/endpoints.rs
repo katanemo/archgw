@@ -62,7 +62,7 @@ impl SupportedAPIs {
         }
     }
 
-    pub fn target_endpoint_for_provider(&self, provider_id: &ProviderId, request_path: &str) -> String {
+    pub fn target_endpoint_for_provider(&self, provider_id: &ProviderId, request_path: &str, model_id: &str) -> String {
         let default_endpoint = "/v1/chat/completions".to_string();
         match self {
             SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
@@ -76,6 +76,13 @@ impl SupportedAPIs {
                     ProviderId::Groq => {
                         if request_path.starts_with("/v1/") {
                             format!("/openai{}", request_path)
+                        } else {
+                            default_endpoint
+                        }
+                    }
+                    ProviderId::AzureOpenAI => {
+                        if request_path.starts_with("/v1/") {
+                            format!("/openai/deployments/{}/chat/completions?api-version=2025-01-01-preview", model_id)
                         } else {
                             default_endpoint
                         }

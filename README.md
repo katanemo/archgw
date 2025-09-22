@@ -10,7 +10,7 @@ _Arch is a smart proxy server designed as a modular edge and AI gateway for agen
 
 [Quickstart](#Quickstart) •
 [Demos](#Demos) •
-[Route LLMs](#Use-Arch-as-a-LLM-Router) •
+[Route LLMs](#use-arch-as-a-llm-router) •
 [Build agentic apps with Arch](#Build-Agentic-Apps-with-Arch) •
 [Documentation](https://docs.archgw.com) •
 [Contact](#Contact)
@@ -41,7 +41,7 @@ With Arch, you can move faster by focusing on higher-level objectives in a langu
 **Core Features**:
 
   - `🚦 Route to Agents`: Engineered with purpose-built [LLMs](https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68) for fast (<100ms) agent routing and hand-off
-  - `🔗 Route to LLMs`: Unify access to LLMs with support for [dynamic routing](#Preference-based-Routing). Model aliases [coming soon](https://github.com/katanemo/archgw/issues/557)
+  - `🔗 Route to LLMs`: Unify access to LLMs with support for [three routing strategies](#use-arch-as-a-llm-router).
   - `⛨ Guardrails`: Centrally configure and prevent harmful outcomes and ensure safe user interactions
   - `⚡ Tools Use`: For common agentic scenarios let Arch instantly clarify and convert prompts to tools/API calls
   - `🕵 Observability`: W3C compatible request tracing and LLM metrics that instantly plugin with popular tools
@@ -83,14 +83,14 @@ Arch's CLI allows you to manage and interact with the Arch gateway efficiently. 
 ```console
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install archgw==0.3.12
+$ pip install archgw==0.3.13
 ```
 
 ### Use Arch as a LLM Router
-Arch supports two primary routing strategies for LLMs: model-based routing and preference-based routing.
+Arch supports three powerful routing strategies for LLMs: model-based routing, alias-based routing, and preference-based routing. Each strategy offers different levels of abstraction and control for managing your LLM infrastructure.
 
 #### Model-based Routing
-Model-based routing allows you to configure static model names for routing. This is useful when you always want to use a specific model for certain tasks, or manually swap between models. Below an example configuration for model-based routing, and you can follow our [usage guide](demos/use_cases/README.md) on how to get working.
+Model-based routing allows you to configure specific models with static routing. This is ideal when you need direct control over which models handle specific requests. Arch supports 11+ LLM providers including OpenAI, Anthropic, DeepSeek, Mistral, Groq, and more.
 
 ```yaml
 version: v0.1.0
@@ -103,16 +103,31 @@ listeners:
     timeout: 30s
 
 llm_providers:
-  - access_key: $OPENAI_API_KEY
-    model: openai/gpt-4o
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
     default: true
 
-  - access_key: $MISTRAL_API_KEY
-    model: mistral/mistral-3b-latest
+  - model: anthropic/claude-3-5-sonnet-20241022
+    access_key: $ANTHROPIC_API_KEY
+
 ```
 
-#### Preference-based Routing
-Preference-based routing is designed for more dynamic and intelligent selection of models. Instead of static model names, you write plain-language routing policies that describe the type of task or preference — for example:
+You can then route to specific models using any OpenAI-compatible client:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:12000/v1", api_key="test")
+
+# Route to specific model
+response = client.chat.completions.create(
+    model="anthropic/claude-3-5-sonnet-20241022",
+    messages=[{"role": "user", "content": "Explain quantum computing"}]
+)
+```
+
+#### Alias-based Routing
+Alias-based routing lets you create semantic model names that map to underlying providers. This approach decouples your application code from specific model names, making it easy to experiment with different models or handle provider changes.
 
 ```yaml
 version: v0.1.0
@@ -125,21 +140,68 @@ listeners:
     timeout: 30s
 
 llm_providers:
-  - model: openai/gpt-4.1
+  - model: openai/gpt-4o
     access_key: $OPENAI_API_KEY
-    default: true
-    routing_preferences:
-      - name: code generation
-        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
 
-  - model: openai/gpt-4o-mini
-    access_key: $OPENAI_API_KEY
-    routing_preferences:
-      - name: code understanding
-        description: understand and explain existing code snippets, functions, or libraries
+  - model: anthropic/claude-3-5-sonnet-20241022
+    access_key: $ANTHROPIC_API_KEY
+
+model_aliases:
+  # Model aliases - friendly names that map to actual model names
+  fast-model:
+    target: gpt-4o-mini
+
+  reasoning-model:
+    target: gpt-4o
+
+  creative-model:
+    target: claude-3-5-sonnet-20241022
 ```
 
-Arch uses a lightweight 1.5B autoregressive model to map prompts (and conversation context) to these policies. This approach adapts to intent drift, supports multi-turn conversations, and avoids the brittleness of embedding-based classifiers or manual if/else chains. No retraining is required when adding new models or updating policies — routing is governed entirely by human-readable rules. You can learn more about the design, benchmarks, and methodology behind preference-based routing in our paper:
+Use semantic aliases in your application code:
+
+```python
+# Your code uses semantic names instead of provider-specific ones
+response = client.chat.completions.create(
+    model="reasoning-model",  # Routes to best available reasoning model
+    messages=[{"role": "user", "content": "Solve this complex problem..."}]
+)
+```
+
+#### Preference-aligned Routing
+Preference-aligned routing provides intelligent, dynamic model selection based on natural language descriptions of tasks and preferences. Instead of hardcoded routing logic, you describe what each model is good at using plain English.
+
+```yaml
+version: v0.1.0
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: complex_reasoning
+        description: deep analysis, mathematical problem solving, and logical reasoning
+      - name: creative_writing
+        description: storytelling, creative content, and artistic writing
+
+  - model: deepseek/deepseek-coder
+    access_key: $DEEPSEEK_API_KEY
+    routing_preferences:
+      - name: code_generation
+        description: generating new code, writing functions, and creating scripts
+      - name: code_review
+        description: analyzing existing code for bugs, improvements, and optimization
+```
+
+Arch uses a lightweight 1.5B autoregressive model to intelligently map user prompts to these preferences, automatically selecting the best model for each request. This approach adapts to intent drift, supports multi-turn conversations, and avoids brittle embedding-based classifiers or manual if/else chains. No retraining required when adding models or updating policies — routing is governed entirely by human-readable rules.
+
+**Learn More**: Check our [documentation](https://docs.archgw.com/concepts/llm_providers/llm_providers.html) for comprehensive provider setup guides and routing strategies. You can learn more about the design, benchmarks, and methodology behind preference-based routing in our paper:
 
 <div align="left">
   <a href="https://arxiv.org/abs/2506.16655" target="_blank">
@@ -210,7 +272,7 @@ endpoints:
 ```sh
 
 $ archgw up arch_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.12
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.13
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!

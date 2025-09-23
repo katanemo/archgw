@@ -29,7 +29,6 @@ stats_config:
       - 180000
 static_resources:
   listeners:
-  ## begin - legacy listeners
     - name: ingress_traffic
       address:
         socket_address:
@@ -215,9 +214,6 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
-  ## end - legacy listeners
-
-    # Listener for outbound API traffic to services and clusters
     - name: outbound_api_traffic
       address:
         socket_address:
@@ -292,7 +288,6 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
-    # Listeners for LLM agents
     {% for listener in listeners %}
 
     {% if listener.agents %}
@@ -394,8 +389,6 @@ static_resources:
 
     {% endif %}
     {% endfor %}
-
-    # begin - legacy llm listeners
 
     - name: egress_traffic
       address:
@@ -610,7 +603,6 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
-  # end - legacy llm listeners
   clusters:
 
     - name: arch

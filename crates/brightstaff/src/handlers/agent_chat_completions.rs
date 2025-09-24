@@ -122,8 +122,8 @@ async fn handle_agent_chat(
         .await?;
 
     // Get terminal agent and send final response
-    let terminal_agent_name = selected_agent.filter_chain.last().unwrap();
-    let terminal_agent = agent_map.get(terminal_agent_name).unwrap();
+    let terminal_agent_name = selected_agent.agent;
+    let terminal_agent = agent_map.get(&terminal_agent_name).unwrap();
 
     debug!("Processing terminal agent: {}", terminal_agent_name);
     debug!("Terminal agent details: {:?}", terminal_agent);

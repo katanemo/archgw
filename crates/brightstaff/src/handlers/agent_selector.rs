@@ -165,6 +165,7 @@ mod tests {
     fn create_test_agent(name: &str, description: &str, is_default: bool) -> AgentPipeline {
         AgentPipeline {
             name: name.to_string(),
+            agent: name.to_string(),
             description: Some(description.to_string()),
             default: Some(is_default),
             filter_chain: vec![name.to_string()],

@@ -60,6 +60,7 @@ mod integration_tests {
 
         let agent_pipeline = AgentPipeline {
             name: "test-pipeline".to_string(),
+            agent: "terminal-agent".to_string(),
             filter_chain: vec!["filter-agent".to_string(), "terminal-agent".to_string()],
             description: Some("Test pipeline".to_string()),
             default: Some(true),
@@ -97,10 +98,11 @@ mod integration_tests {
             ..Default::default()
         };
 
-        // Create a pipeline with only terminal agent to avoid network calls
+        // Create a pipeline with empty filter chain to avoid network calls
         let test_pipeline = AgentPipeline {
             name: "test-pipeline".to_string(),
-            filter_chain: vec!["terminal-agent".to_string()],
+            agent: "terminal-agent".to_string(),
+            filter_chain: vec![], // Empty filter chain - no network calls needed
             description: None,
             default: None,
         };
@@ -110,9 +112,17 @@ mod integration_tests {
             .process_filter_chain(&request, &test_pipeline, &agent_map, &headers)
             .await;
 
+        println!("Pipeline processing result: {:?}", result);
+
         assert!(result.is_ok());
         let processed_messages = result.unwrap();
+        // With empty filter chain, should return the original messages unchanged
         assert_eq!(processed_messages.len(), 1);
+        if let MessageContent::Text(content) = &processed_messages[0].content {
+            assert_eq!(content, "Hello world!");
+        } else {
+            panic!("Expected text content");
+        }
 
         // Test 4: Error Response Creation
         let error_response = ResponseHandler::create_bad_request("Test error");

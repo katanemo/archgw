@@ -7,23 +7,22 @@ agents:
   - name: context_builder
     kind: openai
     endpoint: http://host.docker.internal:10501
-  - name: response_generator
+  - name: rag_agent
     kind: openai
     endpoint: http://host.docker.internal:10502
   - name: research_agent
     kind: openai
     endpoint: http://host.docker.internal:10503
 listeners:
-  - name: rag agent
+  - name: rag agent listener
     router: arch_agent_v2
     agents:
       - name: simple_rag_agent
-        default: true
+        agent: rag_agent
         description: virtual assistant for device contracts for simple queries
         filter_chain:
           - query_rewriter
           - context_builder
-          - response_generator
     protocol: openai
     address: 0.0.0.0
     port: 8001

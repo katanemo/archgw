@@ -54,10 +54,7 @@ impl PipelineProcessor {
     ) -> Result<Vec<Message>, PipelineError> {
         let mut chat_completions_history = initial_request.messages.clone();
 
-        let filter_chain_without_terminal =
-            &agent_pipeline.filter_chain[..agent_pipeline.filter_chain.len().saturating_sub(1)];
-
-        for agent_name in filter_chain_without_terminal {
+        for agent_name in &agent_pipeline.filter_chain {
             debug!("Processing filter agent: {}", agent_name);
 
             let agent = agent_map
@@ -201,36 +198,10 @@ mod tests {
     fn create_test_pipeline(agents: Vec<&str>) -> AgentPipeline {
         AgentPipeline {
             name: "test-pipeline".to_string(),
+            agent: "test-agent".to_string(),
             filter_chain: agents.iter().map(|s| s.to_string()).collect(),
             description: None,
             default: None,
-        }
-    }
-
-    #[tokio::test]
-    async fn test_process_empty_filter_chain() {
-        let processor = PipelineProcessor::default();
-        let agent_map = HashMap::new();
-        let request_headers = HeaderMap::new();
-
-        let initial_request = ChatCompletionsRequest {
-            messages: vec![create_test_message(Role::User, "Hello")],
-            model: "test-model".to_string(),
-            ..Default::default()
-        };
-
-        // Pipeline with only terminal agent (no filter chain)
-        let pipeline = create_test_pipeline(vec!["terminal-agent"]);
-
-        let result = processor
-            .process_filter_chain(&initial_request, &pipeline, &agent_map, &request_headers)
-            .await;
-
-        assert!(result.is_ok());
-        let messages = result.unwrap();
-        assert_eq!(messages.len(), 1);
-        if let MessageContent::Text(text) = &messages[0].content {
-            assert_eq!(text, "Hello");
         }
     }
 

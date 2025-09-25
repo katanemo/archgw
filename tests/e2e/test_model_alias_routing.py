@@ -33,8 +33,8 @@ def test_openai_client_with_alias_arch_summarize_v1():
     )
 
     completion = client.chat.completions.create(
-        model="arch.summarize.v1",  # This should resolve to 4o-mini
-        max_tokens=50,
+        model="arch.summarize.v1",  # This should resolve to 5o-mini
+        max_completion_tokens=500,  # Increased token limit to avoid truncation and because the 5o-mini uses reasoning tokens
         messages=[
             {
                 "role": "user",
@@ -60,7 +60,7 @@ def test_openai_client_with_alias_arch_v1():
 
     completion = client.chat.completions.create(
         model="arch.v1",  # This should resolve to gpt-o3
-        max_tokens=50,
+        max_completion_tokens=500,
         messages=[
             {
                 "role": "user",
@@ -82,8 +82,8 @@ def test_anthropic_client_with_alias_arch_summarize_v1():
     client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
 
     message = client.messages.create(
-        model="arch.summarize.v1",  # This should resolve to 4o-mini
-        max_tokens=50,
+        model="arch.summarize.v1",  # This should resolve to 5o-mini
+        max_tokens=500,
         messages=[
             {
                 "role": "user",
@@ -108,7 +108,7 @@ def test_anthropic_client_with_alias_arch_v1():
 
     message = client.messages.create(
         model="arch.v1",  # This should resolve to o3
-        max_tokens=50,
+        max_tokens=500,
         messages=[
             {
                 "role": "user",
@@ -135,8 +135,8 @@ def test_openai_client_with_alias_streaming():
     )
 
     stream = client.chat.completions.create(
-        model="arch.summarize.v1",  # This should resolve to 4o-mini
-        max_tokens=50,
+        model="arch.summarize.v1",  # This should resolve to 5o-mini
+        max_completion_tokens=500,
         messages=[
             {
                 "role": "user",
@@ -166,8 +166,8 @@ def test_anthropic_client_with_alias_streaming():
     client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
 
     with client.messages.stream(
-        model="arch.summarize.v1",  # This should resolve to 4o-mini
-        max_tokens=50,
+        model="arch.summarize.v1",  # This should resolve to 5o-mini
+        max_tokens=500,
         messages=[
             {
                 "role": "user",
@@ -182,6 +182,89 @@ def test_anthropic_client_with_alias_streaming():
         f"Streaming response from arch.summarize.v1 alias via Anthropic: {full_text}"
     )
     assert full_text == "Hello from streaming alias via Anthropic!"
+
+
+def test_400_error_handling_with_alias():
+    """Test that 400 errors from upstream are properly returned by archgw"""
+    logger.info(
+        "Testing 400 error handling with arch.summarize.v1 and invalid parameter"
+    )
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = openai.OpenAI(
+        api_key="test-key",
+        base_url=f"{base_url}/v1",
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model="arch.summarize.v1",  # This should resolve to gpt-5-mini-2025-08-07
+            max_completion_tokens=50,
+            temperature=0.7,  # This is a typo - should be "temperature", which should trigger a 400 error
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Hello, this should trigger a 400 error due to invalid parameter name",
+                }
+            ],
+        )
+        # If we reach here, the request unexpectedly succeeded
+        logger.error(
+            f"Expected 400 error but got successful response: {completion.choices[0].message.content}"
+        )
+        assert False, "Expected 400 error but request succeeded"
+    except openai.BadRequestError as e:
+        # This is what we expect - a 400 Bad Request error
+        logger.info(f"Correctly received 400 Bad Request error: {e}")
+        assert e.status_code == 400, f"Expected status code 400, got {e.status_code}"
+        logger.info("✓ 400 error handling working correctly")
+    except Exception as e:
+        # Any other exception is unexpected
+        logger.error(
+            f"Unexpected error type (should be BadRequestError): {type(e).__name__}: {e}"
+        )
+        assert False, f"Expected BadRequestError but got {type(e).__name__}: {e}"
+
+
+def test_400_error_handling_unsupported_parameter():
+    """Test that 400 errors for unsupported parameters are properly returned by archgw"""
+    logger.info("Testing 400 error handling with unsupported max_tokens parameter")
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = openai.OpenAI(
+        api_key="test-key",
+        base_url=f"{base_url}/v1",
+    )
+
+    try:
+        # Use the deprecated max_tokens parameter which should trigger a 400 error
+        completion = client.chat.completions.create(
+            model="arch.summarize.v1",  # This should resolve to gpt-5-mini-2025-08-07
+            max_tokens=150,  # This parameter is unsupported for newer models, should use max_completion_tokens
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Hello, this should trigger a 400 error due to unsupported max_tokens parameter",
+                }
+            ],
+        )
+        # If we reach here, the request unexpectedly succeeded
+        logger.error(
+            f"Expected 400 error but got successful response: {completion.choices[0].message.content}"
+        )
+        assert False, "Expected 400 error but request succeeded"
+    except openai.BadRequestError as e:
+        # This is what we expect - a 400 Bad Request error
+        logger.info(f"Correctly received 400 Bad Request error: {e}")
+        assert e.status_code == 400, f"Expected status code 400, got {e.status_code}"
+        assert "max_tokens" in str(e), "Expected error message to mention max_tokens"
+        logger.info("✓ 400 error handling for unsupported parameters working correctly")
+    except Exception as e:
+        # Any other exception is unexpected
+        logger.error(
+            f"Unexpected error type (should be BadRequestError): {type(e).__name__}: {e}"
+        )
+        assert False, f"Expected BadRequestError but got {type(e).__name__}: {e}"
 
 
 def test_nonexistent_alias():
@@ -199,7 +282,7 @@ def test_nonexistent_alias():
     try:
         completion = client.chat.completions.create(
             model="nonexistent.alias",  # This alias doesn't exist
-            max_tokens=50,
+            max_completion_tokens=50,
             messages=[
                 {
                     "role": "user",
@@ -231,8 +314,8 @@ def test_direct_model_4o_mini_openai():
     )
 
     completion = client.chat.completions.create(
-        model="4o-mini",  # Direct model name
-        max_tokens=50,
+        model="gpt-4o-mini",  # Direct model name
+        max_completion_tokens=50,
         messages=[
             {
                 "role": "user",
@@ -254,7 +337,7 @@ def test_direct_model_4o_mini_anthropic():
     client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
 
     message = client.messages.create(
-        model="4o-mini",  # Direct model name
+        model="gpt-4o-mini",  # Direct model name
         max_tokens=50,
         messages=[
             {

@@ -203,9 +203,10 @@ pub async fn chat(
         }
     };
 
-    // copy over the headers from the original response
+    // copy over the headers and status code from the original response
     let response_headers = llm_response.headers().clone();
-    let mut response = Response::builder();
+    let upstream_status = llm_response.status();
+    let mut response = Response::builder().status(upstream_status);
     let headers = response.headers_mut().unwrap();
     for (header_name, header_value) in response_headers.iter() {
         headers.insert(header_name, header_value.clone());

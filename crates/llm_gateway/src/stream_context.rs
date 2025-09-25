@@ -45,6 +45,8 @@ pub struct StreamContext {
     traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
     user_message: Option<String>,
+    /// Store upstream response status code to handle error responses gracefully
+    upstream_status_code: Option<StatusCode>,
 }
 
 impl StreamContext {
@@ -72,6 +74,7 @@ impl StreamContext {
             traces_queue,
             request_body_sent_time: None,
             user_message: None,
+            upstream_status_code: None,
         }
     }
 
@@ -871,6 +874,19 @@ impl HttpContext for StreamContext {
     }
 
     fn on_http_response_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {
+        // Capture the upstream response status code to handle errors appropriately
+        if let Some(status_str) = self.get_http_response_header(":status") {
+            if let Ok(status_code) = status_str.parse::<u16>() {
+                self.upstream_status_code = StatusCode::from_u16(status_code).ok();
+
+                info!(
+                    "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_STATUS: {}",
+                    self.request_identifier(),
+                    status_code
+                );
+            }
+        }
+
         self.remove_http_response_header("content-length");
         self.remove_http_response_header("content-encoding");
 
@@ -886,6 +902,32 @@ impl HttpContext for StreamContext {
         if self.request_body_sent_time.is_none() {
             debug!("on_http_response_body: request body not sent, not doing any processing in llm filter");
             return Action::Continue;
+        }
+
+        // Check if this is an error response from upstream
+        if let Some(status_code) = &self.upstream_status_code {
+            if status_code.is_client_error() || status_code.is_server_error() {
+                info!(
+                    "[ARCHGW_REQ_ID:{}] UPSTREAM_ERROR_RESPONSE: status={} body_size={}",
+                    self.request_identifier(),
+                    status_code.as_u16(),
+                    body_size
+                );
+
+                // For error responses, forward the upstream error directly without parsing
+                if body_size > 0 {
+                    if let Ok(body) = self.read_raw_response_body(body_size) {
+                        debug!(
+                            "[ARCHGW_REQ_ID:{}] UPSTREAM_ERROR_BODY: {}",
+                            self.request_identifier(),
+                            String::from_utf8_lossy(&body)
+                        );
+                        // Forward the error response as-is
+                        self.set_http_response_body(0, body_size, &body);
+                    }
+                }
+                return Action::Continue;
+            }
         }
 
         match self.client_api {

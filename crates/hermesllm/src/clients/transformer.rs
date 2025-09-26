@@ -102,7 +102,7 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
             messages: openai_messages,
             temperature: req.temperature,
             top_p: req.top_p,
-            max_tokens: Some(req.max_tokens),
+            max_completion_tokens: Some(req.max_tokens),
             stream: req.stream,
             stop: req.stop_sequences,
             tools: openai_tools,
@@ -142,7 +142,9 @@ impl TryFrom<ChatCompletionsRequest> for AnthropicMessagesRequest {
             model: req.model,
             system: system_prompt,
             messages,
-            max_tokens: req.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS),
+            max_tokens: req.max_completion_tokens
+                .or(req.max_tokens)
+                .unwrap_or(DEFAULT_MAX_TOKENS),
             container: None,
             mcp_servers: None,
             service_tier: None,
@@ -1079,7 +1081,7 @@ mod tests {
 
         assert_eq!(openai_req.model, "claude-3-sonnet-20240229");
         assert_eq!(openai_req.messages.len(), 2); // system + user message
-        assert_eq!(openai_req.max_tokens, Some(1024));
+        assert_eq!(openai_req.max_completion_tokens, Some(1024));
         assert_eq!(openai_req.temperature, Some(0.7));
         assert_eq!(openai_req.top_p, Some(0.9));
         assert_eq!(openai_req.stream, Some(false));

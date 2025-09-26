@@ -360,6 +360,9 @@ mod tests {
             assert_eq!(openai_req.model, openai_req2.model);
             assert_eq!(openai_req.messages[0].role, openai_req2.messages[0].role);
             assert_eq!(openai_req.messages[0].content.extract_text(), openai_req2.messages[0].content.extract_text());
-            assert_eq!(openai_req.max_tokens, openai_req2.max_tokens);
+            // After roundtrip, deprecated max_tokens should be converted to max_completion_tokens
+            let original_max_tokens = openai_req.max_completion_tokens.or(openai_req.max_tokens);
+            let roundtrip_max_tokens = openai_req2.max_completion_tokens.or(openai_req2.max_tokens);
+            assert_eq!(original_max_tokens, roundtrip_max_tokens);
         }
 }

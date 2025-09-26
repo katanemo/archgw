@@ -10,9 +10,12 @@ listeners:
 llm_providers:
 
   # OpenAI Models
-  - model: openai/gpt-4o-mini
+  - model: openai/gpt-5-mini-2025-08-07
     access_key: $OPENAI_API_KEY
     default: true
+
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
 
   - model: openai/o3
     access_key: $OPENAI_API_KEY
@@ -41,7 +44,7 @@ llm_providers:
 model_aliases:
   # Alias for summarization tasks -> fast/cheap model
   arch.summarize.v1:
-    target: gpt-4o-mini
+    target: gpt-5-mini-2025-08-07
 
   # Alias for general purpose tasks -> latest model
   arch.v1:
@@ -61,7 +64,7 @@ model_aliases:
 
   # Semantic aliases
   summary-model:
-    target: gpt-4o-mini
+    target: gpt-5-mini-2025-08-07
 
   chat-model:
     target: llama3.1

@@ -126,8 +126,9 @@ pub async fn chat(
             });
 
     const MAX_MESSAGE_LENGTH: usize = 50;
-    let latest_message_for_log = if latest_message_for_log.len() > MAX_MESSAGE_LENGTH {
-        format!("{}...", &latest_message_for_log[..MAX_MESSAGE_LENGTH])
+    let latest_message_for_log = if latest_message_for_log.chars().count() > MAX_MESSAGE_LENGTH {
+        let truncated: String = latest_message_for_log.chars().take(MAX_MESSAGE_LENGTH).collect();
+        format!("{}...", truncated)
     } else {
         latest_message_for_log
     };

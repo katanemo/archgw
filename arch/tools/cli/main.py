@@ -9,6 +9,7 @@ from cli.docker_cli import docker_validate_archgw_schema, stream_gateway_logs
 from cli.utils import (
     getLogger,
     get_llm_provider_access_keys,
+    has_ingress_listener,
     load_env_file_to_dict,
     stream_access_logs,
 )
@@ -240,8 +241,15 @@ def up(file, path, service, foreground):
     if service == SERVICE_NAME_ARCHGW:
         start_arch(arch_config_file, env, foreground=foreground)
     else:
-        download_models_from_hf()
-        start_arch_modelserver(foreground)
+        # Check if ingress_traffic listener is configured before starting model_server
+        if has_ingress_listener(arch_config_file):
+            download_models_from_hf()
+            start_arch_modelserver(foreground)
+        else:
+            log.info(
+                "Skipping model_server startup: no ingress_traffic listener configured in arch_config.yaml"
+            )
+
         start_arch(arch_config_file, env, foreground=foreground)
 
 

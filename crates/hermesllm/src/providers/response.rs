@@ -269,6 +269,13 @@ impl TryFrom<(&[u8], &SupportedAPIs, &SupportedAPIs)> for ProviderStreamResponse
                 Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(chat_resp))
             }
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                // Special case: Handle [DONE] marker for OpenAI -> Anthropic conversion
+                if bytes == b"[DONE]" {
+                    return Ok(ProviderStreamResponseType::MessagesStreamEvent(
+                        crate::apis::anthropic::MessagesStreamEvent::MessageStop
+                    ));
+                }
+
                 let openai_resp: crate::apis::openai::ChatCompletionsStreamResponse = serde_json::from_slice(bytes)?;
 
                 // Transform to Anthropic Messages stream format using the transformer
@@ -287,8 +294,8 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
         // Create a new transformed event based on the original
         let mut transformed_event = sse_event;
 
-        // If not [DONE] and has data, parse the data as a provider stream response (business logic layer)
-        if !transformed_event.is_done() && transformed_event.data.is_some() {
+        // If has data, parse the data as a provider stream response (business logic layer)
+        if transformed_event.data.is_some() {
             let data_str = transformed_event.data.as_ref().unwrap();
             let data_bytes = data_str.as_bytes();
             let transformed_response = ProviderStreamResponseType::try_from((data_bytes, client_api, upstream_api))?;
@@ -380,6 +387,7 @@ where
     I::Item: AsRef<str>,
 {
     pub lines: I,
+    pub done_seen: bool,
 }
 
 impl<I> SseStreamIter<I>
@@ -388,7 +396,7 @@ where
     I::Item: AsRef<str>,
 {
     pub fn new(lines: I) -> Self {
-        Self { lines }
+        Self { lines, done_seen: false }
     }
 }
 
@@ -411,14 +419,20 @@ where
     type Item = SseEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // If we already returned [DONE], terminate the stream
+        if self.done_seen {
+            return None;
+        }
+
         for line in &mut self.lines {
             let line_str = line.as_ref();
 
             // Try to parse as either data: or event: line
             if let Ok(event) = line_str.parse::<SseEvent>() {
-                // For data: lines, check if this is the [DONE] marker - if so, end the stream
+                // For data: lines, check if this is the [DONE] marker
                 if event.data.is_some() && event.is_done() {
-                    return None;
+                    self.done_seen = true;
+                    return Some(event); // Return [DONE] event for transformation
                 }
                 // For data: lines, skip events that should be filtered at the transport layer
                 if event.data.is_some() && event.should_skip() {
@@ -706,7 +720,11 @@ mod tests {
         assert!(event2.data.as_ref().unwrap().contains("msg2"));
         assert!(!event2.should_skip());
 
-        // Iterator should end at [DONE] (no more events)
+        // Third event should be [DONE]
+        let done_event = iter.next().unwrap();
+        assert!(done_event.is_done());
+
+        // Iterator should end after [DONE]
         assert!(iter.next().is_none());
     }
 
@@ -745,7 +763,11 @@ mod tests {
         assert!(!event4.is_event_only());
         assert!(event4.data.as_ref().unwrap().contains("Hello"));
 
-        // Iterator should end at [DONE]
+        // Fifth event should be [DONE]
+        let done_event = iter.next().unwrap();
+        assert!(done_event.is_done());
+
+        // Iterator should end after [DONE]
         assert!(iter.next().is_none());
     }
 
@@ -775,5 +797,26 @@ mod tests {
         };
         let provider_type = ProviderStreamResponseType::ChatCompletionsStreamResponse(openai_event);
         assert_eq!(provider_type.event_type(), None);
+    }
+
+    #[test]
+    fn test_done_marker_handled_in_stream_response_transformation() {
+        use crate::apis::anthropic::AnthropicApi;
+
+        // Test that [DONE] marker is properly converted to MessageStop in the transformation layer
+        let done_bytes = b"[DONE]";
+        let client_api = SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages);
+        let upstream_api = SupportedAPIs::OpenAIChatCompletions(crate::apis::openai::OpenAIApi::ChatCompletions);
+
+        let result = ProviderStreamResponseType::try_from((done_bytes.as_slice(), &client_api, &upstream_api));
+        assert!(result.is_ok());
+
+        if let Ok(ProviderStreamResponseType::MessagesStreamEvent(event)) = result {
+            // Verify it's a MessageStop event
+            assert_eq!(event.event_type(), Some("message_stop"));
+            assert!(matches!(event, crate::apis::anthropic::MessagesStreamEvent::MessageStop));
+        } else {
+            panic!("Expected MessagesStreamEvent::MessageStop");
+        }
     }
 }

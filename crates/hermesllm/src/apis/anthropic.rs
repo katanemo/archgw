@@ -163,12 +163,10 @@ impl ExtractText for ToolResultContent {
 pub enum MessagesContentBlock {
     Text {
         text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<MessagesCacheControl>,
     },
     Thinking {
         text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<MessagesCacheControl>,
     },
     Image {
@@ -181,14 +179,12 @@ pub enum MessagesContentBlock {
         id: String,
         name: String,
         input: Value,
-        #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<MessagesCacheControl>,
     },
     ToolResult {
         tool_use_id: String,
         is_error: Option<bool>,
         content: ToolResultContent,
-        #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<MessagesCacheControl>,
     },
     ServerToolUse {

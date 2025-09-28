@@ -4,7 +4,7 @@ import time
 import sys
 
 import yaml
-from cli.utils import getLogger
+from cli.utils import getLogger, read_config_file
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
@@ -184,4 +184,107 @@ def stop_arch_modelserver():
         )
     except subprocess.CalledProcessError as e:
         log.info(f"Failed to start model_server. Please check archgw_modelserver logs")
+        sys.exit(1)
+
+
+def start_cli_agent(arch_config_file=None, settings_json="{}"):
+    """Start a CLI client connected to Arch."""
+    import json
+
+    # Use current directory for config if not specified
+    if arch_config_file is None:
+        config_path = "."
+    else:
+        config_path = (
+            os.path.dirname(arch_config_file)
+            if os.path.dirname(arch_config_file)
+            else "."
+        )
+
+    # Get port and host from arch_config.yaml listeners > egress
+    arch_config = read_config_file(config_path)
+    if not arch_config:
+        log.error(f"Config file not found in {config_path}")
+        sys.exit(1)
+
+    # Get egress listener configuration
+    egress_config = arch_config.get("listeners", {}).get("egress_traffic", {})
+    host = egress_config.get("host", "127.0.0.1")
+    port = egress_config.get("port", 12000)
+
+    # Parse additional settings from command line
+    try:
+        additional_settings = json.loads(settings_json) if settings_json else {}
+    except json.JSONDecodeError:
+        log.error("Settings must be valid JSON")
+        sys.exit(1)
+
+    # Set up environment variables
+    env = os.environ.copy()
+    env.update(
+        {
+            "ANTHROPIC_AUTH_TOKEN": "test",  # Use test token for arch
+            "ANTHROPIC_API_KEY": "",
+            "ANTHROPIC_BASE_URL": f"http://{host}:{port}",
+            "NO_PROXY": host,
+            "DISABLE_TELEMETRY": "true",
+            "DISABLE_COST_WARNINGS": "true",
+            "API_TIMEOUT_MS": "600000",
+        }
+    )
+
+    # Set ANTHROPIC_SMALL_FAST_MODEL from additional_settings or model alias
+    if "ANTHROPIC_SMALL_FAST_MODEL" in additional_settings:
+        env["ANTHROPIC_SMALL_FAST_MODEL"] = additional_settings[
+            "ANTHROPIC_SMALL_FAST_MODEL"
+        ]
+    else:
+        # Check if arch.claude.code.small.fast alias exists in model_aliases
+        model_aliases = arch_config.get("model_aliases", {})
+        if "arch.claude.code.small.fast" in model_aliases:
+            env["ANTHROPIC_SMALL_FAST_MODEL"] = "arch.claude.code.small.fast"
+        else:
+            log.info(
+                "Tip: Set an alias 'arch.claude.code.small.fast' in your model_aliases config to set a small fast model Claude Code"
+            )
+            log.info("Or provide ANTHROPIC_SMALL_FAST_MODEL in --settings JSON")
+
+    # Non-interactive mode configuration from additional_settings only
+    if additional_settings.get("NON_INTERACTIVE_MODE", False):
+        env.update(
+            {
+                "CI": "true",
+                "FORCE_COLOR": "0",
+                "NODE_NO_READLINE": "1",
+                "TERM": "dumb",
+            }
+        )
+
+    # Build claude command arguments
+    claude_args = []
+
+    # Add settings if provided, excluding those already handled as environment variables
+    if additional_settings:
+        # Filter out settings that are already processed as environment variables
+        claude_settings = {
+            k: v
+            for k, v in additional_settings.items()
+            if k not in ["ANTHROPIC_SMALL_FAST_MODEL", "NON_INTERACTIVE_MODE"]
+        }
+        if claude_settings:
+            claude_args.append(f"--settings={json.dumps(claude_settings)}")
+
+    # Use claude from PATH
+    claude_path = "claude"
+    log.info(f"Starting Claude CLI Agent to Arch at {host}:{port}")
+
+    try:
+        subprocess.run([claude_path] + claude_args, env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        log.error(f"Error starting claude: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        log.error(
+            f"{claude_path} not found. Make sure Claude Code is installed: npm install -g @anthropic-ai/claude-code"
+        )
         sys.exit(1)

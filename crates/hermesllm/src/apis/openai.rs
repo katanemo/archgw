@@ -88,6 +88,7 @@ pub struct ChatCompletionsRequest {
     pub prediction: Option<StaticContent>,
     // pub reasoning_effect: Option<bool>, // GOOD FIRST ISSUE: Future support for reasoning effects
     pub response_format: Option<Value>,
+    pub reasoning_effort: Option<String>, // e.g., "none", "low", "medium", "high"
     // pub safety_identifier: Option<String>, // GOOD FIRST ISSUE: Future support for safety identifiers
     pub seed: Option<i32>,
     pub service_tier: Option<String>,

@@ -4,14 +4,21 @@ import sys
 import subprocess
 import multiprocessing
 import importlib.metadata
+import json
 from cli import targets
-from cli.docker_cli import docker_validate_archgw_schema, stream_gateway_logs
+from cli.docker_cli import (
+    docker_validate_archgw_schema,
+    stream_gateway_logs,
+    docker_container_status,
+)
 from cli.utils import (
     getLogger,
     get_llm_provider_access_keys,
     has_ingress_listener,
     load_env_file_to_dict,
     stream_access_logs,
+    read_config_file,
+    find_config_file,
 )
 from cli.core import (
     start_arch_modelserver,
@@ -19,9 +26,11 @@ from cli.core import (
     start_arch,
     stop_docker_container,
     download_models_from_hf,
+    start_cli_agent,
 )
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
+    ARCHGW_DOCKER_NAME,
     KATANEMO_DOCKERHUB_REPO,
     SERVICE_NAME_ARCHGW,
     SERVICE_NAME_MODEL_SERVER,
@@ -171,12 +180,8 @@ def up(file, path, service, foreground):
         start_arch_modelserver(foreground)
         return
 
-    if file:
-        # If a file is provided, process that file
-        arch_config_file = os.path.abspath(file)
-    else:
-        # If no file is provided, use the path and look for arch_config.yaml
-        arch_config_file = os.path.abspath(os.path.join(path, "arch_config.yaml"))
+    # Use the utility function to find config file
+    arch_config_file = find_config_file(path, file)
 
     # Check if the file exists
     if not os.path.exists(arch_config_file):
@@ -329,10 +334,52 @@ def logs(debug, follow):
             archgw_process.terminate()
 
 
+@click.command()
+@click.argument("cli_type", type=click.Choice(["claude"]), required=True)
+@click.option(
+    "--path",
+    default=None,
+    help="Path to the directory containing arch_config.yaml (defaults to current directory)",
+)
+@click.option(
+    "--settings",
+    default="{}",
+    help="Additional settings as JSON string for the CLI agent.",
+)
+def cli_agent(cli_type, path, settings):
+    """Start a CLI agent connected to Arch.
+
+    CLI_TYPE: The type of CLI agent to start (currently only 'claude' is supported)
+    """
+    # Determine arch_config.yaml path
+    arch_config_file = None
+    if path:
+        arch_config_file = os.path.join(path, "arch_config.yaml")
+    else:
+        arch_config_file = "arch_config.yaml"  # Current directory
+
+    # Check if archgw docker container is running
+    archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
+    if archgw_status != "running":
+        log.error(f"archgw docker container is not running (status: {archgw_status})")
+        log.error("Please start archgw using the 'archgw up' command.")
+        sys.exit(1)
+
+    try:
+        start_cli_agent(arch_config_file, settings)
+    except SystemExit:
+        # Re-raise SystemExit to preserve exit codes
+        raise
+    except Exception as e:
+        click.echo(f"Error: {e}")
+        sys.exit(1)
+
+
 main.add_command(up)
 main.add_command(down)
 main.add_command(build)
 main.add_command(logs)
+main.add_command(cli_agent)
 main.add_command(generate_prompt_targets)
 
 if __name__ == "__main__":

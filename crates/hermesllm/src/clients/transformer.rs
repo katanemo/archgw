@@ -862,9 +862,8 @@ fn convert_anthropic_content_to_openai(content: &[MessagesContentBlock]) -> Resu
             MessagesContentBlock::Text { text, .. } => {
                 text_parts.push(text.clone());
             }
-            MessagesContentBlock::Thinking { text, .. } => {
-                // Include thinking as regular text for OpenAI
-                text_parts.push(format!("[Thinking: {}]", text));
+            MessagesContentBlock::Thinking { thinking, .. } => {
+                text_parts.push(format!("thinking: {}", thinking));
             }
             _ => {
                 // Skip other content types for basic text conversion
@@ -1001,6 +1000,21 @@ fn convert_content_delta(delta: MessagesContentDelta) -> Result<ChatCompletionsS
                 MessageDelta {
                     role: None,
                     content: Some(text),
+                    refusal: None,
+                    function_call: None,
+                    tool_calls: None,
+                },
+                None,
+                None,
+            ))
+        }
+        MessagesContentDelta::ThinkingDelta { thinking } => {
+            Ok(create_openai_chunk(
+                "stream",
+                "unknown",
+                MessageDelta {
+                    role: None,
+                    content: Some(format!("[Thinking: {}]", thinking)),
                     refusal: None,
                     function_call: None,
                     tool_calls: None,

@@ -70,7 +70,9 @@ pub enum ServiceTier {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ThinkingConfig {
-    pub enabled: bool,
+    #[serde(rename = "type")]
+    pub thinking_type: String,
+    pub budget_tokens: Option<u32>,
 }
 
 // MCP Server types
@@ -166,7 +168,8 @@ pub enum MessagesContentBlock {
         cache_control: Option<MessagesCacheControl>,
     },
     Thinking {
-        text: String,
+        thinking: String,
+        signature: Option<String>,
         cache_control: Option<MessagesCacheControl>,
     },
     Image {
@@ -235,6 +238,7 @@ impl ExtractText for Vec<MessagesContentBlock> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
+#[serde(tag = "type")]
 pub enum MessagesImageSource {
     Base64 {
         media_type: String,
@@ -247,6 +251,7 @@ pub enum MessagesImageSource {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
+#[serde(tag = "type")]
 pub enum MessagesDocumentSource {
     Base64 {
         media_type: String,
@@ -409,6 +414,8 @@ pub enum MessagesContentDelta {
     TextDelta { text: String },
     #[serde(rename = "input_json_delta")]
     InputJsonDelta { partial_json: String },
+    #[serde(rename = "thinking_delta")]
+    ThinkingDelta { thinking: String },
 }
 
 #[skip_serializing_none]
@@ -566,10 +573,10 @@ impl ProviderStreamResponse for MessagesStreamEvent {
     fn content_delta(&self) -> Option<&str> {
         match self {
             MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
-                if let MessagesContentDelta::TextDelta { text } = delta {
-                    Some(text)
-                } else {
-                    None
+                match delta {
+                    MessagesContentDelta::TextDelta { text } => Some(text),
+                    MessagesContentDelta::ThinkingDelta { thinking } => Some(thinking),
+                    _ => None,
                 }
             }
             _ => None,
@@ -672,7 +679,7 @@ mod tests {
             "system": "You are a helpful assistant",
             "service_tier": "auto",
             "thinking": {
-                "enabled": true
+                "type": "enabled"
             },
             "metadata": {
                 "user_id": "123"
@@ -699,7 +706,7 @@ mod tests {
         }
 
         if let Some(thinking) = &deserialized_request.thinking {
-            assert_eq!(thinking.enabled, true);
+            assert_eq!(thinking.thinking_type, "enabled");
         } else {
             panic!("Expected thinking config");
         }
@@ -754,10 +761,9 @@ mod tests {
                         {
                             "type": "image",
                             "source": {
-                                "base64": {
-                                    "media_type": "image/jpeg",
-                                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-                                }
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
                             }
                         }
                     ]
@@ -767,7 +773,7 @@ mod tests {
                     "content": [
                         {
                             "type": "thinking",
-                            "text": "Let me analyze the image and then check the weather..."
+                            "thinking": "Let me analyze the image and then check the weather..."
                         },
                         {
                             "type": "text",
@@ -854,8 +860,8 @@ mod tests {
             assert_eq!(content_blocks.len(), 3);
 
             // Validate thinking content block
-            if let MessagesContentBlock::Thinking { text, .. } = &content_blocks[0] {
-                assert_eq!(text, "Let me analyze the image and then check the weather...");
+            if let MessagesContentBlock::Thinking { thinking, .. } = &content_blocks[0] {
+                assert_eq!(thinking, "Let me analyze the image and then check the weather...");
             } else {
                 panic!("Expected thinking content block");
             }
@@ -1319,5 +1325,69 @@ mod tests {
         let all_variants = AnthropicApi::all_variants();
         assert_eq!(all_variants.len(), 1);
         assert_eq!(all_variants[0], AnthropicApi::Messages);
+    }
+
+    #[test]
+    fn test_anthropic_thinking_streaming() {
+        // Test thinking delta stream event
+        let thinking_delta_json = json!({
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {
+                "type": "thinking_delta",
+                "thinking": ".\n\nI need to consider:\n1. Current"
+            }
+        });
+
+        let deserialized_event: MessagesStreamEvent = serde_json::from_value(thinking_delta_json.clone()).unwrap();
+        if let MessagesStreamEvent::ContentBlockDelta { index, ref delta } = deserialized_event {
+            assert_eq!(index, 0);
+            if let MessagesContentDelta::ThinkingDelta { thinking } = delta {
+                assert_eq!(thinking, ".\n\nI need to consider:\n1. Current");
+            } else {
+                panic!("Expected thinking delta");
+            }
+        } else {
+            panic!("Expected content block delta event");
+        }
+
+        // Test that thinking delta is returned by content_delta()
+        assert_eq!(deserialized_event.content_delta(), Some(".\n\nI need to consider:\n1. Current"));
+
+        let serialized_event_json = serde_json::to_value(&deserialized_event).unwrap();
+        assert_eq!(thinking_delta_json, serialized_event_json);
+    }
+
+    #[test]
+    fn test_anthropic_thinking_request_config() {
+        // Test thinking config with budget_tokens
+        let request_json = json!({
+            "model": "claude-sonnet-4-20250514",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Test message"
+                }
+            ],
+            "max_tokens": 2048,
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 1024
+            }
+        });
+
+        let deserialized_request: MessagesRequest = serde_json::from_value(request_json.clone()).unwrap();
+        assert_eq!(deserialized_request.model, "claude-sonnet-4-20250514");
+        assert_eq!(deserialized_request.max_tokens, 2048);
+
+        if let Some(thinking) = &deserialized_request.thinking {
+            assert_eq!(thinking.thinking_type, "enabled");
+            assert_eq!(thinking.budget_tokens, Some(1024));
+        } else {
+            panic!("Expected thinking config");
+        }
+
+        let serialized_json = serde_json::to_value(&deserialized_request).unwrap();
+        assert_eq!(request_json, serialized_json);
     }
 }

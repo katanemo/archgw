@@ -67,7 +67,7 @@ model_aliases:
     target: gpt-5-mini-2025-08-07
 
   chat-model:
-    target:
+    target: gpt-5-mini-2025-08-07
 
   creative-model:
     target: claude-sonnet-4-20250514

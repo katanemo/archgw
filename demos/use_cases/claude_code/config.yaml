@@ -8,7 +8,6 @@ listeners:
     timeout: 30s
 
 llm_providers:
-
   # OpenAI Models
   - model: openai/gpt-5-2025-08-07
     access_key: $OPENAI_API_KEY
@@ -23,16 +22,12 @@ llm_providers:
         description: understand and explain existing code snippets, functions, or libraries
 
   # Anthropic Models
-  - model: anthropic/claude-3-5-sonnet-20241022
+  - model: anthropic/claude-sonnet-4-5
+    default: true
     access_key: $ANTHROPIC_API_KEY
 
   - model: anthropic/claude-3-haiku-20240307
     access_key: $ANTHROPIC_API_KEY
-
-  # Azure OpenAI Models
-  - model: azure_openai/gpt-5-mini
-    access_key: $AZURE_API_KEY
-    base_url: https://katanemo.openai.azure.com
 
   # Ollama Models
   - model: ollama/llama3.1
@@ -41,17 +36,6 @@ llm_providers:
 
 # Model aliases - friendly names that map to actual provider names
 model_aliases:
-  # Alias for summarization tasks -> fast/cheap model
-  arch.summarize.v1:
-    target: gpt-4.1-2025-04-14
-
-  # Alias for creative tasks -> Claude model
-  arch.creative.v1:
-    target: claude-3-5-sonnet-20241022
-
-  # Alias for quick responses -> fast model
-  arch.fast.v1:
+  # Alias for a small faster Claude model
+  arch.claude.code.small.fast:
     target: claude-3-haiku-20240307
-
-  chat-model:
-    target: claude-3-5-sonnet-20241022

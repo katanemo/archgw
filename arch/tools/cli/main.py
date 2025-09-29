@@ -17,7 +17,6 @@ from cli.utils import (
     has_ingress_listener,
     load_env_file_to_dict,
     stream_access_logs,
-    read_config_file,
     find_config_file,
 )
 from cli.core import (
@@ -189,7 +188,6 @@ def up(file, path, service, foreground):
         return
 
     log.info(f"Validating {arch_config_file}")
-
     (
         validation_return_code,
         validation_stdout,

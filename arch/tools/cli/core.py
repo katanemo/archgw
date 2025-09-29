@@ -1,10 +1,11 @@
+import json
 import subprocess
 import os
 import time
 import sys
 
 import yaml
-from cli.utils import getLogger, read_config_file
+from cli.utils import getLogger
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
@@ -189,26 +190,13 @@ def stop_arch_modelserver():
 
 def start_cli_agent(arch_config_file=None, settings_json="{}"):
     """Start a CLI client connected to Arch."""
-    import json
 
-    # Use current directory for config if not specified
-    if arch_config_file is None:
-        config_path = "."
-    else:
-        config_path = (
-            os.path.dirname(arch_config_file)
-            if os.path.dirname(arch_config_file)
-            else "."
-        )
-
-    # Get port and host from arch_config.yaml listeners > egress
-    arch_config = read_config_file(config_path)
-    if not arch_config:
-        log.error(f"Config file not found in {config_path}")
-        sys.exit(1)
+    with open(arch_config_file, "r") as file:
+        arch_config = file.read()
+        arch_config_yaml = yaml.safe_load(arch_config)
 
     # Get egress listener configuration
-    egress_config = arch_config.get("listeners", {}).get("egress_traffic", {})
+    egress_config = arch_config_yaml.get("listeners", {}).get("egress_traffic", {})
     host = egress_config.get("host", "127.0.0.1")
     port = egress_config.get("port", 12000)
 
@@ -240,7 +228,7 @@ def start_cli_agent(arch_config_file=None, settings_json="{}"):
         ]
     else:
         # Check if arch.claude.code.small.fast alias exists in model_aliases
-        model_aliases = arch_config.get("model_aliases", {})
+        model_aliases = arch_config_yaml.get("model_aliases", {})
         if "arch.claude.code.small.fast" in model_aliases:
             env["ANTHROPIC_SMALL_FAST_MODEL"] = "arch.claude.code.small.fast"
         else:
@@ -276,7 +264,7 @@ def start_cli_agent(arch_config_file=None, settings_json="{}"):
 
     # Use claude from PATH
     claude_path = "claude"
-    log.info(f"Starting Claude CLI Agent to Arch at {host}:{port}")
+    log.info(f"Connecting Claude Code Agent to Arch at {host}:{port}")
 
     try:
         subprocess.run([claude_path] + claude_args, env=env, check=True)

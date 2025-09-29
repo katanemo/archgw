@@ -88,23 +88,6 @@ def load_env_file_to_dict(file_path):
     return env_dict
 
 
-def read_config_file(path="."):
-    """Read configuration from arch_config.yaml or config.yaml in the specified path."""
-    config_files = ["arch_config.yaml", "config.yaml"]
-
-    for config_file in config_files:
-        config_path = os.path.abspath(os.path.join(path, config_file))
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as f:
-                    return yaml.safe_load(f)
-            except Exception as e:
-                log.warning(f"Error reading {config_path}: {e}")
-                continue
-
-    return {}
-
-
 def find_config_file(path=".", file=None):
     """Find the appropriate config file path."""
     if file:

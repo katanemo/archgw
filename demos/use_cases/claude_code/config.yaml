@@ -11,6 +11,7 @@ llm_providers:
 
   # OpenAI Models
   - model: openai/gpt-5-2025-08-07
+    access_key: $OPENAI_API_KEY
     routing_preferences:
       - name: code generation
         description: generating new code snippets, functions, or boilerplate based on user prompts or requirements

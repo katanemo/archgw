@@ -335,34 +335,33 @@ def logs(debug, follow):
 
 
 @click.command()
-@click.argument("cli_type", type=click.Choice(["claude"]), required=True)
+@click.argument("type", type=click.Choice(["claude"]), required=True)
+@click.argument("file", required=False)  # Optional file argument
 @click.option(
-    "--path",
-    default=None,
-    help="Path to the directory containing arch_config.yaml (defaults to current directory)",
+    "--path", default=".", help="Path to the directory containing arch_config.yaml"
 )
 @click.option(
     "--settings",
     default="{}",
     help="Additional settings as JSON string for the CLI agent.",
 )
-def cli_agent(cli_type, path, settings):
+def cli_agent(type, file, path, settings):
     """Start a CLI agent connected to Arch.
 
-    CLI_TYPE: The type of CLI agent to start (currently only 'claude' is supported)
+    CLI_AGENT: The type of CLI agent to start (currently only 'claude' is supported)
     """
-    # Determine arch_config.yaml path
-    arch_config_file = None
-    if path:
-        arch_config_file = os.path.join(path, "arch_config.yaml")
-    else:
-        arch_config_file = "arch_config.yaml"  # Current directory
 
     # Check if archgw docker container is running
     archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
     if archgw_status != "running":
         log.error(f"archgw docker container is not running (status: {archgw_status})")
         log.error("Please start archgw using the 'archgw up' command.")
+        sys.exit(1)
+
+    # Determine arch_config.yaml path
+    arch_config_file = find_config_file(path, file)
+    if not os.path.exists(arch_config_file):
+        log.error(f"Config file not found: {arch_config_file}")
         sys.exit(1)
 
     try:

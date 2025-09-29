@@ -10,18 +10,16 @@ listeners:
 llm_providers:
 
   # OpenAI Models
-  - model: openai/gpt-5-mini-2025-08-07
-    access_key: $OPENAI_API_KEY
-    default: true
+  - model: openai/gpt-5-2025-08-07
+    routing_preferences:
+      - name: code generation
+        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
 
-  - model: openai/gpt-4o-mini
+  - model: openai/gpt-4.1-2025-04-14
     access_key: $OPENAI_API_KEY
-
-  - model: openai/o3
-    access_key: $OPENAI_API_KEY
-
-  - model: openai/gpt-4o
-    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code understanding
+        description: understand and explain existing code snippets, functions, or libraries
 
   # Anthropic Models
   - model: anthropic/claude-3-5-sonnet-20241022
@@ -44,15 +42,7 @@ llm_providers:
 model_aliases:
   # Alias for summarization tasks -> fast/cheap model
   arch.summarize.v1:
-    target: gpt-5-mini-2025-08-07
-
-  # Alias for general purpose tasks -> latest model
-  arch.v1:
-    target: o3
-
-  # Alias for reasoning tasks -> capable model
-  arch.reasoning.v1:
-    target: gpt-4o
+    target: gpt-4.1-2025-04-14
 
   # Alias for creative tasks -> Claude model
   arch.creative.v1:
@@ -62,12 +52,5 @@ model_aliases:
   arch.fast.v1:
     target: claude-3-haiku-20240307
 
-  # Semantic aliases
-  summary-model:
-    target: gpt-5-mini-2025-08-07
-
   chat-model:
-    target: claude-3-5-sonnet-20241022
-
-  creative-model:
     target: claude-3-5-sonnet-20241022

@@ -199,8 +199,7 @@ def test_400_error_handling_with_alias():
     try:
         completion = client.chat.completions.create(
             model="arch.summarize.v1",  # This should resolve to gpt-5-mini-2025-08-07
-            max_completion_tokens=50,
-            temperature=0.7,  # This is a typo - should be "temperature", which should trigger a 400 error
+            max_tokens=50,
             messages=[
                 {
                     "role": "user",

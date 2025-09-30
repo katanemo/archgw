@@ -48,5 +48,20 @@ Content-Type: application/json
       "role": "user",
       "content": "what is the effective date of the master agreement for arcadyan"
     }
+  ],
+  "stream": true
+}
+
+### models_listeners test
+POST http://localhost:12000/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "what is the effective date of the master agreement for arcadyan"
+    }
   ]
 }

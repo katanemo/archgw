@@ -24,23 +24,23 @@ pub enum PipelineError {
 /// Service for processing agent pipelines
 pub struct PipelineProcessor {
     client: reqwest::Client,
-    llm_endpoint: String,
+    url: String,
 }
 
 impl Default for PipelineProcessor {
     fn default() -> Self {
         Self {
             client: reqwest::Client::new(),
-            llm_endpoint: "http://localhost:11000/v1/chat/completions".to_string(),
+            url: "http://localhost:11000/v1/chat/completions".to_string(),
         }
     }
 }
 
 impl PipelineProcessor {
-    pub fn new(llm_endpoint: String) -> Self {
+    pub fn new(url: String) -> Self {
         Self {
             client: reqwest::Client::new(),
-            llm_endpoint,
+            url,
         }
     }
 
@@ -116,7 +116,7 @@ impl PipelineProcessor {
 
         let response = self
             .client
-            .post(&self.llm_endpoint)
+            .post(&self.url)
             .headers(agent_headers)
             .body(request_body)
             .send()
@@ -169,7 +169,7 @@ impl PipelineProcessor {
 
         let response = self
             .client
-            .post(&self.llm_endpoint)
+            .post(&self.url)
             .headers(agent_headers)
             .body(request_body)
             .send()

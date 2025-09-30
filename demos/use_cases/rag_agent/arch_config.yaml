@@ -1,6 +1,10 @@
 version: v0.3.0
 
 agents:
+  - name: query_rewriter
+    url: http://host.docker.internal:10500/v1/chat/completions
+  - name: context_builder
+    url: http://host.docker.internal:10501/v1/chat/completions
   - name: rag_agent
     url: http://host.docker.internal:10502/v1/chat/completions
   - name: research_agent
@@ -15,7 +19,7 @@ model_providers:
   - model: openai/gpt-4o
     access_key: $OPENAI_API_KEY
   - model: ollama/llama3.1
-    url: http://host.docker.internal:11434
+    base_url: http://host.docker.internal:11434
 
 model_aliases:
   fast-llm:
@@ -24,11 +28,13 @@ model_aliases:
     target: gpt-4o
 
 listeners:
-  - type: agent
+  - type: agent_listener
+    name: agent_listener_1
     port: 8001
     router: arch_agent_router
     agents:
-      - agent: rag_agent
+      - name: rag_agent
+        agent: rag_agent
         description: virtual assistant for device contracts for simple queries
         filter_chain:
           - query_rewriter

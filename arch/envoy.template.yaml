@@ -124,7 +124,7 @@ static_resources:
                       domains:
                         - "*"
                       routes:
-                      {% for provider in arch_llm_providers %}
+                      {% for provider in arch_model_providers %}
                         # if endpoint is set then use custom cluster for upstream llm
                         {% if provider.endpoint %}
                         {% set llm_cluster_name = provider.cluster_name %}
@@ -522,7 +522,7 @@ static_resources:
                       domains:
                         - "*"
                       routes:
-                      {% for provider in arch_llm_providers %}
+                      {% for provider in arch_model_providers %}
                         # if endpoint is set then use custom cluster for upstream llm
                         {% if provider.endpoint %}
                         {% set llm_cluster_name = provider.cluster_name %}

@@ -106,6 +106,8 @@ def convert_legacy_listeners(
             listener["model_providers"] = model_providers or []
             model_provider_set = True
             llm_gateway_listener = listener
+    if not model_provider_set:
+        listeners.append(llm_gateway_listener)
 
     return listeners, llm_gateway_listener, prompt_gateway_listener
 
@@ -116,8 +118,18 @@ def get_llm_provider_access_keys(arch_config_file):
         arch_config_yaml = yaml.safe_load(arch_config)
 
     access_key_list = []
+
+    # Convert legacy llm_providers to model_providers
+    if "llm_providers" in arch_config_yaml:
+        if "model_providers" in arch_config_yaml:
+            raise Exception(
+                "Please provide either llm_providers or model_providers, not both. llm_providers is deprecated, please use model_providers instead"
+            )
+        arch_config_yaml["model_providers"] = arch_config_yaml["llm_providers"]
+        del arch_config_yaml["llm_providers"]
+
     listeners, _, _ = convert_legacy_listeners(
-        arch_config_yaml.get("listeners"), arch_config_yaml.get("llm_providers")
+        arch_config_yaml.get("listeners"), arch_config_yaml.get("model_providers")
     )
 
     for prompt_target in arch_config_yaml.get("prompt_targets", []):
@@ -133,7 +145,7 @@ def get_llm_provider_access_keys(arch_config_file):
                     access_key_list.append(v)
 
     for listener in listeners:
-        for llm_provider in listener.get("llm_providers", []):
+        for llm_provider in listener.get("model_providers", []):
             access_key = llm_provider.get("access_key")
             if access_key is not None:
                 access_key_list.append(access_key)

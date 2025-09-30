@@ -184,8 +184,8 @@ mod tests {
     fn create_test_agent_struct(name: &str) -> Agent {
         Agent {
             name: name.to_string(),
-            kind: "test".to_string(),
-            endpoint: "http://localhost:8080".to_string(),
+            kind: Some("test".to_string()),
+            url: "http://localhost:8080".to_string(),
         }
     }
 

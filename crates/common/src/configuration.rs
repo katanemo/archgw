@@ -21,8 +21,8 @@ pub struct ModelAlias {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub name: String,
-    pub kind: String,
-    pub endpoint: String,
+    pub kind: Option<String>,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

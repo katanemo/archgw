@@ -92,7 +92,7 @@ def validate_and_render_schema():
     agents = config_yaml.get("agents", [])
     for agent in agents:
         agent_name = agent.get("name")
-        agent_endpoint = agent.get("endpoint")
+        agent_endpoint = agent.get("url")
 
         if agent_name and agent_endpoint:
             urlparse_result = urlparse(agent_endpoint)
@@ -145,6 +145,8 @@ def validate_and_render_schema():
     model_name_keys = set()
     model_usage_name_keys = set()
 
+    print("listeners: ", listeners)
+
     for listener in listeners:
         if (
             listener.get("model_providers") is None
@@ -163,6 +165,7 @@ def validate_and_render_schema():
                 )
 
             model_name = model_provider.get("model")
+            print("Processing model_provider: ", model_provider)
             if model_name in model_name_keys:
                 raise Exception(
                     f"Duplicate model name {model_name}, please provide unique model name for each model_provider"
@@ -306,7 +309,7 @@ def validate_and_render_schema():
             target = alias_config.get("target")
             if target not in model_name_keys:
                 raise Exception(
-                    f"Model alias '{alias_name}' targets '{target}' which is not defined as a model. Available models: {', '.join(sorted(model_name_keys))}"
+                    f"Model alias 2 - '{alias_name}' targets '{target}' which is not defined as a model. Available models: {', '.join(sorted(model_name_keys))}"
                 )
 
     arch_config_string = yaml.dump(config_yaml)

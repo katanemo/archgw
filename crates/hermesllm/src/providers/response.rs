@@ -787,7 +787,7 @@ mod tests {
         // Test OpenAI event type (should be None)
         let openai_event = ChatCompletionsStreamResponse {
             id: "test".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 123456789,
             model: "gpt-4".to_string(),
             choices: vec![],

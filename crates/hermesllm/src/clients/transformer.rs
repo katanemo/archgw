@@ -210,7 +210,7 @@ impl TryFrom<MessagesResponse> for ChatCompletionsResponse {
 
         Ok(ChatCompletionsResponse {
             id: resp.id,
-            object: "chat.completion".to_string(),
+            object: Some("chat.completion".to_string()),
             created: current_timestamp(),
             model: resp.model,
             choices: vec![choice],
@@ -329,7 +329,7 @@ impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
             MessagesStreamEvent::Ping => {
                 Ok(ChatCompletionsStreamResponse {
                     id: "stream".to_string(),
-                    object: "chat.completion.chunk".to_string(),
+                    object: Some("chat.completion.chunk".to_string()),
                     created: current_timestamp(),
                     model: "unknown".to_string(),
                     choices: vec![],
@@ -709,7 +709,7 @@ fn create_openai_chunk(
 ) -> ChatCompletionsStreamResponse {
     ChatCompletionsStreamResponse {
         id: id.to_string(),
-        object: "chat.completion.chunk".to_string(),
+        object: Some("chat.completion.chunk".to_string()),
         created: current_timestamp(),
         model: model.to_string(),
         choices: vec![StreamChoice {
@@ -1254,7 +1254,7 @@ mod tests {
         let openai_resp: ChatCompletionsStreamResponse = event.try_into().unwrap();
 
         assert_eq!(openai_resp.id, "msg_stream_123");
-        assert_eq!(openai_resp.object, "chat.completion.chunk");
+        assert_eq!(openai_resp.object.as_deref(), Some("chat.completion.chunk"));
         assert_eq!(openai_resp.model, "claude-3");
         assert_eq!(openai_resp.choices.len(), 1);
 
@@ -1276,7 +1276,7 @@ mod tests {
 
         let openai_resp: ChatCompletionsStreamResponse = event.try_into().unwrap();
 
-        assert_eq!(openai_resp.object, "chat.completion.chunk");
+        assert_eq!(openai_resp.object.as_deref(), Some("chat.completion.chunk"));
         assert_eq!(openai_resp.choices.len(), 1);
 
         let choice = &openai_resp.choices[0];
@@ -1376,7 +1376,7 @@ mod tests {
 
         let openai_resp: ChatCompletionsStreamResponse = event.try_into().unwrap();
 
-        assert_eq!(openai_resp.object, "chat.completion.chunk");
+        assert_eq!(openai_resp.object.as_deref(), Some("chat.completion.chunk"));
         assert_eq!(openai_resp.choices.len(), 0); // Ping has no choices
     }
 
@@ -1384,7 +1384,7 @@ mod tests {
     fn test_openai_to_anthropic_streaming_role_start() {
         let openai_resp = ChatCompletionsStreamResponse {
             id: "chatcmpl-123".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "gpt-4".to_string(),
             choices: vec![StreamChoice {
@@ -1420,7 +1420,7 @@ mod tests {
     fn test_openai_to_anthropic_streaming_content_delta() {
         let openai_resp = ChatCompletionsStreamResponse {
             id: "chatcmpl-123".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "gpt-4".to_string(),
             choices: vec![StreamChoice {
@@ -1460,7 +1460,7 @@ mod tests {
     fn test_openai_to_anthropic_streaming_tool_calls() {
         let openai_resp = ChatCompletionsStreamResponse {
             id: "chatcmpl-123".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "gpt-4".to_string(),
             choices: vec![StreamChoice {
@@ -1509,7 +1509,7 @@ mod tests {
     fn test_openai_to_anthropic_streaming_final_usage() {
         let openai_resp = ChatCompletionsStreamResponse {
             id: "chatcmpl-123".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "gpt-4".to_string(),
             choices: vec![StreamChoice {
@@ -1551,7 +1551,7 @@ mod tests {
     fn test_openai_empty_choices_to_anthropic_ping() {
         let openai_resp = ChatCompletionsStreamResponse {
             id: "chatcmpl-123".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "gpt-4".to_string(),
             choices: vec![], // Empty choices
@@ -1690,7 +1690,7 @@ mod tests {
         // Test that malformed streaming events are handled gracefully
         let openai_resp_with_missing_data = ChatCompletionsStreamResponse {
             id: "test".to_string(),
-            object: "chat.completion.chunk".to_string(),
+            object: Some("chat.completion.chunk".to_string()),
             created: 1234567890,
             model: "test".to_string(),
             choices: vec![StreamChoice {
@@ -1722,7 +1722,7 @@ mod tests {
         let openai_resp: ChatCompletionsStreamResponse = event.try_into().unwrap();
 
         // ContentBlockStop should produce an empty chunk
-        assert_eq!(openai_resp.object, "chat.completion.chunk");
+        assert_eq!(openai_resp.object.as_deref(), Some("chat.completion.chunk"));
         assert_eq!(openai_resp.choices.len(), 1);
 
         let choice = &openai_resp.choices[0];

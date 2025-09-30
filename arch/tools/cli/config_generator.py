@@ -18,6 +18,8 @@ SUPPORTED_PROVIDERS = [
     "azure_openai",
     "xai",
     "ollama",
+    "moonshotai",
+    "zhipu",
 ]
 
 

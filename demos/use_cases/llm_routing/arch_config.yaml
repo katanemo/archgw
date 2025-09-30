@@ -19,29 +19,14 @@ llm_providers:
     model: openai/gpt-4o
     default: true
 
-  - access_key: $MISTRAL_API_KEY
-    model: mistral/ministral-3b-latest
-
   - access_key: $ANTHROPIC_API_KEY
     model: anthropic/claude-3-7-sonnet-latest
 
   - access_key: $ANTHROPIC_API_KEY
     model: anthropic/claude-sonnet-4-0
 
-  - access_key: $DEEPSEEK_API_KEY
-    model: deepseek/deepseek-reasoner
-
-  - access_key: $GROQ_API_KEY
-    model: groq/llama-3.1-8b-instant
-
-  - access_key: $GEMINI_API_KEY
-    model: gemini/gemini-1.5-pro-latest
-
-  - model: xai/grok-4-latest
-    access_key: $GROK_API_KEY
-
-  - model: together_ai/openai/gpt-oss-20b
-    access_key: $TOGETHER_API_KEY
+  - model: zhipu/glm-4.6
+    access_key: $ZHIPU_API_KEY
 
   - model: custom/test-model
     base_url: http://host.docker.internal:11223

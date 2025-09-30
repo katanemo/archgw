@@ -380,7 +380,7 @@ pub enum StaticContentType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChatCompletionsResponse {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub created: u64,
     pub model: String,
     pub choices: Vec<Choice>,
@@ -393,7 +393,7 @@ impl Default for ChatCompletionsResponse {
     fn default() -> Self {
         ChatCompletionsResponse {
             id: String::new(),
-            object: String::new(),
+            object: None,
             created: 0,
             model: String::new(),
             choices: vec![],
@@ -486,7 +486,7 @@ impl Default for Choice {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChatCompletionsStreamResponse {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub created: u64,
     pub model: String,
     pub choices: Vec<StreamChoice>,
@@ -549,7 +549,7 @@ pub struct StreamOptions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelDetail {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub created: usize,
     pub owned_by: String,
 }
@@ -1233,7 +1233,7 @@ mod tests {
         let response: ChatCompletionsResponse = serde_json::from_str(json_response).unwrap();
 
         assert_eq!(response.id, "chatcmpl-CAJc2Df6QCc7Mv3RP0Cf2xlbDV1x2");
-        assert_eq!(response.object, "chat.completion");
+        assert_eq!(response.object.as_deref(), Some("chat.completion"));
         assert_eq!(response.created, 1756574706);
         assert_eq!(response.model, "gpt-4o-2024-08-06");
         assert_eq!(response.service_tier, Some("default".to_string()));

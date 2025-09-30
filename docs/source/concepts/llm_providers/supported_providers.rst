@@ -402,6 +402,94 @@ xAI
       - model: xai/grok-beta
         access_key: $XAI_API_KEY
 
+Moonshot AI
+~~~~~~~~~~~
+
+**Provider Prefix:** ``moonshotai/``
+
+**API Endpoint:** ``/v1/chat/completions``
+
+**Authentication:** API Key - Get your Moonshot AI API key from `Moonshot AI Platform <https://platform.moonshot.ai/>`_.
+
+**Supported Chat Models:** All Moonshot AI chat models including Kimi K2, Moonshot v1, and all future releases.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Model Name
+     - Model ID for Config
+     - Description
+   * - Kimi K2 Preview
+     - ``moonshotai/kimi-k2-0905-preview``
+     - Foundation model optimized for agentic tasks with 32B activated parameters
+   * - Moonshot v1 32K
+     - ``moonshotai/moonshot-v1-32k``
+     - Extended context model with 32K tokens
+   * - Moonshot v1 128K
+     - ``moonshotai/moonshot-v1-128k``
+     - Long context model with 128K tokens
+
+**Configuration Examples:**
+
+.. code-block:: yaml
+
+    llm_providers:
+      # Latest K2 models for agentic tasks
+      - model: moonshotai/kimi-k2-0905-preview
+        access_key: $MOONSHOTAI_API_KEY
+
+      # V1 models with different context lengths
+      - model: moonshotai/moonshot-v1-32k
+        access_key: $MOONSHOTAI_API_KEY
+
+      - model: moonshotai/moonshot-v1-128k
+        access_key: $MOONSHOTAI_API_KEY
+
+
+Zhipu AI
+~~~~~~~~
+
+**Provider Prefix:** ``zhipu/``
+
+**API Endpoint:** ``/api/paas/v4/chat/completions``
+
+**Authentication:** API Key - Get your Zhipu AI API key from `Zhipu AI Platform <https://open.bigmodel.cn/console/overview/>`_.
+
+**Supported Chat Models:** All Zhipu AI GLM models including GLM-4, GLM-4 Flash, and all future releases.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Model Name
+     - Model ID for Config
+     - Description
+   * - GLM-4.6
+     - ``zhipu/glm-4.6``
+     - Latest and most capable GLM model with enhanced reasoning abilities
+   * - GLM-4.5
+     - ``zhipu/glm-4.5``
+     - High-performance model with multimodal capabilities
+   * - GLM-4.5 Air
+     - ``zhipu/glm-4.5-air``
+     - Lightweight and fast model optimized for efficiency
+
+**Configuration Examples:**
+
+.. code-block:: yaml
+
+    llm_providers:
+      # Latest GLM models
+      - model: zhipu/glm-4.6
+        access_key: $ZHIPU_API_KEY
+
+      - model: zhipu/glm-4.5
+        access_key: $ZHIPU_API_KEY
+
+      - model: zhipu/glm-4.5-air
+        access_key: $ZHIPU_API_KEY
+
 Providers Requiring Base URL
 ----------------------------
 
@@ -450,6 +538,7 @@ Ollama
       # Ollama in Docker (from host)
       - model: ollama/codellama
         base_url: http://host.docker.internal:11434
+
 
 OpenAI-Compatible Providers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -117,6 +117,13 @@ impl ChatCompletionsRequest {
             self.max_tokens = None;
         }
     }
+
+    pub fn fix_temperature_if_gpt5(&mut self) {
+        let model = self.model.as_str();
+        if model.starts_with("gpt-5") {
+            self.temperature = Some(1.0);
+        }
+    }
 }
 
 // ============================================================================
@@ -599,6 +606,7 @@ impl TryFrom<&[u8]> for ChatCompletionsRequest {
        let mut req: ChatCompletionsRequest = serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)?;
         // Use the centralized suppression logic
         req.suppress_max_tokens_if_o3();
+        req.fix_temperature_if_gpt5();
         Ok(req)
     }
 }

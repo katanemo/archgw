@@ -95,9 +95,9 @@ def find_config_file(path=".", file=None):
         return os.path.abspath(file)
     else:
         # If no file is provided, use the path and look for arch_config.yaml first, then config.yaml for convenience
-        arch_config_file = os.path.abspath(os.path.join(path, "arch_config.yaml"))
+        arch_config_file = os.path.abspath(os.path.join(path, "config.yaml"))
         if not os.path.exists(arch_config_file):
-            arch_config_file = os.path.abspath(os.path.join(path, "config.yaml"))
+            arch_config_file = os.path.abspath(os.path.join(path, "arch_config.yaml"))
         return arch_config_file
 
 

@@ -111,6 +111,7 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
             ..Default::default()
         };
         _chat_completions_req.suppress_max_tokens_if_o3();
+        _chat_completions_req.fix_temperature_if_gpt5();
         Ok(_chat_completions_req)
     }
 }
@@ -1014,7 +1015,7 @@ fn convert_content_delta(delta: MessagesContentDelta) -> Result<ChatCompletionsS
                 "unknown",
                 MessageDelta {
                     role: None,
-                    content: Some(format!("[Thinking: {}]", thinking)),
+                    content: Some(format!("thinking: {}", thinking)),
                     refusal: None,
                     function_call: None,
                     tool_calls: None,

@@ -140,7 +140,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: {{ llm_cluster_name }}
-                            timeout: 60s
+                            timeout: 300s
                       {% endfor %}
 
                       {% if agent_orchestrator %}
@@ -153,7 +153,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: {{ agent_orchestrator }}
-                            timeout: 60s
+                            timeout: 300s
                       {% endif %}
                 http_filters:
                   - name: envoy.filters.http.compressor
@@ -266,7 +266,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: {{ internal_cluster }}
-                            timeout: 60s
+                            timeout: 300s
                         {% endfor %}
 
                         {% for cluster_name, cluster in arch_clusters.items() %}
@@ -279,7 +279,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: {{ cluster_name }}
-                            timeout: 60s
+                            timeout: 300s
                         {% endfor %}
                 http_filters:
                   - name: envoy.filters.http.router
@@ -434,7 +434,7 @@ static_resources:
                           route:
                             auto_host_rewrite: true
                             cluster: {{ llm_cluster_name }}
-                            timeout: 60s
+                            timeout: 300s
                       {% endfor %}
                         - match:
                             prefix: "/"

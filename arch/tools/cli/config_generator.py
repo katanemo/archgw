@@ -242,7 +242,7 @@ def validate_and_render_schema():
     if llm_gateway_listener.get("address") == None:
         llm_gateway_listener["address"] = "127.0.0.1"
     if llm_gateway_listener.get("timeout") == None:
-        llm_gateway_listener["timeout"] = "10s"
+        llm_gateway_listener["timeout"] = "300s"
 
     use_agent_orchestrator = config_yaml.get("overrides", {}).get(
         "use_agent_orchestrator", False

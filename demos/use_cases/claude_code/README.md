@@ -1,133 +1,146 @@
-# Claude Code Routing with (Preference-aligned) Intelligence
+# Claude Code Router - Multi-Model Access with Intelligent Routing
 
-## Why This Matters
+Arch Gateway extends Claude Code to access multiple LLM providers through a single interface. Offering two key benefits:
 
-**Claude Code is powerful, but what if you could access the best of ALL AI models through one familiar interface?**
+1. **Access to Models**: Connect to Grok, Mistral, Gemini, DeepSeek, GPT models, Claude, and local models via Ollama
+2. **Intelligent Routing via Preferences for Coding Tasks**: Configure which models handle specific development tasks:
+   - Code generation and implementation
+   - Code reviews and analysis
+   - Architecture and system design
+   - Debugging and optimization
+   - Documentation and explanations
 
-Instead of being locked into a set of LLMs from one provier, imagine:
-- Using **DeepSeek's coding expertise** for complex algorithms
-- Leveraging **GPT-5's reasoning** for architecture decisions
-- Tapping **Claude's analysis** for code reviews
-- Accessing **Grok's speed** for quick iterations
+Uses a [1.5B preference-aligned router LLM](https://arxiv.org/abs/2506.16655) to automatically select the best model based on your request type.
 
-**All through the same Claude Code interface you already love.**
+## Benefits
 
-## The Solution: Intelligent Multi-LLM Routing
+- **Single Interface**: Access multiple LLM providers through the same Claude Code CLI
+- **Task-Aware Routing**: Requests are analyzed and routed to models based on task type (code generation, debugging, architecture, documentation)
+- **Provider Flexibility**: Add or remove LLM providers without changing your workflow
+- **Routing Transparency**: See which model handles each request and why
 
-Arch Gateway transforms Claude Code into a **universal AI development interface** that:
+## How It Works
 
-### 🌐 **Connects to Any LLM Provider**
-- **OpenAI**: GPT-4.1, GPT-5, etc.
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Haiku, Claude 4.5
-- **DeepSeek**: DeepSeek-V3, DeepSeek-Coder-V2
-- **Grok**: Grok-2, Grok-2-mini
-- **Others**: Gemini, Llama, Mistral, local models via Ollama
+Arch Gateway sits between Claude Code and multiple LLM providers, analyzing each request to route it to the most suitable model:
 
-### 🧠 **Routes Intelligently Based on Task**
-Our research-backed routing system automatically selects the optimal model by analyzing:
-- **Task complexity** (simple refactoring vs. architectural design)
-- **Content type** (code generation vs. debugging vs. documentation)
+```
+Your Request → Arch Gateway → Suitable Model → Response
+             ↓
+    [Task Analysis & Model Selection]
+```
+
+**Supported Providers**: OpenAI-compatible, Anthropic, DeepSeek, Grok, Gemini, Llama, Mistral, local models via Ollama. See [full list of supported providers](https://docs.archgw.com/concepts/llm_providers/supported_providers.html).
 
 
-## Quick Start
+## Quick Start (5 minutes)
 
 ### Prerequisites
-- Claude Code installed: `npm install -g @anthropic-ai/claude-code`
-- Docker running on your system
-- Create a python virtual environment in your current working directory
-
-### 1. Get the Configuration File
-Download the demo configuration file using one of these methods:
-
-**Option A: Direct download**
 ```bash
-curl -O https://raw.githubusercontent.com/katanemo/arch/main/demos/use_cases/claude_code/config.yaml
+# Install Claude Code if you haven't already
+npm install -g @anthropic-ai/claude-code
+
+# Ensure Docker is running
+docker --version
 ```
 
-**Option B: Clone the repository**
+### Step 1: Get Configuration
 ```bash
+# Clone and navigate to demo
 git clone https://github.com/katanemo/arch.git
 cd arch/demos/use_cases/claude_code
-
 ```
 
-### 2. Set Up Your API Keys
-Set up your environment variables with your actual API keys:
+### Step 2: Set API Keys
 ```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export AZURE_API_KEY="your-azure-api-key"  # Optional
+# Copy the sample environment file
+cp .env .env.local
+
+# Edit with your actual API keys
+export OPENAI_API_KEY="your-openai-key-here"
+export ANTHROPIC_API_KEY="your-anthropic-key-here"
+# Add other providers as needed
 ```
 
-Alternatively, create a `.env` file in your working directory:
+### Step 3: Start Arch Gateway
 ```bash
-echo "OPENAI_API_KEY=your-openai-api-key" > .env
-echo "ANTHROPIC_API_KEY=your-anthropic-api-key" >> .env
-```
-
-### 3. Install and Start Arch Gateway
-```bash
+# Install and start the gateway
 pip install archgw
 archgw up
 ```
 
-### 4. Launch Claude Code with Multi-LLM Support
+### Step 4: Launch Enhanced Claude Code
 ```bash
+# This will launch Claude Code with multi-model routing
 archgw cli-agent claude
 ```
+![claude code](claude_code.png)
 
-That's it! Claude Code now has access to multiple LLM providers with intelligent routing.
+### Monitor Model Selection in Real-Time
 
-## What You'll Experience
+While using Claude Code, open a **second terminal** and run this helper script to watch routing decisions. This script shows you:
+- **Which model** was selected for each request
+- **Real-time routing decisions** as you work
 
-### Screenshot Placeholder
-![Claude Code with Multi-LLM Routing](screenshot-placeholder.png)
-*Claude Code interface enhanced with intelligent model routing and multi-provider access*
+```bash
+# In a new terminal window (from the same directory)
+sh pretty_model_resolution.sh
+```
+![model_selection](model_selection.png)
 
-### Real-Time Model Selection
-When you interact with Claude Code, you'll get:
-- **Automatic model selection** based on your query type
-- **Transparent routing decisions** showing which model was chosen and why
-- **Seamless failover** if a model becomes unavailable
+## Understanding the Configuration
 
-## Configuration
+The `config.yaml` file defines your multi-model setup:
 
-The setup uses the included `config.yaml` file which defines:
-
-### Multi-Provider Access
 ```yaml
 llm_providers:
   - model: openai/gpt-4.1-2025-04-14
     access_key: $OPENAI_API_KEY
     routing_preferences:
-    - name: code generation
+      - name: code generation
         description: generating new code snippets and functions
+
   - model: anthropic/claude-3-5-sonnet-20241022
     access_key: $ANTHROPIC_API_KEY
     routing_preferences:
-        name: code understanding
+      - name: code understanding
         description: explaining and analyzing existing code
 ```
+
 ## Advanced Usage
 
-### Custom Model Selection
+### Override Model Selection
 ```bash
 # Force a specific model for this session
 archgw cli-agent claude --settings='{"ANTHROPIC_SMALL_FAST_MODEL": "deepseek-coder-v2"}'
 
-# Enable detailed routing information
-archgw cli-agent claude --settings='{"statusLine": {"type": "command", "command": "ccr statusline"}}'
-```
-
 ### Environment Variables
-The system automatically configures:
+The system automatically configures these variables for Claude Code:
 ```bash
 ANTHROPIC_BASE_URL=http://127.0.0.1:12000  # Routes through Arch Gateway
 ANTHROPIC_SMALL_FAST_MODEL=arch.claude.code.small.fast    # Uses intelligent alias
 ```
 
-## Real Developer Workflows
+### Custom Routing Configuration
+Edit `config.yaml` to define custom task→model mappings:
 
-This intelligent routing is powered by our research in preference-aligned LLMM routing:
-- **Research Paper**: [Preference-Aligned LLM Router](https://arxiv.org/abs/2506.16655)
-- **Technical Docs**: [docs.archgw.com](https://docs.archgw.com)
+```yaml
+llm_providers:
+  # OpenAI Models
+  - model: openai/gpt-5-2025-08-07
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code generation
+        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
+
+  - model: openai/gpt-4.1-2025-04-14
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code understanding
+        description: understand and explain existing code snippets, functions, or libraries
+```
+
+## Technical Details
+
+**How routing works:** Arch intercepts Claude Code requests, analyzes the content using preference-aligned routing, and forwards to the configured model.
+**Research foundation:** Built on our research in [Preference-Aligned LLM Routing](https://arxiv.org/abs/2506.16655)
+**Documentation:** [docs.archgw.com](https://docs.archgw.com) for advanced configuration and API details.

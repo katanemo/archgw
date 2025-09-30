@@ -88,6 +88,7 @@ pub struct ChatCompletionsRequest {
     pub prediction: Option<StaticContent>,
     // pub reasoning_effect: Option<bool>, // GOOD FIRST ISSUE: Future support for reasoning effects
     pub response_format: Option<Value>,
+    pub reasoning_effort: Option<String>, // e.g., "none", "low", "medium", "high"
     // pub safety_identifier: Option<String>, // GOOD FIRST ISSUE: Future support for safety identifiers
     pub seed: Option<i32>,
     pub service_tier: Option<String>,
@@ -114,6 +115,13 @@ impl ChatCompletionsRequest {
             || model.starts_with("openrouter/o3-");
         if is_o3 {
             self.max_tokens = None;
+        }
+    }
+
+    pub fn fix_temperature_if_gpt5(&mut self) {
+        let model = self.model.as_str();
+        if model.starts_with("gpt-5") {
+            self.temperature = Some(1.0);
         }
     }
 }
@@ -598,6 +606,7 @@ impl TryFrom<&[u8]> for ChatCompletionsRequest {
        let mut req: ChatCompletionsRequest = serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)?;
         // Use the centralized suppression logic
         req.suppress_max_tokens_if_o3();
+        req.fix_temperature_if_gpt5();
         Ok(req)
     }
 }

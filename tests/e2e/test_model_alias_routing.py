@@ -199,8 +199,7 @@ def test_400_error_handling_with_alias():
     try:
         completion = client.chat.completions.create(
             model="arch.summarize.v1",  # This should resolve to gpt-5-mini-2025-08-07
-            max_completion_tokens=50,
-            temperature=0.7,  # This is a typo - should be "temperature", which should trigger a 400 error
+            max_tokens=50,
             messages=[
                 {
                     "role": "user",
@@ -350,3 +349,57 @@ def test_direct_model_4o_mini_anthropic():
     response_content = "".join(b.text for b in message.content if b.type == "text")
     logger.info(f"Response from direct 4o-mini via Anthropic: {response_content}")
     assert response_content == "Hello from direct 4o-mini via Anthropic!"
+
+
+def test_anthropic_thinking_mode_streaming():
+    # Anthropic base_url should be the root, not /v1/chat/completions
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY", "test-key"),
+        base_url=base_url,
+    )
+
+    thinking_block_started = False
+    thinking_delta_seen = False
+    text_delta_seen = False
+
+    with client.messages.stream(
+        model="claude-sonnet-4-20250514",
+        max_tokens=2048,
+        thinking={"type": "enabled", "budget_tokens": 1024},  # <- idiomatic
+        messages=[{"role": "user", "content": "Explain briefly what 2+2 equals"}],
+    ) as stream:
+        for event in stream:
+            # 1) detect when a thinking block starts
+            if event.type == "content_block_start" and getattr(
+                event, "content_block", None
+            ):
+                if getattr(event.content_block, "type", None) == "thinking":
+                    thinking_block_started = True
+
+            # 2) collect text vs thinking deltas
+            if event.type == "content_block_delta" and getattr(event, "delta", None):
+                if event.delta.type == "text_delta":
+                    text_delta_seen = True
+                elif event.delta.type == "thinking_delta":
+                    # some SDKs expose .thinking, others .text for this delta; not needed here
+                    thinking_delta_seen = True
+
+        final = stream.get_final_message()
+
+    # Basic integrity
+    assert final is not None
+    assert final.content and len(final.content) > 0
+
+    # Normal text should have streamed
+    assert text_delta_seen, "Expected normal text deltas in stream"
+
+    # With thinking enabled, we expect a thinking block and at least one thinking delta
+    assert thinking_block_started, "No thinking block started"
+    assert thinking_delta_seen, "No thinking deltas observed"
+
+    # Optional: double-check on the assembled message
+    final_block_types = [blk.type for blk in final.content]
+    assert "text" in final_block_types
+    assert "thinking" in final_block_types

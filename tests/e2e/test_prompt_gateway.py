@@ -417,12 +417,12 @@ def test_anthropic_client_with_openai_model_streaming():
     client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
 
     with client.messages.stream(
-        model="gpt-4o-mini",  # OpenAI model via Anthropic client
-        max_tokens=50,
+        model="gpt-5-mini-2025-08-07",  # OpenAI model via Anthropic client
+        max_tokens=500,
         messages=[
             {
                 "role": "user",
-                "content": "Hello, please respond with exactly: Hello from GPT-4o-mini via Anthropic!",
+                "content": "Hello, please respond with exactly: Hello from ChatGPT!",
             }
         ],
     ) as stream:
@@ -435,8 +435,8 @@ def test_anthropic_client_with_openai_model_streaming():
         # A safe way to reassemble text from the content blocks:
         final_text = "".join(b.text for b in final.content if b.type == "text")
 
-    assert full_text == "Hello from GPT-4o-mini via Anthropic!"
-    assert final_text == "Hello from GPT-4o-mini via Anthropic!"
+    assert full_text == "Hello from ChatGPT!"
+    assert final_text == "Hello from ChatGPT!"
 
 
 def test_openai_gpt4o_mini_v1_messages_api():

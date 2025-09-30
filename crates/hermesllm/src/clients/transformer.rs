@@ -111,6 +111,7 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
             ..Default::default()
         };
         _chat_completions_req.suppress_max_tokens_if_o3();
+        _chat_completions_req.fix_temperature_if_gpt5();
         Ok(_chat_completions_req)
     }
 }
@@ -352,6 +353,7 @@ impl TryFrom<ChatCompletionsStreamResponse> for MessagesStreamEvent {
         let choice = &resp.choices[0];
 
         // Handle final chunk with usage
+        let has_usage = resp.usage.is_some();
         if let Some(usage) = resp.usage {
             if let Some(finish_reason) = &choice.finish_reason {
                 let anthropic_stop_reason: MessagesStopReason = finish_reason.clone().into();
@@ -403,11 +405,27 @@ impl TryFrom<ChatCompletionsStreamResponse> for MessagesStreamEvent {
             return convert_tool_call_deltas(tool_calls.clone());
         }
 
-        // Handle finish reason
+        // Handle finish reason - generate MessageDelta only (MessageStop comes later)
         if let Some(finish_reason) = &choice.finish_reason {
-            if *finish_reason == FinishReason::Stop {
-                return Ok(MessagesStreamEvent::MessageStop);
+            // If we have usage data, it was already handled above
+            // If not, we need to generate MessageDelta with default usage
+            if !has_usage {
+                let anthropic_stop_reason: MessagesStopReason = finish_reason.clone().into();
+                return Ok(MessagesStreamEvent::MessageDelta {
+                    delta: MessagesMessageDelta {
+                        stop_reason: anthropic_stop_reason,
+                        stop_sequence: None,
+                    },
+                    usage: MessagesUsage {
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: None,
+                        cache_read_input_tokens: None,
+                    },
+                });
             }
+            // If usage was already handled above, we don't need to do anything more here
+            // MessageStop will be handled when [DONE] is encountered
         }
 
         // Default to ping for unhandled cases
@@ -468,18 +486,6 @@ impl TryFrom<MessagesMessage> for Vec<Message> {
             }
             MessagesMessageContent::Blocks(blocks) => {
                 let (content_parts, tool_calls, tool_results) = blocks.split_for_openai()?;
-
-                // Create main message
-                let content = build_openai_content(content_parts, &tool_calls);
-                let main_message = Message {
-                    role: message.role.into(),
-                    content,
-                    name: None,
-                    tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
-                    tool_call_id: None,
-                };
-                result.push(main_message);
-
                 // Add tool result messages
                 for (tool_use_id, result_text, _is_error) in tool_results {
                     result.push(Message {
@@ -489,6 +495,20 @@ impl TryFrom<MessagesMessage> for Vec<Message> {
                         tool_calls: None,
                         tool_call_id: Some(tool_use_id),
                     });
+                }
+
+                // Only create main message if there's actual content or tool calls
+                // Skip creating empty content messages (e.g., when message only contains tool_result blocks)
+                if !content_parts.is_empty() || !tool_calls.is_empty() {
+                    let content = build_openai_content(content_parts, &tool_calls);
+                    let main_message = Message {
+                        role: message.role.into(),
+                        content,
+                        name: None,
+                        tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
+                        tool_call_id: None,
+                    };
+                    result.push(main_message);
                 }
             }
         }
@@ -515,9 +535,11 @@ impl TryFrom<Message> for MessagesMessage {
                         MessagesContentBlock::ToolResult {
                             tool_use_id: tool_call_id,
                             is_error: None,
-                            content: vec![MessagesContentBlock::Text {
+                            content: ToolResultContent::Blocks(vec![MessagesContentBlock::Text {
                                 text: message.content.extract_text(),
-                            }],
+                                cache_control: None,
+                            }]),
+                            cache_control: None,
                         },
                     ]),
                 });
@@ -551,7 +573,7 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
 
         for block in self {
             match block {
-                MessagesContentBlock::ToolUse { id, name, input } |
+                MessagesContentBlock::ToolUse { id, name, input, .. } |
                 MessagesContentBlock::ServerToolUse { id, name, input } |
                 MessagesContentBlock::McpToolUse { id, name, input } => {
                     let arguments = serde_json::to_string(&input)?;
@@ -575,7 +597,7 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
 
         for block in self {
             match block {
-                MessagesContentBlock::Text { text } => {
+                MessagesContentBlock::Text { text, .. } => {
                     content_parts.push(ContentPart::Text { text: text.clone() });
                 }
                 MessagesContentBlock::Image { source } => {
@@ -587,7 +609,7 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
                         },
                     });
                 }
-                MessagesContentBlock::ToolUse { id, name, input } |
+                MessagesContentBlock::ToolUse { id, name, input, .. } |
                 MessagesContentBlock::ServerToolUse { id, name, input } |
                 MessagesContentBlock::McpToolUse { id, name, input } => {
                     let arguments = serde_json::to_string(&input)?;
@@ -597,7 +619,10 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
                         function: FunctionCall { name: name.clone(), arguments },
                     });
                 }
-                MessagesContentBlock::ToolResult { tool_use_id, content, is_error } |
+                MessagesContentBlock::ToolResult { tool_use_id, content, is_error, .. } => {
+                    let result_text = content.extract_text();
+                    tool_results.push((tool_use_id.clone(), result_text, is_error.unwrap_or(false)));
+                }
                 MessagesContentBlock::WebSearchToolResult { tool_use_id, content, is_error } |
                 MessagesContentBlock::CodeExecutionToolResult { tool_use_id, content, is_error } |
                 MessagesContentBlock::McpToolResult { tool_use_id, content, is_error } => {
@@ -819,7 +844,7 @@ fn build_openai_content(content_parts: Vec<ContentPart>, tool_calls: &[ToolCall]
 fn build_anthropic_content(content_blocks: Vec<MessagesContentBlock>) -> MessagesMessageContent {
     if content_blocks.len() == 1 {
         match &content_blocks[0] {
-            MessagesContentBlock::Text { text } => MessagesMessageContent::Single(text.clone()),
+            MessagesContentBlock::Text { text, .. } => MessagesMessageContent::Single(text.clone()),
             _ => MessagesMessageContent::Blocks(content_blocks),
         }
     } else if content_blocks.is_empty() {
@@ -835,12 +860,11 @@ fn convert_anthropic_content_to_openai(content: &[MessagesContentBlock]) -> Resu
 
     for block in content {
         match block {
-            MessagesContentBlock::Text { text } => {
+            MessagesContentBlock::Text { text, .. } => {
                 text_parts.push(text.clone());
             }
-            MessagesContentBlock::Thinking { text } => {
-                // Include thinking as regular text for OpenAI
-                text_parts.push(format!("[Thinking: {}]", text));
+            MessagesContentBlock::Thinking { thinking, .. } => {
+                text_parts.push(format!("thinking: {}", thinking));
             }
             _ => {
                 // Skip other content types for basic text conversion
@@ -860,14 +884,14 @@ fn convert_openai_message_to_anthropic_content(message: &Message) -> Result<Vec<
     match &message.content {
         MessageContent::Text(text) => {
             if !text.is_empty() {
-                blocks.push(MessagesContentBlock::Text { text: text.clone() });
+                blocks.push(MessagesContentBlock::Text { text: text.clone(), cache_control: None });
             }
         }
         MessageContent::Parts(parts) => {
             for part in parts {
                 match part {
                     ContentPart::Text { text } => {
-                        blocks.push(MessagesContentBlock::Text { text: text.clone() });
+                        blocks.push(MessagesContentBlock::Text { text: text.clone(), cache_control: None });
                     }
                     ContentPart::ImageUrl { image_url } => {
                         let source = convert_image_url_to_source(image_url);
@@ -886,6 +910,7 @@ fn convert_openai_message_to_anthropic_content(message: &Message) -> Result<Vec<
                 id: tool_call.id.clone(),
                 name: tool_call.function.name.clone(),
                 input,
+                cache_control: None,
             });
         }
     }
@@ -984,6 +1009,21 @@ fn convert_content_delta(delta: MessagesContentDelta) -> Result<ChatCompletionsS
                 None,
             ))
         }
+        MessagesContentDelta::ThinkingDelta { thinking } => {
+            Ok(create_openai_chunk(
+                "stream",
+                "unknown",
+                MessageDelta {
+                    role: None,
+                    content: Some(format!("thinking: {}", thinking)),
+                    refusal: None,
+                    function_call: None,
+                    tool_calls: None,
+                },
+                None,
+                None,
+            ))
+        }
         MessagesContentDelta::InputJsonDelta { partial_json } => {
             Ok(create_openai_chunk(
                 "stream",
@@ -1023,6 +1063,7 @@ fn convert_tool_call_deltas(tool_calls: Vec<ToolCallDelta>) -> Result<MessagesSt
                             id: id.clone(),
                             name: name.clone(),
                             input: Value::Object(serde_json::Map::new()),
+                            cache_control: None,
                         },
                     });
                 }
@@ -1254,6 +1295,7 @@ mod tests {
                 id: "call_123".to_string(),
                 name: "get_weather".to_string(),
                 input: json!({}),
+                cache_control: None,
             },
         };
 
@@ -1566,6 +1608,7 @@ mod tests {
                 id: "call_weather".to_string(),
                 name: "get_weather".to_string(),
                 input: json!({}),
+                cache_control: None,
             },
         };
 

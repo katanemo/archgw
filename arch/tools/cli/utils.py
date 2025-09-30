@@ -21,6 +21,22 @@ def getLogger(name="cli"):
 log = getLogger(__name__)
 
 
+def has_ingress_listener(arch_config_file):
+    """Check if the arch config file has ingress_traffic listener configured."""
+    try:
+        with open(arch_config_file) as f:
+            arch_config_dict = yaml.safe_load(f)
+
+        ingress_traffic = arch_config_dict.get("listeners", {}).get(
+            "ingress_traffic", {}
+        )
+
+        return bool(ingress_traffic)
+    except Exception as e:
+        log.error(f"Error reading config file {arch_config_file}: {e}")
+        return False
+
+
 def convert_legacy_llm_providers(
     listeners: dict | list, llm_providers: list | None
 ) -> tuple[list, dict | None, dict | None]:
@@ -145,6 +161,19 @@ def load_env_file_to_dict(file_path):
                 env_dict[key] = value
 
     return env_dict
+
+
+def find_config_file(path=".", file=None):
+    """Find the appropriate config file path."""
+    if file:
+        # If a file is provided, process that file
+        return os.path.abspath(file)
+    else:
+        # If no file is provided, use the path and look for arch_config.yaml first, then config.yaml for convenience
+        arch_config_file = os.path.abspath(os.path.join(path, "config.yaml"))
+        if not os.path.exists(arch_config_file):
+            arch_config_file = os.path.abspath(os.path.join(path, "arch_config.yaml"))
+        return arch_config_file
 
 
 def stream_access_logs(follow):

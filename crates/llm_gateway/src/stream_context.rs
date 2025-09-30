@@ -395,23 +395,15 @@ impl StreamContext {
         }
     }
 
-    fn debug_log_body(&self, body: &[u8]) {
-        debug!(
-            "[ARCHGW_REQ_ID:{}] UPSTREAM_RAW_RESPONSE: body_size={} content={}",
-            self.request_identifier(),
-            body.len(),
-            String::from_utf8_lossy(body)
-        );
-    }
-
     fn handle_streaming_response(
         &mut self,
         body: &[u8],
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
         debug!(
-            "[ARCHGW_REQ_ID:{}] STREAMING_PROCESS: provider_id={:?} chunk_size={}",
+            "[ARCHGW_REQ_ID:{}] STREAMING_PROCESS: client={:?} provider_id={:?} chunk_size={}",
             self.request_identifier(),
+            self.client_api,
             provider_id,
             body.len()
         );
@@ -958,7 +950,12 @@ impl HttpContext for StreamContext {
             Err(action) => return action,
         };
 
-        self.debug_log_body(&body);
+        debug!(
+            "[ARCHGW_REQ_ID:{}] UPSTREAM_RAW_RESPONSE: body_size={} content={}",
+            self.request_identifier(),
+            body.len(),
+            String::from_utf8_lossy(&body)
+        );
 
         let provider_id = self.get_provider_id();
         if self.streaming_response {

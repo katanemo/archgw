@@ -4,13 +4,20 @@ import sys
 import subprocess
 import multiprocessing
 import importlib.metadata
+import json
 from cli import targets
-from cli.docker_cli import docker_validate_archgw_schema, stream_gateway_logs
+from cli.docker_cli import (
+    docker_validate_archgw_schema,
+    stream_gateway_logs,
+    docker_container_status,
+)
 from cli.utils import (
     getLogger,
     get_llm_provider_access_keys,
+    has_ingress_listener,
     load_env_file_to_dict,
     stream_access_logs,
+    find_config_file,
 )
 from cli.core import (
     start_arch_modelserver,
@@ -18,9 +25,11 @@ from cli.core import (
     start_arch,
     stop_docker_container,
     download_models_from_hf,
+    start_cli_agent,
 )
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
+    ARCHGW_DOCKER_NAME,
     KATANEMO_DOCKERHUB_REPO,
     SERVICE_NAME_ARCHGW,
     SERVICE_NAME_MODEL_SERVER,
@@ -170,12 +179,8 @@ def up(file, path, service, foreground):
         start_arch_modelserver(foreground)
         return
 
-    if file:
-        # If a file is provided, process that file
-        arch_config_file = os.path.abspath(file)
-    else:
-        # If no file is provided, use the path and look for arch_config.yaml
-        arch_config_file = os.path.abspath(os.path.join(path, "arch_config.yaml"))
+    # Use the utility function to find config file
+    arch_config_file = find_config_file(path, file)
 
     # Check if the file exists
     if not os.path.exists(arch_config_file):
@@ -183,7 +188,6 @@ def up(file, path, service, foreground):
         return
 
     log.info(f"Validating {arch_config_file}")
-
     (
         validation_return_code,
         validation_stdout,
@@ -240,8 +244,15 @@ def up(file, path, service, foreground):
     if service == SERVICE_NAME_ARCHGW:
         start_arch(arch_config_file, env, foreground=foreground)
     else:
-        download_models_from_hf()
-        start_arch_modelserver(foreground)
+        # Check if ingress_traffic listener is configured before starting model_server
+        if has_ingress_listener(arch_config_file):
+            download_models_from_hf()
+            start_arch_modelserver(foreground)
+        else:
+            log.info(
+                "Skipping model_server startup: no ingress_traffic listener configured in arch_config.yaml"
+            )
+
         start_arch(arch_config_file, env, foreground=foreground)
 
 
@@ -321,10 +332,51 @@ def logs(debug, follow):
             archgw_process.terminate()
 
 
+@click.command()
+@click.argument("type", type=click.Choice(["claude"]), required=True)
+@click.argument("file", required=False)  # Optional file argument
+@click.option(
+    "--path", default=".", help="Path to the directory containing arch_config.yaml"
+)
+@click.option(
+    "--settings",
+    default="{}",
+    help="Additional settings as JSON string for the CLI agent.",
+)
+def cli_agent(type, file, path, settings):
+    """Start a CLI agent connected to Arch.
+
+    CLI_AGENT: The type of CLI agent to start (currently only 'claude' is supported)
+    """
+
+    # Check if archgw docker container is running
+    archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
+    if archgw_status != "running":
+        log.error(f"archgw docker container is not running (status: {archgw_status})")
+        log.error("Please start archgw using the 'archgw up' command.")
+        sys.exit(1)
+
+    # Determine arch_config.yaml path
+    arch_config_file = find_config_file(path, file)
+    if not os.path.exists(arch_config_file):
+        log.error(f"Config file not found: {arch_config_file}")
+        sys.exit(1)
+
+    try:
+        start_cli_agent(arch_config_file, settings)
+    except SystemExit:
+        # Re-raise SystemExit to preserve exit codes
+        raise
+    except Exception as e:
+        click.echo(f"Error: {e}")
+        sys.exit(1)
+
+
 main.add_command(up)
 main.add_command(down)
 main.add_command(build)
 main.add_command(logs)
+main.add_command(cli_agent)
 main.add_command(generate_prompt_targets)
 
 if __name__ == "__main__":

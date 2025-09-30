@@ -11,7 +11,7 @@ endpoints:
     port: 8001
 listeners:
 - address: 0.0.0.0
-  llm_providers:
+  model_providers:
   - access_key: $OPENAI_API_KEY
     default: true
     model: gpt-4o
@@ -38,7 +38,12 @@ listeners:
   port: 10000
   protocol: openai
   timeout: 5s
-llm_providers:
+model_aliases:
+  arch.summarize.v1:
+    target: gpt-4o
+  arch.v1:
+    target: mistral-8x7b
+model_providers:
 - access_key: $OPENAI_API_KEY
   default: true
   model: gpt-4o
@@ -56,11 +61,6 @@ llm_providers:
   port: 80
   protocol: http
   provider_interface: mistral
-model_aliases:
-  arch.summarize.v1:
-    target: gpt-4o
-  arch.v1:
-    target: mistral-8x7b
 overrides:
   prompt_target_intent_matching_threshold: 0.6
 prompt_guards:

@@ -15,9 +15,30 @@ properties:
     items:
       type: object
   listeners:
-    anyOf:
+    oneOf:
       - type: array
-      - type: object
+        additionalProperties: false
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            port:
+              type: integer
+            address:
+              type: string
+            timeout:
+              type: string
+            type:
+              type: string
+              enum:
+                - model_listener
+                - prompt_listener
+                - agent_listener
+          required:
+            - type
+            - name
+      - type: object # deprecated legacy format, use list format instead
         additionalProperties: false
         properties:
           ingress_traffic:
@@ -69,7 +90,52 @@ properties:
         additionalProperties: false
         required:
           - endpoint
-  llm_providers:
+
+  model_providers:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        access_key:
+          type: string
+        model:
+          type: string
+        default:
+          type: boolean
+        base_url:
+          type: string
+        http_host:
+          type: string
+        provider_interface:
+          type: string
+          enum:
+            - arch
+            - claude
+            - deepseek
+            - groq
+            - mistral
+            - openai
+            - gemini
+        routing_preferences:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+          additionalProperties: false
+          required:
+            - name
+            - description
+      additionalProperties: false
+      required:
+        - model
+
+  llm_providers: # deprecated for legacy support, use model_providers instead
     type: array
     items:
       type: object

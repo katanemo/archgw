@@ -37,20 +37,22 @@ def has_ingress_listener(arch_config_file):
         return False
 
 
-def convert_legacy_llm_providers(
-    listeners: dict | list, llm_providers: list | None
+def convert_legacy_listeners(
+    listeners: dict | list, model_providers: list | None
 ) -> tuple[list, dict | None, dict | None]:
     llm_gateway_listener = {
         "name": "egress_traffic",
+        "type": "model_listener",
         "port": 12000,
         "address": "0.0.0.0",
         "timeout": "30s",
-        "llm_providers": [],
+        "model_providers": model_providers or [],
         "protocol": "openai",
     }
 
     prompt_gateway_listener = {
         "name": "ingress_traffic",
+        "type": "prompt_listener",
         "port": 10000,
         "address": "0.0.0.0",
         "timeout": "30s",
@@ -74,10 +76,10 @@ def convert_legacy_llm_providers(
         llm_gateway_listener["timeout"] = egress_traffic.get(
             "timeout", llm_gateway_listener["timeout"]
         )
-        if llm_providers is None or llm_providers == []:
-            raise ValueError("llm_providers cannot be empty when using legacy format")
+        if model_providers is None or model_providers == []:
+            raise ValueError("model_providers cannot be empty when using legacy format")
 
-        llm_gateway_listener["llm_providers"] = llm_providers
+        llm_gateway_listener["model_providers"] = model_providers
         updated_listeners.append(llm_gateway_listener)
 
         if ingress_traffic and ingress_traffic != {}:
@@ -94,15 +96,16 @@ def convert_legacy_llm_providers(
 
         return updated_listeners, llm_gateway_listener, prompt_gateway_listener
 
-    llm_provider_set = False
+    model_provider_set = False
     for listener in listeners:
-        if listener.get("llm_providers") is not None:
-            if llm_provider_set:
+        if listener.get("type") == "model_listener":
+            if model_provider_set:
                 raise ValueError(
-                    "Currently only one listener can have llm_providers set"
+                    "Currently only one listener can have model_providers set"
                 )
+            listener["model_providers"] = model_providers or []
+            model_provider_set = True
             llm_gateway_listener = listener
-            llm_provider_set = True
 
     return listeners, llm_gateway_listener, prompt_gateway_listener
 
@@ -113,7 +116,7 @@ def get_llm_provider_access_keys(arch_config_file):
         arch_config_yaml = yaml.safe_load(arch_config)
 
     access_key_list = []
-    listeners, _, _ = convert_legacy_llm_providers(
+    listeners, _, _ = convert_legacy_listeners(
         arch_config_yaml.get("listeners"), arch_config_yaml.get("llm_providers")
     )
 

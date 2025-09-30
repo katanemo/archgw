@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let arch_config = Arc::new(config);
 
-    let llm_providers = Arc::new(RwLock::new(arch_config.llm_providers.clone()));
+    let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
     let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
 
@@ -87,11 +87,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let routing_llm_provider = arch_config
         .routing
         .as_ref()
-        .and_then(|r| r.llm_provider.clone())
+        .and_then(|r| r.model_provider.clone())
         .unwrap_or_else(|| DEFAULT_ROUTING_LLM_PROVIDER.to_string());
 
     let router_service: Arc<RouterService> = Arc::new(RouterService::new(
-        arch_config.llm_providers.clone(),
+        arch_config.model_providers.clone(),
         llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
         routing_model_name,
         routing_llm_provider,

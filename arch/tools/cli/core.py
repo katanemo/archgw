@@ -5,7 +5,7 @@ import time
 import sys
 
 import yaml
-from cli.utils import convert_legacy_llm_providers, getLogger
+from cli.utils import convert_legacy_listeners, getLogger
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
@@ -37,7 +37,7 @@ def _get_gateway_ports(arch_config_file: str) -> list[int]:
 
     print("arch config dict json string: ", json.dumps(arch_config_dict))
 
-    listeners, _, _ = convert_legacy_llm_providers(
+    listeners, _, _ = convert_legacy_listeners(
         arch_config_dict.get("listeners"), arch_config_dict.get("llm_providers")
     )
 

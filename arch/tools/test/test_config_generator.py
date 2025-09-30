@@ -350,7 +350,7 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
 
 
 def test_convert_legacy_llm_providers():
-    from cli.utils import convert_legacy_llm_providers
+    from cli.utils import convert_legacy_listeners
 
     listeners = {
         "ingress_traffic": {
@@ -373,7 +373,7 @@ def test_convert_legacy_llm_providers():
         }
     ]
 
-    updated_providers, llm_gateway, prompt_gateway = convert_legacy_llm_providers(
+    updated_providers, llm_gateway, prompt_gateway = convert_legacy_listeners(
         listeners, llm_providers
     )
     assert isinstance(updated_providers, list)
@@ -425,7 +425,7 @@ def test_convert_legacy_llm_providers():
 
 
 def test_convert_legacy_llm_providers_no_prompt_gateway():
-    from cli.utils import convert_legacy_llm_providers
+    from cli.utils import convert_legacy_listeners
 
     listeners = {
         "egress_traffic": {
@@ -442,7 +442,7 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
         }
     ]
 
-    updated_providers, llm_gateway, prompt_gateway = convert_legacy_llm_providers(
+    updated_providers, llm_gateway, prompt_gateway = convert_legacy_listeners(
         listeners, llm_providers
     )
     assert isinstance(updated_providers, list)

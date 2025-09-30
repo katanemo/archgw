@@ -1,3 +1,4 @@
+import json
 import pytest
 from unittest import mock
 import sys
@@ -111,6 +112,7 @@ agents:
 
 listeners:
   - name: tmobile
+    type: agent_listener
     router: arch_agent_v2
     agents:
       - name: simple_tmobile_rag_agent
@@ -127,6 +129,7 @@ listeners:
     port: 8000
 
   - name: llm_provider
+    type: model_listener
     description: llm provider configuration
     port: 12000
     protocol: openai
@@ -161,7 +164,7 @@ listeners:
 arch_config_test_cases = [
     {
         "id": "duplicate_provider_name",
-        "expected_error": "Duplicate llm_provider name",
+        "expected_error": "Duplicate model_provider name",
         "arch_config": """
 version: v0.1.0
 
@@ -379,37 +382,37 @@ def test_convert_legacy_llm_providers():
     assert isinstance(updated_providers, list)
     assert llm_gateway is not None
     assert prompt_gateway is not None
+    print(json.dumps(updated_providers))
     assert updated_providers == [
         {
-            "address": "0.0.0.0",
-            "llm_providers": [
-                {
-                    "access_key": "test_key",
-                    "model": "openai/gpt-4o",
-                },
-            ],
             "name": "egress_traffic",
+            "type": "model_listener",
             "port": 12000,
-            "protocol": "openai",
+            "address": "0.0.0.0",
             "timeout": "30s",
+            "model_providers": [{"model": "openai/gpt-4o", "access_key": "test_key"}],
+            "protocol": "openai",
         },
         {
-            "address": "0.0.0.0",
             "name": "ingress_traffic",
+            "type": "prompt_listener",
             "port": 10000,
-            "protocol": "openai",
+            "address": "0.0.0.0",
             "timeout": "30s",
+            "protocol": "openai",
         },
     ]
+
     assert llm_gateway == {
         "address": "0.0.0.0",
-        "llm_providers": [
+        "model_providers": [
             {
                 "access_key": "test_key",
                 "model": "openai/gpt-4o",
             },
         ],
         "name": "egress_traffic",
+        "type": "model_listener",
         "port": 12000,
         "protocol": "openai",
         "timeout": "30s",
@@ -421,6 +424,7 @@ def test_convert_legacy_llm_providers():
         "port": 10000,
         "protocol": "openai",
         "timeout": "30s",
+        "type": "prompt_listener",
     }
 
 
@@ -451,7 +455,7 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
     assert updated_providers == [
         {
             "address": "0.0.0.0",
-            "llm_providers": [
+            "model_providers": [
                 {
                     "access_key": "test_key",
                     "model": "openai/gpt-4o",
@@ -461,17 +465,19 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
             "port": 12000,
             "protocol": "openai",
             "timeout": "30s",
+            "type": "model_listener",
         }
     ]
     assert llm_gateway == {
         "address": "0.0.0.0",
-        "llm_providers": [
+        "model_providers": [
             {
                 "access_key": "test_key",
                 "model": "openai/gpt-4o",
             },
         ],
         "name": "egress_traffic",
+        "type": "model_listener",
         "port": 12000,
         "protocol": "openai",
         "timeout": "30s",

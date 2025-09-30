@@ -1,15 +1,15 @@
 version: v0.3.0
 
 agents:
-  - name: query_rewriter
+  - id: query_rewriter
     url: http://host.docker.internal:10500/v1/chat/completions
-  - name: context_builder
+  - id: context_builder
     url: http://host.docker.internal:10501/v1/chat/completions
-  - name: rag_agent
+  - id: rag_agent
     url: http://host.docker.internal:10502/v1/chat/completions
-  - name: research_agent
+  - id: research_agent
     url: http://host.docker.internal:10503/v1/chat/completions
-  - name: weather_forecast_agent
+  - id: weather_forecast_agent
     url: http://host.docker.internal:10504/process
 
 model_providers:
@@ -33,8 +33,7 @@ listeners:
     port: 8001
     router: arch_agent_router
     agents:
-      - name: rag_agent
-        agent: rag_agent
+      - id: rag_agent
         description: virtual assistant for device contracts for simple queries
         filter_chain:
           - query_rewriter

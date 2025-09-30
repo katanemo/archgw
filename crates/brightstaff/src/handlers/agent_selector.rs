@@ -55,7 +55,7 @@ impl AgentSelector {
     pub fn create_agent_map(&self, agents: &[Agent]) -> HashMap<String, Agent> {
         agents
             .iter()
-            .map(|agent| (agent.name.clone(), agent.clone()))
+            .map(|agent| (agent.id.clone(), agent.clone()))
             .collect()
     }
 
@@ -92,7 +92,7 @@ impl AgentSelector {
                 debug!("Determined agent: {}", agent_name);
                 let selected_agent = agents
                     .iter()
-                    .find(|a| a.name == agent_name)
+                    .find(|a| a.id == agent_name)
                     .cloned()
                     .ok_or_else(|| {
                         AgentSelectionError::RoutingError(format!(
@@ -123,7 +123,7 @@ impl AgentSelector {
             .or_else(|| {
                 warn!(
                     "No default agent found, routing request to first agent: {}",
-                    agents[0].name
+                    agents[0].id
                 );
                 Some(agents[0].clone())
             })
@@ -138,9 +138,9 @@ impl AgentSelector {
         agents
             .iter()
             .map(|agent| ModelUsagePreference {
-                model: agent.name.clone(),
+                model: agent.id.clone(),
                 routing_preferences: vec![RoutingPreference {
-                    name: agent.name.clone(),
+                    name: agent.id.clone(),
                     description: agent.description.as_ref().unwrap_or(&String::new()).clone(),
                 }],
             })
@@ -164,8 +164,7 @@ mod tests {
 
     fn create_test_agent(name: &str, description: &str, is_default: bool) -> AgentPipeline {
         AgentPipeline {
-            name: name.to_string(),
-            agent: name.to_string(),
+            id: name.to_string(),
             description: Some(description.to_string()),
             default: Some(is_default),
             filter_chain: vec![name.to_string()],
@@ -183,7 +182,7 @@ mod tests {
 
     fn create_test_agent_struct(name: &str) -> Agent {
         Agent {
-            name: name.to_string(),
+            id: name.to_string(),
             kind: Some("test".to_string()),
             url: "http://localhost:8080".to_string(),
         }
@@ -276,7 +275,7 @@ mod tests {
         let result = selector.get_default_agent(&agents, "test-listener");
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().name, "agent2");
+        assert_eq!(result.unwrap().id, "agent2");
     }
 
     #[test]
@@ -292,6 +291,6 @@ mod tests {
         let result = selector.get_default_agent(&agents, "test-listener");
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().name, "agent1");
+        assert_eq!(result.unwrap().id, "agent1");
     }
 }

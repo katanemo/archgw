@@ -102,7 +102,7 @@ async fn handle_agent_chat(
         .select_agent(&chat_completions_request.messages, &listener, trace_parent)
         .await?;
 
-    debug!("Processing agent pipeline: {}", selected_agent.name);
+    debug!("Processing agent pipeline: {}", selected_agent.id);
 
     // Create agent map for pipeline processing
     let agent_map = {
@@ -122,7 +122,7 @@ async fn handle_agent_chat(
         .await?;
 
     // Get terminal agent and send final response
-    let terminal_agent_name = selected_agent.agent;
+    let terminal_agent_name = selected_agent.id;
     let terminal_agent = agent_map.get(&terminal_agent_name).unwrap();
 
     debug!("Processing terminal agent: {}", terminal_agent_name);

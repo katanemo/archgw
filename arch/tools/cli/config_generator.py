@@ -91,10 +91,10 @@ def validate_and_render_schema():
     # Process agents section and convert to endpoints
     agents = config_yaml.get("agents", [])
     for agent in agents:
-        agent_name = agent.get("name")
+        agent_id = agent.get("id")
         agent_endpoint = agent.get("url")
 
-        if agent_name and agent_endpoint:
+        if agent_id and agent_endpoint:
             urlparse_result = urlparse(agent_endpoint)
             if urlparse_result.scheme and urlparse_result.hostname:
                 protocol = urlparse_result.scheme
@@ -106,7 +106,7 @@ def validate_and_render_schema():
                     else:
                         port = 443
 
-                endpoints[agent_name] = {
+                endpoints[agent_id] = {
                     "endpoint": urlparse_result.hostname,
                     "port": port,
                     "protocol": protocol,

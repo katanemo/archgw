@@ -209,8 +209,6 @@ async def non_streaming_chat_completions(
         generated_response = response.choices[0].message.content.strip()
         logger.info(f"Response generated successfully")
 
-        updated_history = [{"role": "assistant", "content": generated_response}]
-
         return ChatCompletionResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
             created=int(time.time()),
@@ -220,7 +218,7 @@ async def non_streaming_chat_completions(
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": json.dumps(updated_history),
+                        "content": generated_response,
                     },
                     "finish_reason": "stop",
                 }

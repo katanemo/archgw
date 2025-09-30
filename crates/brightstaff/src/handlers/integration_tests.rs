@@ -47,20 +47,19 @@ mod integration_tests {
         // Create test data
         let agents = vec![
             Agent {
-                name: "filter-agent".to_string(),
+                id: "filter-agent".to_string(),
                 kind: Some("filter".to_string()),
                 url: "http://localhost:8081".to_string(),
             },
             Agent {
-                name: "terminal-agent".to_string(),
+                id: "terminal-agent".to_string(),
                 kind: Some("terminal".to_string()),
                 url: "http://localhost:8082".to_string(),
             },
         ];
 
         let agent_pipeline = AgentPipeline {
-            name: "test-pipeline".to_string(),
-            agent: "terminal-agent".to_string(),
+            id: "terminal-agent".to_string(),
             filter_chain: vec!["filter-agent".to_string(), "terminal-agent".to_string()],
             description: Some("Test pipeline".to_string()),
             default: Some(true),
@@ -100,8 +99,7 @@ mod integration_tests {
 
         // Create a pipeline with empty filter chain to avoid network calls
         let test_pipeline = AgentPipeline {
-            name: "test-pipeline".to_string(),
-            agent: "terminal-agent".to_string(),
+            id: "terminal-agent".to_string(),
             filter_chain: vec![], // Empty filter chain - no network calls needed
             description: None,
             default: None,

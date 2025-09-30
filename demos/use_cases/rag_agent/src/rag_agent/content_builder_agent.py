@@ -32,12 +32,12 @@ knowledge_base = []
 
 
 def load_knowledge_base():
-    """Load the basis_of_truth.csv file into memory on startup."""
+    """Load the sample_knowledge_base.csv file into memory on startup."""
     global knowledge_base
 
     # Get the path to the CSV file relative to this script
     current_dir = Path(__file__).parent
-    csv_path = current_dir / "basis_of_truth.csv"
+    csv_path = current_dir / "sample_knowledge_base.csv"
 
     print(f"Loading knowledge base from {csv_path}")
 

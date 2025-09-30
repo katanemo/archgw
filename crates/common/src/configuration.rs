@@ -20,15 +20,14 @@ pub struct ModelAlias {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
-    pub name: String,
+    pub id: String,
     pub kind: Option<String>,
     pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPipeline {
-    pub name: String,
-    pub agent: String,
+    pub id: String,
     pub default: Option<bool>,
     pub description: Option<String>,
     pub filter_chain: Vec<String>,

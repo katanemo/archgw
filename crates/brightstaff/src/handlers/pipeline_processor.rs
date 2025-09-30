@@ -99,14 +99,14 @@ impl PipelineProcessor {
         request.messages = messages.to_vec();
 
         let request_body = serde_json::to_string(&request)?;
-        debug!("Sending request to agent {}", agent.name);
+        debug!("Sending request to agent {}", agent.id);
 
         let mut agent_headers = request_headers.clone();
         agent_headers.remove(hyper::header::CONTENT_LENGTH);
         agent_headers.insert(
             ARCH_UPSTREAM_HOST_HEADER,
-            hyper::header::HeaderValue::from_str(&agent.name)
-                .map_err(|_| PipelineError::AgentNotFound(agent.name.clone()))?,
+            hyper::header::HeaderValue::from_str(&agent.id)
+                .map_err(|_| PipelineError::AgentNotFound(agent.id.clone()))?,
         );
 
         agent_headers.insert(
@@ -134,7 +134,7 @@ impl PipelineProcessor {
             .and_then(|choice| choice.get("message"))
             .and_then(|message| message.get("content"))
             .and_then(|content| content.as_str())
-            .ok_or_else(|| PipelineError::NoContentInResponse(agent.name.clone()))?
+            .ok_or_else(|| PipelineError::NoContentInResponse(agent.id.clone()))?
             .to_string();
 
         Ok(content)
@@ -152,14 +152,14 @@ impl PipelineProcessor {
         request.messages = messages.to_vec();
 
         let request_body = serde_json::to_string(&request)?;
-        debug!("Sending request to terminal agent {}", terminal_agent.name);
+        debug!("Sending request to terminal agent {}", terminal_agent.id);
 
         let mut agent_headers = request_headers.clone();
         agent_headers.remove(hyper::header::CONTENT_LENGTH);
         agent_headers.insert(
             ARCH_UPSTREAM_HOST_HEADER,
-            hyper::header::HeaderValue::from_str(&terminal_agent.name)
-                .map_err(|_| PipelineError::AgentNotFound(terminal_agent.name.clone()))?,
+            hyper::header::HeaderValue::from_str(&terminal_agent.id)
+                .map_err(|_| PipelineError::AgentNotFound(terminal_agent.id.clone()))?,
         );
 
         agent_headers.insert(
@@ -197,8 +197,7 @@ mod tests {
 
     fn create_test_pipeline(agents: Vec<&str>) -> AgentPipeline {
         AgentPipeline {
-            name: "test-pipeline".to_string(),
-            agent: "test-agent".to_string(),
+            id: "test-agent".to_string(),
             filter_chain: agents.iter().map(|s| s.to_string()).collect(),
             description: None,
             default: None,

@@ -46,10 +46,10 @@ Content-Type: application/json
   "messages": [
     {
       "role": "user",
-      "content": "what is the effective date of the master agreement for arcadyan"
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
     }
   ],
-  "stream": true
+  "stream": false
 }
 
 ### models_listeners test

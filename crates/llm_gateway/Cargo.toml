@@ -25,5 +25,4 @@ sha2 = "0.10.8"
 hermesllm = { version = "0.1.0", path = "../hermesllm" }
 
 [dev-dependencies]
-proxy-wasm-test-framework = { git = "https://github.com/katanemo/test-framework.git", branch = "new" }
 serial_test = "3.1.1"

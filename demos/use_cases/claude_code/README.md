@@ -123,7 +123,7 @@ archgw cli-agent claude --settings='{"statusLine": {"type": "command", "command"
 The system automatically configures:
 ```bash
 ANTHROPIC_BASE_URL=http://127.0.0.1:12000  # Routes through Arch Gateway
-ANTHROPIC_SMALL_FAST_MODEL=arch.fast.v1    # Uses intelligent alias
+ANTHROPIC_SMALL_FAST_MODEL=arch.claude.code.small.fast    # Uses intelligent alias
 ```
 
 ## Real Developer Workflows

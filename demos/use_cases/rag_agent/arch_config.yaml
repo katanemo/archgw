@@ -1,42 +1,38 @@
 version: v0.3.0
 
 agents:
-  - name: query_rewriter
-    kind: openai
-    endpoint: http://host.docker.internal:10500
-  - name: context_builder
-    kind: openai
-    endpoint: http://host.docker.internal:10501
   - name: rag_agent
-    kind: openai
-    endpoint: http://host.docker.internal:10502
+    url: http://host.docker.internal:10502/v1/chat/completions
   - name: research_agent
-    kind: openai
-    endpoint: http://host.docker.internal:10503
+    url: http://host.docker.internal:10503/v1/chat/completions
+  - name: weather_forecast_agent
+    url: http://host.docker.internal:10504/process
+
+model_providers:
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    default: true
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+  - model: ollama/llama3.1
+    url: http://host.docker.internal:11434
+
+model_aliases:
+  fast-llm:
+    target: gpt-4o-mini
+  smart-llm:
+    target: gpt-4o
+
 listeners:
-  - name: rag agent listener
-    router: arch_agent_v2
+  - type: agent
+    port: 8001
+    router: arch_agent_router
     agents:
-      - name: simple_rag_agent
-        agent: rag_agent
+      - agent: rag_agent
         description: virtual assistant for device contracts for simple queries
         filter_chain:
           - query_rewriter
           - context_builder
-    protocol: openai
-    address: 0.0.0.0
-    port: 8001
-
-  - name: egress_traffic
-    description: llm provider configuration
-    protocol: openai
-    llm_providers:
-      - access_key: $OPENAI_API_KEY
-        model: openai/gpt-4o
-      - access_key: $OPENAI_API_KEY
-        model: openai/gpt-4o-mini
-    address: 0.0.0.0
-    port: 12000
 
 tracing:
   random_sampling: 100

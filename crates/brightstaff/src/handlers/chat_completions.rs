@@ -153,7 +153,7 @@ pub async fn chat(
         Ok(route) => match route {
             Some((_, model_name)) => model_name,
             None => {
-               debug!(
+               info!(
                     "No route determined, using default model from request: {}",
                     chat_completions_request_for_arch_router.model
                 );

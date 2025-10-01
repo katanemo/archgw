@@ -64,6 +64,8 @@ static_resources:
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
                     path: "/var/log/access_ingress.log"
+                    format: |
+                     [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" "%UPSTREAM_CLUSTER%"
                 route_config:
                   name: local_routes
                   virtual_hosts:
@@ -117,6 +119,8 @@ static_resources:
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
                     path: "/var/log/access_ingress_prompt.log"
+                    format: |
+                     [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" "%UPSTREAM_CLUSTER%"
                 route_config:
                   name: local_routes
                   virtual_hosts:
@@ -425,6 +429,8 @@ static_resources:
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
                     path: "/var/log/access_llm.log"
+                    format: |
+                     [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" "%UPSTREAM_CLUSTER%"
                 route_config:
                   name: local_routes
                   virtual_hosts:
@@ -515,6 +521,8 @@ static_resources:
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
                     path: "/var/log/access_llm.log"
+                    format: |
+                     [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" "%UPSTREAM_CLUSTER%"
                 route_config:
                   name: local_routes
                   virtual_hosts:
@@ -700,6 +708,56 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
           sni: api.x.ai
+          common_tls_context:
+            tls_params:
+              tls_minimum_protocol_version: TLSv1_2
+              tls_maximum_protocol_version: TLSv1_3
+
+    - name: moonshotai
+      connect_timeout: 0.5s
+      type: LOGICAL_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: moonshotai
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: api.moonshot.ai
+                      port_value: 443
+                  hostname: "api.moonshot.ai"
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          sni: api.moonshot.ai
+          common_tls_context:
+            tls_params:
+              tls_minimum_protocol_version: TLSv1_2
+              tls_maximum_protocol_version: TLSv1_3
+
+    - name: zhipu
+      connect_timeout: 0.5s
+      type: LOGICAL_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: zhipu
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: open.bigmodel.cn
+                      port_value: 443
+                  hostname: "open.bigmodel.cn"
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          sni: open.bigmodel.cn
           common_tls_context:
             tls_params:
               tls_minimum_protocol_version: TLSv1_2

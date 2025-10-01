@@ -17,6 +17,8 @@ pub enum ProviderId {
     XAI,
     TogetherAI,
     Ollama,
+    Moonshotai,
+    Zhipu,
 }
 
 impl From<&str> for ProviderId {
@@ -34,6 +36,8 @@ impl From<&str> for ProviderId {
             "xai" => ProviderId::XAI,
             "together_ai" => ProviderId::TogetherAI,
             "ollama" => ProviderId::Ollama,
+            "moonshotai" => ProviderId::Moonshotai,
+            "zhipu" => ProviderId::Zhipu,
             _ => panic!("Unknown provider: {}", value),
         }
     }
@@ -58,7 +62,9 @@ impl ProviderId {
             | ProviderId::AzureOpenAI
             | ProviderId::XAI
             | ProviderId::TogetherAI
-            | ProviderId::Ollama,
+            | ProviderId::Ollama
+            | ProviderId::Moonshotai
+            | ProviderId::Zhipu,
             SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             (ProviderId::OpenAI
@@ -71,7 +77,9 @@ impl ProviderId {
             | ProviderId::AzureOpenAI
             | ProviderId::XAI
             | ProviderId::TogetherAI
-            | ProviderId::Ollama,
+            | ProviderId::Ollama
+            | ProviderId::Moonshotai
+            | ProviderId::Zhipu,
             SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
@@ -92,6 +100,8 @@ impl Display for ProviderId {
             ProviderId::XAI => write!(f, "xai"),
             ProviderId::TogetherAI => write!(f, "together_ai"),
             ProviderId::Ollama => write!(f, "ollama"),
+            ProviderId::Moonshotai => write!(f, "moonshotai"),
+            ProviderId::Zhipu => write!(f, "zhipu"),
         }
     }
 }

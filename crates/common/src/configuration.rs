@@ -200,6 +200,10 @@ pub enum LlmProviderType {
     AzureOpenAI,
     #[serde(rename = "ollama")]
     Ollama,
+    #[serde(rename = "moonshotai")]
+    Moonshotai,
+    #[serde(rename = "zhipu")]
+    Zhipu,
 }
 
 impl Display for LlmProviderType {
@@ -216,6 +220,8 @@ impl Display for LlmProviderType {
             LlmProviderType::TogetherAI => write!(f, "together_ai"),
             LlmProviderType::AzureOpenAI => write!(f, "azure_openai"),
             LlmProviderType::Ollama => write!(f, "ollama"),
+            LlmProviderType::Moonshotai => write!(f, "moonshotai"),
+            LlmProviderType::Zhipu => write!(f, "zhipu"),
         }
     }
 }
@@ -267,7 +273,7 @@ impl IntoModels for Vec<LlmProvider> {
             .iter()
             .map(|provider| ModelDetail {
                 id: provider.name.clone(),
-                object: "model".to_string(),
+                object: Some("model".to_string()),
                 created: 0,
                 owned_by: "system".to_string(),
             })

@@ -204,7 +204,7 @@ impl StreamContext {
         // Tokenize and record token count.
         let token_count = tokenizer::token_count(model, json_string).unwrap_or(0);
 
-        info!(
+        debug!(
             "[ARCHGW_REQ_ID:{}] TOKEN_COUNT: model='{}' input_tokens={}",
             self.request_identifier(),
             model,
@@ -492,7 +492,7 @@ impl StreamContext {
         body: &[u8],
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
-        info!(
+        debug!(
             "[ARCHGW_REQ_ID:{}] NON_STREAMING_PROCESS: provider_id={:?} body_size={}",
             self.request_identifier(),
             provider_id,
@@ -531,7 +531,7 @@ impl StreamContext {
         if let Some((prompt_tokens, completion_tokens, total_tokens)) =
             response.extract_usage_counts()
         {
-            info!(
+            debug!(
                 "[ARCHGW_REQ_ID:{}] RESPONSE_USAGE: prompt_tokens={} completion_tokens={} total_tokens={}",
                 self.request_identifier(),
                 prompt_tokens,
@@ -697,7 +697,7 @@ impl HttpContext for StreamContext {
         //We need to deserialize the request body based on the resolved API
         let mut deserialized_client_request: ProviderRequestType = match self.client_api.as_ref() {
             Some(the_client_api) => {
-                info!(
+                debug!(
                     "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_RECEIVED: api={:?} body_size={}",
                     self.request_identifier(),
                     the_client_api,
@@ -785,7 +785,7 @@ impl HttpContext for StreamContext {
         // Extract user message for tracing
         self.user_message = deserialized_client_request.get_recent_user_message();
 
-        info!(
+        debug!(
             "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION: req_model='{}' -> resolved_model='{}' provider='{}' streaming={}",
             self.request_identifier(),
             model_requested,
@@ -871,7 +871,7 @@ impl HttpContext for StreamContext {
             if let Ok(status_code) = status_str.parse::<u16>() {
                 self.upstream_status_code = StatusCode::from_u16(status_code).ok();
 
-                info!(
+                debug!(
                     "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_STATUS: {}",
                     self.request_identifier(),
                     status_code

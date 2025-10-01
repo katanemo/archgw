@@ -40,4 +40,7 @@ COPY arch/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN pip install requests
 RUN mkdir -p /var/log/supervisor && touch /var/log/envoy.log /var/log/supervisor/supervisord.log
 
+RUN mkdir -p /var/log && \
+    touch /var/log/access_ingress.log /var/log/access_ingress_prompt.log /var/log/access_internal.log /var/log/access_llm.log
+
 ENTRYPOINT ["sh","-c", "/usr/bin/supervisord"]

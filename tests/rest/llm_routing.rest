@@ -45,7 +45,8 @@ Content-Type: application/json
       "role": "user",
       "content": "hello"
     }
-  ]
+  ],
+  "model": "gpt-4o-mini"
 }
 
 ### llm gateway request (streaming)

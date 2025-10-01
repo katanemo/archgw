@@ -29,6 +29,7 @@ serde_yaml = "0.9.34"
 thiserror = "2.0.12"
 tokio = { version = "1.44.2", features = ["full"] }
 tokio-stream = "0.1.17"
+time = { version = "0.3", features = ["formatting", "macros"] }
 tracing = "0.1.41"
 tracing-opentelemetry = "0.30.0"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt", "time"] }

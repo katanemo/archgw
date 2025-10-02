@@ -535,12 +535,12 @@ Azure OpenAI
       # Single deployment
       - model: qwen/qwen3
         access_key: $DASHSCOPE_API_KEY
-        base_url: https://dashscope.aliyuncs.com/compatible-mode
+        base_url: https://dashscope.aliyuncs.com
 
       # Multiple deployments
       - model: qwen/qwen3-coder
         access_key: $DASHSCOPE_API_KEY
-        base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode",
+        base_url: "https://dashscope-intl.aliyuncs.com",
 
 
 Ollama

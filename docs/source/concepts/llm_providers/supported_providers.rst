@@ -518,8 +518,8 @@ Azure OpenAI
         base_url: https://your-resource.openai.azure.com
 
 
-Azure OpenAI
-~~~~~~~~~~~~
+Qwen (Alibaba)
+~~~~~~~~~~~~~~
 
 **Provider Prefix:** ``qwen/``
 

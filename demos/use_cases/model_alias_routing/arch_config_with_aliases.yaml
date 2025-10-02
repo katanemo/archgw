@@ -35,6 +35,11 @@ llm_providers:
     access_key: $AZURE_API_KEY
     base_url: https://katanemo.openai.azure.com
 
+   # Azure OpenAI Models
+  - model: qwen/qwen3-coder-480b-a35b-instruct
+    access_key: $DASHSCOPE_API_KEY
+    base_url: https://dashscope-intl.aliyuncs.com
+
   # Ollama Models
   - model: ollama/llama3.1
     base_url: http://host.docker.internal:11434

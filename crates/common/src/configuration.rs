@@ -179,6 +179,8 @@ pub enum LlmProviderType {
     Moonshotai,
     #[serde(rename = "zhipu")]
     Zhipu,
+    #[serde(rename = "qwen")]
+    Qwen,
 }
 
 impl Display for LlmProviderType {
@@ -197,6 +199,7 @@ impl Display for LlmProviderType {
             LlmProviderType::Ollama => write!(f, "ollama"),
             LlmProviderType::Moonshotai => write!(f, "moonshotai"),
             LlmProviderType::Zhipu => write!(f, "zhipu"),
+            LlmProviderType::Qwen => write!(f, "qwen"),
         }
     }
 }

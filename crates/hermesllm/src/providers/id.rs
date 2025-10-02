@@ -19,6 +19,7 @@ pub enum ProviderId {
     Ollama,
     Moonshotai,
     Zhipu,
+    Qwen, // alias for Qwen
 }
 
 impl From<&str> for ProviderId {
@@ -38,6 +39,7 @@ impl From<&str> for ProviderId {
             "ollama" => ProviderId::Ollama,
             "moonshotai" => ProviderId::Moonshotai,
             "zhipu" => ProviderId::Zhipu,
+            "qwen" => ProviderId::Qwen, // alias for Zhipu
             _ => panic!("Unknown provider: {}", value),
         }
     }
@@ -64,7 +66,8 @@ impl ProviderId {
             | ProviderId::TogetherAI
             | ProviderId::Ollama
             | ProviderId::Moonshotai
-            | ProviderId::Zhipu,
+            | ProviderId::Zhipu
+            | ProviderId::Qwen,
             SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             (ProviderId::OpenAI
@@ -79,7 +82,8 @@ impl ProviderId {
             | ProviderId::TogetherAI
             | ProviderId::Ollama
             | ProviderId::Moonshotai
-            | ProviderId::Zhipu,
+            | ProviderId::Zhipu
+            | ProviderId::Qwen,
             SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
@@ -102,6 +106,7 @@ impl Display for ProviderId {
             ProviderId::Ollama => write!(f, "ollama"),
             ProviderId::Moonshotai => write!(f, "moonshotai"),
             ProviderId::Zhipu => write!(f, "zhipu"),
+            ProviderId::Qwen => write!(f, "qwen"),
         }
     }
 }

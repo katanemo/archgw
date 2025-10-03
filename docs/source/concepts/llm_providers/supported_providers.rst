@@ -517,6 +517,32 @@ Azure OpenAI
         access_key: $AZURE_OPENAI_API_KEY
         base_url: https://your-resource.openai.azure.com
 
+
+Azure OpenAI
+~~~~~~~~~~~~
+
+**Provider Prefix:** ``qwen/``
+
+**API Endpoint:** ``/v1/chat/completions``
+
+**Authentication:** API Key + Base URL - Get your Qwen API key from `Qwen Portal <https://modelstudio.console.alibabacloud.com/>`_ → Your Qwen Resource → Keys and Endpoint.
+
+**Supported Chat Models:** All Qwen chat models including Qwen3, Qwen3-Coder and all future releases.
+
+.. code-block:: yaml
+
+    llm_providers:
+      # Single deployment
+      - model: qwen/qwen3
+        access_key: $DASHSCOPE_API_KEY
+        base_url: https://dashscope.aliyuncs.com
+
+      # Multiple deployments
+      - model: qwen/qwen3-coder
+        access_key: $DASHSCOPE_API_KEY
+        base_url: "https://dashscope-intl.aliyuncs.com",
+
+
 Ollama
 ~~~~~~
 

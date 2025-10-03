@@ -22,6 +22,7 @@ SUPPORTED_PROVIDERS = [
     "ollama",
     "moonshotai",
     "zhipu",
+    "qwen",
 ]
 
 
@@ -187,7 +188,7 @@ def validate_and_render_schema():
 
             # Validate azure_openai and ollama provider requires base_url
             if (
-                provider == "azure_openai" or provider == "ollama"
+                provider == "azure_openai" or provider == "ollama" or provider == "qwen"
             ) and model_provider.get("base_url") is None:
                 raise Exception(
                     f"Provider '{provider}' requires 'base_url' to be set for model {model_name}"

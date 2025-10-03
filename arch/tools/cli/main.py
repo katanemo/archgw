@@ -205,6 +205,8 @@ def up(file, path, service, foreground):
         "MODEL_SERVER_PORT": os.getenv("MODEL_SERVER_PORT", "51000"),
     }
     env = os.environ.copy()
+    # Remove PATH variable if present
+    env.pop("PATH", None)
     # check if access_keys are preesnt in the config file
     access_keys = get_llm_provider_access_keys(arch_config_file=arch_config_file)
 

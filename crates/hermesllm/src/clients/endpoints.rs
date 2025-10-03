@@ -87,6 +87,13 @@ impl SupportedAPIs {
                             default_endpoint
                         }
                     }
+                    ProviderId::Qwen => {
+                        if request_path.starts_with("/v1/") {
+                            "/compatible-mode/v1/chat/completions".to_string()
+                        } else {
+                            default_endpoint
+                        }
+                    }
                     ProviderId::AzureOpenAI => {
                         if request_path.starts_with("/v1/") {
                             format!("/openai/deployments/{}/chat/completions?api-version=2025-01-01-preview", model_id)

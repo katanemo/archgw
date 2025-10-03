@@ -114,7 +114,7 @@ def build(service):
                         "-t",
                         f"{ARCHGW_DOCKER_IMAGE}",
                         ".",
-                        "--add-host=host.docker.internal:host-gateway",
+                        f"--add-host={os.getenv('HOST_INTERNAL', 'host.docker.internal')}:{os.getenv('HOST_IP', 'host-gateway')}",
                     ],
                     check=True,
                 )
@@ -201,8 +201,9 @@ def up(file, path, service, foreground):
 
     # Set the ARCH_CONFIG_FILE environment variable
     env_stage = {
-        "OTEL_TRACING_HTTP_ENDPOINT": "http://host.docker.internal:4318/v1/traces",
+        "OTEL_TRACING_HTTP_ENDPOINT": f"http://{os.getenv('HOST_INTERNAL', 'host.docker.internal')}:4318/v1/traces",
         "MODEL_SERVER_PORT": os.getenv("MODEL_SERVER_PORT", "51000"),
+        "HOST_INTERNAL": os.getenv("HOST_INTERNAL", "host.docker.internal"),
     }
     env = os.environ.copy()
     # Remove PATH variable if present

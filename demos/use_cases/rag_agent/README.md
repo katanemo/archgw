@@ -25,5 +25,4 @@ A FastAPI service that rewrites user queries using archgw and gpt-4o-mini for be
 ```bash
 # archgw LLM Gateway base URL (default: http://localhost:12000/v1)
 export LLM_GATEWAY_ENDPOINT="http://localhost:12000/v1"
-
 ```

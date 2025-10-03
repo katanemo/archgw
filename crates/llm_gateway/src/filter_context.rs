@@ -74,7 +74,7 @@ impl RootContext for FilterContext {
         ratelimit::ratelimits(Some(config.ratelimits.unwrap_or_default()));
         self.overrides = Rc::new(config.overrides);
 
-        match config.llm_providers.try_into() {
+        match config.model_providers.try_into() {
             Ok(llm_providers) => self.llm_providers = Some(Rc::new(llm_providers)),
             Err(err) => panic!("{err}"),
         }

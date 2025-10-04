@@ -785,7 +785,7 @@ impl HttpContext for StreamContext {
         // Extract user message for tracing
         self.user_message = deserialized_client_request.get_recent_user_message();
 
-        debug!(
+        info!(
             "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION: req_model='{}' -> resolved_model='{}' provider='{}' streaming={}",
             self.request_identifier(),
             model_requested,

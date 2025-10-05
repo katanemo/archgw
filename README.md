@@ -4,7 +4,7 @@
 <div align="center">
 
 
-_Arch is a smart proxy server designed as a modular edge and AI gateway for agents._<br><br>
+_Arch is a modular ai-native edge and AI gateway for agents._<br><br>
  Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
 
 
@@ -22,6 +22,10 @@ _Arch is a smart proxy server designed as a modular edge and AI gateway for agen
 
 
 </div>
+
+# About The Latest Release:
+[0.3.15] [Preference-aware multi LLM routing for Claude Code 2.0](demos/use_cases/claude_code_router/README.md) <br><img src="docs/source/_static/img/claude_code_router.png" alt="high-level network architecture for ArchGW" width="50%">
+
 
 # Overview
 <a href="https://www.producthunt.com/posts/arch-3?embed=true&utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-arch&#0045;3" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=565761&theme=dark&period=daily&t=1742359429995" alt="Arch - Build&#0032;fast&#0044;&#0032;hyper&#0045;personalized&#0032;agents&#0032;with&#0032;intelligent&#0032;infra | Product Hunt" style="width: 188px; height: 41px;" width="188" height="41" /></a>
@@ -48,7 +52,7 @@ With Arch, you can move faster by focusing on higher-level objectives in a langu
   - `🧱 Built on Envoy`: Arch runs alongside app servers as a containerized process, and builds on top of [Envoy's](https://envoyproxy.io) proven HTTP management and scalability features to handle ingress and egress traffic related to prompts and LLMs.
 
 **High-Level Sequence Diagram**:
-![alt text](docs/source/_static/img/arch_network_diagram_high_level.png)
+![high-level network architecture for ArchGW](docs/source/_static/img/arch_network_diagram_high_level.png)
 
 **Jump to our [docs](https://docs.archgw.com)** to learn how you can use Arch to improve the speed, security and personalization of your GenAI apps.
 

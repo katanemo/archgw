@@ -25,8 +25,8 @@ log "Starting query_parser agent on port 10500..."
 uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10500 --agent query_parser &
 WAIT_FOR_PIDS+=($!)
 
-log "Starting content_builder agent on port 10501..."
-uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10501 --agent content_builder &
+log "Starting context_builder agent on port 10501..."
+uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10501 --agent context_builder &
 WAIT_FOR_PIDS+=($!)
 
 log "Starting response_generator agent on port 10502..."

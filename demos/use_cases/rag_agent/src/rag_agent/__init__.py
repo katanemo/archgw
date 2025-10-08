@@ -25,8 +25,10 @@ def main(host, port, agent, transport, rest_server, rest_port):
 
             start_server(host=host, port=rest_port)
             return
-        elif agent == "content_builder":
-            from rag_agent.content_builder_agent import start_server
+        elif agent == "context_builder":
+            from rag_agent.context_builder_agent import (
+                start_server,
+            )
 
             start_server(host=host, port=rest_port)
             return

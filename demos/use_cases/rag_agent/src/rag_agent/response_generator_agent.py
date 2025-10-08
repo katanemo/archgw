@@ -16,7 +16,10 @@ from .api import (
 )
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - [RESPONSE_GENERATOR] - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # Configuration for archgw LLM gateway

@@ -13,7 +13,10 @@ from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - [CONTEXT_BUILDER] - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 

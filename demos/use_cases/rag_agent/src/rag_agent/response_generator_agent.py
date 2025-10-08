@@ -284,7 +284,7 @@ def start_server(host: str = "localhost", port: int = 8000):
             "disable_existing_loggers": False,
             "formatters": {
                 "default": {
-                    "format": "%(asctime)s - [RESPONSE_GENERATOR] - %(name)s - %(levelname)s - %(message)s",
+                    "format": "%(asctime)s - [RESPONSE_GENERATOR] - %(levelname)s - %(message)s",
                 },
             },
             "handlers": {

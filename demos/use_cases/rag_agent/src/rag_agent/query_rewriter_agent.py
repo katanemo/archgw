@@ -13,7 +13,7 @@ from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - [QUERY_REWRITER] - %(levelname)s - %(message)s",
+    format="%(asctime)s - [QUERY_REWRITER]     - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ def start_server(host: str = "localhost", port: int = 8000):
             "disable_existing_loggers": False,
             "formatters": {
                 "default": {
-                    "format": "%(asctime)s - [QUERY_REWRITER] - %(name)s - %(levelname)s - %(message)s",
+                    "format": "%(asctime)s - [QUERY_REWRITER]     - %(levelname)s - %(message)s",
                 },
             },
             "handlers": {

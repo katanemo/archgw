@@ -15,7 +15,7 @@ from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - [CONTEXT_BUILDER] - %(levelname)s - %(message)s",
+    format="%(asctime)s - [CONTEXT_BUILDER]    - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -252,6 +252,7 @@ if __name__ == "__main__":
 def start_server(host: str = "localhost", port: int = 8000):
     """Start the REST server."""
     load_knowledge_base()
+    # Rename the uvicorn.error logger
     uvicorn.run(
         app,
         host=host,
@@ -261,7 +262,7 @@ def start_server(host: str = "localhost", port: int = 8000):
             "disable_existing_loggers": False,
             "formatters": {
                 "default": {
-                    "format": "%(asctime)s - [CONTEXT_BUILDER] - %(name)s - %(levelname)s - %(message)s",
+                    "format": "%(asctime)s - [CONTEXT_BUILDER]    - %(levelname)s - %(message)s",
                 },
             },
             "handlers": {

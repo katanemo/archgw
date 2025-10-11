@@ -181,6 +181,8 @@ pub enum LlmProviderType {
     Zhipu,
     #[serde(rename = "qwen")]
     Qwen,
+    #[serde(rename = "amazon_bedrock")]
+    AmazonBedrock,
 }
 
 impl Display for LlmProviderType {
@@ -200,6 +202,7 @@ impl Display for LlmProviderType {
             LlmProviderType::Moonshotai => write!(f, "moonshotai"),
             LlmProviderType::Zhipu => write!(f, "zhipu"),
             LlmProviderType::Qwen => write!(f, "qwen"),
+            LlmProviderType::AmazonBedrock => write!(f, "amazon_bedrock"),
         }
     }
 }

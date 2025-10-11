@@ -1,8 +1,13 @@
 pub mod anthropic;
 pub mod openai;
-pub use anthropic::*;
-pub use openai::*;
+pub mod amazon_bedrock;
 
+// Explicit exports to avoid naming conflicts
+pub use anthropic::{AnthropicApi, MessagesRequest, MessagesResponse, MessagesStreamEvent};
+pub use openai::{OpenAIApi, ChatCompletionsRequest, ChatCompletionsResponse, ChatCompletionsStreamResponse};
+pub use openai::{Message as OpenAIMessage, Tool as OpenAITool, ToolChoice as OpenAIToolChoice};
+pub use amazon_bedrock::{AmazonBedrockApi, ConverseRequest, ConverseStreamRequest};
+pub use amazon_bedrock::{Message as BedrockMessage, Tool as BedrockTool, ToolChoice as BedrockToolChoice};
 
 pub trait ApiDefinition {
     /// Returns the endpoint path for this API

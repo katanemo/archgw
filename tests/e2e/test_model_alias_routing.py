@@ -403,3 +403,99 @@ def test_anthropic_thinking_mode_streaming():
     final_block_types = [blk.type for blk in final.content]
     assert "text" in final_block_types
     assert "thinking" in final_block_types
+
+
+def test_openai_client_with_coding_model_alias_and_tools():
+    """Test OpenAI client using 'coding-model' alias (maps to Bedrock) with coding question and tools"""
+    logger.info("Testing OpenAI client with 'coding-model' alias -> Bedrock with tools")
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = openai.OpenAI(
+        api_key="test-key",
+        base_url=f"{base_url}/v1",
+    )
+
+    completion = client.chat.completions.create(
+        model="coding-model",  # This should resolve to us.amazon.nova-premier-v1:0
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": "I need to write a Python function that calculates the factorial of a number. Can you help me write and run it?",
+            }
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_python_code",
+                    "description": "Execute Python code and return the result",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "description": "Python code to execute",
+                            }
+                        },
+                        "required": ["code"],
+                    },
+                },
+            }
+        ],
+        tool_choice="auto",
+    )
+
+    response_content = completion.choices[0].message.content
+    tool_calls = completion.choices[0].message.tool_calls
+    # Should get either text response or tool calls for coding assistance
+    assert response_content is not None or (
+        tool_calls is not None and len(tool_calls) > 0
+    )
+
+
+def test_anthropic_client_with_coding_model_alias_and_tools():
+    """Test Anthropic client using 'coding-model' alias (maps to Bedrock) with coding question and tools"""
+    logger.info(
+        "Testing Anthropic client with 'coding-model' alias -> Bedrock with tools"
+    )
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
+
+    message = client.messages.create(
+        model="coding-model",  # This should resolve to us.amazon.nova-premier-v1:0
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": "I need to write a Python function that calculates the factorial of a number. Can you help me write and run it?",
+            }
+        ],
+        tools=[
+            {
+                "name": "run_python_code",
+                "description": "Execute Python code and return the result",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "Python code to execute",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            }
+        ],
+        tool_choice={"type": "auto"},
+    )
+
+    text_content = "".join(b.text for b in message.content if b.type == "text")
+    tool_use_blocks = [b for b in message.content if b.type == "tool_use"]
+
+    logger.info(f"Response from coding-model alias via Anthropic: {text_content}")
+    logger.info(f"Tool use blocks: {len(tool_use_blocks)}")
+
+    # Should get either text response or tool use blocks for coding assistance
+    assert text_content or len(tool_use_blocks) > 0

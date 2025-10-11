@@ -35,6 +35,10 @@ llm_providers:
     access_key: $AZURE_API_KEY
     base_url: https://katanemo.openai.azure.com
 
+  - model: amazon_bedrock/us.amazon.nova-premier-v1:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+
   # Ollama Models
   - model: ollama/llama3.1
     base_url: http://host.docker.internal:11434
@@ -71,3 +75,6 @@ model_aliases:
 
   creative-model:
     target: claude-sonnet-4-20250514
+
+  coding-model:
+    target: us.amazon.nova-premier-v1:0

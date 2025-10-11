@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use crate::clients::endpoints::SupportedAPIs;
-use crate::apis::{OpenAIApi, AnthropicApi};
+use crate::clients::endpoints::{SupportedAPIs, SupportedUpstreamAPIs};
+use crate::apis::{OpenAIApi, AnthropicApi, AmazonBedrockApi};
 
 /// Provider identifier enum - simple enum for identifying providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,7 +19,8 @@ pub enum ProviderId {
     Ollama,
     Moonshotai,
     Zhipu,
-    Qwen, // alias for Qwen
+    Qwen,
+    AmazonBedrock,
 }
 
 impl From<&str> for ProviderId {
@@ -39,7 +40,8 @@ impl From<&str> for ProviderId {
             "ollama" => ProviderId::Ollama,
             "moonshotai" => ProviderId::Moonshotai,
             "zhipu" => ProviderId::Zhipu,
-            "qwen" => ProviderId::Qwen, // alias for Zhipu
+            "qwen" => ProviderId::Qwen, // alias for Qwen
+            "amazon_bedrock" => ProviderId::AmazonBedrock,
             _ => panic!("Unknown provider: {}", value),
         }
     }
@@ -47,11 +49,11 @@ impl From<&str> for ProviderId {
 
 impl ProviderId {
     /// Given a client API, return the compatible upstream API for this provider
-    pub fn compatible_api_for_client(&self, client_api: &SupportedAPIs) -> SupportedAPIs {
+    pub fn compatible_api_for_client(&self, client_api: &SupportedAPIs, is_streaming: bool) -> SupportedUpstreamAPIs {
         match (self, client_api) {
             // Claude/Anthropic providers natively support Anthropic APIs
-            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
-            (ProviderId::Anthropic, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedUpstreamAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
+            (ProviderId::Anthropic, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // OpenAI-compatible providers only support OpenAI chat completions
             (ProviderId::OpenAI
@@ -68,7 +70,7 @@ impl ProviderId {
             | ProviderId::Moonshotai
             | ProviderId::Zhipu
             | ProviderId::Qwen,
-            SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             (ProviderId::OpenAI
             | ProviderId::Groq
@@ -84,7 +86,23 @@ impl ProviderId {
             | ProviderId::Moonshotai
             | ProviderId::Zhipu
             | ProviderId::Qwen,
-            SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            SupportedAPIs::OpenAIChatCompletions(_)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+
+            // Amazon Bedrock natively supports Bedrock APIs
+            (ProviderId::AmazonBedrock, SupportedAPIs::OpenAIChatCompletions(_)) => {
+                if is_streaming {
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(AmazonBedrockApi::ConverseStream)
+                } else {
+                    SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
+                }
+            },
+            (ProviderId::AmazonBedrock, SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                if is_streaming {
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(AmazonBedrockApi::ConverseStream)
+                } else {
+                    SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
+                }
+            },
         }
     }
 }
@@ -107,6 +125,7 @@ impl Display for ProviderId {
             ProviderId::Moonshotai => write!(f, "moonshotai"),
             ProviderId::Zhipu => write!(f, "zhipu"),
             ProviderId::Qwen => write!(f, "qwen"),
+            ProviderId::AmazonBedrock => write!(f, "amazon_bedrock"),
         }
     }
 }

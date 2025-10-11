@@ -4,6 +4,7 @@
 pub mod providers;
 pub mod apis;
 pub mod clients;
+pub mod transforms;
 // Re-export important types and traits
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
 pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, SseEvent, SseStreamIter};
@@ -17,6 +18,8 @@ pub const MESSAGES_PATH: &str = "/v1/messages";
 
 #[cfg(test)]
 mod tests {
+    use crate::clients::endpoints::SupportedUpstreamAPIs;
+
     use super::*;
 
     #[test]
@@ -37,7 +40,7 @@ mod tests {
 
     use crate::clients::endpoints::SupportedAPIs;
     let client_api = SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
-    let upstream_api =  SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
+    let upstream_api =  SupportedUpstreamAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
 
     // Test the new simplified architecture - create SseStreamIter directly
     let sse_iter = SseStreamIter::try_from(sse_data.as_bytes());

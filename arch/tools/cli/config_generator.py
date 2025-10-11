@@ -21,6 +21,7 @@ SUPPORTED_PROVIDERS = [
     "moonshotai",
     "zhipu",
     "qwen",
+    "amazon_bedrock",
 ]
 
 
@@ -130,7 +131,10 @@ def validate_and_render_schema():
         provider = model_name_tokens[0]
         # Validate azure_openai and ollama provider requires base_url
         if (
-            provider == "azure_openai" or provider == "ollama" or provider == "qwen"
+            provider == "azure_openai"
+            or provider == "ollama"
+            or provider == "qwen"
+            or provider == "amazon_bedrock"
         ) and llm_provider.get("base_url") is None:
             raise Exception(
                 f"Provider '{provider}' requires 'base_url' to be set for model {model_name}"

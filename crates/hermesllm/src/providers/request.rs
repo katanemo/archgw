@@ -1,6 +1,9 @@
 use crate::apis::openai::ChatCompletionsRequest;
 use crate::apis::anthropic::MessagesRequest;
+
+use crate::apis::amazon_bedrock::{ConverseRequest, ConverseStreamRequest};
 use crate::clients::endpoints::SupportedAPIs;
+use crate::clients::endpoints::SupportedUpstreamAPIs;
 
 use serde_json::Value;
 use std::error::Error;
@@ -10,6 +13,8 @@ use std::collections::HashMap;
 pub enum ProviderRequestType {
     ChatCompletionsRequest(ChatCompletionsRequest),
     MessagesRequest(MessagesRequest),
+    BedrockConverse(ConverseRequest),
+    BedrockConverseStream(ConverseStreamRequest),
     //add more request types here
 }
 pub trait ProviderRequest: Send + Sync {
@@ -42,6 +47,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.model(),
             Self::MessagesRequest(r) => r.model(),
+            Self::BedrockConverse(r) => r.model(),
+            Self::BedrockConverseStream(r) => r.model(),
         }
     }
 
@@ -49,6 +56,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.set_model(model),
             Self::MessagesRequest(r) => r.set_model(model),
+            Self::BedrockConverse(r) => r.set_model(model),
+            Self::BedrockConverseStream(r) => r.set_model(model),
         }
     }
 
@@ -56,6 +65,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.is_streaming(),
             Self::MessagesRequest(r) => r.is_streaming(),
+            Self::BedrockConverse(_) => false,
+            Self::BedrockConverseStream(_) => true,
         }
     }
 
@@ -63,6 +74,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.extract_messages_text(),
             Self::MessagesRequest(r) => r.extract_messages_text(),
+            Self::BedrockConverse(r) => r.extract_messages_text(),
+            Self::BedrockConverseStream(r) => r.extract_messages_text(),
         }
     }
 
@@ -70,6 +83,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.get_recent_user_message(),
             Self::MessagesRequest(r) => r.get_recent_user_message(),
+            Self::BedrockConverse(r) => r.get_recent_user_message(),
+            Self::BedrockConverseStream(r) => r.get_recent_user_message(),
         }
     }
 
@@ -77,6 +92,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.to_bytes(),
             Self::MessagesRequest(r) => r.to_bytes(),
+            Self::BedrockConverse(r) => r.to_bytes(),
+            Self::BedrockConverseStream(r) => r.to_bytes(),
         }
     }
 
@@ -84,6 +101,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.metadata(),
             Self::MessagesRequest(r) => r.metadata(),
+            Self::BedrockConverse(r) => r.metadata(),
+            Self::BedrockConverseStream(r) => r.metadata(),
         }
     }
 
@@ -91,6 +110,8 @@ impl ProviderRequest for ProviderRequestType {
         match self {
             Self::ChatCompletionsRequest(r) => r.remove_metadata_key(key),
             Self::MessagesRequest(r) => r.remove_metadata_key(key),
+            Self::BedrockConverse(r) => r.remove_metadata_key(key),
+            Self::BedrockConverseStream(r) => r.remove_metadata_key(key),
         }
     }
 }
@@ -117,21 +138,21 @@ impl TryFrom<(&[u8], &SupportedAPIs)> for ProviderRequestType {
 }
 
 /// Conversion from one ProviderRequestType to a different ProviderRequestType (SupportedAPIs)
-impl TryFrom<(ProviderRequestType, &SupportedAPIs)> for ProviderRequestType {
+impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestType {
     type Error = ProviderRequestError;
 
-    fn try_from((request, upstream_api): (ProviderRequestType, &SupportedAPIs)) -> Result<Self, Self::Error> {
-        match (request, upstream_api) {
+    fn try_from((client_request, upstream_api): (ProviderRequestType, &SupportedUpstreamAPIs)) -> Result<Self, Self::Error> {
+        match (client_request, upstream_api) {
             // Same API - no conversion needed, just clone the reference
-            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedAPIs::OpenAIChatCompletions(_)) => {
+            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedUpstreamAPIs::OpenAIChatCompletions(_)) => {
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_req))
             }
-            (ProviderRequestType::MessagesRequest(messages_req), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+            (ProviderRequestType::MessagesRequest(messages_req), SupportedUpstreamAPIs::AnthropicMessagesAPI(_)) => {
                 Ok(ProviderRequestType::MessagesRequest(messages_req))
             }
 
             // Cross-API conversion - cloning is necessary for transformation
-            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedAPIs::AnthropicMessagesAPI(_)) => {
+            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedUpstreamAPIs::AnthropicMessagesAPI(_)) => {
                 let messages_req = MessagesRequest::try_from(chat_req)
                     .map_err(|e| ProviderRequestError {
                         message: format!("Failed to convert ChatCompletionsRequest to MessagesRequest: {}", e),
@@ -140,7 +161,7 @@ impl TryFrom<(ProviderRequestType, &SupportedAPIs)> for ProviderRequestType {
                 Ok(ProviderRequestType::MessagesRequest(messages_req))
             }
 
-            (ProviderRequestType::MessagesRequest(messages_req), SupportedAPIs::OpenAIChatCompletions(_)) => {
+            (ProviderRequestType::MessagesRequest(messages_req), SupportedUpstreamAPIs::OpenAIChatCompletions(_)) => {
                 let chat_req = ChatCompletionsRequest::try_from(messages_req)
                     .map_err(|e| ProviderRequestError {
                         message: format!("Failed to convert MessagesRequest to ChatCompletionsRequest: {}", e),
@@ -148,6 +169,41 @@ impl TryFrom<(ProviderRequestType, &SupportedAPIs)> for ProviderRequestType {
                     })?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_req))
             }
+
+            // Cross-API conversions: OpenAI/Anthropic to Amazon Bedrock
+            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedUpstreamAPIs::AmazonBedrockConverse(_)) => {
+                let bedrock_req = ConverseRequest::try_from(chat_req)
+                    .map_err(|e| ProviderRequestError {
+                        message: format!("Failed to convert ChatCompletionsRequest to Amazon Bedrock request: {}", e),
+                        source: Some(Box::new(e))
+                    })?;
+                Ok(ProviderRequestType::BedrockConverse(bedrock_req))
+            }
+
+            (ProviderRequestType::ChatCompletionsRequest(_), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
+                todo!("ChatCompletionsRequest to Amazon Bedrock Stream conversion not implemented yet")
+            }
+            (ProviderRequestType::MessagesRequest(messages_req), SupportedUpstreamAPIs::AmazonBedrockConverse(_)) => {
+                let bedrock_req = ConverseRequest::try_from(messages_req)
+                    .map_err(|e| ProviderRequestError {
+                        message: format!("Failed to convert MessagesRequest to Amazon Bedrock request: {}", e),
+                        source: Some(Box::new(e))
+                    })?;
+                Ok(ProviderRequestType::BedrockConverse(bedrock_req))
+            }
+            (ProviderRequestType::MessagesRequest(_), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
+                todo!("MessagesRequest to Amazon Bedrock Stream conversion not implemented yet")
+            }
+
+            // Amazon Bedrock to other APIs conversions
+            (ProviderRequestType::BedrockConverse(_), _) => {
+                todo!("Amazon Bedrock to ChatCompletionsRequest conversion not implemented yet")
+            }
+
+            (ProviderRequestType::BedrockConverseStream(_), _) => {
+                todo!("Amazon Bedrock Stream to ChatCompletionsRequest conversion not implemented yet")
+            }
+
         }
     }
 }
@@ -182,7 +238,7 @@ mod tests {
     use crate::apis::openai::OpenAIApi::ChatCompletions;
     use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
     use crate::apis::openai::{ChatCompletionsRequest};
-    use crate::clients::transformer::ExtractText;
+    use crate::transforms::lib::ExtractText;
     use serde_json::json;
 
     #[test]

@@ -2,9 +2,10 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use bytes::Bytes;
 use common::configuration::{ModelAlias, ModelUsagePreference};
-use common::consts::ARCH_PROVIDER_HINT_HEADER;
+use common::consts::{ARCH_PROVIDER_HINT_HEADER, ARCH_IS_STREAMING_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::clients::SupportedAPIs;
+use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
@@ -51,6 +52,7 @@ pub async fn chat(
     // Model alias resolution: update model field in client_request immediately
     // This ensures all downstream objects use the resolved model
     let model_from_request = client_request.model().to_string();
+    let is_streaming_request = client_request.is_streaming();
     let resolved_model = if let Some(model_aliases) = model_aliases.as_ref() {
         if let Some(model_alias) = model_aliases.get(&model_from_request) {
             debug!(
@@ -77,9 +79,9 @@ pub async fn chat(
 
     // Convert to ChatCompletionsRequest regardless of input type (clone to avoid moving original)
     let chat_completions_request_for_arch_router: ChatCompletionsRequest =
-        match ProviderRequestType::try_from((client_request, &SupportedAPIs::OpenAIChatCompletions(hermesllm::apis::OpenAIApi::ChatCompletions))) {
+        match ProviderRequestType::try_from((client_request, &SupportedUpstreamAPIs::OpenAIChatCompletions(hermesllm::apis::OpenAIApi::ChatCompletions))) {
             Ok(ProviderRequestType::ChatCompletionsRequest(req)) => req,
-            Ok(ProviderRequestType::MessagesRequest(_)) => {
+            Ok(ProviderRequestType::MessagesRequest(_) | ProviderRequestType::BedrockConverse(_) | ProviderRequestType::BedrockConverseStream(_)) => {
                 // This should not happen after conversion to OpenAI format
                 warn!("Unexpected: got MessagesRequest after converting to OpenAI format");
                 let err_msg = "Request conversion failed".to_string();
@@ -177,6 +179,11 @@ pub async fn chat(
     request_headers.insert(
         ARCH_PROVIDER_HINT_HEADER,
         header::HeaderValue::from_str(&model_name).unwrap(),
+    );
+
+    request_headers.insert(
+        header::HeaderName::from_static(ARCH_IS_STREAMING_HEADER),
+        header::HeaderValue::from_str(&is_streaming_request.to_string()).unwrap(),
     );
 
     if let Some(trace_parent) = trace_parent {

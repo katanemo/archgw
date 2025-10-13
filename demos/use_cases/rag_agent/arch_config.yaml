@@ -28,8 +28,8 @@ model_aliases:
     target: gpt-4o
 
 listeners:
-  - type: agent_listener
-    name: agent_listener_1
+  - type: agent
+    name: agent_1
     port: 8001
     router: arch_agent_router
     agents:

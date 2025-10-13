@@ -129,7 +129,7 @@ async fn handle_agent_chat(
     debug!("Terminal agent details: {:?}", terminal_agent);
 
     let llm_response = pipeline_processor
-        .send_terminal_request(
+        .invoke_upstream_agent(
             &processed_messages,
             &chat_completions_request,
             terminal_agent,

@@ -112,7 +112,7 @@ agents:
 
 listeners:
   - name: tmobile
-    type: agent_listener
+    type: agent
     router: arch_agent_v2
     agents:
       - name: simple_tmobile_rag_agent

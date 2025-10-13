@@ -47,7 +47,6 @@ def convert_legacy_listeners(
         "address": "0.0.0.0",
         "timeout": "30s",
         "model_providers": model_providers or [],
-        "protocol": "openai",
     }
 
     prompt_gateway_listener = {
@@ -56,7 +55,6 @@ def convert_legacy_listeners(
         "port": 10000,
         "address": "0.0.0.0",
         "timeout": "30s",
-        "protocol": "openai",
     }
 
     if isinstance(listeners, dict):

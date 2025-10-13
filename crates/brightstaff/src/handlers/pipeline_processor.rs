@@ -64,7 +64,7 @@ impl PipelineProcessor {
             debug!("Agent details: {:?}", agent);
 
             let response_content = self
-                .send_agent_request(
+                .send_agent_filter_chain_request(
                     &chat_completions_history,
                     initial_request,
                     agent,
@@ -88,7 +88,7 @@ impl PipelineProcessor {
     }
 
     /// Send request to a specific agent and return the response content
-    async fn send_agent_request(
+    async fn send_agent_filter_chain_request(
         &self,
         messages: &[Message],
         original_request: &ChatCompletionsRequest,
@@ -141,7 +141,7 @@ impl PipelineProcessor {
     }
 
     /// Send request to terminal agent and return the raw response for streaming
-    pub async fn send_terminal_request(
+    pub async fn invoke_upstream_agent(
         &self,
         messages: &[Message],
         original_request: &ChatCompletionsRequest,

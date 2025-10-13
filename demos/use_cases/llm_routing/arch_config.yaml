@@ -1,8 +1,8 @@
 version: v0.3.0
 
 listeners:
-  - type: model_listener
-    name: model_listener_1
+  - type: model
+    name: model_1
     address: 0.0.0.0
     port: 12000
 

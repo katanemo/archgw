@@ -31,13 +31,11 @@ listeners:
     provider_interface: mistral
   name: egress_traffic
   port: 12000
-  protocol: openai
   timeout: 5s
   type: model_listener
 - address: 0.0.0.0
   name: ingress_traffic
   port: 10000
-  protocol: openai
   timeout: 5s
   type: prompt_listener
 model_aliases:

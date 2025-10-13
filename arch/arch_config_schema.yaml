@@ -32,9 +32,9 @@ properties:
             type:
               type: string
               enum:
-                - model_listener
-                - prompt_listener
-                - agent_listener
+                - model
+                - prompt
+                - agent
           required:
             - type
             - name

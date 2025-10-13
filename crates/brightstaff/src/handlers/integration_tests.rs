@@ -16,7 +16,7 @@ use crate::router::llm_router::RouterService;
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use common::configuration::{Agent, AgentPipeline, Listener};
+    use common::configuration::{Agent, AgentFilterChain, Listener};
 
     fn create_test_router_service() -> Arc<RouterService> {
         Arc::new(RouterService::new(
@@ -58,7 +58,7 @@ mod integration_tests {
             },
         ];
 
-        let agent_pipeline = AgentPipeline {
+        let agent_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
             filter_chain: vec!["filter-agent".to_string(), "terminal-agent".to_string()],
             description: Some("Test pipeline".to_string()),
@@ -98,7 +98,7 @@ mod integration_tests {
         };
 
         // Create a pipeline with empty filter chain to avoid network calls
-        let test_pipeline = AgentPipeline {
+        let test_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
             filter_chain: vec![], // Empty filter chain - no network calls needed
             description: None,

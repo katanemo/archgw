@@ -26,7 +26,7 @@ pub struct Agent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentPipeline {
+pub struct AgentFilterChain {
     pub id: String,
     pub default: Option<bool>,
     pub description: Option<String>,
@@ -37,7 +37,7 @@ pub struct AgentPipeline {
 pub struct Listener {
     pub name: String,
     pub router: Option<String>,
-    pub agents: Option<Vec<AgentPipeline>>,
+    pub agents: Option<Vec<AgentFilterChain>>,
     pub port: u16,
 }
 

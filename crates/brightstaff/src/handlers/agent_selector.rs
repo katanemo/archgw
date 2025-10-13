@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common::configuration::{
-    Agent, AgentPipeline, Listener, ModelUsagePreference, RoutingPreference,
+    Agent, AgentFilterChain, Listener, ModelUsagePreference, RoutingPreference,
 };
 use hermesllm::apis::openai::Message;
 use tracing::{debug, warn};
@@ -65,7 +65,7 @@ impl AgentSelector {
         messages: &[Message],
         listener: &Listener,
         trace_parent: Option<String>,
-    ) -> Result<AgentPipeline, AgentSelectionError> {
+    ) -> Result<AgentFilterChain, AgentSelectionError> {
         let agents = listener
             .agents
             .as_ref()
@@ -113,9 +113,9 @@ impl AgentSelector {
     /// Get the default agent or the first agent if no default is specified
     fn get_default_agent(
         &self,
-        agents: &[AgentPipeline],
+        agents: &[AgentFilterChain],
         listener_name: &str,
-    ) -> Result<AgentPipeline, AgentSelectionError> {
+    ) -> Result<AgentFilterChain, AgentSelectionError> {
         agents
             .iter()
             .find(|a| a.default.unwrap_or(false))
@@ -133,7 +133,7 @@ impl AgentSelector {
     /// Convert agent descriptions to routing preferences
     fn convert_agent_description_to_routing_preferences(
         &self,
-        agents: &[AgentPipeline],
+        agents: &[AgentFilterChain],
     ) -> Vec<ModelUsagePreference> {
         agents
             .iter()
@@ -151,7 +151,7 @@ impl AgentSelector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::configuration::{AgentPipeline, Listener};
+    use common::configuration::{AgentFilterChain, Listener};
 
     fn create_test_router_service() -> Arc<RouterService> {
         Arc::new(RouterService::new(
@@ -162,8 +162,8 @@ mod tests {
         ))
     }
 
-    fn create_test_agent(name: &str, description: &str, is_default: bool) -> AgentPipeline {
-        AgentPipeline {
+    fn create_test_agent(name: &str, description: &str, is_default: bool) -> AgentFilterChain {
+        AgentFilterChain {
             id: name.to_string(),
             description: Some(description.to_string()),
             default: Some(is_default),
@@ -171,7 +171,7 @@ mod tests {
         }
     }
 
-    fn create_test_listener(name: &str, agents: Vec<AgentPipeline>) -> Listener {
+    fn create_test_listener(name: &str, agents: Vec<AgentFilterChain>) -> Listener {
         Listener {
             name: name.to_string(),
             agents: Some(agents),

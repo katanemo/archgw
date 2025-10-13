@@ -14,7 +14,7 @@ use crate::router::llm_router::RouterService;
 
 /// Main errors for agent chat completions
 #[derive(Debug, thiserror::Error)]
-pub enum AgentChatError {
+pub enum AgentFilterChainError {
     #[error("Agent selection error: {0}")]
     Selection(#[from] AgentSelectionError),
     #[error("Pipeline processing error: {0}")]
@@ -51,7 +51,7 @@ async fn handle_agent_chat(
     router_service: Arc<RouterService>,
     agents_list: Arc<tokio::sync::RwLock<Option<Vec<common::configuration::Agent>>>>,
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
-) -> Result<Response<BoxBody<Bytes, hyper::Error>>, AgentChatError> {
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>, AgentFilterChainError> {
     // Initialize services
     let agent_selector = AgentSelector::new(router_service);
     let pipeline_processor = PipelineProcessor::default();
@@ -88,7 +88,7 @@ async fn handle_agent_chat(
                 "Failed to parse request body as ChatCompletionsRequest: {}",
                 err
             );
-            AgentChatError::RequestParsing(err)
+            AgentFilterChainError::RequestParsing(err)
         })?;
 
     // Extract trace parent for routing
@@ -141,5 +141,5 @@ async fn handle_agent_chat(
     response_handler
         .create_streaming_response(llm_response)
         .await
-        .map_err(AgentChatError::from)
+        .map_err(AgentFilterChainError::from)
 }

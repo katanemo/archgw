@@ -321,7 +321,7 @@ static_resources:
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
-                stat_prefix: agents_traffic
+                stat_prefix: {{ listener.name | replace(" ", "_") }}_traffic
                 codec_type: AUTO
                 scheme_header_transformation:
                   scheme_to_overwrite: https

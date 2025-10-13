@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common::configuration::{Agent, AgentPipeline};
+use common::configuration::{Agent, AgentFilterChain};
 use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
 use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
 use hyper::header::HeaderMap;
@@ -48,13 +48,13 @@ impl PipelineProcessor {
     pub async fn process_filter_chain(
         &self,
         initial_request: &ChatCompletionsRequest,
-        agent_pipeline: &AgentPipeline,
+        agent_filter_chain: &AgentFilterChain,
         agent_map: &HashMap<String, Agent>,
         request_headers: &HeaderMap,
     ) -> Result<Vec<Message>, PipelineError> {
         let mut chat_completions_history = initial_request.messages.clone();
 
-        for agent_name in &agent_pipeline.filter_chain {
+        for agent_name in &agent_filter_chain.filter_chain {
             debug!("Processing filter agent: {}", agent_name);
 
             let agent = agent_map
@@ -195,8 +195,8 @@ mod tests {
         }
     }
 
-    fn create_test_pipeline(agents: Vec<&str>) -> AgentPipeline {
-        AgentPipeline {
+    fn create_test_pipeline(agents: Vec<&str>) -> AgentFilterChain {
+        AgentFilterChain {
             id: "test-agent".to_string(),
             filter_chain: agents.iter().map(|s| s.to_string()).collect(),
             description: None,

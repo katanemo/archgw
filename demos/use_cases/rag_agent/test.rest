@@ -52,8 +52,8 @@ Content-Type: application/json
   "stream": false
 }
 
-### models_listeners test
-POST http://localhost:12000/v1/chat/completions
+### send request to context builder agent
+POST http://localhost:10501/v1/chat/completions
 Content-Type: application/json
 
 {
@@ -61,7 +61,7 @@ Content-Type: application/json
   "messages": [
     {
       "role": "user",
-      "content": "what is the effective date of the master agreement for arcadyan"
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
     }
   ]
 }

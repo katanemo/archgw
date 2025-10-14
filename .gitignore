@@ -133,6 +133,7 @@ grafana-data
 prom_data
 arch_log/
 arch_logs/
+arch/logs/
 crates/*/target/
 crates/target/
 build.log

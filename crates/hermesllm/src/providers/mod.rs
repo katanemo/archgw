@@ -8,5 +8,5 @@ pub mod request;
 pub mod response;
 
 pub use id::ProviderId;
-pub use request::{ProviderRequestType, ProviderRequest, ProviderRequestError} ;
-pub use response::{ProviderResponseType, ProviderResponse, ProviderStreamResponse, TokenUsage };
+pub use request::{ProviderRequest, ProviderRequestError, ProviderRequestType};
+pub use response::{ProviderResponse, ProviderResponseType, ProviderStreamResponse, TokenUsage};

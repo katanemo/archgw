@@ -37,11 +37,38 @@ pub async fn agent_chat(
     match handle_agent_chat(request, router_service, agents_list, listeners).await {
         Ok(response) => Ok(response),
         Err(err) => {
-            warn!("Agent chat error: {}", err);
-            Ok(ResponseHandler::create_internal_error(&format!(
-                "Internal error: {}",
-                err
-            )))
+            // Print detailed error information with full error chain
+            let mut error_chain = Vec::new();
+            let mut current_error: &dyn std::error::Error = &err;
+
+            // Collect the full error chain
+            loop {
+                error_chain.push(current_error.to_string());
+                match current_error.source() {
+                    Some(source) => current_error = source,
+                    None => break,
+                }
+            }
+
+            // Log the complete error chain
+            warn!("Agent chat error chain: {:#?}", error_chain);
+            warn!("Root error: {:?}", err);
+
+            // Create structured error response as JSON
+            let error_json = serde_json::json!({
+                "error": {
+                    "type": "AgentFilterChainError",
+                    "message": err.to_string(),
+                    "error_chain": error_chain,
+                    "debug_info": format!("{:?}", err)
+                }
+            });
+
+            // Log the error for debugging
+            info!("Structured error info: {}", error_json);
+
+            // Return JSON error response
+            Ok(ResponseHandler::create_json_error_response(&error_json))
         }
     }
 }

@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use crate::apis::{AnthropicApi, OpenAIApi};
 use crate::clients::endpoints::SupportedAPIs;
-use crate::apis::{OpenAIApi, AnthropicApi};
+use std::fmt::Display;
 
 /// Provider identifier enum - simple enum for identifying providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -50,41 +50,50 @@ impl ProviderId {
     pub fn compatible_api_for_client(&self, client_api: &SupportedAPIs) -> SupportedAPIs {
         match (self, client_api) {
             // Claude/Anthropic providers natively support Anthropic APIs
-            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
-            (ProviderId::Anthropic, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages)
+            }
+            (
+                ProviderId::Anthropic,
+                SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            ) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // OpenAI-compatible providers only support OpenAI chat completions
-            (ProviderId::OpenAI
-            | ProviderId::Groq
-            | ProviderId::Mistral
-            | ProviderId::Deepseek
-            | ProviderId::Arch
-            | ProviderId::Gemini
-            | ProviderId::GitHub
-            | ProviderId::AzureOpenAI
-            | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::Ollama
-            | ProviderId::Moonshotai
-            | ProviderId::Zhipu
-            | ProviderId::Qwen,
-            SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (
+                ProviderId::OpenAI
+                | ProviderId::Groq
+                | ProviderId::Mistral
+                | ProviderId::Deepseek
+                | ProviderId::Arch
+                | ProviderId::Gemini
+                | ProviderId::GitHub
+                | ProviderId::AzureOpenAI
+                | ProviderId::XAI
+                | ProviderId::TogetherAI
+                | ProviderId::Ollama
+                | ProviderId::Moonshotai
+                | ProviderId::Zhipu
+                | ProviderId::Qwen,
+                SupportedAPIs::AnthropicMessagesAPI(_),
+            ) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
-            (ProviderId::OpenAI
-            | ProviderId::Groq
-            | ProviderId::Mistral
-            | ProviderId::Deepseek
-            | ProviderId::Arch
-            | ProviderId::Gemini
-            | ProviderId::GitHub
-            | ProviderId::AzureOpenAI
-            | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::Ollama
-            | ProviderId::Moonshotai
-            | ProviderId::Zhipu
-            | ProviderId::Qwen,
-            SupportedAPIs::OpenAIChatCompletions(_)) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (
+                ProviderId::OpenAI
+                | ProviderId::Groq
+                | ProviderId::Mistral
+                | ProviderId::Deepseek
+                | ProviderId::Arch
+                | ProviderId::Gemini
+                | ProviderId::GitHub
+                | ProviderId::AzureOpenAI
+                | ProviderId::XAI
+                | ProviderId::TogetherAI
+                | ProviderId::Ollama
+                | ProviderId::Moonshotai
+                | ProviderId::Zhipu
+                | ProviderId::Qwen,
+                SupportedAPIs::OpenAIChatCompletions(_),
+            ) => SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
         }
     }
 }

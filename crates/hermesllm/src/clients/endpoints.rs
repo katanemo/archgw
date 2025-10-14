@@ -21,7 +21,10 @@
 //! assert!(endpoints.contains(&"/v1/messages"));
 //! ```
 
-use crate::{apis::{AnthropicApi, ApiDefinition, OpenAIApi}, ProviderId};
+use crate::{
+    apis::{AnthropicApi, ApiDefinition, OpenAIApi},
+    ProviderId,
+};
 use std::fmt;
 
 /// Unified enum representing all supported API endpoints across providers
@@ -34,8 +37,12 @@ pub enum SupportedAPIs {
 impl fmt::Display for SupportedAPIs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SupportedAPIs::OpenAIChatCompletions(api) => write!(f, "OpenAI API ({})", api.endpoint()),
-            SupportedAPIs::AnthropicMessagesAPI(api) => write!(f, "Anthropic API ({})", api.endpoint()),
+            SupportedAPIs::OpenAIChatCompletions(api) => {
+                write!(f, "OpenAI API ({})", api.endpoint())
+            }
+            SupportedAPIs::AnthropicMessagesAPI(api) => {
+                write!(f, "Anthropic API ({})", api.endpoint())
+            }
         }
     }
 }
@@ -62,60 +69,59 @@ impl SupportedAPIs {
         }
     }
 
-    pub fn target_endpoint_for_provider(&self, provider_id: &ProviderId, request_path: &str, model_id: &str) -> String {
+    pub fn target_endpoint_for_provider(
+        &self,
+        provider_id: &ProviderId,
+        request_path: &str,
+        model_id: &str,
+    ) -> String {
         let default_endpoint = "/v1/chat/completions".to_string();
         match self {
-            SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => {
-                match provider_id {
-                    ProviderId::Anthropic => "/v1/messages".to_string(),
-                    _ => default_endpoint,
+            SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => match provider_id {
+                ProviderId::Anthropic => "/v1/messages".to_string(),
+                _ => default_endpoint,
+            },
+            _ => match provider_id {
+                ProviderId::Groq => {
+                    if request_path.starts_with("/v1/") {
+                        format!("/openai{}", request_path)
+                    } else {
+                        default_endpoint
+                    }
                 }
-            }
-            _ => {
-                match provider_id {
-                    ProviderId::Groq => {
-                        if request_path.starts_with("/v1/") {
-                            format!("/openai{}", request_path)
-                        } else {
-                            default_endpoint
-                        }
+                ProviderId::Zhipu => {
+                    if request_path.starts_with("/v1/") {
+                        "/api/paas/v4/chat/completions".to_string()
+                    } else {
+                        default_endpoint
                     }
-                    ProviderId::Zhipu => {
-                        if request_path.starts_with("/v1/") {
-                            "/api/paas/v4/chat/completions".to_string()
-                        } else {
-                            default_endpoint
-                        }
-                    }
-                    ProviderId::Qwen => {
-                        if request_path.starts_with("/v1/") {
-                            "/compatible-mode/v1/chat/completions".to_string()
-                        } else {
-                            default_endpoint
-                        }
-                    }
-                    ProviderId::AzureOpenAI => {
-                        if request_path.starts_with("/v1/") {
-                            format!("/openai/deployments/{}/chat/completions?api-version=2025-01-01-preview", model_id)
-                        } else {
-                            default_endpoint
-                        }
-                    }
-                    ProviderId::Gemini => {
-                        if request_path.starts_with("/v1/") {
-                            "/v1beta/openai/chat/completions".to_string()
-                        } else {
-                            default_endpoint
-                        }
-                    }
-                    _ => default_endpoint,
                 }
-            }
+                ProviderId::Qwen => {
+                    if request_path.starts_with("/v1/") {
+                        "/compatible-mode/v1/chat/completions".to_string()
+                    } else {
+                        default_endpoint
+                    }
+                }
+                ProviderId::AzureOpenAI => {
+                    if request_path.starts_with("/v1/") {
+                        format!("/openai/deployments/{}/chat/completions?api-version=2025-01-01-preview", model_id)
+                    } else {
+                        default_endpoint
+                    }
+                }
+                ProviderId::Gemini => {
+                    if request_path.starts_with("/v1/") {
+                        "/v1beta/openai/chat/completions".to_string()
+                    } else {
+                        default_endpoint
+                    }
+                }
+                _ => default_endpoint,
+            },
         }
     }
 }
-
-
 
 /// Get all supported endpoint paths
 pub fn supported_endpoints() -> Vec<&'static str> {
@@ -196,15 +202,26 @@ mod tests {
 
         // All OpenAI endpoints should be in the result
         for endpoint in openai_endpoints {
-            assert!(endpoints.contains(&endpoint), "Missing OpenAI endpoint: {}", endpoint);
+            assert!(
+                endpoints.contains(&endpoint),
+                "Missing OpenAI endpoint: {}",
+                endpoint
+            );
         }
 
         // All Anthropic endpoints should be in the result
         for endpoint in anthropic_endpoints {
-            assert!(endpoints.contains(&endpoint), "Missing Anthropic endpoint: {}", endpoint);
+            assert!(
+                endpoints.contains(&endpoint),
+                "Missing Anthropic endpoint: {}",
+                endpoint
+            );
         }
 
         // Total should match
-        assert_eq!(endpoints.len(), OpenAIApi::all_variants().len() + AnthropicApi::all_variants().len());
+        assert_eq!(
+            endpoints.len(),
+            OpenAIApi::all_variants().len() + AnthropicApi::all_variants().len()
+        );
     }
 }

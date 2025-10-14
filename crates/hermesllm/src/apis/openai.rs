@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 
+use super::ApiDefinition;
+use crate::clients::transformer::ExtractText;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
-use super::ApiDefinition;
-use crate::clients::transformer::{ExtractText};
-use crate::{CHAT_COMPLETIONS_PATH};
+use crate::CHAT_COMPLETIONS_PATH;
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -46,7 +46,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn supports_tools(&self) -> bool {
-         match self {
+        match self {
             OpenAIApi::ChatCompletions => true,
         }
     }
@@ -58,9 +58,7 @@ impl ApiDefinition for OpenAIApi {
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![
-            OpenAIApi::ChatCompletions,
-        ]
+        vec![OpenAIApi::ChatCompletions]
     }
 }
 
@@ -190,7 +188,9 @@ impl ResponseMessage {
     pub fn to_message(&self) -> Message {
         Message {
             role: self.role.clone(),
-            content: self.content.as_ref()
+            content: self
+                .content
+                .as_ref()
                 .map(|s| MessageContent::Text(s.clone()))
                 .unwrap_or(MessageContent::Text(String::new())),
             name: None, // Response messages don't have names in the same way request messages do
@@ -215,7 +215,7 @@ impl ExtractText for MessageContent {
     fn extract_text(&self) -> String {
         match self {
             MessageContent::Text(text) => text.clone(),
-            MessageContent::Parts(parts) => parts.extract_text()
+            MessageContent::Parts(parts) => parts.extract_text(),
         }
     }
 }
@@ -273,7 +273,6 @@ pub struct ImageUrl {
 }
 
 /// A single message in a chat conversation
-
 
 /// A tool call made by the assistant
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -373,7 +372,6 @@ pub enum StaticContentType {
     /// Can contain text inputs and other supported content types.
     Parts(Vec<ContentPart>),
 }
-
 
 /// Chat completions API response
 #[skip_serializing_none]
@@ -496,7 +494,6 @@ pub struct ChatCompletionsStreamResponse {
     pub service_tier: Option<String>,
 }
 
-
 /// A choice in a streaming response
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -566,7 +563,6 @@ pub struct Models {
     pub data: Vec<ModelDetail>,
 }
 
-
 // Error type for streaming operations
 #[derive(Debug, thiserror::Error)]
 pub enum OpenAIStreamError {
@@ -597,13 +593,13 @@ pub enum OpenAIError {
 /// Trait Implementations
 /// ===========================================================================
 
-
 /// Parameterized conversion for ChatCompletionsRequest
 impl TryFrom<&[u8]> for ChatCompletionsRequest {
     type Error = OpenAIStreamError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-       let mut req: ChatCompletionsRequest = serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)?;
+        let mut req: ChatCompletionsRequest =
+            serde_json::from_slice(bytes).map_err(OpenAIStreamError::from)?;
         // Use the centralized suppression logic
         req.suppress_max_tokens_if_o3();
         req.fix_temperature_if_gpt5();
@@ -651,13 +647,18 @@ impl ProviderRequest for ChatCompletionsRequest {
 
     fn extract_messages_text(&self) -> String {
         self.messages.iter().fold(String::new(), |acc, m| {
-            acc + " " + &match &m.content {
-                MessageContent::Text(text) => text.clone(),
-                MessageContent::Parts(parts) => parts.iter().map(|part| match part {
-                    ContentPart::Text { text } => text.clone(),
-                    ContentPart::ImageUrl { .. } => "[Image]".to_string(),
-                }).collect::<Vec<_>>().join(" ")
-            }
+            acc + " "
+                + &match &m.content {
+                    MessageContent::Text(text) => text.clone(),
+                    MessageContent::Parts(parts) => parts
+                        .iter()
+                        .map(|part| match part {
+                            ContentPart::Text { text } => text.clone(),
+                            ContentPart::ImageUrl { .. } => "[Image]".to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                }
         })
     }
 
@@ -721,21 +722,20 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
     }
 
     fn role(&self) -> Option<&str> {
-        self.choices
-            .first()
-            .and_then(|choice| choice.delta.role.as_ref().map(|r| match r {
+        self.choices.first().and_then(|choice| {
+            choice.delta.role.as_ref().map(|r| match r {
                 Role::System => "system",
                 Role::User => "user",
                 Role::Assistant => "assistant",
                 Role::Tool => "tool",
-            }))
+            })
+        })
     }
 
     fn event_type(&self) -> Option<&str> {
         None // OpenAI doesn't use event types in SSE
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -756,7 +756,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields are properly set
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -799,7 +800,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate required fields
         assert_eq!(deserialized_request.model, "gpt-4");
@@ -836,7 +838,10 @@ mod tests {
         assert_eq!(serialized_json["messages"], original_json["messages"]);
         assert_eq!(serialized_json["max_tokens"], original_json["max_tokens"]);
         assert_eq!(serialized_json["stream"], original_json["stream"]);
-        assert_eq!(serialized_json["stream_options"], original_json["stream_options"]);
+        assert_eq!(
+            serialized_json["stream_options"],
+            original_json["stream_options"]
+        );
         assert_eq!(serialized_json["metadata"], original_json["metadata"]);
 
         // Handle temperature with floating point tolerance
@@ -917,7 +922,8 @@ mod tests {
         });
 
         // Deserialize JSON into ChatCompletionsRequest
-        let deserialized_request: ChatCompletionsRequest = serde_json::from_value(original_json.clone()).unwrap();
+        let deserialized_request: ChatCompletionsRequest =
+            serde_json::from_value(original_json.clone()).unwrap();
 
         // Validate top-level fields
         assert_eq!(deserialized_request.model, "gpt-4-vision-preview");
@@ -953,7 +959,10 @@ mod tests {
         let assistant_message = &deserialized_request.messages[1];
         assert_eq!(assistant_message.role, Role::Assistant);
         if let MessageContent::Text(text) = &assistant_message.content {
-            assert_eq!(text, "I can see a beautiful cityscape. Let me check the weather for you.");
+            assert_eq!(
+                text,
+                "I can see a beautiful cityscape. Let me check the weather for you."
+            );
         } else {
             panic!("Expected text content for assistant message");
         }
@@ -967,7 +976,10 @@ mod tests {
         assert_eq!(tool_call.id, "call_weather123");
         assert_eq!(tool_call.call_type, "function");
         assert_eq!(tool_call.function.name, "get_weather");
-        assert_eq!(tool_call.function.arguments, "{\"location\": \"New York, NY\"}");
+        assert_eq!(
+            tool_call.function.arguments,
+            "{\"location\": \"New York, NY\"}"
+        );
 
         // Validate third message (tool response)
         let tool_message = &deserialized_request.messages[2];
@@ -977,7 +989,10 @@ mod tests {
         } else {
             panic!("Expected text content for tool message");
         }
-        assert_eq!(tool_message.tool_call_id, Some("call_weather123".to_string()));
+        assert_eq!(
+            tool_message.tool_call_id,
+            Some("call_weather123".to_string())
+        );
 
         // Validate tools array
         assert!(deserialized_request.tools.is_some());
@@ -987,7 +1002,10 @@ mod tests {
         let tool = &tools[0];
         assert_eq!(tool.tool_type, "function");
         assert_eq!(tool.function.name, "get_weather");
-        assert_eq!(tool.function.description, Some("Get current weather information for a location".to_string()));
+        assert_eq!(
+            tool.function.description,
+            Some("Get current weather information for a location".to_string())
+        );
         assert_eq!(tool.function.strict, Some(true));
 
         // Validate tool parameters schema
@@ -1093,7 +1111,8 @@ mod tests {
             ]
         });
 
-        let deserialized_assistant: Message = serde_json::from_value(assistant_json.clone()).unwrap();
+        let deserialized_assistant: Message =
+            serde_json::from_value(assistant_json.clone()).unwrap();
         assert_eq!(deserialized_assistant.role, Role::Assistant);
         if let MessageContent::Text(content) = &deserialized_assistant.content {
             assert_eq!(content, "I'll help with that.");
@@ -1142,9 +1161,13 @@ mod tests {
             ]
         });
 
-        let deserialized_response: ResponseMessage = serde_json::from_value(response_json.clone()).unwrap();
+        let deserialized_response: ResponseMessage =
+            serde_json::from_value(response_json.clone()).unwrap();
         assert_eq!(deserialized_response.role, Role::Assistant);
-        assert_eq!(deserialized_response.content, Some("Response content".to_string()));
+        assert_eq!(
+            deserialized_response.content,
+            Some("Response content".to_string())
+        );
         assert!(deserialized_response.annotations.is_some());
         assert!(deserialized_response.refusal.is_none());
         assert!(deserialized_response.function_call.is_none());
@@ -1186,7 +1209,10 @@ mod tests {
         let none_deserialized: ToolChoice = serde_json::from_value(json!("none")).unwrap();
 
         assert_eq!(auto_deserialized, ToolChoice::Type(ToolChoiceType::Auto));
-        assert_eq!(required_deserialized, ToolChoice::Type(ToolChoiceType::Required));
+        assert_eq!(
+            required_deserialized,
+            ToolChoice::Type(ToolChoiceType::Required)
+        );
         assert_eq!(none_deserialized, ToolChoice::Type(ToolChoiceType::None));
 
         // Test that invalid string values fail deserialization (type safety!)
@@ -1237,7 +1263,10 @@ mod tests {
         assert_eq!(response.created, 1756574706);
         assert_eq!(response.model, "gpt-4o-2024-08-06");
         assert_eq!(response.service_tier, Some("default".to_string()));
-        assert_eq!(response.system_fingerprint, Some("fp_f33640a400".to_string()));
+        assert_eq!(
+            response.system_fingerprint,
+            Some("fp_f33640a400".to_string())
+        );
         assert_eq!(response.choices.len(), 1);
         assert_eq!(response.usage.prompt_tokens, 65);
         assert_eq!(response.usage.completion_tokens, 184);

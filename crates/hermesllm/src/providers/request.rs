@@ -1,11 +1,11 @@
-use crate::apis::openai::ChatCompletionsRequest;
 use crate::apis::anthropic::MessagesRequest;
+use crate::apis::openai::ChatCompletionsRequest;
 use crate::clients::endpoints::SupportedAPIs;
 
 use serde_json::Value;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::collections::HashMap;
 #[derive(Clone)]
 pub enum ProviderRequestType {
     ChatCompletionsRequest(ChatCompletionsRequest),
@@ -103,15 +103,18 @@ impl TryFrom<(&[u8], &SupportedAPIs)> for ProviderRequestType {
         // Use SupportedApi to determine the appropriate request type
         match client_api {
             SupportedAPIs::OpenAIChatCompletions(_) => {
-                let chat_completion_request: ChatCompletionsRequest = ChatCompletionsRequest::try_from(bytes)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                Ok(ProviderRequestType::ChatCompletionsRequest(chat_completion_request))
-                }
-                SupportedAPIs::AnthropicMessagesAPI(_) => {
-                    let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
+                let chat_completion_request: ChatCompletionsRequest =
+                    ChatCompletionsRequest::try_from(bytes)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                    Ok(ProviderRequestType::MessagesRequest(messages_request))
-                }
+                Ok(ProviderRequestType::ChatCompletionsRequest(
+                    chat_completion_request,
+                ))
+            }
+            SupportedAPIs::AnthropicMessagesAPI(_) => {
+                let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                Ok(ProviderRequestType::MessagesRequest(messages_request))
+            }
         }
     }
 }
@@ -120,39 +123,54 @@ impl TryFrom<(&[u8], &SupportedAPIs)> for ProviderRequestType {
 impl TryFrom<(ProviderRequestType, &SupportedAPIs)> for ProviderRequestType {
     type Error = ProviderRequestError;
 
-    fn try_from((request, upstream_api): (ProviderRequestType, &SupportedAPIs)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (request, upstream_api): (ProviderRequestType, &SupportedAPIs),
+    ) -> Result<Self, Self::Error> {
         match (request, upstream_api) {
             // Same API - no conversion needed, just clone the reference
-            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                Ok(ProviderRequestType::ChatCompletionsRequest(chat_req))
-            }
-            (ProviderRequestType::MessagesRequest(messages_req), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                Ok(ProviderRequestType::MessagesRequest(messages_req))
-            }
+            (
+                ProviderRequestType::ChatCompletionsRequest(chat_req),
+                SupportedAPIs::OpenAIChatCompletions(_),
+            ) => Ok(ProviderRequestType::ChatCompletionsRequest(chat_req)),
+            (
+                ProviderRequestType::MessagesRequest(messages_req),
+                SupportedAPIs::AnthropicMessagesAPI(_),
+            ) => Ok(ProviderRequestType::MessagesRequest(messages_req)),
 
             // Cross-API conversion - cloning is necessary for transformation
-            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                let messages_req = MessagesRequest::try_from(chat_req)
-                    .map_err(|e| ProviderRequestError {
-                        message: format!("Failed to convert ChatCompletionsRequest to MessagesRequest: {}", e),
-                        source: Some(Box::new(e))
+            (
+                ProviderRequestType::ChatCompletionsRequest(chat_req),
+                SupportedAPIs::AnthropicMessagesAPI(_),
+            ) => {
+                let messages_req =
+                    MessagesRequest::try_from(chat_req).map_err(|e| ProviderRequestError {
+                        message: format!(
+                            "Failed to convert ChatCompletionsRequest to MessagesRequest: {}",
+                            e
+                        ),
+                        source: Some(Box::new(e)),
                     })?;
                 Ok(ProviderRequestType::MessagesRequest(messages_req))
             }
 
-            (ProviderRequestType::MessagesRequest(messages_req), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                let chat_req = ChatCompletionsRequest::try_from(messages_req)
-                    .map_err(|e| ProviderRequestError {
-                        message: format!("Failed to convert MessagesRequest to ChatCompletionsRequest: {}", e),
-                        source: Some(Box::new(e))
-                    })?;
+            (
+                ProviderRequestType::MessagesRequest(messages_req),
+                SupportedAPIs::OpenAIChatCompletions(_),
+            ) => {
+                let chat_req = ChatCompletionsRequest::try_from(messages_req).map_err(|e| {
+                    ProviderRequestError {
+                        message: format!(
+                            "Failed to convert MessagesRequest to ChatCompletionsRequest: {}",
+                            e
+                        ),
+                        source: Some(Box::new(e)),
+                    }
+                })?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_req))
             }
         }
     }
 }
-
-
 
 /// Error types for provider operations
 #[derive(Debug)]
@@ -169,19 +187,20 @@ impl fmt::Display for ProviderRequestError {
 
 impl Error for ProviderRequestError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn Error + 'static))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::endpoints::SupportedAPIs;
     use crate::apis::anthropic::AnthropicApi::Messages;
-    use crate::apis::openai::OpenAIApi::ChatCompletions;
     use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
-    use crate::apis::openai::{ChatCompletionsRequest};
+    use crate::apis::openai::ChatCompletionsRequest;
+    use crate::apis::openai::OpenAIApi::ChatCompletions;
+    use crate::clients::endpoints::SupportedAPIs;
     use crate::clients::transformer::ExtractText;
     use serde_json::json;
 
@@ -202,7 +221,7 @@ mod tests {
             ProviderRequestType::ChatCompletionsRequest(r) => {
                 assert_eq!(r.model, "gpt-4");
                 assert_eq!(r.messages.len(), 2);
-            },
+            }
             _ => panic!("Expected ChatCompletionsRequest variant"),
         }
     }
@@ -225,7 +244,7 @@ mod tests {
             ProviderRequestType::MessagesRequest(r) => {
                 assert_eq!(r.model, "claude-3-sonnet");
                 assert_eq!(r.messages.len(), 1);
-            },
+            }
             _ => panic!("Expected MessagesRequest variant"),
         }
     }
@@ -247,7 +266,7 @@ mod tests {
             ProviderRequestType::ChatCompletionsRequest(r) => {
                 assert_eq!(r.model, "gpt-4");
                 assert_eq!(r.messages.len(), 2);
-            },
+            }
             _ => panic!("Expected ChatCompletionsRequest variant"),
         }
     }
@@ -271,7 +290,7 @@ mod tests {
             ProviderRequestType::ChatCompletionsRequest(r) => {
                 assert_eq!(r.model, "claude-3-sonnet");
                 assert_eq!(r.messages.len(), 1);
-            },
+            }
             _ => panic!("Expected ChatCompletionsRequest variant"),
         }
     }
@@ -280,13 +299,15 @@ mod tests {
     fn test_v1_messages_to_v1_chat_completions_roundtrip() {
         let anthropic_req = AnthropicMessagesRequest {
             model: "claude-3-sonnet".to_string(),
-            system: Some(crate::apis::anthropic::MessagesSystemPrompt::Single("You are a helpful assistant".to_string())),
-            messages: vec![
-                crate::apis::anthropic::MessagesMessage {
-                    role: crate::apis::anthropic::MessagesRole::User,
-                    content: crate::apis::anthropic::MessagesMessageContent::Single("Hello!".to_string()),
-                }
-            ],
+            system: Some(crate::apis::anthropic::MessagesSystemPrompt::Single(
+                "You are a helpful assistant".to_string(),
+            )),
+            messages: vec![crate::apis::anthropic::MessagesMessage {
+                role: crate::apis::anthropic::MessagesRole::User,
+                content: crate::apis::anthropic::MessagesMessageContent::Single(
+                    "Hello!".to_string(),
+                ),
+            }],
             max_tokens: 128,
             container: None,
             mcp_servers: None,
@@ -302,16 +323,27 @@ mod tests {
             metadata: None,
         };
 
-        let openai_req = ChatCompletionsRequest::try_from(anthropic_req.clone()).expect("Anthropic->OpenAI conversion failed");
-        let anthropic_req2 = AnthropicMessagesRequest::try_from(openai_req).expect("OpenAI->Anthropic conversion failed");
+        let openai_req = ChatCompletionsRequest::try_from(anthropic_req.clone())
+            .expect("Anthropic->OpenAI conversion failed");
+        let anthropic_req2 = AnthropicMessagesRequest::try_from(openai_req)
+            .expect("OpenAI->Anthropic conversion failed");
 
         assert_eq!(anthropic_req.model, anthropic_req2.model);
         // Compare system prompt text if present
         assert_eq!(
-            anthropic_req.system.as_ref().and_then(|s| match s { crate::apis::anthropic::MessagesSystemPrompt::Single(t) => Some(t), _ => None }),
-            anthropic_req2.system.as_ref().and_then(|s| match s { crate::apis::anthropic::MessagesSystemPrompt::Single(t) => Some(t), _ => None })
+            anthropic_req.system.as_ref().and_then(|s| match s {
+                crate::apis::anthropic::MessagesSystemPrompt::Single(t) => Some(t),
+                _ => None,
+            }),
+            anthropic_req2.system.as_ref().and_then(|s| match s {
+                crate::apis::anthropic::MessagesSystemPrompt::Single(t) => Some(t),
+                _ => None,
+            })
         );
-        assert_eq!(anthropic_req.messages[0].role, anthropic_req2.messages[0].role);
+        assert_eq!(
+            anthropic_req.messages[0].role,
+            anthropic_req2.messages[0].role
+        );
         // Compare message content text if present
         assert_eq!(
             anthropic_req.messages[0].content.extract_text(),
@@ -320,49 +352,54 @@ mod tests {
         assert_eq!(anthropic_req.max_tokens, anthropic_req2.max_tokens);
     }
 
-        #[test]
-        fn test_v1_chat_completions_to_v1_messages_roundtrip() {
-            use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
-            use crate::apis::openai::{ChatCompletionsRequest, Message, Role, MessageContent};
+    #[test]
+    fn test_v1_chat_completions_to_v1_messages_roundtrip() {
+        use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
+        use crate::apis::openai::{ChatCompletionsRequest, Message, MessageContent, Role};
 
-            let openai_req = ChatCompletionsRequest {
-                model: "gpt-4".to_string(),
-                messages: vec![
-                    Message {
-                        role: Role::System,
-                        content: MessageContent::Text("You are a helpful assistant".to_string()),
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    },
-                    Message {
-                        role: Role::User,
-                        content: MessageContent::Text("Hello!".to_string()),
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    }
-                ],
-                temperature: Some(0.7),
-                top_p: Some(1.0),
-                max_tokens: Some(128),
-                stream: Some(false),
-                stop: Some(vec!["\n".to_string()]),
-                tools: None,
-                tool_choice: None,
-                parallel_tool_calls: None,
-                ..Default::default()
-            };
+        let openai_req = ChatCompletionsRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![
+                Message {
+                    role: Role::System,
+                    content: MessageContent::Text("You are a helpful assistant".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                Message {
+                    role: Role::User,
+                    content: MessageContent::Text("Hello!".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            temperature: Some(0.7),
+            top_p: Some(1.0),
+            max_tokens: Some(128),
+            stream: Some(false),
+            stop: Some(vec!["\n".to_string()]),
+            tools: None,
+            tool_choice: None,
+            parallel_tool_calls: None,
+            ..Default::default()
+        };
 
-            let anthropic_req = AnthropicMessagesRequest::try_from(openai_req.clone()).expect("OpenAI->Anthropic conversion failed");
-            let openai_req2 = ChatCompletionsRequest::try_from(anthropic_req).expect("Anthropic->OpenAI conversion failed");
+        let anthropic_req = AnthropicMessagesRequest::try_from(openai_req.clone())
+            .expect("OpenAI->Anthropic conversion failed");
+        let openai_req2 = ChatCompletionsRequest::try_from(anthropic_req)
+            .expect("Anthropic->OpenAI conversion failed");
 
-            assert_eq!(openai_req.model, openai_req2.model);
-            assert_eq!(openai_req.messages[0].role, openai_req2.messages[0].role);
-            assert_eq!(openai_req.messages[0].content.extract_text(), openai_req2.messages[0].content.extract_text());
-            // After roundtrip, deprecated max_tokens should be converted to max_completion_tokens
-            let original_max_tokens = openai_req.max_completion_tokens.or(openai_req.max_tokens);
-            let roundtrip_max_tokens = openai_req2.max_completion_tokens.or(openai_req2.max_tokens);
-            assert_eq!(original_max_tokens, roundtrip_max_tokens);
-        }
+        assert_eq!(openai_req.model, openai_req2.model);
+        assert_eq!(openai_req.messages[0].role, openai_req2.messages[0].role);
+        assert_eq!(
+            openai_req.messages[0].content.extract_text(),
+            openai_req2.messages[0].content.extract_text()
+        );
+        // After roundtrip, deprecated max_tokens should be converted to max_completion_tokens
+        let original_max_tokens = openai_req.max_completion_tokens.or(openai_req.max_tokens);
+        let roundtrip_max_tokens = openai_req2.max_completion_tokens.or(openai_req2.max_tokens);
+        assert_eq!(original_max_tokens, roundtrip_max_tokens);
+    }
 }

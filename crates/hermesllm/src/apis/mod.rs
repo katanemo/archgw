@@ -3,7 +3,6 @@ pub mod openai;
 pub use anthropic::*;
 pub use openai::*;
 
-
 pub trait ApiDefinition {
     /// Returns the endpoint path for this API
     fn endpoint(&self) -> &'static str;
@@ -49,11 +48,7 @@ mod tests {
     #[test]
     fn test_api_detection_from_endpoints() {
         // Test that we can detect APIs from endpoints using the trait
-        let endpoints = vec![
-            CHAT_COMPLETIONS_PATH,
-            MESSAGES_PATH,
-            "/v1/unknown"
-        ];
+        let endpoints = vec![CHAT_COMPLETIONS_PATH, MESSAGES_PATH, "/v1/unknown"];
 
         let mut detected_apis = Vec::new();
 
@@ -67,11 +62,14 @@ mod tests {
             }
         }
 
-        assert_eq!(detected_apis, vec![
-            "OpenAI: ChatCompletions",
-            "Anthropic: Messages",
-            "Unknown API"
-        ]);
+        assert_eq!(
+            detected_apis,
+            vec![
+                "OpenAI: ChatCompletions",
+                "Anthropic: Messages",
+                "Unknown API"
+            ]
+        );
     }
 
     #[test]

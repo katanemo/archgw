@@ -1,15 +1,15 @@
 use crate::providers::id::ProviderId;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
-use std::convert::TryFrom;
 use std::str::FromStr;
 
+use crate::apis::anthropic::MessagesResponse;
+use crate::apis::anthropic::MessagesStreamEvent;
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::openai::ChatCompletionsStreamResponse;
-use crate::apis::anthropic::MessagesStreamEvent;
 use crate::clients::endpoints::SupportedAPIs;
-use crate::apis::anthropic::MessagesResponse;
 
 /// Trait for token usage information
 pub trait TokenUsage {
@@ -38,7 +38,8 @@ pub trait ProviderResponse: Send + Sync {
 
     /// Extract token counts for metrics
     fn extract_usage_counts(&self) -> Option<(usize, usize, usize)> {
-        self.usage().map(|u| (u.prompt_tokens(), u.completion_tokens(), u.total_tokens()))
+        self.usage()
+            .map(|u| (u.prompt_tokens(), u.completion_tokens(), u.total_tokens()))
     }
 }
 
@@ -110,19 +111,19 @@ impl ProviderStreamResponse for ProviderStreamResponseType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SseEvent {
     #[serde(rename = "data")]
-    pub data: Option<String>,  // The JSON payload after "data: "
+    pub data: Option<String>, // The JSON payload after "data: "
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub event: Option<String>,  // Optional event type (e.g., "message_start", "content_block_delta")
+    pub event: Option<String>, // Optional event type (e.g., "message_start", "content_block_delta")
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub raw_line: String,  // The complete line as received including "data: " prefix and "\n\n"
-
-     #[serde(skip_serializing, skip_deserializing)]
-    pub sse_transform_buffer: String,  // The complete line as received including "data: " prefix and "\n\n"
+    pub raw_line: String, // The complete line as received including "data: " prefix and "\n\n"
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub provider_stream_response: Option<ProviderStreamResponseType>,  // Parsed provider stream response object
+    pub sse_transform_buffer: String, // The complete line as received including "data: " prefix and "\n\n"
+
+    #[serde(skip_serializing, skip_deserializing)]
+    pub provider_stream_response: Option<ProviderStreamResponseType>, // Parsed provider stream response object
 }
 
 impl SseEvent {
@@ -145,13 +146,13 @@ impl SseEvent {
 
     /// Get the parsed provider response if available
     pub fn provider_response(&self) -> Result<&dyn ProviderStreamResponse, std::io::Error> {
-        self.provider_stream_response.as_ref()
+        self.provider_stream_response
+            .as_ref()
             .map(|resp| resp as &dyn ProviderStreamResponse)
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "Provider response not found")
             })
     }
-
 }
 
 impl FromStr for SseEvent {
@@ -172,7 +173,8 @@ impl FromStr for SseEvent {
                 sse_transform_buffer: line.to_string(),
                 provider_stream_response: None,
             })
-        } else if line.starts_with("event: ") { //used by Anthropic
+        } else if line.starts_with("event: ") {
+            //used by Anthropic
             let event_type = line[7..].to_string();
             if event_type.is_empty() {
                 return Err(SseParseError {
@@ -207,12 +209,13 @@ impl Into<Vec<u8>> for SseEvent {
     }
 }
 
-
 // --- Response transformation logic for client API compatibility ---
 impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bytes, client_api, provider_id): (&[u8], &SupportedAPIs, &ProviderId),
+    ) -> Result<Self, Self::Error> {
         let upstream_api = provider_id.compatible_api_for_client(client_api);
         match (&upstream_api, client_api) {
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
@@ -230,8 +233,13 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
                 // Transform to OpenAI ChatCompletions format using the transformer
-                let chat_resp: ChatCompletionsResponse = anthropic_resp.try_into()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Transformation error: {}", e)))?;
+                let chat_resp: ChatCompletionsResponse =
+                    anthropic_resp.try_into().map_err(|e| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Transformation error: {}", e),
+                        )
+                    })?;
                 Ok(ProviderResponseType::ChatCompletionsResponse(chat_resp))
             }
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
@@ -239,8 +247,12 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
                 // Transform to Anthropic Messages format using the transformer
-                let messages_resp: MessagesResponse = openai_resp.try_into()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Transformation error: {}", e)))?;
+                let messages_resp: MessagesResponse = openai_resp.try_into().map_err(|e| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("Transformation error: {}", e),
+                    )
+                })?;
                 Ok(ProviderResponseType::MessagesResponse(messages_resp))
             }
         }
@@ -251,36 +263,50 @@ impl TryFrom<(&[u8], &SupportedAPIs, &ProviderId)> for ProviderResponseType {
 impl TryFrom<(&[u8], &SupportedAPIs, &SupportedAPIs)> for ProviderStreamResponseType {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((bytes, client_api, upstream_api): (&[u8], &SupportedAPIs, &SupportedAPIs)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bytes, client_api, upstream_api): (&[u8], &SupportedAPIs, &SupportedAPIs),
+    ) -> Result<Self, Self::Error> {
         match (upstream_api, client_api) {
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                let resp: crate::apis::openai::ChatCompletionsStreamResponse = serde_json::from_slice(bytes)?;
-                Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(resp))
+                let resp: crate::apis::openai::ChatCompletionsStreamResponse =
+                    serde_json::from_slice(bytes)?;
+                Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(
+                    resp,
+                ))
             }
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
-                let resp: crate::apis::anthropic::MessagesStreamEvent = serde_json::from_slice(bytes)?;
+                let resp: crate::apis::anthropic::MessagesStreamEvent =
+                    serde_json::from_slice(bytes)?;
                 Ok(ProviderStreamResponseType::MessagesStreamEvent(resp))
             }
             (SupportedAPIs::AnthropicMessagesAPI(_), SupportedAPIs::OpenAIChatCompletions(_)) => {
-                let anthropic_resp: crate::apis::anthropic::MessagesStreamEvent = serde_json::from_slice(bytes)?;
+                let anthropic_resp: crate::apis::anthropic::MessagesStreamEvent =
+                    serde_json::from_slice(bytes)?;
 
                 // Transform to OpenAI ChatCompletions stream format using the transformer
-                let chat_resp: crate::apis::openai::ChatCompletionsStreamResponse = anthropic_resp.try_into()?;
-                Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(chat_resp))
+                let chat_resp: crate::apis::openai::ChatCompletionsStreamResponse =
+                    anthropic_resp.try_into()?;
+                Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(
+                    chat_resp,
+                ))
             }
             (SupportedAPIs::OpenAIChatCompletions(_), SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 // Special case: Handle [DONE] marker for OpenAI -> Anthropic conversion
                 if bytes == b"[DONE]" {
                     return Ok(ProviderStreamResponseType::MessagesStreamEvent(
-                        crate::apis::anthropic::MessagesStreamEvent::MessageStop
+                        crate::apis::anthropic::MessagesStreamEvent::MessageStop,
                     ));
                 }
 
-                let openai_resp: crate::apis::openai::ChatCompletionsStreamResponse = serde_json::from_slice(bytes)?;
+                let openai_resp: crate::apis::openai::ChatCompletionsStreamResponse =
+                    serde_json::from_slice(bytes)?;
 
                 // Transform to Anthropic Messages stream format using the transformer
-                let messages_resp: crate::apis::anthropic::MessagesStreamEvent = openai_resp.try_into()?;
-                Ok(ProviderStreamResponseType::MessagesStreamEvent(messages_resp))
+                let messages_resp: crate::apis::anthropic::MessagesStreamEvent =
+                    openai_resp.try_into()?;
+                Ok(ProviderStreamResponseType::MessagesStreamEvent(
+                    messages_resp,
+                ))
             }
         }
     }
@@ -290,7 +316,9 @@ impl TryFrom<(&[u8], &SupportedAPIs, &SupportedAPIs)> for ProviderStreamResponse
 impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
-    fn try_from((sse_event, client_api, upstream_api): (SseEvent, &SupportedAPIs, &SupportedAPIs)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (sse_event, client_api, upstream_api): (SseEvent, &SupportedAPIs, &SupportedAPIs),
+    ) -> Result<Self, Self::Error> {
         // Create a new transformed event based on the original
         let mut transformed_event = sse_event;
 
@@ -298,7 +326,8 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
         if transformed_event.data.is_some() {
             let data_str = transformed_event.data.as_ref().unwrap();
             let data_bytes = data_str.as_bytes();
-            let transformed_response = ProviderStreamResponseType::try_from((data_bytes, client_api, upstream_api))?;
+            let transformed_response =
+                ProviderStreamResponseType::try_from((data_bytes, client_api, upstream_api))?;
             let transformed_json = serde_json::to_string(&transformed_response)?;
             transformed_event.sse_transform_buffer = format!("data: {}\n\n", transformed_json);
             transformed_event.provider_stream_response = Some(transformed_response);
@@ -344,7 +373,10 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedAPIs)> for SseEvent {
                                 transformed_event.sse_transform_buffer
                             );
                         } else {
-                            transformed_event.sse_transform_buffer = format!("event: {}\n{}", event_type, transformed_event.sse_transform_buffer);
+                            transformed_event.sse_transform_buffer = format!(
+                                "event: {}\n{}",
+                                event_type, transformed_event.sse_transform_buffer
+                            );
                         }
                     }
                     // If event_type is None, we just keep the data line as-is without an event line
@@ -396,7 +428,10 @@ where
     I::Item: AsRef<str>,
 {
     pub fn new(lines: I) -> Self {
-        Self { lines, done_seen: false }
+        Self {
+            lines,
+            done_seen: false,
+        }
     }
 }
 
@@ -451,7 +486,6 @@ pub struct ProviderResponseError {
     pub source: Option<Box<dyn Error + Send + Sync>>,
 }
 
-
 impl fmt::Display for ProviderResponseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Provider response error: {}", self.message)
@@ -460,17 +494,19 @@ impl fmt::Display for ProviderResponseError {
 
 impl Error for ProviderResponseError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_ref().map(|e| e.as_ref() as &(dyn Error + 'static))
+        self.source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn Error + 'static))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::apis::anthropic::AnthropicApi;
+    use crate::apis::openai::OpenAIApi;
     use crate::clients::endpoints::SupportedAPIs;
     use crate::providers::id::ProviderId;
-    use crate::apis::openai::OpenAIApi;
-    use crate::apis::anthropic::AnthropicApi;
     use serde_json::json;
 
     #[test]
@@ -491,13 +527,17 @@ mod tests {
             "system_fingerprint": null
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::OpenAI));
+        let result = ProviderResponseType::try_from((
+            bytes.as_slice(),
+            &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            &ProviderId::OpenAI,
+        ));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::ChatCompletionsResponse(r) => {
                 assert_eq!(r.model, "gpt-4");
                 assert_eq!(r.choices.len(), 1);
-            },
+            }
             _ => panic!("Expected ChatCompletionsResponse variant"),
         }
     }
@@ -516,13 +556,17 @@ mod tests {
             "usage": { "input_tokens": 10, "output_tokens": 25, "cache_creation_input_tokens": 5, "cache_read_input_tokens": 3 }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::Anthropic));
+        let result = ProviderResponseType::try_from((
+            bytes.as_slice(),
+            &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
+            &ProviderId::Anthropic,
+        ));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::MessagesResponse(r) => {
                 assert_eq!(r.model, "claude-3-sonnet-20240229");
                 assert_eq!(r.content.len(), 1);
-            },
+            }
             _ => panic!("Expected MessagesResponse variant"),
         }
     }
@@ -546,14 +590,18 @@ mod tests {
             "usage": { "prompt_tokens": 10, "completion_tokens": 25, "total_tokens": 35 }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages), &ProviderId::OpenAI));
+        let result = ProviderResponseType::try_from((
+            bytes.as_slice(),
+            &SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
+            &ProviderId::OpenAI,
+        ));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::MessagesResponse(r) => {
                 assert_eq!(r.model, "gpt-4");
                 assert_eq!(r.usage.input_tokens, 10);
                 assert_eq!(r.usage.output_tokens, 25);
-            },
+            }
             _ => panic!("Expected MessagesResponse variant"),
         }
     }
@@ -584,14 +632,18 @@ mod tests {
             }
         });
         let bytes = serde_json::to_vec(&resp).unwrap();
-        let result = ProviderResponseType::try_from((bytes.as_slice(), &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions), &ProviderId::Anthropic));
+        let result = ProviderResponseType::try_from((
+            bytes.as_slice(),
+            &SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            &ProviderId::Anthropic,
+        ));
         assert!(result.is_ok());
         match result.unwrap() {
             ProviderResponseType::ChatCompletionsResponse(r) => {
                 assert_eq!(r.model, "claude-3-sonnet-20240229");
                 assert_eq!(r.usage.prompt_tokens, 10);
                 assert_eq!(r.usage.completion_tokens, 25);
-            },
+            }
             _ => panic!("Expected ChatCompletionsResponse variant"),
         }
     }
@@ -603,11 +655,17 @@ mod tests {
         let event: Result<SseEvent, _> = line.parse();
         assert!(event.is_ok());
         let event = event.unwrap();
-        assert_eq!(event.data, Some("{\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n".to_string()));
+        assert_eq!(
+            event.data,
+            Some("{\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n".to_string())
+        );
 
         // Test conversion back to line using Display trait
         let wire_format = event.to_string();
-        assert_eq!(wire_format, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n");
+        assert_eq!(
+            wire_format,
+            "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n"
+        );
 
         // Test [DONE] marker - should be valid SSE event
         let done_line = "data: [DONE]";
@@ -639,10 +697,12 @@ mod tests {
             event: None,
             raw_line: r#"data: {"id":"test","object":"chat.completion.chunk"}
 
-        "#.to_string(),
+        "#
+            .to_string(),
             sse_transform_buffer: r#"data: {"id":"test","object":"chat.completion.chunk"}
 
-        "#.to_string(),
+        "#
+            .to_string(),
             provider_stream_response: None,
         };
 
@@ -679,7 +739,8 @@ mod tests {
             data: Some(r#"{"id": "test", "object": "chat.completion.chunk"}"#.to_string()),
             event: Some("content_block_delta".to_string()),
             raw_line: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#.to_string(),
-            sse_transform_buffer: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#.to_string(),
+            sse_transform_buffer: r#"data: {"id": "test", "object": "chat.completion.chunk"}"#
+                .to_string(),
             provider_stream_response: None,
         };
         assert!(!normal_event.should_skip());
@@ -705,7 +766,7 @@ mod tests {
             "data: {\"type\": \"ping\"}".to_string(), // This should be filtered out
             "data: {\"id\": \"msg2\", \"object\": \"chat.completion.chunk\"}".to_string(),
             "data: {\"type\": \"ping\"}".to_string(), // This should be filtered out
-            "data: [DONE]".to_string(), // This should end the stream
+            "data: [DONE]".to_string(),               // This should end the stream
         ];
 
         let mut iter = SseStreamIter::new(test_lines.into_iter());
@@ -773,13 +834,15 @@ mod tests {
 
     #[test]
     fn test_provider_stream_response_event_type() {
-        use crate::apis::anthropic::{MessagesStreamEvent, MessagesContentDelta};
+        use crate::apis::anthropic::{MessagesContentDelta, MessagesStreamEvent};
         use crate::apis::openai::ChatCompletionsStreamResponse;
 
         // Test Anthropic event type
         let anthropic_event = MessagesStreamEvent::ContentBlockDelta {
             index: 0,
-            delta: MessagesContentDelta::TextDelta { text: "Hello".to_string() },
+            delta: MessagesContentDelta::TextDelta {
+                text: "Hello".to_string(),
+            },
         };
         let provider_type = ProviderStreamResponseType::MessagesStreamEvent(anthropic_event);
         assert_eq!(provider_type.event_type(), Some("content_block_delta"));
@@ -806,15 +869,23 @@ mod tests {
         // Test that [DONE] marker is properly converted to MessageStop in the transformation layer
         let done_bytes = b"[DONE]";
         let client_api = SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages);
-        let upstream_api = SupportedAPIs::OpenAIChatCompletions(crate::apis::openai::OpenAIApi::ChatCompletions);
+        let upstream_api =
+            SupportedAPIs::OpenAIChatCompletions(crate::apis::openai::OpenAIApi::ChatCompletions);
 
-        let result = ProviderStreamResponseType::try_from((done_bytes.as_slice(), &client_api, &upstream_api));
+        let result = ProviderStreamResponseType::try_from((
+            done_bytes.as_slice(),
+            &client_api,
+            &upstream_api,
+        ));
         assert!(result.is_ok());
 
         if let Ok(ProviderStreamResponseType::MessagesStreamEvent(event)) = result {
             // Verify it's a MessageStop event
             assert_eq!(event.event_type(), Some("message_stop"));
-            assert!(matches!(event, crate::apis::anthropic::MessagesStreamEvent::MessageStop));
+            assert!(matches!(
+                event,
+                crate::apis::anthropic::MessagesStreamEvent::MessageStop
+            ));
         } else {
             panic!("Expected MessagesStreamEvent::MessageStop");
         }

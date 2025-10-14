@@ -52,6 +52,20 @@ impl ResponseHandler {
         Self::create_error_response(StatusCode::INTERNAL_SERVER_ERROR, message)
     }
 
+    /// Create a JSON error response
+    pub fn create_json_error_response(
+        error_json: &serde_json::Value,
+    ) -> Response<BoxBody<Bytes, hyper::Error>> {
+        let json_string = error_json.to_string();
+        let mut response = Response::new(Self::create_full_body(json_string));
+        *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        response.headers_mut().insert(
+            hyper::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
+        response
+    }
+
     /// Create a streaming response from a reqwest response
     pub async fn create_streaming_response(
         &self,
@@ -129,6 +143,23 @@ mod tests {
         let response =
             ResponseHandler::create_error_response(StatusCode::NOT_FOUND, "Resource not found");
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_create_json_error_response() {
+        let error_json = serde_json::json!({
+            "error": {
+                "type": "TestError",
+                "message": "Test error message"
+            }
+        });
+
+        let response = ResponseHandler::create_json_error_response(&error_json);
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/json"
+        );
     }
 
     #[tokio::test]

@@ -129,10 +129,9 @@ listeners:
     port: 8000
 
   - name: llm_provider
-    type: model_listener
+    type: model
     description: llm provider configuration
     port: 12000
-    protocol: openai
     llm_providers:
       - access_key: ${OPENAI_API_KEY}
         model: openai/gpt-4o
@@ -360,13 +359,11 @@ def test_convert_legacy_llm_providers():
             "address": "0.0.0.0",
             "port": 10000,
             "timeout": "30s",
-            "protocol": "openai",
         },
         "egress_traffic": {
             "address": "0.0.0.0",
             "port": 12000,
             "timeout": "30s",
-            "protocol": "openai",
         },
     }
     llm_providers = [
@@ -391,7 +388,6 @@ def test_convert_legacy_llm_providers():
             "address": "0.0.0.0",
             "timeout": "30s",
             "model_providers": [{"model": "openai/gpt-4o", "access_key": "test_key"}],
-            "protocol": "openai",
         },
         {
             "name": "ingress_traffic",
@@ -399,7 +395,6 @@ def test_convert_legacy_llm_providers():
             "port": 10000,
             "address": "0.0.0.0",
             "timeout": "30s",
-            "protocol": "openai",
         },
     ]
 
@@ -414,7 +409,6 @@ def test_convert_legacy_llm_providers():
         "name": "egress_traffic",
         "type": "model_listener",
         "port": 12000,
-        "protocol": "openai",
         "timeout": "30s",
     }
 
@@ -422,7 +416,6 @@ def test_convert_legacy_llm_providers():
         "address": "0.0.0.0",
         "name": "ingress_traffic",
         "port": 10000,
-        "protocol": "openai",
         "timeout": "30s",
         "type": "prompt_listener",
     }
@@ -436,7 +429,6 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
             "address": "0.0.0.0",
             "port": 12000,
             "timeout": "30s",
-            "protocol": "openai",
         }
     }
     llm_providers = [
@@ -463,7 +455,6 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
             ],
             "name": "egress_traffic",
             "port": 12000,
-            "protocol": "openai",
             "timeout": "30s",
             "type": "model_listener",
         }
@@ -479,6 +470,5 @@ def test_convert_legacy_llm_providers_no_prompt_gateway():
         "name": "egress_traffic",
         "type": "model_listener",
         "port": 12000,
-        "protocol": "openai",
         "timeout": "30s",
     }

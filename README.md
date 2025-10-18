@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/source/_static/img/arch-logo.png" alt="Arch Logo" width="75%" heigh=auto>
+  <img src="docs/source/_static/img/arch-logo.png" alt="Arch Logo" width="75%" height=auto>
 </div>
 <div align="center">
 
@@ -64,8 +64,8 @@ To get in touch with us, please join our [discord server](https://discord.gg/pGZ
 
 ## Demos
 * [Sample App: Weather Forecast Agent](demos/samples_python/weather_forecast/README.md) - A sample agentic weather forecasting app that highlights core function calling capabilities of Arch.
-* [Sample App: Network Operator Agent](demos/samples_python/network_switch_operator_agent/README.md) - A simple network device switch operator agent that can retrive device statistics and reboot them.
-* [User Case: Connecting to SaaS APIs](demos/use_cases/spotify_bearer_auth) - Connect 3rd party SaaS APIs to your agentic chat experience.
+* [Sample App: Network Operator Agent](demos/samples_python/network_switch_operator_agent/README.md) - A simple network device switch operator agent that can retrieve device statistics and reboot them.
+* [Use Case: Connecting to SaaS APIs](demos/use_cases/spotify_bearer_auth) - Connect 3rd party SaaS APIs to your agentic chat experience.
 
 ## Quickstart
 
@@ -254,7 +254,7 @@ prompt_targets:
         type: str
         in_path: true
     endpoint:
-      name: frankfurther_api
+      name: frankfurter_api
       path: /v1/latest?base=USD&symbols={currency_symbol}
     system_prompt: |
       You are a helpful assistant. Show me the currency symbol you want to convert from USD.
@@ -262,11 +262,11 @@ prompt_targets:
   - name: get_supported_currencies
     description: Get list of supported currencies for conversion
     endpoint:
-      name: frankfurther_api
+      name: frankfurter_api
       path: /v1/currencies
 
 endpoints:
-  frankfurther_api:
+  frankfurter_api:
     endpoint: api.frankfurter.dev:443
     protocol: https
 ```

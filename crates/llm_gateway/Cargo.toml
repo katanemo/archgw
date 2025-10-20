@@ -23,6 +23,7 @@ thiserror = "1.0.64"
 derivative = "2.2.0"
 sha2 = "0.10.8"
 hermesllm = { version = "0.1.0", path = "../hermesllm" }
+bytes = "1.10"
 
 [dev-dependencies]
 serial_test = "3.1.1"

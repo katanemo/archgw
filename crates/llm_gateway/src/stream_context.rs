@@ -1,3 +1,4 @@
+use bytes::Buf;
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
 use http::StatusCode;
 use log::{debug, info, warn};
@@ -23,7 +24,9 @@ use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::clients::endpoints::SupportedAPIs;
-use hermesllm::providers::response::{ProviderResponse, SseEvent, SseStreamIter};
+use hermesllm::providers::response::{
+    BedrockBinaryFrameDecoder, ProviderResponse, SseEvent, SseStreamIter,
+};
 use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
 
 pub struct StreamContext {
@@ -46,8 +49,8 @@ pub struct StreamContext {
     traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
     user_message: Option<String>,
-    /// Store upstream response status code to handle error responses gracefully
     upstream_status_code: Option<StatusCode>,
+    binary_frame_decoder: Option<BedrockBinaryFrameDecoder<bytes::BytesMut>>,
 }
 
 impl StreamContext {
@@ -76,6 +79,7 @@ impl StreamContext {
             request_body_sent_time: None,
             user_message: None,
             upstream_status_code: None,
+            binary_frame_decoder: None,
         }
     }
 

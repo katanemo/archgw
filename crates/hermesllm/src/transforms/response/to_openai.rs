@@ -1,6 +1,6 @@
 use crate::apis::openai::{ChatCompletionsResponse, ChatCompletionsStreamResponse, Choice, FinishReason, ResponseMessage, Role, ToolCallDelta, FunctionCallDelta, Usage, StreamChoice, MessageDelta, MessageContent};
 use crate::apis::anthropic::{MessagesResponse, MessagesStreamEvent, MessagesContentBlock, MessagesContentDelta, MessagesStopReason, MessagesUsage};
-use crate::apis::amazon_bedrock::{ConverseResponse, ConverseOutput, StopReason};
+use crate::apis::amazon_bedrock::{ConverseOutput, ConverseResponse, ConverseStreamEvent, StopReason};
 use crate::clients::TransformError;
 use crate::transforms::lib::*;
 
@@ -249,6 +249,172 @@ impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
     }
 }
 
+
+impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
+    type Error = TransformError;
+
+    fn try_from(event: ConverseStreamEvent) -> Result<Self, Self::Error> {
+        match event {
+            ConverseStreamEvent::MessageStart(start_event) => {
+                let role = match start_event.role {
+                    crate::apis::amazon_bedrock::ConversationRole::User => Role::User,
+                    crate::apis::amazon_bedrock::ConversationRole::Assistant => Role::Assistant,
+                };
+
+                Ok(create_openai_chunk(
+                    "stream",
+                    "unknown",
+                    MessageDelta {
+                        role: Some(role),
+                        content: None,
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: None,
+                    },
+                    None,
+                    None,
+                ))
+            }
+
+            ConverseStreamEvent::ContentBlockStart(start_event) => {
+                use crate::apis::amazon_bedrock::ContentBlockStart;
+
+                match start_event.start {
+                    ContentBlockStart::ToolUse { tool_use_id, name } => {
+                        Ok(create_openai_chunk(
+                            "stream",
+                            "unknown",
+                            MessageDelta {
+                                role: None,
+                                content: None,
+                                refusal: None,
+                                function_call: None,
+                                tool_calls: Some(vec![ToolCallDelta {
+                                    index: start_event.content_block_index as u32,
+                                    id: Some(tool_use_id),
+                                    call_type: Some("function".to_string()),
+                                    function: Some(FunctionCallDelta {
+                                        name: Some(name),
+                                        arguments: Some("".to_string()),
+                                    }),
+                                }]),
+                            },
+                            None,
+                            None,
+                        ))
+                    }
+                }
+            }
+
+            ConverseStreamEvent::ContentBlockDelta(delta_event) => {
+                use crate::apis::amazon_bedrock::ContentBlockDelta;
+
+                match delta_event.delta {
+                    ContentBlockDelta::Text { text } => {
+                        Ok(create_openai_chunk(
+                            "stream",
+                            "unknown",
+                            MessageDelta {
+                                role: None,
+                                content: Some(text),
+                                refusal: None,
+                                function_call: None,
+                                tool_calls: None,
+                            },
+                            None,
+                            None,
+                        ))
+                    }
+                    ContentBlockDelta::ToolUse { input } => {
+                        Ok(create_openai_chunk(
+                            "stream",
+                            "unknown",
+                            MessageDelta {
+                                role: None,
+                                content: None,
+                                refusal: None,
+                                function_call: None,
+                                tool_calls: Some(vec![ToolCallDelta {
+                                    index: delta_event.content_block_index as u32,
+                                    id: None,
+                                    call_type: None,
+                                    function: Some(FunctionCallDelta {
+                                        name: None,
+                                        arguments: Some(input),
+                                    }),
+                                }]),
+                            },
+                            None,
+                            None,
+                        ))
+                    }
+                }
+            }
+
+            ConverseStreamEvent::ContentBlockStop(_) => {
+                Ok(create_empty_openai_chunk())
+            }
+
+            ConverseStreamEvent::MessageStop(stop_event) => {
+                let finish_reason = match stop_event.stop_reason {
+                    StopReason::EndTurn => FinishReason::Stop,
+                    StopReason::ToolUse => FinishReason::ToolCalls,
+                    StopReason::MaxTokens => FinishReason::Length,
+                    StopReason::StopSequence => FinishReason::Stop,
+                    StopReason::GuardrailIntervened => FinishReason::ContentFilter,
+                    StopReason::ContentFiltered => FinishReason::ContentFilter,
+                };
+
+                Ok(create_openai_chunk(
+                    "stream",
+                    "unknown",
+                    MessageDelta {
+                        role: None,
+                        content: None,
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: None,
+                    },
+                    Some(finish_reason),
+                    None,
+                ))
+            }
+
+            ConverseStreamEvent::Metadata(metadata_event) => {
+                let usage = Usage {
+                    prompt_tokens: metadata_event.usage.input_tokens,
+                    completion_tokens: metadata_event.usage.output_tokens,
+                    total_tokens: metadata_event.usage.total_tokens,
+                    prompt_tokens_details: None,
+                    completion_tokens_details: None,
+                };
+
+                Ok(create_openai_chunk(
+                    "stream",
+                    "unknown",
+                    MessageDelta {
+                        role: None,
+                        content: None,
+                        refusal: None,
+                        function_call: None,
+                        tool_calls: None,
+                    },
+                    None,
+                    Some(usage),
+                ))
+            }
+
+            // Error events - convert to empty chunks (errors should be handled elsewhere)
+            ConverseStreamEvent::InternalServerException(_) |
+            ConverseStreamEvent::ModelStreamErrorException(_) |
+            ConverseStreamEvent::ServiceUnavailableException(_) |
+            ConverseStreamEvent::ThrottlingException(_) |
+            ConverseStreamEvent::ValidationException(_) => {
+                Ok(create_empty_openai_chunk())
+            }
+        }
+    }
+}
 
 /// Convert content block start to OpenAI chunk
 fn convert_content_block_start(content_block: MessagesContentBlock) -> Result<ChatCompletionsStreamResponse, TransformError> {

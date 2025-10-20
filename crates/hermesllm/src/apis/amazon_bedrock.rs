@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
+use crate::providers::response::ProviderStreamResponse;
 
 // ============================================================================
 // AMAZON BEDROCK CONVERSE API ENUMERATION
@@ -685,7 +686,7 @@ pub struct MessageStartEvent {
 pub struct ContentBlockStartEvent {
     /// Content block index
     #[serde(rename = "contentBlockIndex")]
-    pub content_block_index: u32,
+    pub content_block_index: i32,
     /// Start information
     pub start: ContentBlockStart,
 }
@@ -707,18 +708,16 @@ pub enum ContentBlockStart {
 pub struct ContentBlockDeltaEvent {
     /// Content block index
     #[serde(rename = "contentBlockIndex")]
-    pub content_block_index: u32,
+    pub content_block_index: i32,
     /// Delta information
     pub delta: ContentBlockDelta,
 }
 
 /// Content block delta information
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum ContentBlockDelta {
-    #[serde(rename = "text")]
     Text { text: String },
-    #[serde(rename = "toolUse")]
     ToolUse { input: String },
 }
 
@@ -727,7 +726,7 @@ pub enum ContentBlockDelta {
 pub struct ContentBlockStopEvent {
     /// Content block index
     #[serde(rename = "contentBlockIndex")]
-    pub content_block_index: u32,
+    pub content_block_index: i32,
 }
 
 /// Message stop event
@@ -864,6 +863,198 @@ impl crate::providers::response::TokenUsage for BedrockTokenUsage {
 
     fn total_tokens(&self) -> usize {
         self.total_tokens as usize
+    }
+}
+
+// ============================================================================
+// EVENT STREAM PARSING
+// ============================================================================
+
+/// Convert from aws-smithy-eventstream DecodedFrame to ConverseStreamEvent
+impl TryFrom<&aws_smithy_eventstream::frame::DecodedFrame> for ConverseStreamEvent {
+    type Error = BedrockError;
+
+    fn try_from(frame: &aws_smithy_eventstream::frame::DecodedFrame) -> Result<Self, Self::Error> {
+        // Only process Complete frames, skip Incomplete
+        let message = match frame {
+            aws_smithy_eventstream::frame::DecodedFrame::Complete(msg) => msg,
+            aws_smithy_eventstream::frame::DecodedFrame::Incomplete => {
+                return Err(BedrockError::Validation {
+                    message: "Expected Complete frame, got Incomplete".to_string(),
+                })
+            }
+        };
+
+        // Extract the :event-type and :message-type headers
+        let event_type = message
+            .headers()
+            .iter()
+            .find(|h| h.name().as_str() == ":event-type")
+            .and_then(|h| h.value().as_string().ok())
+            .ok_or_else(|| BedrockError::Validation {
+                message: "Missing :event-type header".to_string(),
+            })?
+            .as_str();
+
+        let message_type = message
+            .headers()
+            .iter()
+            .find(|h| h.name().as_str() == ":message-type")
+            .and_then(|h| h.value().as_string().ok())
+            .ok_or_else(|| BedrockError::Validation {
+                message: "Missing :message-type header".to_string(),
+            })?
+            .as_str();
+
+        let payload = message.payload();
+
+        // Parse the event based on message type and event type
+        match message_type {
+            "event" => match event_type {
+                "messageStart" => {
+                    let event: MessageStartEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::MessageStart(event))
+                }
+                "contentBlockStart" => {
+                    let event: ContentBlockStartEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ContentBlockStart(event))
+                }
+                "contentBlockDelta" => {
+                    let event: ContentBlockDeltaEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ContentBlockDelta(event))
+                }
+                "contentBlockStop" => {
+                    let event: ContentBlockStopEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ContentBlockStop(event))
+                }
+                "messageStop" => {
+                    let event: MessageStopEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::MessageStop(event))
+                }
+                "metadata" => {
+                    let event: ConverseStreamMetadataEvent =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::Metadata(event))
+                }
+                unknown => Err(BedrockError::Validation {
+                    message: format!("Unknown event type: {}", unknown),
+                }),
+            },
+            "exception" => match event_type {
+                "internalServerException" => {
+                    let exception: BedrockException =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::InternalServerException(exception))
+                }
+                "modelStreamErrorException" => {
+                    let exception: BedrockException =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ModelStreamErrorException(exception))
+                }
+                "serviceUnavailableException" => {
+                    let exception: BedrockException =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ServiceUnavailableException(exception))
+                }
+                "throttlingException" => {
+                    let exception: BedrockException =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ThrottlingException(exception))
+                }
+                "validationException" => {
+                    let exception: BedrockException =
+                        serde_json::from_slice(payload).map_err(BedrockError::Serialization)?;
+                    Ok(ConverseStreamEvent::ValidationException(exception))
+                }
+                unknown => Err(BedrockError::Validation {
+                    message: format!("Unknown exception type: {}", unknown),
+                }),
+            },
+            unknown => Err(BedrockError::Validation {
+                message: format!("Unknown message type: {}", unknown),
+            }),
+        }
+    }
+}
+
+impl Into<String> for ConverseStreamEvent {
+    fn into(self) -> String {
+        let transformed_json = serde_json::to_string(&self).unwrap_or_default();
+        let event_type = match &self {
+            ConverseStreamEvent::MessageStart { .. } => "message_start",
+            ConverseStreamEvent::ContentBlockStart { .. } => "content_block_start",
+            ConverseStreamEvent::ContentBlockDelta { .. } => "content_block_delta",
+            ConverseStreamEvent::ContentBlockStop { .. } => "content_block_stop",
+            ConverseStreamEvent::MessageStop { .. } => "message_stop",
+            ConverseStreamEvent::Metadata { .. } => "metadata",
+            ConverseStreamEvent::InternalServerException { .. } => "internal_server_exception",
+            ConverseStreamEvent::ModelStreamErrorException { .. } => "model_stream_error_exception",
+            ConverseStreamEvent::ServiceUnavailableException { .. } => "service_unavailable_exception",
+            ConverseStreamEvent::ThrottlingException { .. } => "throttling_exception",
+            ConverseStreamEvent::ValidationException { .. } => "validation_exception",
+        };
+
+        let event = format!("event: {}\n", event_type);
+        let data = format!("data: {}\n\n", transformed_json);
+        event + &data
+    }
+}
+
+
+// Implement ProviderStreamResponse for ConverseStreamEvent
+impl ProviderStreamResponse for ConverseStreamEvent {
+    fn content_delta(&self) -> Option<&str> {
+        match self {
+            ConverseStreamEvent::ContentBlockDelta(event) => {
+                match &event.delta {
+                    ContentBlockDelta::Text { text } => Some(text),
+                    ContentBlockDelta::ToolUse { .. } => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn is_final(&self) -> bool {
+        matches!(self, ConverseStreamEvent::MessageStop(_))
+    }
+
+    fn role(&self) -> Option<&str> {
+        match self {
+            ConverseStreamEvent::MessageStart(event) => Some(event.role.as_str()),
+            _ => None,
+        }
+    }
+
+    fn event_type(&self) -> Option<&str> {
+        Some(match self {
+            ConverseStreamEvent::MessageStart(_) => "messageStart",
+            ConverseStreamEvent::ContentBlockStart(_) => "contentBlockStart",
+            ConverseStreamEvent::ContentBlockDelta(_) => "contentBlockDelta",
+            ConverseStreamEvent::ContentBlockStop(_) => "contentBlockStop",
+            ConverseStreamEvent::MessageStop(_) => "messageStop",
+            ConverseStreamEvent::Metadata(_) => "metadata",
+            ConverseStreamEvent::InternalServerException(_) => "internalServerException",
+            ConverseStreamEvent::ModelStreamErrorException(_) => "modelStreamErrorException",
+            ConverseStreamEvent::ServiceUnavailableException(_) => "serviceUnavailableException",
+            ConverseStreamEvent::ThrottlingException(_) => "throttlingException",
+            ConverseStreamEvent::ValidationException(_) => "validationException",
+        })
+    }
+}
+
+// Add as_str helper for ConversationRole
+impl ConversationRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConversationRole::User => "user",
+            ConversationRole::Assistant => "assistant",
+        }
     }
 }
 

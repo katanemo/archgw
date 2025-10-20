@@ -180,8 +180,13 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                 Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
 
-            (ProviderRequestType::ChatCompletionsRequest(_), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
-                todo!("ChatCompletionsRequest to Amazon Bedrock Stream conversion not implemented yet")
+            (ProviderRequestType::ChatCompletionsRequest(chat_req), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
+                let bedrock_req = ConverseStreamRequest::try_from(chat_req)
+                    .map_err(|e| ProviderRequestError {
+                        message: format!("Failed to convert ChatCompletionsRequest to Amazon Bedrock request: {}", e),
+                        source: Some(Box::new(e))
+                    })?;
+                Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
             (ProviderRequestType::MessagesRequest(messages_req), SupportedUpstreamAPIs::AmazonBedrockConverse(_)) => {
                 let bedrock_req = ConverseRequest::try_from(messages_req)
@@ -191,8 +196,13 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                     })?;
                 Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
-            (ProviderRequestType::MessagesRequest(_), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
-                todo!("MessagesRequest to Amazon Bedrock Stream conversion not implemented yet")
+            (ProviderRequestType::MessagesRequest(messages_req), SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)) => {
+                let bedrock_req = ConverseStreamRequest::try_from(messages_req)
+                    .map_err(|e| ProviderRequestError {
+                        message: format!("Failed to convert MessagesRequest to Amazon Bedrock request: {}", e),
+                        source: Some(Box::new(e))
+                    })?;
+                Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
 
             // Amazon Bedrock to other APIs conversions

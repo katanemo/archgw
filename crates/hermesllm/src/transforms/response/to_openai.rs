@@ -280,7 +280,7 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                 use crate::apis::amazon_bedrock::ContentBlockStart;
 
                 match start_event.start {
-                    ContentBlockStart::ToolUse { tool_use_id, name } => {
+                    ContentBlockStart::ToolUse { tool_use } => {
                         Ok(create_openai_chunk(
                             "stream",
                             "unknown",
@@ -291,10 +291,10 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                                 function_call: None,
                                 tool_calls: Some(vec![ToolCallDelta {
                                     index: start_event.content_block_index as u32,
-                                    id: Some(tool_use_id),
+                                    id: Some(tool_use.tool_use_id),
                                     call_type: Some("function".to_string()),
                                     function: Some(FunctionCallDelta {
-                                        name: Some(name),
+                                        name: Some(tool_use.name),
                                         arguments: Some("".to_string()),
                                     }),
                                 }]),
@@ -325,7 +325,7 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                             None,
                         ))
                     }
-                    ContentBlockDelta::ToolUse { input } => {
+                    ContentBlockDelta::ToolUse { tool_use } => {
                         Ok(create_openai_chunk(
                             "stream",
                             "unknown",
@@ -340,7 +340,7 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                                     call_type: None,
                                     function: Some(FunctionCallDelta {
                                         name: None,
-                                        arguments: Some(input),
+                                        arguments: Some(tool_use.input),
                                     }),
                                 }]),
                             },

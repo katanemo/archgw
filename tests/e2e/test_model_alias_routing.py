@@ -499,3 +499,138 @@ def test_anthropic_client_with_coding_model_alias_and_tools():
 
     # Should get either text response or tool use blocks for coding assistance
     assert text_content or len(tool_use_blocks) > 0
+
+
+@pytest.mark.flaky(retries=0)  # Disable retries to see the actual failure
+def test_anthropic_client_with_coding_model_alias_and_tools_streaming():
+    """Test Anthropic client using 'coding-model' alias (maps to Bedrock) with coding question and tools - streaming"""
+    logger.info(
+        "Testing Anthropic client with 'coding-model' alias -> Bedrock with tools (streaming)"
+    )
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
+
+    text_chunks = []
+    tool_use_blocks = []
+    all_events = []  # Capture all events for debugging
+
+    try:
+        with client.messages.stream(
+            model="coding-model",  # This should resolve to us.amazon.nova-premier-v1:0
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "I need to write a Python function that calculates the factorial of a number. Can you help me write and run it?",
+                }
+            ],
+            tools=[
+                {
+                    "name": "run_python_code",
+                    "description": "Execute Python code and return the result",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "description": "Python code to execute",
+                            }
+                        },
+                        "required": ["code"],
+                    },
+                }
+            ],
+            tool_choice={"type": "auto"},
+        ) as stream:
+            for event in stream:
+                # Extract index if available
+                index = getattr(event, "index", None)
+
+                # Log and capture all events for debugging
+                all_events.append(
+                    {"type": event.type, "index": index, "event": str(event)[:200]}
+                )
+                logger.info(f"Event #{len(all_events)}: {event.type} [index={index}]")
+
+                # Collect text deltas
+                if event.type == "content_block_delta" and hasattr(event, "delta"):
+                    if event.delta.type == "text_delta":
+                        text_chunks.append(event.delta.text)
+
+                # Collect tool use blocks
+                if event.type == "content_block_start" and hasattr(
+                    event, "content_block"
+                ):
+                    if event.content_block.type == "tool_use":
+                        tool_use_blocks.append(event.content_block)
+
+            final_message = stream.get_final_message()
+    except Exception as e:
+        logger.error(f"Exception during streaming: {type(e).__name__}: {e}")
+        logger.error(f"Events received before error: {len(all_events)}")
+        logger.error(f"Text chunks collected: {len(text_chunks)}")
+        logger.error(f"Tool use blocks collected: {len(tool_use_blocks)}")
+        logger.error("\nLast 20 events before crash:")
+        for evt in all_events[-20:]:
+            logger.error(f"  {evt['type']:30s} index={evt['index']}")
+        raise
+
+    full_text = "".join(text_chunks)
+    logger.info(f"Streaming response from coding-model with tools: {full_text}")
+    logger.info(f"Total events received: {len(all_events)}")
+    logger.info(
+        f"Text chunks: {len(text_chunks)}, Tool use blocks: {len(tool_use_blocks)}"
+    )
+
+    # Should get either text response or tool use blocks for coding assistance
+    # Modified assertion to be more lenient and provide better error messages
+    assert (
+        full_text or len(tool_use_blocks) > 0
+    ), f"Expected text or tool use. Got text_len={len(full_text)}, tools={len(tool_use_blocks)}, events={len(all_events)}"
+
+    # Verify final message structure
+    assert final_message is not None, "Final message should not be None"
+    assert (
+        final_message.content and len(final_message.content) > 0
+    ), f"Final message should have content. Got: {final_message.content if final_message else 'None'}"
+
+
+def test_anthropic_client_streaming_with_bedrock():
+    """Test Anthropic client using 'coding-model' alias (maps to Bedrock) with streaming"""
+    logger.info(
+        "Testing Anthropic client with 'coding-model' alias -> Bedrock (streaming)"
+    )
+
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = anthropic.Anthropic(api_key="test-key", base_url=base_url)
+
+    text_chunks = []
+
+    with client.messages.stream(
+        model="coding-model",  # This should resolve to us.amazon.nova-premier-v1:0
+        max_tokens=500,
+        messages=[
+            {
+                "role": "user",
+                "content": "Write a short 4-line sonnet about coding.",
+            }
+        ],
+    ) as stream:
+        for event in stream:
+            # Collect text deltas
+            if event.type == "content_block_delta" and hasattr(event, "delta"):
+                if event.delta.type == "text_delta":
+                    text_chunks.append(event.delta.text)
+
+        final_message = stream.get_final_message()
+
+    full_text = "".join(text_chunks)
+    logger.info(f"Response: {full_text}")
+
+    # Should get a text response
+    assert len(full_text) > 0, "Expected text response from streaming"
+
+    # Verify final message structure
+    assert final_message is not None
+    assert final_message.content and len(final_message.content) > 0

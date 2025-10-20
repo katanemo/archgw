@@ -261,12 +261,12 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
                 // Note: Bedrock sends tool_use_id and name at start, with input coming in subsequent deltas
                 // Anthropic expects the same pattern, so we initialize with an empty input object
                 match start_event.start {
-                    crate::apis::amazon_bedrock::ContentBlockStart::ToolUse { tool_use_id, name } => {
+                    crate::apis::amazon_bedrock::ContentBlockStart::ToolUse { tool_use } => {
                         Ok(MessagesStreamEvent::ContentBlockStart {
                             index: start_event.content_block_index as u32,
                             content_block: MessagesContentBlock::ToolUse {
-                                id: tool_use_id,
-                                name,
+                                id: tool_use.tool_use_id,
+                                name: tool_use.name,
                                 input: Value::Object(serde_json::Map::new()), // Empty - will be filled by deltas
                                 cache_control: None,
                             },
@@ -281,8 +281,8 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
                     ContentBlockDelta::Text { text } => {
                         MessagesContentDelta::TextDelta { text }
                     }
-                    ContentBlockDelta::ToolUse { input } => {
-                        MessagesContentDelta::InputJsonDelta { partial_json: input }
+                    ContentBlockDelta::ToolUse { tool_use } => {
+                        MessagesContentDelta::InputJsonDelta { partial_json: tool_use.input }
                     }
                 };
 

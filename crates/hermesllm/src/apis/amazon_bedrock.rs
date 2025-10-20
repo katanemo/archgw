@@ -693,14 +693,20 @@ pub struct ContentBlockStartEvent {
 
 /// Content block start information
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum ContentBlockStart {
-    #[serde(rename = "toolUse")]
     ToolUse {
-        #[serde(rename = "toolUseId")]
-        tool_use_id: String,
-        name: String,
+        #[serde(rename = "toolUse")]
+        tool_use: ToolUseStart,
     },
+}
+
+/// Tool use start information
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolUseStart {
+    #[serde(rename = "toolUseId")]
+    pub tool_use_id: String,
+    pub name: String,
 }
 
 /// Content block delta event
@@ -718,7 +724,15 @@ pub struct ContentBlockDeltaEvent {
 #[serde(untagged)]
 pub enum ContentBlockDelta {
     Text { text: String },
-    ToolUse { input: String },
+    ToolUse {
+        #[serde(rename = "toolUse")]
+        tool_use: ToolUseDelta
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ToolUseDelta {
+    pub input: String,
 }
 
 /// Content block stop event

@@ -9,8 +9,10 @@ listeners:
 
 llm_providers:
   # OpenAI Models
-  - model: openai/gpt-5-2025-08-07
-    access_key: $OPENAI_API_KEY
+
+  - model: amazon_bedrock/us.amazon.nova-premier-v1:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
     routing_preferences:
       - name: code generation
         description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
@@ -26,7 +28,7 @@ llm_providers:
     default: true
     access_key: $ANTHROPIC_API_KEY
 
-  - model: anthropic/claude-3-haiku-20240307
+  - model: anthropic/claude-haiku-4-5-20251001
     access_key: $ANTHROPIC_API_KEY
 
   # Ollama Models
@@ -38,4 +40,4 @@ llm_providers:
 model_aliases:
   # Alias for a small faster Claude model
   arch.claude.code.small.fast:
-    target: claude-3-haiku-20240307
+    target: claude-haiku-4-5-20251001

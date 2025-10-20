@@ -478,7 +478,7 @@ where
 {
     decoder: aws_smithy_eventstream::frame::MessageFrameDecoder,
     buffer: B,
-    has_content_block_start_been_sent: bool,
+    content_block_start_indices: std::collections::HashSet<i32>,
 }
 
 impl BedrockBinaryFrameDecoder<bytes::BytesMut> {
@@ -488,7 +488,7 @@ impl BedrockBinaryFrameDecoder<bytes::BytesMut> {
         Self {
             decoder: aws_smithy_eventstream::frame::MessageFrameDecoder::new(),
             buffer,
-            has_content_block_start_been_sent: false,
+            content_block_start_indices: std::collections::HashSet::new(),
         }
     }
 }
@@ -501,7 +501,7 @@ where
         Self {
             decoder: aws_smithy_eventstream::frame::MessageFrameDecoder::new(),
             buffer,
-            has_content_block_start_been_sent: false,
+            content_block_start_indices: std::collections::HashSet::new(),
         }
     }
 
@@ -521,14 +521,14 @@ where
         self.buffer.has_remaining()
     }
 
-    /// Check if a content_block_start event has been sent
-    pub fn has_content_block_start_been_sent(&self) -> bool {
-        self.has_content_block_start_been_sent
+    /// Check if a content_block_start event has been sent for the given index
+    pub fn has_content_block_start_been_sent(&self, index: i32) -> bool {
+        self.content_block_start_indices.contains(&index)
     }
 
-    /// Set the content_block_start flag
-    pub fn set_content_block_start_sent(&mut self, sent: bool) {
-        self.has_content_block_start_been_sent = sent;
+    /// Mark that a content_block_start event has been sent for the given index
+    pub fn set_content_block_start_sent(&mut self, index: i32) {
+        self.content_block_start_indices.insert(index);
     }
 }
 
@@ -1122,6 +1122,17 @@ mod tests {
         test_bedrock_conversion(true);
     }
 
+    #[test]
+    fn test_bedrock_decoded_frame_with_tool_use() {
+        test_bedrock_conversion_with_tools(false);
+    }
+
+    #[test]
+    #[ignore]  // Run with: cargo test -- --ignored --nocapture
+    fn test_bedrock_decoded_frame_with_tool_use_verbose() {
+        test_bedrock_conversion_with_tools(true);
+    }
+
     fn test_bedrock_conversion(verbose: bool) {
         use bytes::BytesMut;
         use std::fs;
@@ -1192,6 +1203,93 @@ mod tests {
 
         assert!(conversion_count > 0, "Should have converted at least one frame");
         assert!(message_start_seen, "Should have seen MessageStart event");
+    }
+
+    fn test_bedrock_conversion_with_tools(verbose: bool) {
+        use bytes::BytesMut;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Read the actual response_with_tools.hex file from tests/e2e directory
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/e2e/response_with_tools.hex");
+
+        // Only run this test if the file exists
+        if !test_file.exists() {
+            println!("Skipping test - response_with_tools.hex not found");
+            return;
+        }
+
+        let response_data = fs::read(&test_file).unwrap();
+        let mut buffer = BytesMut::from(&response_data[..]);
+
+        let mut decoder = BedrockBinaryFrameDecoder::new(&mut buffer);
+
+        let client_api = SupportedAPIs::AnthropicMessagesAPI(crate::apis::anthropic::AnthropicApi::Messages);
+        let upstream_api = SupportedUpstreamAPIs::AmazonBedrockConverseStream(crate::apis::amazon_bedrock::AmazonBedrockApi::ConverseStream);
+
+        let mut conversion_count = 0;
+        let mut message_start_seen = false;
+        let mut content_block_start_seen = false;
+        let mut content_block_delta_tool_use_seen = false;
+
+        // Decode and convert frames
+        loop {
+            match decoder.decode_frame() {
+                Some(frame @ aws_smithy_eventstream::frame::DecodedFrame::Complete(_)) => {
+                    // Convert DecodedFrame to ProviderStreamResponseType
+                    let result = ProviderStreamResponseType::try_from((&frame, &client_api, &upstream_api));
+
+                    match result {
+                        Ok(provider_response) => {
+                            conversion_count += 1;
+
+                            // Verify we got a MessagesStreamEvent
+                            assert!(matches!(provider_response, ProviderStreamResponseType::MessagesStreamEvent(_)));
+
+                            if verbose {
+                                // Print the SSE string output
+                                let sse_string: String = provider_response.clone().into();
+                                println!("{}", sse_string);
+                            }
+
+                            // Check for specific events related to tool use
+                            if let ProviderStreamResponseType::MessagesStreamEvent(ref event) = provider_response {
+                                match event {
+                                    crate::apis::anthropic::MessagesStreamEvent::MessageStart { .. } => {
+                                        message_start_seen = true;
+                                    }
+                                    crate::apis::anthropic::MessagesStreamEvent::ContentBlockStart { .. } => {
+                                        content_block_start_seen = true;
+                                    }
+                                    crate::apis::anthropic::MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
+                                        if matches!(delta, crate::apis::anthropic::MessagesContentDelta::InputJsonDelta { .. }) {
+                                            content_block_delta_tool_use_seen = true;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            println!("Conversion error (frame {}): {}", conversion_count, e);
+                        }
+                    }
+                }
+                Some(aws_smithy_eventstream::frame::DecodedFrame::Incomplete) => {
+                    // End of buffer
+                    break;
+                }
+                None => {
+                    panic!("Decode error");
+                }
+            }
+        }
+
+        assert!(conversion_count > 0, "Should have converted at least one frame");
+        assert!(message_start_seen, "Should have seen MessageStart event");
+        assert!(content_block_start_seen, "Should have seen ContentBlockStart event for tool use");
+        assert!(content_block_delta_tool_use_seen, "Should have seen ContentBlockDelta with ToolUseDelta");
     }
 
     #[test]

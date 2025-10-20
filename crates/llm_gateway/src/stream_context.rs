@@ -1,4 +1,3 @@
-use bytes::Buf;
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
 use http::StatusCode;
 use log::{debug, info, warn};
@@ -25,9 +24,11 @@ use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::clients::endpoints::SupportedAPIs;
 use hermesllm::providers::response::{
-    BedrockBinaryFrameDecoder, ProviderResponse, SseEvent, SseStreamIter,
+    BedrockBinaryFrameDecoder, ProviderResponse, ProviderStreamResponse, SseEvent, SseStreamIter,
 };
-use hermesllm::{ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType};
+use hermesllm::{
+    DecodedFrame, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType,
+};
 
 pub struct StreamContext {
     metrics: Rc<Metrics>,
@@ -424,6 +425,14 @@ impl StreamContext {
                 let upstream_api =
                     provider_id.compatible_api_for_client(&client_api, self.streaming_response);
 
+                // Check if this is Bedrock binary stream
+                if matches!(
+                    upstream_api,
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)
+                ) {
+                    return self.handle_bedrock_binary_stream(body, &client_api, &upstream_api);
+                }
+
                 // Parse body into SSE iterator using TryFrom
                 let sse_iter: SseStreamIter<std::vec::IntoIter<String>> =
                     match SseStreamIter::try_from(body) {
@@ -497,6 +506,157 @@ impl StreamContext {
                 Err(Action::Continue)
             }
         }
+    }
+
+    fn handle_bedrock_binary_stream(
+        &mut self,
+        body: &[u8],
+        client_api: &SupportedAPIs,
+        upstream_api: &SupportedUpstreamAPIs,
+    ) -> Result<Vec<u8>, Action> {
+        use hermesllm::providers::response::ProviderStreamResponseType;
+
+        // Initialize decoder if not present
+        if self.binary_frame_decoder.is_none() {
+            self.binary_frame_decoder = Some(BedrockBinaryFrameDecoder::from_bytes(&[]));
+        }
+
+        // Add incoming bytes to buffer
+        if let Some(decoder) = self.binary_frame_decoder.as_mut() {
+            decoder.buffer_mut().extend_from_slice(body);
+        }
+
+        let mut response_buffer = Vec::new();
+
+        // Decode all available complete frames
+        loop {
+            let decoded_frame = self.binary_frame_decoder.as_mut().unwrap().decode_frame();
+            match decoded_frame {
+                Some(DecodedFrame::Complete(ref frame_ref)) => {
+                    // Convert frame to ProviderStreamResponseType
+                    let frame = DecodedFrame::Complete(frame_ref.clone());
+                    match ProviderStreamResponseType::try_from((&frame, client_api, upstream_api)) {
+                        Ok(provider_response) => {
+                            self.record_ttft_if_needed();
+
+                            // Extract index from the event if available
+                            let event_index =
+                                if let ProviderStreamResponseType::MessagesStreamEvent(ref evt) =
+                                    provider_response
+                                {
+                                    use hermesllm::apis::anthropic::MessagesStreamEvent;
+                                    match evt {
+                                        MessagesStreamEvent::ContentBlockStart {
+                                            index, ..
+                                        } => Some(*index as i32),
+                                        MessagesStreamEvent::ContentBlockDelta {
+                                            index, ..
+                                        } => Some(*index as i32),
+                                        MessagesStreamEvent::ContentBlockStop { index, .. } => {
+                                            Some(*index as i32)
+                                        }
+                                        _ => None,
+                                    }
+                                } else {
+                                    None
+                                };
+
+                            // Check event type to track ContentBlockStart
+                            if let Some(event_type) = provider_response.event_type() {
+                                match event_type {
+                                    "content_block_start" => {
+                                        // Mark that we've seen ContentBlockStart for this index
+                                        if let (Some(decoder), Some(index)) =
+                                            (self.binary_frame_decoder.as_mut(), event_index)
+                                        {
+                                            decoder.set_content_block_start_sent(index);
+                                            debug!(
+                                                "[ARCHGW_REQ_ID:{}] BEDROCK_CONTENT_BLOCK_START_TRACKED: index={}",
+                                                self.request_identifier(),
+                                                index
+                                            );
+                                        }
+                                    }
+                                    "content_block_delta" => {
+                                        // Check if ContentBlockStart was sent for this index
+                                        if let Some(index) = event_index {
+                                            let needs_start = if let Some(decoder) =
+                                                self.binary_frame_decoder.as_ref()
+                                            {
+                                                !decoder.has_content_block_start_been_sent(index)
+                                            } else {
+                                                false
+                                            };
+
+                                            if needs_start {
+                                                // Emit empty ContentBlockStart before delta
+                                                use hermesllm::apis::anthropic::{
+                                                    MessagesContentBlock, MessagesStreamEvent,
+                                                };
+                                                let content_block_start =
+                                                    MessagesStreamEvent::ContentBlockStart {
+                                                        index: index as u32,
+                                                        content_block: MessagesContentBlock::Text {
+                                                            text: String::new(),
+                                                            cache_control: None,
+                                                        },
+                                                    };
+                                                let start_sse: String = content_block_start.into();
+                                                response_buffer
+                                                    .extend_from_slice(start_sse.as_bytes());
+
+                                                // Mark that we've now sent it
+                                                if let Some(decoder) =
+                                                    self.binary_frame_decoder.as_mut()
+                                                {
+                                                    decoder.set_content_block_start_sent(index);
+                                                }
+
+                                                debug!(
+                                                    "[ARCHGW_REQ_ID:{}] BEDROCK_INJECTED_CONTENT_BLOCK_START: index={}",
+                                                    self.request_identifier(),
+                                                    index
+                                                );
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            let sse_string: String = provider_response.into();
+                            response_buffer.extend_from_slice(sse_string.as_bytes());
+                        }
+                        Err(e) => {
+                            warn!(
+                                "[ARCHGW_REQ_ID:{}] BEDROCK_FRAME_CONVERSION_ERROR: {}",
+                                self.request_identifier(),
+                                e
+                            );
+                        }
+                    }
+                }
+                Some(DecodedFrame::Incomplete) => {
+                    // Incomplete frame - buffer retains partial data, wait for more bytes
+                    debug!(
+                        "[ARCHGW_REQ_ID:{}] BEDROCK_INCOMPLETE_FRAME: waiting for more data",
+                        self.request_identifier()
+                    );
+                    break;
+                }
+                None => {
+                    // Decode error
+                    warn!(
+                        "[ARCHGW_REQ_ID:{}] BEDROCK_DECODE_ERROR",
+                        self.request_identifier()
+                    );
+                    return Err(Action::Continue);
+                }
+            }
+        }
+
+        // Return accumulated complete frames (may be empty if all frames incomplete)
+        Ok(response_buffer)
     }
 
     fn handle_non_streaming_response(

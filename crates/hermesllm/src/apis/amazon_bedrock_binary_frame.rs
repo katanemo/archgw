@@ -1,7 +1,7 @@
-use std::collections::HashSet;
-use bytes::Buf;
 use aws_smithy_eventstream::frame::DecodedFrame;
 use aws_smithy_eventstream::frame::MessageFrameDecoder;
+use bytes::Buf;
+use std::collections::HashSet;
 
 /// AWS Event Stream frame decoder wrapper
 pub struct BedrockBinaryFrameDecoder<B>

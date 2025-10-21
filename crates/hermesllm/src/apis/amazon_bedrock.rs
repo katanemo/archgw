@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 
-use thiserror::Error;
 use std::collections::HashMap;
+use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
@@ -56,10 +56,7 @@ impl ApiDefinition for AmazonBedrockApi {
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![
-            AmazonBedrockApi::Converse,
-            AmazonBedrockApi::ConverseStream,
-        ]
+        vec![AmazonBedrockApi::Converse, AmazonBedrockApi::ConverseStream]
     }
 }
 
@@ -173,7 +170,9 @@ impl ProviderRequest for ConverseRequest {
                     SystemContentBlock::Text { text } => {
                         text_parts.push(text.clone());
                     }
-                    SystemContentBlock::GuardContent { text: Some(guard_text) } => {
+                    SystemContentBlock::GuardContent {
+                        text: Some(guard_text),
+                    } => {
                         text_parts.push(guard_text.text.clone());
                     }
                     SystemContentBlock::GuardContent { text: None } => {
@@ -194,11 +193,9 @@ impl ProviderRequest for ConverseRequest {
             .find(|msg| msg.role == ConversationRole::User)
             .and_then(|msg| {
                 // Extract the first text content block from the user message
-                msg.content.iter().find_map(|content| {
-                    match content {
-                        ContentBlock::Text { text } => Some(text.clone()),
-                        _ => None,
-                    }
+                msg.content.iter().find_map(|content| match content {
+                    ContentBlock::Text { text } => Some(text.clone()),
+                    _ => None,
                 })
             })
     }
@@ -294,13 +291,13 @@ pub enum ConversationRole {
 #[serde(untagged)]
 pub enum ContentBlock {
     Text {
-        text: String
+        text: String,
     },
     Image {
-        image: ImageBlock
+        image: ImageBlock,
     },
     Document {
-        document: DocumentBlock
+        document: DocumentBlock,
     },
     ToolUse {
         #[serde(rename = "toolUse")]
@@ -360,9 +357,7 @@ pub enum SystemContentBlock {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "guardContent")]
-    GuardContent {
-        text: Option<GuardContentText>,
-    },
+    GuardContent { text: Option<GuardContentText> },
 }
 
 /// Image source for vision capabilities
@@ -723,10 +718,12 @@ pub struct ContentBlockDeltaEvent {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ContentBlockDelta {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         #[serde(rename = "toolUse")]
-        tool_use: ToolUseDelta
+        tool_use: ToolUseDelta,
     },
 }
 
@@ -1008,7 +1005,9 @@ impl Into<String> for ConverseStreamEvent {
             ConverseStreamEvent::Metadata { .. } => "metadata",
             ConverseStreamEvent::InternalServerException { .. } => "internal_server_exception",
             ConverseStreamEvent::ModelStreamErrorException { .. } => "model_stream_error_exception",
-            ConverseStreamEvent::ServiceUnavailableException { .. } => "service_unavailable_exception",
+            ConverseStreamEvent::ServiceUnavailableException { .. } => {
+                "service_unavailable_exception"
+            }
             ConverseStreamEvent::ThrottlingException { .. } => "throttling_exception",
             ConverseStreamEvent::ValidationException { .. } => "validation_exception",
         };
@@ -1019,17 +1018,14 @@ impl Into<String> for ConverseStreamEvent {
     }
 }
 
-
 // Implement ProviderStreamResponse for ConverseStreamEvent
 impl ProviderStreamResponse for ConverseStreamEvent {
     fn content_delta(&self) -> Option<&str> {
         match self {
-            ConverseStreamEvent::ContentBlockDelta(event) => {
-                match &event.delta {
-                    ContentBlockDelta::Text { text } => Some(text),
-                    ContentBlockDelta::ToolUse { .. } => None,
-                }
-            }
+            ConverseStreamEvent::ContentBlockDelta(event) => match &event.delta {
+                ContentBlockDelta::Text { text } => Some(text),
+                ContentBlockDelta::ToolUse { .. } => None,
+            },
             _ => None,
         }
     }
@@ -1099,7 +1095,10 @@ mod tests {
         };
 
         let serialized = serde_json::to_value(&tool).unwrap();
-        println!("Tool serialization: {}", serde_json::to_string_pretty(&serialized).unwrap());
+        println!(
+            "Tool serialization: {}",
+            serde_json::to_string_pretty(&serialized).unwrap()
+        );
 
         // Verify the structure matches Bedrock API expectations
         assert!(serialized.get("toolSpec").is_some());
@@ -1107,16 +1106,24 @@ mod tests {
 
         let tool_spec = serialized.get("toolSpec").unwrap();
         assert_eq!(tool_spec.get("name").unwrap(), "get_weather");
-        assert_eq!(tool_spec.get("description").unwrap(), "Get the current weather for a specified city");
+        assert_eq!(
+            tool_spec.get("description").unwrap(),
+            "Get the current weather for a specified city"
+        );
         assert!(tool_spec.get("inputSchema").is_some());
     }
 
     #[test]
     fn test_tool_choice_serialization_format() {
         // Test Auto choice
-        let auto_choice = ToolChoice::Auto { auto: AutoChoice {} };
+        let auto_choice = ToolChoice::Auto {
+            auto: AutoChoice {},
+        };
         let serialized = serde_json::to_value(&auto_choice).unwrap();
-        println!("Auto ToolChoice serialization: {}", serde_json::to_string_pretty(&serialized).unwrap());
+        println!(
+            "Auto ToolChoice serialization: {}",
+            serde_json::to_string_pretty(&serialized).unwrap()
+        );
 
         assert!(serialized.get("auto").is_some());
         assert!(serialized.get("type").is_none()); // Should not have a type field
@@ -1124,11 +1131,14 @@ mod tests {
         // Test Tool choice
         let tool_choice = ToolChoice::Tool {
             tool: ToolChoiceSpec {
-                name: "get_weather".to_string()
-            }
+                name: "get_weather".to_string(),
+            },
         };
         let serialized = serde_json::to_value(&tool_choice).unwrap();
-        println!("Tool ToolChoice serialization: {}", serde_json::to_string_pretty(&serialized).unwrap());
+        println!(
+            "Tool ToolChoice serialization: {}",
+            serde_json::to_string_pretty(&serialized).unwrap()
+        );
 
         assert!(serialized.get("tool").is_some());
         assert!(serialized.get("type").is_none()); // Should not have a type field

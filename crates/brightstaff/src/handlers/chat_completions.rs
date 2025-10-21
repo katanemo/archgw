@@ -1,17 +1,17 @@
-use std::sync::Arc;
-use std::collections::HashMap;
 use bytes::Bytes;
 use common::configuration::{ModelAlias, ModelUsagePreference};
-use common::consts::{ARCH_PROVIDER_HINT_HEADER, ARCH_IS_STREAMING_HEADER};
+use common::consts::{ARCH_IS_STREAMING_HEADER, ARCH_PROVIDER_HINT_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
-use hermesllm::clients::SupportedAPIs;
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
+use hermesllm::clients::SupportedAPIs;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
 use hyper::header::{self};
 use hyper::{Request, Response, StatusCode};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
@@ -31,14 +31,19 @@ pub async fn chat(
     full_qualified_llm_provider_url: String,
     model_aliases: Arc<Option<HashMap<String, ModelAlias>>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
-
     let request_path = request.uri().path().to_string();
     let mut request_headers = request.headers().clone();
     let chat_request_bytes = request.collect().await?.to_bytes();
 
-    debug!("Received request body (raw utf8): {}", String::from_utf8_lossy(&chat_request_bytes));
+    debug!(
+        "Received request body (raw utf8): {}",
+        String::from_utf8_lossy(&chat_request_bytes)
+    );
 
-    let mut client_request = match ProviderRequestType::try_from((&chat_request_bytes[..], &SupportedAPIs::from_endpoint(request_path.as_str()).unwrap())) {
+    let mut client_request = match ProviderRequestType::try_from((
+        &chat_request_bytes[..],
+        &SupportedAPIs::from_endpoint(request_path.as_str()).unwrap(),
+    )) {
         Ok(request) => request,
         Err(err) => {
             warn!("Failed to parse request as ProviderRequestType: {}", err);
@@ -79,18 +84,30 @@ pub async fn chat(
 
     // Convert to ChatCompletionsRequest regardless of input type (clone to avoid moving original)
     let chat_completions_request_for_arch_router: ChatCompletionsRequest =
-        match ProviderRequestType::try_from((client_request, &SupportedUpstreamAPIs::OpenAIChatCompletions(hermesllm::apis::OpenAIApi::ChatCompletions))) {
+        match ProviderRequestType::try_from((
+            client_request,
+            &SupportedUpstreamAPIs::OpenAIChatCompletions(
+                hermesllm::apis::OpenAIApi::ChatCompletions,
+            ),
+        )) {
             Ok(ProviderRequestType::ChatCompletionsRequest(req)) => req,
-            Ok(ProviderRequestType::MessagesRequest(_) | ProviderRequestType::BedrockConverse(_) | ProviderRequestType::BedrockConverseStream(_)) => {
+            Ok(
+                ProviderRequestType::MessagesRequest(_)
+                | ProviderRequestType::BedrockConverse(_)
+                | ProviderRequestType::BedrockConverseStream(_),
+            ) => {
                 // This should not happen after conversion to OpenAI format
                 warn!("Unexpected: got MessagesRequest after converting to OpenAI format");
                 let err_msg = "Request conversion failed".to_string();
                 let mut bad_request = Response::new(full(err_msg));
                 *bad_request.status_mut() = StatusCode::BAD_REQUEST;
                 return Ok(bad_request);
-            },
+            }
             Err(err) => {
-                warn!("Failed to convert request to ChatCompletionsRequest: {}", err);
+                warn!(
+                    "Failed to convert request to ChatCompletionsRequest: {}",
+                    err
+                );
                 let err_msg = format!("Failed to convert request: {}", err);
                 let mut bad_request = Response::new(full(err_msg));
                 *bad_request.status_mut() = StatusCode::BAD_REQUEST;
@@ -108,28 +125,29 @@ pub async fn chat(
         .find(|(ty, _)| ty.as_str() == "traceparent")
         .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
 
-    let usage_preferences_str: Option<String> =
-        routing_metadata.as_ref().and_then(|metadata| {
-            metadata
-                .get("archgw_preference_config")
-                .map(|value| value.to_string())
-        });
+    let usage_preferences_str: Option<String> = routing_metadata.as_ref().and_then(|metadata| {
+        metadata
+            .get("archgw_preference_config")
+            .map(|value| value.to_string())
+    });
 
     let usage_preferences: Option<Vec<ModelUsagePreference>> = usage_preferences_str
         .as_ref()
         .and_then(|s| serde_yaml::from_str(s).ok());
 
-    let latest_message_for_log =
-        chat_completions_request_for_arch_router
-            .messages
-            .last()
-            .map_or("None".to_string(), |msg| {
-                msg.content.to_string().replace('\n', "\\n")
-            });
+    let latest_message_for_log = chat_completions_request_for_arch_router
+        .messages
+        .last()
+        .map_or("None".to_string(), |msg| {
+            msg.content.to_string().replace('\n', "\\n")
+        });
 
     const MAX_MESSAGE_LENGTH: usize = 50;
     let latest_message_for_log = if latest_message_for_log.chars().count() > MAX_MESSAGE_LENGTH {
-        let truncated: String = latest_message_for_log.chars().take(MAX_MESSAGE_LENGTH).collect();
+        let truncated: String = latest_message_for_log
+            .chars()
+            .take(MAX_MESSAGE_LENGTH)
+            .collect();
         format!("{}...", truncated)
     } else {
         latest_message_for_log
@@ -155,12 +173,11 @@ pub async fn chat(
         Ok(route) => match route {
             Some((_, model_name)) => model_name,
             None => {
-               info!(
+                info!(
                     "No route determined, using default model from request: {}",
                     chat_completions_request_for_arch_router.model
                 );
                 chat_completions_request_for_arch_router.model.clone()
-
             }
         },
         Err(err) => {

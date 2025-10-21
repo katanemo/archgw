@@ -1,9 +1,9 @@
-use std::str::FromStr;
-use std::fmt;
-use std::error::Error;
-use serde::{Serialize, Deserialize};
 use crate::providers::response::ProviderStreamResponse;
 use crate::providers::response::ProviderStreamResponseType;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt;
+use std::str::FromStr;
 
 // ============================================================================
 // SSE EVENT CONTAINER
@@ -13,19 +13,19 @@ use crate::providers::response::ProviderStreamResponseType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SseEvent {
     #[serde(rename = "data")]
-    pub data: Option<String>,  // The JSON payload after "data: "
+    pub data: Option<String>, // The JSON payload after "data: "
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub event: Option<String>,  // Optional event type (e.g., "message_start", "content_block_delta")
+    pub event: Option<String>, // Optional event type (e.g., "message_start", "content_block_delta")
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub raw_line: String,  // The complete line as received including "data: " prefix and "\n\n"
-
-     #[serde(skip_serializing, skip_deserializing)]
-    pub sse_transform_buffer: String,  // The complete line as received including "data: " prefix and "\n\n"
+    pub raw_line: String, // The complete line as received including "data: " prefix and "\n\n"
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub provider_stream_response: Option<ProviderStreamResponseType>,  // Parsed provider stream response object
+    pub sse_transform_buffer: String, // The complete line as received including "data: " prefix and "\n\n"
+
+    #[serde(skip_serializing, skip_deserializing)]
+    pub provider_stream_response: Option<ProviderStreamResponseType>, // Parsed provider stream response object
 }
 
 impl SseEvent {
@@ -48,13 +48,13 @@ impl SseEvent {
 
     /// Get the parsed provider response if available
     pub fn provider_response(&self) -> Result<&dyn ProviderStreamResponse, std::io::Error> {
-        self.provider_stream_response.as_ref()
+        self.provider_stream_response
+            .as_ref()
             .map(|resp| resp as &dyn ProviderStreamResponse)
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "Provider response not found")
             })
     }
-
 }
 
 impl FromStr for SseEvent {
@@ -75,7 +75,8 @@ impl FromStr for SseEvent {
                 sse_transform_buffer: line.to_string(),
                 provider_stream_response: None,
             })
-        } else if line.starts_with("event: ") { //used by Anthropic
+        } else if line.starts_with("event: ") {
+            //used by Anthropic
             let event_type = line[7..].to_string();
             if event_type.is_empty() {
                 return Err(SseParseError {
@@ -123,7 +124,6 @@ impl fmt::Display for SseParseError {
 
 impl Error for SseParseError {}
 
-
 /// Generic SSE (Server-Sent Events) streaming iterator container
 /// Parses raw SSE lines into SseEvent objects
 pub struct SseStreamIter<I>
@@ -141,7 +141,10 @@ where
     I::Item: AsRef<str>,
 {
     pub fn new(lines: I) -> Self {
-        Self { lines, done_seen: false }
+        Self {
+            lines,
+            done_seen: false,
+        }
     }
 }
 
@@ -151,13 +154,12 @@ impl TryFrom<&[u8]> for SseStreamIter<std::vec::IntoIter<String>> {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-            // Parse as text-based SSE format
-            let s = std::str::from_utf8(bytes)?;
-            let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
-            Ok(SseStreamIter::new(lines.into_iter()))
+        // Parse as text-based SSE format
+        let s = std::str::from_utf8(bytes)?;
+        let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
+        Ok(SseStreamIter::new(lines.into_iter()))
     }
 }
-
 
 impl<I> Iterator for SseStreamIter<I>
 where

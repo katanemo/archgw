@@ -1,14 +1,21 @@
-use crate::transforms::lib::*;
-use crate::clients::TransformError;
-use crate::apis::anthropic::{MessagesMessage, MessagesRequest, MessagesMessageContent, MessagesRole, MessagesStopReason, MessagesTool, MessagesToolChoice, MessagesToolChoiceType, MessagesUsage, MessagesSystemPrompt, ToolResultContent};
-use crate::apis::openai::{ChatCompletionsRequest, Message, MessageContent, Role, Tool, ToolCall, ToolChoice, ToolChoiceType, Function, FunctionChoice,FinishReason, Usage, ContentPart};
 use crate::apis::amazon_bedrock::{
-    ConverseRequest, SystemContentBlock, InferenceConfiguration, ToolConfiguration,
-    Tool as BedrockTool, ToolChoice as BedrockToolChoice, ToolInputSchema, ToolSpecDefinition,
-    AutoChoice, AnyChoice, ToolChoiceSpec,
-    Message as BedrockMessage, ConversationRole, ContentBlock,
-    ToolUseBlock, ToolResultBlock, ToolResultContentBlock, ToolResultStatus, ImageBlock, ImageSource
+    AnyChoice, AutoChoice, ContentBlock, ConversationRole, ConverseRequest, ImageBlock,
+    ImageSource, InferenceConfiguration, Message as BedrockMessage, SystemContentBlock,
+    Tool as BedrockTool, ToolChoice as BedrockToolChoice, ToolChoiceSpec, ToolConfiguration,
+    ToolInputSchema, ToolResultBlock, ToolResultContentBlock, ToolResultStatus, ToolSpecDefinition,
+    ToolUseBlock,
 };
+use crate::apis::anthropic::{
+    MessagesMessage, MessagesMessageContent, MessagesRequest, MessagesRole, MessagesStopReason,
+    MessagesSystemPrompt, MessagesTool, MessagesToolChoice, MessagesToolChoiceType, MessagesUsage,
+    ToolResultContent,
+};
+use crate::apis::openai::{
+    ChatCompletionsRequest, ContentPart, FinishReason, Function, FunctionChoice, Message,
+    MessageContent, Role, Tool, ToolCall, ToolChoice, ToolChoiceType, Usage,
+};
+use crate::clients::TransformError;
+use crate::transforms::lib::*;
 
 type AnthropicMessagesRequest = MessagesRequest;
 
@@ -32,7 +39,8 @@ impl TryFrom<AnthropicMessagesRequest> for ChatCompletionsRequest {
 
         // Convert tools and tool choice
         let openai_tools = req.tools.map(|tools| convert_anthropic_tools(tools));
-        let (openai_tool_choice, parallel_tool_calls) = convert_anthropic_tool_choice(req.tool_choice);
+        let (openai_tool_choice, parallel_tool_calls) =
+            convert_anthropic_tool_choice(req.tool_choice);
 
         let mut _chat_completions_req: ChatCompletionsRequest = ChatCompletionsRequest {
             model: req.model,
@@ -91,7 +99,8 @@ impl TryFrom<AnthropicMessagesRequest> for ConverseRequest {
         // Convert tools and tool choice to ToolConfiguration
         let tool_config = if req.tools.is_some() || req.tool_choice.is_some() {
             let tools = req.tools.map(|anthropic_tools| {
-                anthropic_tools.into_iter()
+                anthropic_tools
+                    .into_iter()
                     .map(|tool| BedrockTool::ToolSpec {
                         tool_spec: ToolSpecDefinition {
                             name: tool.name,
@@ -106,25 +115,28 @@ impl TryFrom<AnthropicMessagesRequest> for ConverseRequest {
 
             let tool_choice = req.tool_choice.map(|choice| {
                 match choice.kind {
-                    MessagesToolChoiceType::Auto => BedrockToolChoice::Auto { auto: AutoChoice {} },
+                    MessagesToolChoiceType::Auto => BedrockToolChoice::Auto {
+                        auto: AutoChoice {},
+                    },
                     MessagesToolChoiceType::Any => BedrockToolChoice::Any { any: AnyChoice {} },
-                    MessagesToolChoiceType::None => BedrockToolChoice::Auto { auto: AutoChoice {} }, // Bedrock doesn't have explicit "none"
+                    MessagesToolChoiceType::None => BedrockToolChoice::Auto {
+                        auto: AutoChoice {},
+                    }, // Bedrock doesn't have explicit "none"
                     MessagesToolChoiceType::Tool => {
                         if let Some(name) = choice.name {
                             BedrockToolChoice::Tool {
-                                tool: ToolChoiceSpec { name }
+                                tool: ToolChoiceSpec { name },
                             }
                         } else {
-                            BedrockToolChoice::Auto { auto: AutoChoice {} }
+                            BedrockToolChoice::Auto {
+                                auto: AutoChoice {},
+                            }
                         }
                     }
                 }
             });
 
-            Some(ToolConfiguration {
-                tools,
-                tool_choice,
-            })
+            Some(ToolConfiguration { tools, tool_choice })
         } else {
             None
         };
@@ -146,7 +158,6 @@ impl TryFrom<AnthropicMessagesRequest> for ConverseRequest {
         })
     }
 }
-
 
 // Message Conversions
 impl TryFrom<MessagesMessage> for Vec<Message> {
@@ -186,7 +197,11 @@ impl TryFrom<MessagesMessage> for Vec<Message> {
                         role: message.role.into(),
                         content,
                         name: None,
-                        tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
+                        tool_calls: if tool_calls.is_empty() {
+                            None
+                        } else {
+                            Some(tool_calls)
+                        },
                         tool_call_id: None,
                     };
                     result.push(main_message);
@@ -197,7 +212,6 @@ impl TryFrom<MessagesMessage> for Vec<Message> {
         Ok(result)
     }
 }
-
 
 // Role Conversions
 impl Into<Role> for MessagesRole {
@@ -237,9 +251,7 @@ impl Into<Message> for MessagesSystemPrompt {
     fn into(self) -> Message {
         let system_content = match self {
             MessagesSystemPrompt::Single(text) => MessageContent::Text(text),
-            MessagesSystemPrompt::Blocks(blocks) => {
-                MessageContent::Text(blocks.extract_text())
-            }
+            MessagesSystemPrompt::Blocks(blocks) => MessageContent::Text(blocks.extract_text()),
         };
 
         Message {
@@ -255,7 +267,8 @@ impl Into<Message> for MessagesSystemPrompt {
 //Utility Functions
 /// Convert Anthropic tools to OpenAI format
 fn convert_anthropic_tools(tools: Vec<MessagesTool>) -> Vec<Tool> {
-    tools.into_iter()
+    tools
+        .into_iter()
         .map(|tool| Tool {
             tool_type: "function".to_string(),
             function: Function {
@@ -269,7 +282,9 @@ fn convert_anthropic_tools(tools: Vec<MessagesTool>) -> Vec<Tool> {
 }
 
 /// Convert Anthropic tool choice to OpenAI format
-fn convert_anthropic_tool_choice(tool_choice: Option<MessagesToolChoice>) -> (Option<ToolChoice>, Option<bool>) {
+fn convert_anthropic_tool_choice(
+    tool_choice: Option<MessagesToolChoice>,
+) -> (Option<ToolChoice>, Option<bool>) {
     match tool_choice {
         Some(choice) => {
             let openai_choice = match choice.kind {
@@ -290,12 +305,15 @@ fn convert_anthropic_tool_choice(tool_choice: Option<MessagesToolChoice>) -> (Op
             let parallel = choice.disable_parallel_tool_use.map(|disable| !disable);
             (Some(openai_choice), parallel)
         }
-        None => (None, None)
+        None => (None, None),
     }
 }
 
 /// Build OpenAI message content from parts and tool calls
-fn build_openai_content(content_parts: Vec<ContentPart>, tool_calls: &[ToolCall]) -> MessageContent {
+fn build_openai_content(
+    content_parts: Vec<ContentPart>,
+    tool_calls: &[ToolCall],
+) -> MessageContent {
     if content_parts.len() == 1 && tool_calls.is_empty() {
         match &content_parts[0] {
             ContentPart::Text { text } => MessageContent::Text(text.clone()),
@@ -334,7 +352,12 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
                                 content_blocks.push(ContentBlock::Text { text });
                             }
                         }
-                        crate::apis::anthropic::MessagesContentBlock::ToolUse { id, name, input, .. } => {
+                        crate::apis::anthropic::MessagesContentBlock::ToolUse {
+                            id,
+                            name,
+                            input,
+                            ..
+                        } => {
                             content_blocks.push(ContentBlock::ToolUse {
                                 tool_use: ToolUseBlock {
                                     tool_use_id: id,
@@ -343,7 +366,12 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
                                 },
                             });
                         }
-                        crate::apis::anthropic::MessagesContentBlock::ToolResult { tool_use_id, is_error, content, .. } => {
+                        crate::apis::anthropic::MessagesContentBlock::ToolResult {
+                            tool_use_id,
+                            is_error,
+                            content,
+                            ..
+                        } => {
                             // Convert Anthropic ToolResultContent to Bedrock ToolResultContentBlock
                             let tool_result_content = match content {
                                 ToolResultContent::Text(text) => {
@@ -366,7 +394,9 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
 
                             // Ensure we have at least one content block
                             let final_content = if tool_result_content.is_empty() {
-                                vec![ToolResultContentBlock::Text { text: " ".to_string() }]
+                                vec![ToolResultContentBlock::Text {
+                                    text: " ".to_string(),
+                                }]
                             } else {
                                 tool_result_content
                             };
@@ -388,13 +418,13 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
                         crate::apis::anthropic::MessagesContentBlock::Image { source } => {
                             // Convert Anthropic image to Bedrock image format
                             match source {
-                                crate::apis::anthropic::MessagesImageSource::Base64 { media_type, data } => {
+                                crate::apis::anthropic::MessagesImageSource::Base64 {
+                                    media_type,
+                                    data,
+                                } => {
                                     content_blocks.push(ContentBlock::Image {
                                         image: ImageBlock {
-                                            source: ImageSource::Base64 {
-                                                media_type,
-                                                data,
-                                            },
+                                            source: ImageSource::Base64 { media_type, data },
                                         },
                                     });
                                 }
@@ -413,7 +443,9 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
 
         // Ensure we have at least one content block
         if content_blocks.is_empty() {
-            content_blocks.push(ContentBlock::Text { text: " ".to_string() });
+            content_blocks.push(ContentBlock::Text {
+                text: " ".to_string(),
+            });
         }
 
         Ok(BedrockMessage {
@@ -423,29 +455,33 @@ impl TryFrom<MessagesMessage> for BedrockMessage {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::apis::anthropic::{MessagesRequest, MessagesMessage, MessagesMessageContent, MessagesRole, MessagesTool, MessagesToolChoice, MessagesToolChoiceType, MessagesSystemPrompt};
-    use crate::apis::amazon_bedrock::{ConverseRequest, SystemContentBlock, ToolChoice as BedrockToolChoice, ConversationRole, ContentBlock};
+    use crate::apis::amazon_bedrock::{
+        ContentBlock, ConversationRole, ConverseRequest, SystemContentBlock,
+        ToolChoice as BedrockToolChoice,
+    };
+    use crate::apis::anthropic::{
+        MessagesMessage, MessagesMessageContent, MessagesRequest, MessagesRole,
+        MessagesSystemPrompt, MessagesTool, MessagesToolChoice, MessagesToolChoiceType,
+    };
     use serde_json::json;
 
     #[test]
     fn test_anthropic_to_bedrock_basic_request() {
         let anthropic_request = MessagesRequest {
             model: "claude-3-5-sonnet-20241022".to_string(),
-            messages: vec![
-                MessagesMessage {
-                    role: MessagesRole::User,
-                    content: MessagesMessageContent::Single("Hello, how are you?".to_string()),
-                }
-            ],
+            messages: vec![MessagesMessage {
+                role: MessagesRole::User,
+                content: MessagesMessageContent::Single("Hello, how are you?".to_string()),
+            }],
             max_tokens: 1000,
             container: None,
             mcp_servers: None,
-            system: Some(MessagesSystemPrompt::Single("You are a helpful assistant.".to_string())),
+            system: Some(MessagesSystemPrompt::Single(
+                "You are a helpful assistant.".to_string(),
+            )),
             metadata: None,
             service_tier: None,
             thinking: None,
@@ -478,19 +514,20 @@ mod tests {
         assert_eq!(inference_config.temperature, Some(0.7));
         assert_eq!(inference_config.top_p, Some(0.9));
         assert_eq!(inference_config.max_tokens, Some(1000));
-        assert_eq!(inference_config.stop_sequences, Some(vec!["STOP".to_string()]));
+        assert_eq!(
+            inference_config.stop_sequences,
+            Some(vec!["STOP".to_string()])
+        );
     }
 
     #[test]
     fn test_anthropic_to_bedrock_with_tools() {
         let anthropic_request = MessagesRequest {
             model: "claude-3-5-sonnet-20241022".to_string(),
-            messages: vec![
-                MessagesMessage {
-                    role: MessagesRole::User,
-                    content: MessagesMessageContent::Single("What's the weather like?".to_string()),
-                }
-            ],
+            messages: vec![MessagesMessage {
+                role: MessagesRole::User,
+                content: MessagesMessageContent::Single("What's the weather like?".to_string()),
+            }],
             max_tokens: 1000,
             container: None,
             mcp_servers: None,
@@ -503,22 +540,20 @@ mod tests {
             top_k: None,
             stream: None,
             stop_sequences: None,
-            tools: Some(vec![
-                MessagesTool {
-                    name: "get_weather".to_string(),
-                    description: Some("Get current weather information".to_string()),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {
-                            "location": {
-                                "type": "string",
-                                "description": "The city name"
-                            }
-                        },
-                        "required": ["location"]
-                    }),
-                }
-            ]),
+            tools: Some(vec![MessagesTool {
+                name: "get_weather".to_string(),
+                description: Some("Get current weather information".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city name"
+                        }
+                    },
+                    "required": ["location"]
+                }),
+            }]),
             tool_choice: Some(MessagesToolChoice {
                 kind: MessagesToolChoiceType::Tool,
                 name: Some("get_weather".to_string()),
@@ -537,7 +572,10 @@ mod tests {
         assert_eq!(tools.len(), 1);
         let crate::apis::amazon_bedrock::Tool::ToolSpec { tool_spec } = &tools[0];
         assert_eq!(tool_spec.name, "get_weather");
-        assert_eq!(tool_spec.description, Some("Get current weather information".to_string()));
+        assert_eq!(
+            tool_spec.description,
+            Some("Get current weather information".to_string())
+        );
 
         if let Some(BedrockToolChoice::Tool { tool }) = &tool_config.tool_choice {
             assert_eq!(tool.name, "get_weather");
@@ -550,12 +588,10 @@ mod tests {
     fn test_anthropic_to_bedrock_auto_tool_choice() {
         let anthropic_request = MessagesRequest {
             model: "claude-3-5-sonnet-20241022".to_string(),
-            messages: vec![
-                MessagesMessage {
-                    role: MessagesRole::User,
-                    content: MessagesMessageContent::Single("Help me with something".to_string()),
-                }
-            ],
+            messages: vec![MessagesMessage {
+                role: MessagesRole::User,
+                content: MessagesMessageContent::Single("Help me with something".to_string()),
+            }],
             max_tokens: 500,
             container: None,
             mcp_servers: None,
@@ -568,16 +604,14 @@ mod tests {
             top_k: None,
             stream: None,
             stop_sequences: None,
-            tools: Some(vec![
-                MessagesTool {
-                    name: "help_tool".to_string(),
-                    description: Some("A helpful tool".to_string()),
-                    input_schema: json!({
-                        "type": "object",
-                        "properties": {}
-                    }),
-                }
-            ]),
+            tools: Some(vec![MessagesTool {
+                name: "help_tool".to_string(),
+                description: Some("A helpful tool".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            }]),
             tool_choice: Some(MessagesToolChoice {
                 kind: MessagesToolChoiceType::Auto,
                 name: None,
@@ -589,7 +623,10 @@ mod tests {
 
         assert!(bedrock_request.tool_config.is_some());
         let tool_config = bedrock_request.tool_config.as_ref().unwrap();
-        assert!(matches!(tool_config.tool_choice, Some(BedrockToolChoice::Auto { .. })));
+        assert!(matches!(
+            tool_config.tool_choice,
+            Some(BedrockToolChoice::Auto { .. })
+        ));
     }
 
     #[test]
@@ -603,12 +640,14 @@ mod tests {
                 },
                 MessagesMessage {
                     role: MessagesRole::Assistant,
-                    content: MessagesMessageContent::Single("Hi there! How can I help you?".to_string()),
+                    content: MessagesMessageContent::Single(
+                        "Hi there! How can I help you?".to_string(),
+                    ),
                 },
                 MessagesMessage {
                     role: MessagesRole::User,
                     content: MessagesMessageContent::Single("What's 2+2?".to_string()),
-                }
+                },
             ],
             max_tokens: 100,
             container: None,

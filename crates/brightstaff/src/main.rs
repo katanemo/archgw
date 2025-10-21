@@ -68,8 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         &serde_json::to_string(arch_config.as_ref()).unwrap()
     );
 
-    let llm_provider_url = env::var("LLM_PROVIDER_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:12001".to_string());
+    let llm_provider_url =
+        env::var("LLM_PROVIDER_ENDPOINT").unwrap_or_else(|_| "http://localhost:12001".to_string());
 
     info!("llm provider url: {}", llm_provider_url);
     info!("listening on http://{}", bind_address);
@@ -96,7 +96,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let model_aliases = Arc::new(arch_config.model_aliases.clone());
 
-
     loop {
         let (stream, _) = listener.accept().await?;
         let peer_addr = stream.peer_addr()?;
@@ -108,7 +107,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let llm_providers = llm_providers.clone();
         let service = service_fn(move |req| {
-
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
@@ -118,7 +116,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             async move {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
-                        let fully_qualified_url = format!("{}{}", llm_provider_url, req.uri().path());
+                        let fully_qualified_url =
+                            format!("{}{}", llm_provider_url, req.uri().path());
                         chat(req, router_service, fully_qualified_url, model_aliases)
                             .with_context(parent_cx)
                             .await

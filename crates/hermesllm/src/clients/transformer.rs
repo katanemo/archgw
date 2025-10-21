@@ -1,6 +1,5 @@
 // Re-export new transformation modules for backward compatibility
 
-
 //KEEPING THE TESTS TO MAKE SURE ALL THE REFACTORING DIDN'T BREAK ANYTHING
 
 // ============================================================================
@@ -9,10 +8,10 @@
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use crate::apis::anthropic::*;
     use crate::apis::openai::*;
     use crate::transforms::*;
+    use serde_json::json;
     type AnthropicMessagesRequest = MessagesRequest;
 
     #[test]
@@ -81,11 +80,20 @@ mod tests {
 
         // Check key fields are preserved
         assert_eq!(original_anthropic.model, roundtrip_anthropic.model);
-        assert_eq!(original_anthropic.max_tokens, roundtrip_anthropic.max_tokens);
-        assert_eq!(original_anthropic.temperature, roundtrip_anthropic.temperature);
+        assert_eq!(
+            original_anthropic.max_tokens,
+            roundtrip_anthropic.max_tokens
+        );
+        assert_eq!(
+            original_anthropic.temperature,
+            roundtrip_anthropic.temperature
+        );
         assert_eq!(original_anthropic.top_p, roundtrip_anthropic.top_p);
         assert_eq!(original_anthropic.stream, roundtrip_anthropic.stream);
-        assert_eq!(original_anthropic.messages.len(), roundtrip_anthropic.messages.len());
+        assert_eq!(
+            original_anthropic.messages.len(),
+            roundtrip_anthropic.messages.len()
+        );
     }
 
     #[test]
@@ -229,7 +237,10 @@ mod tests {
         let tool_calls = choice.delta.tool_calls.as_ref().unwrap();
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].id, Some("call_123".to_string()));
-        assert_eq!(tool_calls[0].function.as_ref().unwrap().name, Some("get_weather".to_string()));
+        assert_eq!(
+            tool_calls[0].function.as_ref().unwrap().name,
+            Some("get_weather".to_string())
+        );
     }
 
     #[test]
@@ -249,7 +260,10 @@ mod tests {
 
         let tool_calls = choice.delta.tool_calls.as_ref().unwrap();
         assert_eq!(tool_calls.len(), 1);
-        assert_eq!(tool_calls[0].function.as_ref().unwrap().arguments, Some(r#"{"location": "San Francisco"#.to_string()));
+        assert_eq!(
+            tool_calls[0].function.as_ref().unwrap().arguments,
+            Some(r#"{"location": "San Francisco"#.to_string())
+        );
     }
 
     #[test]
@@ -412,7 +426,10 @@ mod tests {
         let anthropic_event: MessagesStreamEvent = openai_resp.try_into().unwrap();
 
         match anthropic_event {
-            MessagesStreamEvent::ContentBlockStart { index, content_block } => {
+            MessagesStreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 0);
                 match content_block {
                     MessagesContentBlock::ToolUse { id, name, .. } => {
@@ -555,16 +572,28 @@ mod tests {
         // Verify tool start
         let tool_calls = &openai_start.choices[0].delta.tool_calls.as_ref().unwrap();
         assert_eq!(tool_calls[0].id, Some("call_weather".to_string()));
-        assert_eq!(tool_calls[0].function.as_ref().unwrap().name, Some("get_weather".to_string()));
+        assert_eq!(
+            tool_calls[0].function.as_ref().unwrap().name,
+            Some("get_weather".to_string())
+        );
 
         // Verify argument deltas
         let args1 = &openai_delta1.choices[0].delta.tool_calls.as_ref().unwrap()[0]
-            .function.as_ref().unwrap().arguments;
+            .function
+            .as_ref()
+            .unwrap()
+            .arguments;
         assert_eq!(args1, &Some(r#"{"location": "#.to_string()));
 
         let args2 = &openai_delta2.choices[0].delta.tool_calls.as_ref().unwrap()[0]
-            .function.as_ref().unwrap().arguments;
-        assert_eq!(args2, &Some(r#"San Francisco", "unit": "fahrenheit"}"#.to_string()));
+            .function
+            .as_ref()
+            .unwrap()
+            .arguments;
+        assert_eq!(
+            args2,
+            &Some(r#"San Francisco", "unit": "fahrenheit"}"#.to_string())
+        );
     }
 
     #[test]
@@ -592,14 +621,23 @@ mod tests {
             };
 
             let openai_resp: ChatCompletionsStreamResponse = event.try_into().unwrap();
-            assert_eq!(openai_resp.choices[0].finish_reason, Some(expected_openai_reason));
+            assert_eq!(
+                openai_resp.choices[0].finish_reason,
+                Some(expected_openai_reason)
+            );
 
             // Test reverse conversion
             let roundtrip_event: MessagesStreamEvent = openai_resp.try_into().unwrap();
             match roundtrip_event {
                 MessagesStreamEvent::MessageDelta { delta, .. } => {
                     // Note: Some precision may be lost in roundtrip due to mapping differences
-                    assert!(matches!(delta.stop_reason, MessagesStopReason::EndTurn | MessagesStopReason::MaxTokens | MessagesStopReason::ToolUse | MessagesStopReason::StopSequence));
+                    assert!(matches!(
+                        delta.stop_reason,
+                        MessagesStopReason::EndTurn
+                            | MessagesStopReason::MaxTokens
+                            | MessagesStopReason::ToolUse
+                            | MessagesStopReason::StopSequence
+                    ));
                 }
                 _ => panic!("Expected MessageDelta after roundtrip"),
             }
@@ -632,7 +670,8 @@ mod tests {
         };
 
         // Should convert to Ping when no meaningful content
-        let anthropic_event: MessagesStreamEvent = openai_resp_with_missing_data.try_into().unwrap();
+        let anthropic_event: MessagesStreamEvent =
+            openai_resp_with_missing_data.try_into().unwrap();
         assert!(matches!(anthropic_event, MessagesStreamEvent::Ping));
     }
 

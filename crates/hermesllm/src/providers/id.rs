@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use crate::apis::{AmazonBedrockApi, AnthropicApi, OpenAIApi};
 use crate::clients::endpoints::{SupportedAPIs, SupportedUpstreamAPIs};
-use crate::apis::{OpenAIApi, AnthropicApi, AmazonBedrockApi};
+use std::fmt::Display;
 
 /// Provider identifier enum - simple enum for identifying providers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -49,60 +49,77 @@ impl From<&str> for ProviderId {
 
 impl ProviderId {
     /// Given a client API, return the compatible upstream API for this provider
-    pub fn compatible_api_for_client(&self, client_api: &SupportedAPIs, is_streaming: bool) -> SupportedUpstreamAPIs {
+    pub fn compatible_api_for_client(
+        &self,
+        client_api: &SupportedAPIs,
+        is_streaming: bool,
+    ) -> SupportedUpstreamAPIs {
         match (self, client_api) {
             // Claude/Anthropic providers natively support Anthropic APIs
-            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedUpstreamAPIs::AnthropicMessagesAPI(AnthropicApi::Messages),
-            (ProviderId::Anthropic, SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (ProviderId::Anthropic, SupportedAPIs::AnthropicMessagesAPI(_)) => {
+                SupportedUpstreamAPIs::AnthropicMessagesAPI(AnthropicApi::Messages)
+            }
+            (
+                ProviderId::Anthropic,
+                SupportedAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // OpenAI-compatible providers only support OpenAI chat completions
-            (ProviderId::OpenAI
-            | ProviderId::Groq
-            | ProviderId::Mistral
-            | ProviderId::Deepseek
-            | ProviderId::Arch
-            | ProviderId::Gemini
-            | ProviderId::GitHub
-            | ProviderId::AzureOpenAI
-            | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::Ollama
-            | ProviderId::Moonshotai
-            | ProviderId::Zhipu
-            | ProviderId::Qwen,
-            SupportedAPIs::AnthropicMessagesAPI(_)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (
+                ProviderId::OpenAI
+                | ProviderId::Groq
+                | ProviderId::Mistral
+                | ProviderId::Deepseek
+                | ProviderId::Arch
+                | ProviderId::Gemini
+                | ProviderId::GitHub
+                | ProviderId::AzureOpenAI
+                | ProviderId::XAI
+                | ProviderId::TogetherAI
+                | ProviderId::Ollama
+                | ProviderId::Moonshotai
+                | ProviderId::Zhipu
+                | ProviderId::Qwen,
+                SupportedAPIs::AnthropicMessagesAPI(_),
+            ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
-            (ProviderId::OpenAI
-            | ProviderId::Groq
-            | ProviderId::Mistral
-            | ProviderId::Deepseek
-            | ProviderId::Arch
-            | ProviderId::Gemini
-            | ProviderId::GitHub
-            | ProviderId::AzureOpenAI
-            | ProviderId::XAI
-            | ProviderId::TogetherAI
-            | ProviderId::Ollama
-            | ProviderId::Moonshotai
-            | ProviderId::Zhipu
-            | ProviderId::Qwen,
-            SupportedAPIs::OpenAIChatCompletions(_)) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            (
+                ProviderId::OpenAI
+                | ProviderId::Groq
+                | ProviderId::Mistral
+                | ProviderId::Deepseek
+                | ProviderId::Arch
+                | ProviderId::Gemini
+                | ProviderId::GitHub
+                | ProviderId::AzureOpenAI
+                | ProviderId::XAI
+                | ProviderId::TogetherAI
+                | ProviderId::Ollama
+                | ProviderId::Moonshotai
+                | ProviderId::Zhipu
+                | ProviderId::Qwen,
+                SupportedAPIs::OpenAIChatCompletions(_),
+            ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // Amazon Bedrock natively supports Bedrock APIs
             (ProviderId::AmazonBedrock, SupportedAPIs::OpenAIChatCompletions(_)) => {
                 if is_streaming {
-                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(AmazonBedrockApi::ConverseStream)
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(
+                        AmazonBedrockApi::ConverseStream,
+                    )
                 } else {
                     SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
                 }
-            },
+            }
             (ProviderId::AmazonBedrock, SupportedAPIs::AnthropicMessagesAPI(_)) => {
                 if is_streaming {
-                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(AmazonBedrockApi::ConverseStream)
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(
+                        AmazonBedrockApi::ConverseStream,
+                    )
                 } else {
                     SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
                 }
-            },
+            }
         }
     }
 }

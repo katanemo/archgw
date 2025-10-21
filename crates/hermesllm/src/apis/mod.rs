@@ -1,15 +1,19 @@
-pub mod anthropic;
-pub mod openai;
 pub mod amazon_bedrock;
 pub mod amazon_bedrock_binary_frame;
+pub mod anthropic;
+pub mod openai;
 pub mod sse;
 
 // Explicit exports to avoid naming conflicts
-pub use anthropic::{AnthropicApi, MessagesRequest, MessagesResponse, MessagesStreamEvent};
-pub use openai::{OpenAIApi, ChatCompletionsRequest, ChatCompletionsResponse, ChatCompletionsStreamResponse};
-pub use openai::{Message as OpenAIMessage, Tool as OpenAITool, ToolChoice as OpenAIToolChoice};
 pub use amazon_bedrock::{AmazonBedrockApi, ConverseRequest, ConverseStreamRequest};
-pub use amazon_bedrock::{Message as BedrockMessage, Tool as BedrockTool, ToolChoice as BedrockToolChoice};
+pub use amazon_bedrock::{
+    Message as BedrockMessage, Tool as BedrockTool, ToolChoice as BedrockToolChoice,
+};
+pub use anthropic::{AnthropicApi, MessagesRequest, MessagesResponse, MessagesStreamEvent};
+pub use openai::{
+    ChatCompletionsRequest, ChatCompletionsResponse, ChatCompletionsStreamResponse, OpenAIApi,
+};
+pub use openai::{Message as OpenAIMessage, Tool as OpenAITool, ToolChoice as OpenAIToolChoice};
 
 pub trait ApiDefinition {
     /// Returns the endpoint path for this API
@@ -56,11 +60,7 @@ mod tests {
     #[test]
     fn test_api_detection_from_endpoints() {
         // Test that we can detect APIs from endpoints using the trait
-        let endpoints = vec![
-            CHAT_COMPLETIONS_PATH,
-            MESSAGES_PATH,
-            "/v1/unknown"
-        ];
+        let endpoints = vec![CHAT_COMPLETIONS_PATH, MESSAGES_PATH, "/v1/unknown"];
 
         let mut detected_apis = Vec::new();
 
@@ -74,11 +74,14 @@ mod tests {
             }
         }
 
-        assert_eq!(detected_apis, vec![
-            "OpenAI: ChatCompletions",
-            "Anthropic: Messages",
-            "Unknown API"
-        ]);
+        assert_eq!(
+            detected_apis,
+            vec![
+                "OpenAI: ChatCompletions",
+                "Anthropic: Messages",
+                "Unknown API"
+            ]
+        );
     }
 
     #[test]

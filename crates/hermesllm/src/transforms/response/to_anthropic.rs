@@ -1,16 +1,16 @@
-use serde_json::Value;
-use crate::transforms::lib::*;
-use crate::clients::TransformError;
-use crate::apis::openai::{
-    ChatCompletionsResponse, ChatCompletionsStreamResponse, Role, ToolCallDelta
+use crate::apis::amazon_bedrock::{
+    ContentBlockDelta, ConverseOutput, ConverseResponse, ConverseStreamEvent, StopReason,
 };
 use crate::apis::anthropic::{
-    MessagesStreamEvent, MessagesStopReason, MessagesMessageDelta, MessagesResponse,
-    MessagesStreamMessage, MessagesUsage, MessagesContentDelta, MessagesRole, MessagesContentBlock
+    MessagesContentBlock, MessagesContentDelta, MessagesMessageDelta, MessagesResponse,
+    MessagesRole, MessagesStopReason, MessagesStreamEvent, MessagesStreamMessage, MessagesUsage,
 };
-use crate::apis::amazon_bedrock::{
-    ConverseResponse, ConverseOutput, StopReason, ConverseStreamEvent, ContentBlockDelta
+use crate::apis::openai::{
+    ChatCompletionsResponse, ChatCompletionsStreamResponse, Role, ToolCallDelta,
 };
+use crate::clients::TransformError;
+use crate::transforms::lib::*;
+use serde_json::Value;
 
 // ============================================================================
 // STANDARD RUST TRAIT IMPLEMENTATIONS - Using Into/TryFrom for convenience
@@ -20,11 +20,15 @@ impl TryFrom<ChatCompletionsResponse> for MessagesResponse {
     type Error = TransformError;
 
     fn try_from(resp: ChatCompletionsResponse) -> Result<Self, Self::Error> {
-        let choice = resp.choices.into_iter().next()
+        let choice = resp
+            .choices
+            .into_iter()
+            .next()
             .ok_or_else(|| TransformError::MissingField("choices".to_string()))?;
 
         let content = convert_openai_message_to_anthropic_content(&choice.message.to_message())?;
-        let stop_reason = choice.finish_reason
+        let stop_reason = choice
+            .finish_reason
             .map(|fr| fr.into())
             .unwrap_or(MessagesStopReason::EndTurn);
 
@@ -86,13 +90,17 @@ impl TryFrom<ConverseResponse> for MessagesResponse {
         };
 
         // Generate a response ID (Bedrock doesn't provide one)
-        let id = format!("bedrock-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let id = format!(
+            "bedrock-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Extract model ID from trace information if available, otherwise use fallback
-        let model = resp.trace
+        let model = resp
+            .trace
             .as_ref()
             .and_then(|trace| trace.prompt_router.as_ref())
             .map(|router| router.invoked_model_id.clone())
@@ -231,15 +239,20 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
             ConverseStreamEvent::MessageStart(start_event) => {
                 let role = match start_event.role {
                     crate::apis::amazon_bedrock::ConversationRole::User => MessagesRole::User,
-                    crate::apis::amazon_bedrock::ConversationRole::Assistant => MessagesRole::Assistant,
+                    crate::apis::amazon_bedrock::ConversationRole::Assistant => {
+                        MessagesRole::Assistant
+                    }
                 };
 
                 Ok(MessagesStreamEvent::MessageStart {
                     message: MessagesStreamMessage {
-                        id: format!("bedrock-stream-{}", std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_nanos()),
+                        id: format!(
+                            "bedrock-stream-{}",
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_nanos()
+                        ),
                         obj_type: "message".to_string(),
                         role,
                         content: vec![],
@@ -278,11 +291,11 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
             // ContentBlockDelta - convert to Anthropic ContentBlockDelta
             ConverseStreamEvent::ContentBlockDelta(delta_event) => {
                 let delta = match delta_event.delta {
-                    ContentBlockDelta::Text { text } => {
-                        MessagesContentDelta::TextDelta { text }
-                    }
+                    ContentBlockDelta::Text { text } => MessagesContentDelta::TextDelta { text },
                     ContentBlockDelta::ToolUse { tool_use } => {
-                        MessagesContentDelta::InputJsonDelta { partial_json: tool_use.input }
+                        MessagesContentDelta::InputJsonDelta {
+                            partial_json: tool_use.input,
+                        }
                     }
                 };
 
@@ -342,11 +355,11 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
             }
 
             // Exception events - convert to Ping (could be enhanced to return error events)
-            ConverseStreamEvent::InternalServerException(_) |
-            ConverseStreamEvent::ModelStreamErrorException(_) |
-            ConverseStreamEvent::ServiceUnavailableException(_) |
-            ConverseStreamEvent::ThrottlingException(_) |
-            ConverseStreamEvent::ValidationException(_) => {
+            ConverseStreamEvent::InternalServerException(_)
+            | ConverseStreamEvent::ModelStreamErrorException(_)
+            | ConverseStreamEvent::ServiceUnavailableException(_)
+            | ConverseStreamEvent::ThrottlingException(_)
+            | ConverseStreamEvent::ValidationException(_) => {
                 // TODO: Consider adding proper error handling/events
                 Ok(MessagesStreamEvent::Ping)
             }
@@ -355,7 +368,9 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
 }
 
 /// Convert tool call deltas to Anthropic stream events
-fn convert_tool_call_deltas(tool_calls: Vec<ToolCallDelta>) -> Result<MessagesStreamEvent, TransformError> {
+fn convert_tool_call_deltas(
+    tool_calls: Vec<ToolCallDelta>,
+) -> Result<MessagesStreamEvent, TransformError> {
     for tool_call in tool_calls {
         if let Some(id) = &tool_call.id {
             // Tool call start
@@ -403,7 +418,9 @@ fn convert_tool_call_deltas(tool_calls: Vec<ToolCallDelta>) -> Result<MessagesSt
 ///
 /// Note on S3/URL handling: Converting S3 locations or URLs would require async operations
 /// to download and convert to base64, which is not implemented in this synchronous function.
-fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_bedrock::Message) -> Result<Vec<MessagesContentBlock>, TransformError> {
+fn convert_bedrock_message_to_anthropic_content(
+    message: &crate::apis::amazon_bedrock::Message,
+) -> Result<Vec<MessagesContentBlock>, TransformError> {
     use crate::apis::amazon_bedrock::ContentBlock;
 
     let mut content_blocks = Vec::new();
@@ -438,16 +455,19 @@ fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_be
                         crate::apis::amazon_bedrock::ToolResultContentBlock::Image { source } => {
                             // Convert Bedrock ImageSource to Anthropic format
                             match source {
-                                crate::apis::amazon_bedrock::ImageSource::Base64 { media_type, data } => {
+                                crate::apis::amazon_bedrock::ImageSource::Base64 {
+                                    media_type,
+                                    data,
+                                } => {
                                     tool_result_blocks.push(MessagesContentBlock::Image {
-                                        source: crate::apis::anthropic::MessagesImageSource::Base64 {
-                                            media_type: media_type.clone(),
-                                            data: data.clone(),
-                                        },
+                                        source:
+                                            crate::apis::anthropic::MessagesImageSource::Base64 {
+                                                media_type: media_type.clone(),
+                                                data: data.clone(),
+                                            },
                                     });
-                                }
-                                // Note: S3Location is not yet implemented in the current Bedrock API definition
-                                // but would need async handling when added
+                                } // Note: S3Location is not yet implemented in the current Bedrock API definition
+                                  // but would need async handling when added
                             }
                         }
                         crate::apis::amazon_bedrock::ToolResultContentBlock::Json { json } => {
@@ -463,7 +483,10 @@ fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_be
                 use crate::apis::anthropic::ToolResultContent;
                 content_blocks.push(MessagesContentBlock::ToolResult {
                     tool_use_id: tool_result.tool_use_id.clone(),
-                    is_error: tool_result.status.as_ref().map(|s| matches!(s, crate::apis::amazon_bedrock::ToolResultStatus::Error)),
+                    is_error: tool_result
+                        .status
+                        .as_ref()
+                        .map(|s| matches!(s, crate::apis::amazon_bedrock::ToolResultStatus::Error)),
                     content: ToolResultContent::Blocks(tool_result_blocks),
                     cache_control: None,
                 });
@@ -478,8 +501,7 @@ fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_be
                                 data: data.clone(),
                             },
                         });
-                    }
-                    // Note: S3Location would require async handling if implemented
+                    } // Note: S3Location would require async handling if implemented
                 }
             }
             ContentBlock::Document { document } => {
@@ -493,8 +515,7 @@ fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_be
                                 data: data.clone(),
                             },
                         });
-                    }
-                    // Note: S3Location would require async handling if implemented
+                    } // Note: S3Location would require async handling if implemented
                 }
             }
             ContentBlock::GuardContent { guard_content } => {
@@ -516,11 +537,13 @@ fn convert_bedrock_message_to_anthropic_content(message: &crate::apis::amazon_be
 mod tests {
     use super::*;
     use crate::apis::amazon_bedrock::{
-        ConverseResponse, ConverseOutput, Message as BedrockMessage, ConversationRole,
-        ContentBlock, StopReason, BedrockTokenUsage, ToolResultContentBlock, ToolResultStatus,
-        ConverseTrace, PromptRouterTrace
+        BedrockTokenUsage, ContentBlock, ConversationRole, ConverseOutput, ConverseResponse,
+        ConverseTrace, Message as BedrockMessage, PromptRouterTrace, StopReason,
+        ToolResultContentBlock, ToolResultStatus,
     };
-    use crate::apis::anthropic::{MessagesResponse, MessagesContentBlock, MessagesStopReason, MessagesRole, ToolResultContent};
+    use crate::apis::anthropic::{
+        MessagesContentBlock, MessagesResponse, MessagesRole, MessagesStopReason, ToolResultContent,
+    };
     use serde_json::json;
 
     #[test]
@@ -529,11 +552,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "Hello! How can I help you today?".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "Hello! How can I help you today?".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -592,7 +613,7 @@ mod tests {
                                     "location": "San Francisco"
                                 }),
                             },
-                        }
+                        },
                     ],
                 },
             },
@@ -624,7 +645,10 @@ mod tests {
         }
 
         // Check tool use content
-        if let MessagesContentBlock::ToolUse { id, name, input, .. } = &anthropic_response.content[1] {
+        if let MessagesContentBlock::ToolUse {
+            id, name, input, ..
+        } = &anthropic_response.content[1]
+        {
             assert_eq!(id, "tool_12345");
             assert_eq!(name, "get_weather");
             assert_eq!(input["location"], "San Francisco");
@@ -649,11 +673,9 @@ mod tests {
                 output: ConverseOutput::Message {
                     message: BedrockMessage {
                         role: ConversationRole::Assistant,
-                        content: vec![
-                            ContentBlock::Text {
-                                text: "Test response".to_string(),
-                            }
-                        ],
+                        content: vec![ContentBlock::Text {
+                            text: "Test response".to_string(),
+                        }],
                     },
                 },
                 stop_reason: bedrock_stop_reason,
@@ -670,7 +692,10 @@ mod tests {
             };
 
             let anthropic_response: MessagesResponse = bedrock_response.try_into().unwrap();
-            assert_eq!(anthropic_response.stop_reason, expected_anthropic_stop_reason);
+            assert_eq!(
+                anthropic_response.stop_reason,
+                expected_anthropic_stop_reason
+            );
         }
     }
 
@@ -680,11 +705,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "Cached response".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "Cached response".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -706,7 +729,10 @@ mod tests {
 
         assert_eq!(anthropic_response.usage.input_tokens, 100);
         assert_eq!(anthropic_response.usage.output_tokens, 50);
-        assert_eq!(anthropic_response.usage.cache_creation_input_tokens, Some(20));
+        assert_eq!(
+            anthropic_response.usage.cache_creation_input_tokens,
+            Some(20)
+        );
         assert_eq!(anthropic_response.usage.cache_read_input_tokens, Some(10));
     }
 
@@ -723,14 +749,12 @@ mod tests {
                         ContentBlock::ToolResult {
                             tool_result: crate::apis::amazon_bedrock::ToolResultBlock {
                                 tool_use_id: "tool_67890".to_string(),
-                                content: vec![
-                                    ToolResultContentBlock::Text {
-                                        text: "Temperature: 72°F, Sunny".to_string(),
-                                    }
-                                ],
+                                content: vec![ToolResultContentBlock::Text {
+                                    text: "Temperature: 72°F, Sunny".to_string(),
+                                }],
                                 status: Some(ToolResultStatus::Success),
                             },
-                        }
+                        },
                     ],
                 },
             },
@@ -761,7 +785,12 @@ mod tests {
         }
 
         // Check tool result content
-        if let MessagesContentBlock::ToolResult { tool_use_id, content, .. } = &anthropic_response.content[1] {
+        if let MessagesContentBlock::ToolResult {
+            tool_use_id,
+            content,
+            ..
+        } = &anthropic_response.content[1]
+        {
             assert_eq!(tool_use_id, "tool_67890");
             if let ToolResultContent::Blocks(blocks) = content {
                 assert_eq!(blocks.len(), 1);
@@ -804,7 +833,7 @@ mod tests {
                                 name: "lookup".to_string(),
                                 input: json!({"id": "12345"}),
                             },
-                        }
+                        },
                     ],
                 },
             },
@@ -870,11 +899,12 @@ mod tests {
                         name: "test_function".to_string(),
                         input: json!({"param": "value"}),
                     },
-                }
+                },
             ],
         };
 
-        let content_blocks = convert_bedrock_message_to_anthropic_content(&bedrock_message).unwrap();
+        let content_blocks =
+            convert_bedrock_message_to_anthropic_content(&bedrock_message).unwrap();
 
         assert_eq!(content_blocks.len(), 2);
 
@@ -884,7 +914,10 @@ mod tests {
             panic!("Expected text content block");
         }
 
-        if let MessagesContentBlock::ToolUse { id, name, input, .. } = &content_blocks[1] {
+        if let MessagesContentBlock::ToolUse {
+            id, name, input, ..
+        } = &content_blocks[1]
+        {
             assert_eq!(id, "test_tool");
             assert_eq!(name, "test_function");
             assert_eq!(input["param"], "value");
@@ -900,11 +933,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "I am an assistant".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "I am an assistant".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -928,11 +959,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::User,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "I am a user".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "I am a user".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -985,7 +1014,10 @@ mod tests {
         let anthropic_response: MessagesResponse = bedrock_response.try_into().unwrap();
 
         // Should extract model ID from trace
-        assert_eq!(anthropic_response.model, "anthropic.claude-3-sonnet-20240229-v1:0");
+        assert_eq!(
+            anthropic_response.model,
+            "anthropic.claude-3-sonnet-20240229-v1:0"
+        );
 
         // Test fallback when no trace information is available
         let bedrock_response_no_trace = ConverseResponse {
@@ -1010,7 +1042,8 @@ mod tests {
             performance_config: None,
         };
 
-        let anthropic_response_fallback: MessagesResponse = bedrock_response_no_trace.try_into().unwrap();
+        let anthropic_response_fallback: MessagesResponse =
+            bedrock_response_no_trace.try_into().unwrap();
 
         // Should use fallback model name
         assert_eq!(anthropic_response_fallback.model, "bedrock-model");

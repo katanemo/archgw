@@ -8,14 +8,14 @@
 //! by the gateway, but the external API surface remains these two standard formats.
 //! The transformations are split into logical modules for maintainability.
 
+pub mod lib;
 pub mod request;
 pub mod response;
-pub mod lib;
 
 // Re-export commonly used items for convenience
+pub use lib::*;
 pub use request::*;
 pub use response::*;
-pub use lib::*;
 
 // ============================================================================
 // CONSTANTS

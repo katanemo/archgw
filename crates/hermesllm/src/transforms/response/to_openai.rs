@@ -1,9 +1,17 @@
-use crate::apis::openai::{ChatCompletionsResponse, ChatCompletionsStreamResponse, Choice, FinishReason, ResponseMessage, Role, ToolCallDelta, FunctionCallDelta, Usage, StreamChoice, MessageDelta, MessageContent};
-use crate::apis::anthropic::{MessagesResponse, MessagesStreamEvent, MessagesContentBlock, MessagesContentDelta, MessagesStopReason, MessagesUsage};
-use crate::apis::amazon_bedrock::{ConverseOutput, ConverseResponse, ConverseStreamEvent, StopReason};
+use crate::apis::amazon_bedrock::{
+    ConverseOutput, ConverseResponse, ConverseStreamEvent, StopReason,
+};
+use crate::apis::anthropic::{
+    MessagesContentBlock, MessagesContentDelta, MessagesResponse, MessagesStopReason,
+    MessagesStreamEvent, MessagesUsage,
+};
+use crate::apis::openai::{
+    ChatCompletionsResponse, ChatCompletionsStreamResponse, Choice, FinishReason,
+    FunctionCallDelta, MessageContent, MessageDelta, ResponseMessage, Role, StreamChoice,
+    ToolCallDelta, Usage,
+};
 use crate::clients::TransformError;
 use crate::transforms::lib::*;
-
 
 // ============================================================================
 // MAIN RESPONSE TRANSFORMATIONS
@@ -35,7 +43,11 @@ impl TryFrom<MessagesResponse> for ChatCompletionsResponse {
             MessageContent::Text(text) => Some(text),
             MessageContent::Parts(parts) => {
                 let text = parts.extract_text();
-                if text.is_empty() { None } else { Some(text) }
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text)
+                }
             }
         };
 
@@ -105,7 +117,6 @@ impl TryFrom<ConverseResponse> for ChatCompletionsResponse {
             StopReason::ContentFiltered => FinishReason::ContentFilter,
         };
 
-
         // Create response message
         let response_message = ResponseMessage {
             role,
@@ -135,13 +146,17 @@ impl TryFrom<ConverseResponse> for ChatCompletionsResponse {
         };
 
         // Generate a response ID (using timestamp since Bedrock doesn't provide one)
-        let id = format!("bedrock-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos());
+        let id = format!(
+            "bedrock-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
 
         // Extract model ID from trace information if available, otherwise use fallback
-        let model = resp.trace
+        let model = resp
+            .trace
             .as_ref()
             .and_then(|trace| trace.prompt_router.as_ref())
             .map(|router| router.invoked_model_id.clone())
@@ -160,7 +175,6 @@ impl TryFrom<ConverseResponse> for ChatCompletionsResponse {
     }
 }
 
-
 // ============================================================================
 // STREAMING TRANSFORMATIONS
 // ============================================================================
@@ -170,33 +184,27 @@ impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
 
     fn try_from(event: MessagesStreamEvent) -> Result<Self, Self::Error> {
         match event {
-            MessagesStreamEvent::MessageStart { message } => {
-                Ok(create_openai_chunk(
-                    &message.id,
-                    &message.model,
-                    MessageDelta {
-                        role: Some(Role::Assistant),
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    None,
-                    None,
-                ))
-            }
+            MessagesStreamEvent::MessageStart { message } => Ok(create_openai_chunk(
+                &message.id,
+                &message.model,
+                MessageDelta {
+                    role: Some(Role::Assistant),
+                    content: None,
+                    refusal: None,
+                    function_call: None,
+                    tool_calls: None,
+                },
+                None,
+                None,
+            )),
 
             MessagesStreamEvent::ContentBlockStart { content_block, .. } => {
                 convert_content_block_start(content_block)
             }
 
-            MessagesStreamEvent::ContentBlockDelta { delta, .. } => {
-                convert_content_delta(delta)
-            }
+            MessagesStreamEvent::ContentBlockDelta { delta, .. } => convert_content_delta(delta),
 
-            MessagesStreamEvent::ContentBlockStop { .. } => {
-                Ok(create_empty_openai_chunk())
-            }
+            MessagesStreamEvent::ContentBlockStop { .. } => Ok(create_empty_openai_chunk()),
 
             MessagesStreamEvent::MessageDelta { delta, usage } => {
                 let finish_reason: Option<FinishReason> = Some(delta.stop_reason.into());
@@ -217,38 +225,33 @@ impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
                 ))
             }
 
-            MessagesStreamEvent::MessageStop => {
-                Ok(create_openai_chunk(
-                    "stream",
-                    "unknown",
-                    MessageDelta {
-                        role: None,
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    Some(FinishReason::Stop),
-                    None,
-                ))
-            }
+            MessagesStreamEvent::MessageStop => Ok(create_openai_chunk(
+                "stream",
+                "unknown",
+                MessageDelta {
+                    role: None,
+                    content: None,
+                    refusal: None,
+                    function_call: None,
+                    tool_calls: None,
+                },
+                Some(FinishReason::Stop),
+                None,
+            )),
 
-            MessagesStreamEvent::Ping => {
-                Ok(ChatCompletionsStreamResponse {
-                    id: "stream".to_string(),
-                    object: Some("chat.completion.chunk".to_string()),
-                    created: current_timestamp(),
-                    model: "unknown".to_string(),
-                    choices: vec![],
-                    usage: None,
-                    system_fingerprint: None,
-                    service_tier: None,
-                })
-            }
+            MessagesStreamEvent::Ping => Ok(ChatCompletionsStreamResponse {
+                id: "stream".to_string(),
+                object: Some("chat.completion.chunk".to_string()),
+                created: current_timestamp(),
+                model: "unknown".to_string(),
+                choices: vec![],
+                usage: None,
+                system_fingerprint: None,
+                service_tier: None,
+            }),
         }
     }
 }
-
 
 impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
     type Error = TransformError;
@@ -280,29 +283,27 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                 use crate::apis::amazon_bedrock::ContentBlockStart;
 
                 match start_event.start {
-                    ContentBlockStart::ToolUse { tool_use } => {
-                        Ok(create_openai_chunk(
-                            "stream",
-                            "unknown",
-                            MessageDelta {
-                                role: None,
-                                content: None,
-                                refusal: None,
-                                function_call: None,
-                                tool_calls: Some(vec![ToolCallDelta {
-                                    index: start_event.content_block_index as u32,
-                                    id: Some(tool_use.tool_use_id),
-                                    call_type: Some("function".to_string()),
-                                    function: Some(FunctionCallDelta {
-                                        name: Some(tool_use.name),
-                                        arguments: Some("".to_string()),
-                                    }),
-                                }]),
-                            },
-                            None,
-                            None,
-                        ))
-                    }
+                    ContentBlockStart::ToolUse { tool_use } => Ok(create_openai_chunk(
+                        "stream",
+                        "unknown",
+                        MessageDelta {
+                            role: None,
+                            content: None,
+                            refusal: None,
+                            function_call: None,
+                            tool_calls: Some(vec![ToolCallDelta {
+                                index: start_event.content_block_index as u32,
+                                id: Some(tool_use.tool_use_id),
+                                call_type: Some("function".to_string()),
+                                function: Some(FunctionCallDelta {
+                                    name: Some(tool_use.name),
+                                    arguments: Some("".to_string()),
+                                }),
+                            }]),
+                        },
+                        None,
+                        None,
+                    )),
                 }
             }
 
@@ -310,50 +311,44 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
                 use crate::apis::amazon_bedrock::ContentBlockDelta;
 
                 match delta_event.delta {
-                    ContentBlockDelta::Text { text } => {
-                        Ok(create_openai_chunk(
-                            "stream",
-                            "unknown",
-                            MessageDelta {
-                                role: None,
-                                content: Some(text),
-                                refusal: None,
-                                function_call: None,
-                                tool_calls: None,
-                            },
-                            None,
-                            None,
-                        ))
-                    }
-                    ContentBlockDelta::ToolUse { tool_use } => {
-                        Ok(create_openai_chunk(
-                            "stream",
-                            "unknown",
-                            MessageDelta {
-                                role: None,
-                                content: None,
-                                refusal: None,
-                                function_call: None,
-                                tool_calls: Some(vec![ToolCallDelta {
-                                    index: delta_event.content_block_index as u32,
-                                    id: None,
-                                    call_type: None,
-                                    function: Some(FunctionCallDelta {
-                                        name: None,
-                                        arguments: Some(tool_use.input),
-                                    }),
-                                }]),
-                            },
-                            None,
-                            None,
-                        ))
-                    }
+                    ContentBlockDelta::Text { text } => Ok(create_openai_chunk(
+                        "stream",
+                        "unknown",
+                        MessageDelta {
+                            role: None,
+                            content: Some(text),
+                            refusal: None,
+                            function_call: None,
+                            tool_calls: None,
+                        },
+                        None,
+                        None,
+                    )),
+                    ContentBlockDelta::ToolUse { tool_use } => Ok(create_openai_chunk(
+                        "stream",
+                        "unknown",
+                        MessageDelta {
+                            role: None,
+                            content: None,
+                            refusal: None,
+                            function_call: None,
+                            tool_calls: Some(vec![ToolCallDelta {
+                                index: delta_event.content_block_index as u32,
+                                id: None,
+                                call_type: None,
+                                function: Some(FunctionCallDelta {
+                                    name: None,
+                                    arguments: Some(tool_use.input),
+                                }),
+                            }]),
+                        },
+                        None,
+                        None,
+                    )),
                 }
             }
 
-            ConverseStreamEvent::ContentBlockStop(_) => {
-                Ok(create_empty_openai_chunk())
-            }
+            ConverseStreamEvent::ContentBlockStop(_) => Ok(create_empty_openai_chunk()),
 
             ConverseStreamEvent::MessageStop(stop_event) => {
                 let finish_reason = match stop_event.stop_reason {
@@ -405,27 +400,27 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
             }
 
             // Error events - convert to empty chunks (errors should be handled elsewhere)
-            ConverseStreamEvent::InternalServerException(_) |
-            ConverseStreamEvent::ModelStreamErrorException(_) |
-            ConverseStreamEvent::ServiceUnavailableException(_) |
-            ConverseStreamEvent::ThrottlingException(_) |
-            ConverseStreamEvent::ValidationException(_) => {
-                Ok(create_empty_openai_chunk())
-            }
+            ConverseStreamEvent::InternalServerException(_)
+            | ConverseStreamEvent::ModelStreamErrorException(_)
+            | ConverseStreamEvent::ServiceUnavailableException(_)
+            | ConverseStreamEvent::ThrottlingException(_)
+            | ConverseStreamEvent::ValidationException(_) => Ok(create_empty_openai_chunk()),
         }
     }
 }
 
 /// Convert content block start to OpenAI chunk
-fn convert_content_block_start(content_block: MessagesContentBlock) -> Result<ChatCompletionsStreamResponse, TransformError> {
+fn convert_content_block_start(
+    content_block: MessagesContentBlock,
+) -> Result<ChatCompletionsStreamResponse, TransformError> {
     match content_block {
         MessagesContentBlock::Text { .. } => {
             // No immediate output for text block start
             Ok(create_empty_openai_chunk())
         }
-        MessagesContentBlock::ToolUse { id, name, .. } |
-        MessagesContentBlock::ServerToolUse { id, name, .. } |
-        MessagesContentBlock::McpToolUse { id, name, .. } => {
+        MessagesContentBlock::ToolUse { id, name, .. }
+        | MessagesContentBlock::ServerToolUse { id, name, .. }
+        | MessagesContentBlock::McpToolUse { id, name, .. } => {
             // Tool use start → OpenAI chunk with tool_calls
             Ok(create_openai_chunk(
                 "stream",
@@ -449,66 +444,64 @@ fn convert_content_block_start(content_block: MessagesContentBlock) -> Result<Ch
                 None,
             ))
         }
-        _ => Err(TransformError::UnsupportedContent("Unsupported content block type in stream start".to_string())),
+        _ => Err(TransformError::UnsupportedContent(
+            "Unsupported content block type in stream start".to_string(),
+        )),
     }
 }
 
 /// Convert content delta to OpenAI chunk
-fn convert_content_delta(delta: MessagesContentDelta) -> Result<ChatCompletionsStreamResponse, TransformError> {
+fn convert_content_delta(
+    delta: MessagesContentDelta,
+) -> Result<ChatCompletionsStreamResponse, TransformError> {
     match delta {
-        MessagesContentDelta::TextDelta { text } => {
-            Ok(create_openai_chunk(
-                "stream",
-                "unknown",
-                MessageDelta {
-                    role: None,
-                    content: Some(text),
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: None,
-                },
-                None,
-                None,
-            ))
-        }
-        MessagesContentDelta::ThinkingDelta { thinking } => {
-            Ok(create_openai_chunk(
-                "stream",
-                "unknown",
-                MessageDelta {
-                    role: None,
-                    content: Some(format!("thinking: {}", thinking)),
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: None,
-                },
-                None,
-                None,
-            ))
-        }
-        MessagesContentDelta::InputJsonDelta { partial_json } => {
-            Ok(create_openai_chunk(
-                "stream",
-                "unknown",
-                MessageDelta {
-                    role: None,
-                    content: None,
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: Some(vec![ToolCallDelta {
-                        index: 0,
-                        id: None,
-                        call_type: None,
-                        function: Some(FunctionCallDelta {
-                            name: None,
-                            arguments: Some(partial_json),
-                        }),
-                    }]),
-                },
-                None,
-                None,
-            ))
-        }
+        MessagesContentDelta::TextDelta { text } => Ok(create_openai_chunk(
+            "stream",
+            "unknown",
+            MessageDelta {
+                role: None,
+                content: Some(text),
+                refusal: None,
+                function_call: None,
+                tool_calls: None,
+            },
+            None,
+            None,
+        )),
+        MessagesContentDelta::ThinkingDelta { thinking } => Ok(create_openai_chunk(
+            "stream",
+            "unknown",
+            MessageDelta {
+                role: None,
+                content: Some(format!("thinking: {}", thinking)),
+                refusal: None,
+                function_call: None,
+                tool_calls: None,
+            },
+            None,
+            None,
+        )),
+        MessagesContentDelta::InputJsonDelta { partial_json } => Ok(create_openai_chunk(
+            "stream",
+            "unknown",
+            MessageDelta {
+                role: None,
+                content: None,
+                refusal: None,
+                function_call: None,
+                tool_calls: Some(vec![ToolCallDelta {
+                    index: 0,
+                    id: None,
+                    call_type: None,
+                    function: Some(FunctionCallDelta {
+                        name: None,
+                        arguments: Some(partial_json),
+                    }),
+                }]),
+            },
+            None,
+            None,
+        )),
     }
 }
 
@@ -518,7 +511,7 @@ fn create_openai_chunk(
     model: &str,
     delta: MessageDelta,
     finish_reason: Option<FinishReason>,
-    usage: Option<Usage>
+    usage: Option<Usage>,
 ) -> ChatCompletionsStreamResponse {
     ChatCompletionsStreamResponse {
         id: id.to_string(),
@@ -555,7 +548,9 @@ fn create_empty_openai_chunk() -> ChatCompletionsStreamResponse {
 }
 
 /// Convert Anthropic content blocks to OpenAI message content
-fn convert_anthropic_content_to_openai(content: &[MessagesContentBlock]) -> Result<MessageContent, TransformError> {
+fn convert_anthropic_content_to_openai(
+    content: &[MessagesContentBlock],
+) -> Result<MessageContent, TransformError> {
     let mut text_parts = Vec::new();
 
     for block in content {
@@ -592,9 +587,11 @@ impl Into<FinishReason> for MessagesStopReason {
 
 /// Convert Bedrock Message to OpenAI content and tool calls
 /// This function extracts text content and tool calls from a Bedrock message
-fn convert_bedrock_message_to_openai(message: &crate::apis::amazon_bedrock::Message) -> Result<(Option<String>, Option<Vec<crate::apis::openai::ToolCall>>), TransformError> {
+fn convert_bedrock_message_to_openai(
+    message: &crate::apis::amazon_bedrock::Message,
+) -> Result<(Option<String>, Option<Vec<crate::apis::openai::ToolCall>>), TransformError> {
     use crate::apis::amazon_bedrock::ContentBlock;
-    use crate::apis::openai::{ToolCall, FunctionCall};
+    use crate::apis::openai::{FunctionCall, ToolCall};
 
     let mut text_content = String::new();
     let mut tool_calls = Vec::new();
@@ -614,12 +611,20 @@ fn convert_bedrock_message_to_openai(message: &crate::apis::amazon_bedrock::Mess
                     },
                 });
             }
-             _ => continue,
+            _ => continue,
         }
     }
 
-    let content = if text_content.is_empty() { None } else { Some(text_content) };
-    let tool_calls = if tool_calls.is_empty() { None } else { Some(tool_calls) };
+    let content = if text_content.is_empty() {
+        None
+    } else {
+        Some(text_content)
+    };
+    let tool_calls = if tool_calls.is_empty() {
+        None
+    } else {
+        Some(tool_calls)
+    };
 
     Ok((content, tool_calls))
 }
@@ -628,8 +633,8 @@ fn convert_bedrock_message_to_openai(message: &crate::apis::amazon_bedrock::Mess
 mod tests {
     use super::*;
     use crate::apis::amazon_bedrock::{
-        ConverseResponse, ConverseOutput, Message as BedrockMessage, ConversationRole,
-        ContentBlock, StopReason, BedrockTokenUsage, ConverseTrace, PromptRouterTrace
+        BedrockTokenUsage, ContentBlock, ConversationRole, ConverseOutput, ConverseResponse,
+        ConverseTrace, Message as BedrockMessage, PromptRouterTrace, StopReason,
     };
     use crate::apis::openai::{ChatCompletionsResponse, FinishReason, Role};
     use serde_json::json;
@@ -640,11 +645,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "Hello! How can I help you today?".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "Hello! How can I help you today?".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -671,7 +674,10 @@ mod tests {
         let choice = &openai_response.choices[0];
         assert_eq!(choice.index, 0);
         assert_eq!(choice.message.role, Role::Assistant);
-        assert_eq!(choice.message.content, Some("Hello! How can I help you today?".to_string()));
+        assert_eq!(
+            choice.message.content,
+            Some("Hello! How can I help you today?".to_string())
+        );
         assert_eq!(choice.finish_reason, Some(FinishReason::Stop));
         assert!(choice.message.tool_calls.is_none());
 
@@ -699,7 +705,7 @@ mod tests {
                                     "location": "San Francisco"
                                 }),
                             },
-                        }
+                        },
                     ],
                 },
             },
@@ -718,11 +724,21 @@ mod tests {
 
         let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
 
-        assert_eq!(openai_response.choices[0].finish_reason, Some(FinishReason::ToolCalls));
-        assert_eq!(openai_response.choices[0].message.content, Some("I'll help you check the weather.".to_string()));
+        assert_eq!(
+            openai_response.choices[0].finish_reason,
+            Some(FinishReason::ToolCalls)
+        );
+        assert_eq!(
+            openai_response.choices[0].message.content,
+            Some("I'll help you check the weather.".to_string())
+        );
 
         // Check tool calls
-        let tool_calls = openai_response.choices[0].message.tool_calls.as_ref().unwrap();
+        let tool_calls = openai_response.choices[0]
+            .message
+            .tool_calls
+            .as_ref()
+            .unwrap();
         assert_eq!(tool_calls.len(), 1);
 
         let tool_call = &tool_calls[0];
@@ -750,11 +766,9 @@ mod tests {
                 output: ConverseOutput::Message {
                     message: BedrockMessage {
                         role: ConversationRole::Assistant,
-                        content: vec![
-                            ContentBlock::Text {
-                                text: "Test response".to_string(),
-                            }
-                        ],
+                        content: vec![ContentBlock::Text {
+                            text: "Test response".to_string(),
+                        }],
                     },
                 },
                 stop_reason: bedrock_stop_reason,
@@ -771,7 +785,10 @@ mod tests {
             };
 
             let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
-            assert_eq!(openai_response.choices[0].finish_reason, Some(expected_openai_finish_reason));
+            assert_eq!(
+                openai_response.choices[0].finish_reason,
+                Some(expected_openai_finish_reason)
+            );
         }
     }
 
@@ -798,7 +815,7 @@ mod tests {
                                 name: "lookup".to_string(),
                                 input: json!({"id": "12345"}),
                             },
-                        }
+                        },
                     ],
                 },
             },
@@ -817,23 +834,35 @@ mod tests {
 
         let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
 
-        assert_eq!(openai_response.choices[0].finish_reason, Some(FinishReason::ToolCalls));
-        assert_eq!(openai_response.choices[0].message.content, Some("I'll help with multiple tasks.".to_string()));
+        assert_eq!(
+            openai_response.choices[0].finish_reason,
+            Some(FinishReason::ToolCalls)
+        );
+        assert_eq!(
+            openai_response.choices[0].message.content,
+            Some("I'll help with multiple tasks.".to_string())
+        );
 
         // Check multiple tool calls
-        let tool_calls = openai_response.choices[0].message.tool_calls.as_ref().unwrap();
+        let tool_calls = openai_response.choices[0]
+            .message
+            .tool_calls
+            .as_ref()
+            .unwrap();
         assert_eq!(tool_calls.len(), 2);
 
         // First tool call
         assert_eq!(tool_calls[0].id, "tool_1");
         assert_eq!(tool_calls[0].function.name, "search");
-        let args1: serde_json::Value = serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
+        let args1: serde_json::Value =
+            serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
         assert_eq!(args1["query"], "weather");
 
         // Second tool call
         assert_eq!(tool_calls[1].id, "tool_2");
         assert_eq!(tool_calls[1].function.name, "lookup");
-        let args2: serde_json::Value = serde_json::from_str(&tool_calls[1].function.arguments).unwrap();
+        let args2: serde_json::Value =
+            serde_json::from_str(&tool_calls[1].function.arguments).unwrap();
         assert_eq!(args2["id"], "12345");
     }
 
@@ -856,7 +885,7 @@ mod tests {
                         },
                         ContentBlock::Text {
                             text: "Second part.".to_string(),
-                        }
+                        },
                     ],
                 },
             },
@@ -876,10 +905,17 @@ mod tests {
         let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
 
         // Content should be combined text parts (no separator added)
-        assert_eq!(openai_response.choices[0].message.content, Some("First part. Second part.".to_string()));
+        assert_eq!(
+            openai_response.choices[0].message.content,
+            Some("First part. Second part.".to_string())
+        );
 
         // Should have one tool call
-        let tool_calls = openai_response.choices[0].message.tool_calls.as_ref().unwrap();
+        let tool_calls = openai_response.choices[0]
+            .message
+            .tool_calls
+            .as_ref()
+            .unwrap();
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].id, "tool_mid");
         assert_eq!(tool_calls[0].function.name, "calculate");
@@ -891,15 +927,13 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::ToolUse {
-                            tool_use: crate::apis::amazon_bedrock::ToolUseBlock {
-                                tool_use_id: "tool_only".to_string(),
-                                name: "action".to_string(),
-                                input: json!({}),
-                            },
-                        }
-                    ],
+                    content: vec![ContentBlock::ToolUse {
+                        tool_use: crate::apis::amazon_bedrock::ToolUseBlock {
+                            tool_use_id: "tool_only".to_string(),
+                            name: "action".to_string(),
+                            input: json!({}),
+                        },
+                    }],
                 },
             },
             stop_reason: StopReason::ToolUse,
@@ -921,7 +955,11 @@ mod tests {
         assert_eq!(openai_response.choices[0].message.content, None);
 
         // Should have tool call
-        let tool_calls = openai_response.choices[0].message.tool_calls.as_ref().unwrap();
+        let tool_calls = openai_response.choices[0]
+            .message
+            .tool_calls
+            .as_ref()
+            .unwrap();
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].id, "tool_only");
     }
@@ -940,7 +978,7 @@ mod tests {
                         name: "test_function".to_string(),
                         input: json!({"param": "value"}),
                     },
-                }
+                },
             ],
         };
 
@@ -953,7 +991,8 @@ mod tests {
         assert_eq!(tool_calls[0].id, "test_tool");
         assert_eq!(tool_calls[0].function.name, "test_function");
 
-        let args: serde_json::Value = serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
+        let args: serde_json::Value =
+            serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
         assert_eq!(args["param"], "value");
     }
 
@@ -964,11 +1003,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::Assistant,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "I am an assistant".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "I am an assistant".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -992,11 +1029,9 @@ mod tests {
             output: ConverseOutput::Message {
                 message: BedrockMessage {
                     role: ConversationRole::User,
-                    content: vec![
-                        ContentBlock::Text {
-                            text: "I am a user".to_string(),
-                        }
-                    ],
+                    content: vec![ContentBlock::Text {
+                        text: "I am a user".to_string(),
+                    }],
                 },
             },
             stop_reason: StopReason::EndTurn,
@@ -1049,7 +1084,10 @@ mod tests {
         let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
 
         // Should extract model ID from trace
-        assert_eq!(openai_response.model, "anthropic.claude-3-sonnet-20240229-v1:0");
+        assert_eq!(
+            openai_response.model,
+            "anthropic.claude-3-sonnet-20240229-v1:0"
+        );
 
         // Test fallback when no trace information is available
         let bedrock_response_no_trace = ConverseResponse {
@@ -1074,7 +1112,8 @@ mod tests {
             performance_config: None,
         };
 
-        let openai_response_fallback: ChatCompletionsResponse = bedrock_response_no_trace.try_into().unwrap();
+        let openai_response_fallback: ChatCompletionsResponse =
+            bedrock_response_no_trace.try_into().unwrap();
 
         // Should use fallback model name
         assert_eq!(openai_response_fallback.model, "bedrock-model");
@@ -1082,7 +1121,7 @@ mod tests {
 
     #[test]
     fn test_bedrock_to_openai_with_multimedia_content() {
-        use crate::apis::amazon_bedrock::{ImageSource};
+        use crate::apis::amazon_bedrock::ImageSource;
 
         let bedrock_response = ConverseResponse {
             output: ConverseOutput::Message {
@@ -1118,7 +1157,10 @@ mod tests {
 
         let openai_response: ChatCompletionsResponse = bedrock_response.try_into().unwrap();
 
-        assert_eq!(openai_response.choices[0].finish_reason, Some(FinishReason::Stop));
+        assert_eq!(
+            openai_response.choices[0].finish_reason,
+            Some(FinishReason::Stop)
+        );
 
         let content = openai_response.choices[0].message.content.as_ref().unwrap();
 

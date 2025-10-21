@@ -1,7 +1,7 @@
-use serde_json::Value;
-use crate::apis::anthropic::{MessagesContentBlock,MessagesImageSource};
+use crate::apis::anthropic::{MessagesContentBlock, MessagesImageSource};
 use crate::apis::openai::{ContentPart, FunctionCall, ImageUrl, Message, MessageContent, ToolCall};
 use crate::clients::TransformError;
+use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub trait ExtractText {
@@ -11,12 +11,17 @@ pub trait ExtractText {
 /// Trait for utility functions on content collections
 pub trait ContentUtils<T> {
     fn extract_tool_calls(&self) -> Result<Option<Vec<ToolCall>>, TransformError>;
-    fn split_for_openai(&self) -> Result<(Vec<ContentPart>, Vec<ToolCall>, Vec<(String, String, bool)>), TransformError>;
+    fn split_for_openai(
+        &self,
+    ) -> Result<(Vec<ContentPart>, Vec<ToolCall>, Vec<(String, String, bool)>), TransformError>;
 }
 
 /// Helper to create a current unix timestamp
 pub fn current_timestamp() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }
 
 // Content Utilities
@@ -26,24 +31,36 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
 
         for block in self {
             match block {
-                MessagesContentBlock::ToolUse { id, name, input, .. } |
-                MessagesContentBlock::ServerToolUse { id, name, input } |
-                MessagesContentBlock::McpToolUse { id, name, input } => {
+                MessagesContentBlock::ToolUse {
+                    id, name, input, ..
+                }
+                | MessagesContentBlock::ServerToolUse { id, name, input }
+                | MessagesContentBlock::McpToolUse { id, name, input } => {
                     let arguments = serde_json::to_string(&input)?;
                     tool_calls.push(ToolCall {
                         id: id.clone(),
                         call_type: "function".to_string(),
-                        function: FunctionCall { name: name.clone(), arguments },
+                        function: FunctionCall {
+                            name: name.clone(),
+                            arguments,
+                        },
                     });
                 }
                 _ => continue,
             }
         }
 
-        Ok(if tool_calls.is_empty() { None } else { Some(tool_calls) })
+        Ok(if tool_calls.is_empty() {
+            None
+        } else {
+            Some(tool_calls)
+        })
     }
 
-    fn split_for_openai(&self) -> Result<(Vec<ContentPart>, Vec<ToolCall>, Vec<(String, String, bool)>), TransformError> {
+    fn split_for_openai(
+        &self,
+    ) -> Result<(Vec<ContentPart>, Vec<ToolCall>, Vec<(String, String, bool)>), TransformError>
+    {
         let mut content_parts = Vec::new();
         let mut tool_calls = Vec::new();
         let mut tool_results = Vec::new();
@@ -62,25 +79,55 @@ impl ContentUtils<ToolCall> for Vec<MessagesContentBlock> {
                         },
                     });
                 }
-                MessagesContentBlock::ToolUse { id, name, input, .. } |
-                MessagesContentBlock::ServerToolUse { id, name, input } |
-                MessagesContentBlock::McpToolUse { id, name, input } => {
+                MessagesContentBlock::ToolUse {
+                    id, name, input, ..
+                }
+                | MessagesContentBlock::ServerToolUse { id, name, input }
+                | MessagesContentBlock::McpToolUse { id, name, input } => {
                     let arguments = serde_json::to_string(&input)?;
                     tool_calls.push(ToolCall {
                         id: id.clone(),
                         call_type: "function".to_string(),
-                        function: FunctionCall { name: name.clone(), arguments },
+                        function: FunctionCall {
+                            name: name.clone(),
+                            arguments,
+                        },
                     });
                 }
-                MessagesContentBlock::ToolResult { tool_use_id, content, is_error, .. } => {
+                MessagesContentBlock::ToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                    ..
+                } => {
                     let result_text = content.extract_text();
-                    tool_results.push((tool_use_id.clone(), result_text, is_error.unwrap_or(false)));
+                    tool_results.push((
+                        tool_use_id.clone(),
+                        result_text,
+                        is_error.unwrap_or(false),
+                    ));
                 }
-                MessagesContentBlock::WebSearchToolResult { tool_use_id, content, is_error } |
-                MessagesContentBlock::CodeExecutionToolResult { tool_use_id, content, is_error } |
-                MessagesContentBlock::McpToolResult { tool_use_id, content, is_error } => {
+                MessagesContentBlock::WebSearchToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                }
+                | MessagesContentBlock::CodeExecutionToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                }
+                | MessagesContentBlock::McpToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                } => {
                     let result_text = content.extract_text();
-                    tool_results.push((tool_use_id.clone(), result_text, is_error.unwrap_or(false)));
+                    tool_results.push((
+                        tool_use_id.clone(),
+                        result_text,
+                        is_error.unwrap_or(false),
+                    ));
                 }
                 _ => {
                     // Skip unsupported content types
@@ -122,29 +169,41 @@ fn convert_image_url_to_source(image_url: &ImageUrl) -> MessagesImageSource {
                 data: data.to_string(),
             }
         } else {
-            MessagesImageSource::Url { url: image_url.url.clone() }
+            MessagesImageSource::Url {
+                url: image_url.url.clone(),
+            }
         }
     } else {
-        MessagesImageSource::Url { url: image_url.url.clone() }
+        MessagesImageSource::Url {
+            url: image_url.url.clone(),
+        }
     }
 }
 
 /// Convert OpenAI message to Anthropic content blocks
-pub fn convert_openai_message_to_anthropic_content(message: &Message) -> Result<Vec<MessagesContentBlock>, TransformError> {
+pub fn convert_openai_message_to_anthropic_content(
+    message: &Message,
+) -> Result<Vec<MessagesContentBlock>, TransformError> {
     let mut blocks = Vec::new();
 
     // Handle regular content
     match &message.content {
         MessageContent::Text(text) => {
             if !text.is_empty() {
-                blocks.push(MessagesContentBlock::Text { text: text.clone(), cache_control: None });
+                blocks.push(MessagesContentBlock::Text {
+                    text: text.clone(),
+                    cache_control: None,
+                });
             }
         }
         MessageContent::Parts(parts) => {
             for part in parts {
                 match part {
                     ContentPart::Text { text } => {
-                        blocks.push(MessagesContentBlock::Text { text: text.clone(), cache_control: None });
+                        blocks.push(MessagesContentBlock::Text {
+                            text: text.clone(),
+                            cache_control: None,
+                        });
                     }
                     ContentPart::ImageUrl { image_url } => {
                         let source = convert_image_url_to_source(image_url);

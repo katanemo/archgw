@@ -22,12 +22,14 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
+use hermesllm::apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
+use hermesllm::apis::anthropic::{MessagesContentBlock, MessagesStreamEvent};
+use hermesllm::apis::sse::{SseEvent, SseStreamIter};
 use hermesllm::clients::endpoints::SupportedAPIs;
-use hermesllm::providers::response::{
-    BedrockBinaryFrameDecoder, ProviderResponse, ProviderStreamResponse, SseEvent, SseStreamIter,
-};
+use hermesllm::providers::response::ProviderResponse;
 use hermesllm::{
     DecodedFrame, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType,
+    ProviderStreamResponseType,
 };
 
 pub struct StreamContext {
@@ -514,88 +516,58 @@ impl StreamContext {
         client_api: &SupportedAPIs,
         upstream_api: &SupportedUpstreamAPIs,
     ) -> Result<Vec<u8>, Action> {
-        use hermesllm::providers::response::ProviderStreamResponseType;
-
         // Initialize decoder if not present
         if self.binary_frame_decoder.is_none() {
             self.binary_frame_decoder = Some(BedrockBinaryFrameDecoder::from_bytes(&[]));
         }
 
         // Add incoming bytes to buffer
-        if let Some(decoder) = self.binary_frame_decoder.as_mut() {
-            decoder.buffer_mut().extend_from_slice(body);
-        }
+        let decoder = self.binary_frame_decoder.as_mut().unwrap();
+        decoder.buffer_mut().extend_from_slice(body);
 
         let mut response_buffer = Vec::new();
-
-        // Decode all available complete frames
         loop {
             let decoded_frame = self.binary_frame_decoder.as_mut().unwrap().decode_frame();
             match decoded_frame {
                 Some(DecodedFrame::Complete(ref frame_ref)) => {
-                    // Convert frame to ProviderStreamResponseType
                     let frame = DecodedFrame::Complete(frame_ref.clone());
                     match ProviderStreamResponseType::try_from((&frame, client_api, upstream_api)) {
                         Ok(provider_response) => {
                             self.record_ttft_if_needed();
 
-                            // Extract index from the event if available
-                            let event_index =
-                                if let ProviderStreamResponseType::MessagesStreamEvent(ref evt) =
-                                    provider_response
-                                {
-                                    use hermesllm::apis::anthropic::MessagesStreamEvent;
+                            // Handle ContentBlockStart and ContentBlockDelta events
+                            match &provider_response {
+                                ProviderStreamResponseType::MessagesStreamEvent(evt) => {
                                     match evt {
                                         MessagesStreamEvent::ContentBlockStart {
                                             index, ..
-                                        } => Some(*index as i32),
-                                        MessagesStreamEvent::ContentBlockDelta {
-                                            index, ..
-                                        } => Some(*index as i32),
-                                        MessagesStreamEvent::ContentBlockStop { index, .. } => {
-                                            Some(*index as i32)
-                                        }
-                                        _ => None,
-                                    }
-                                } else {
-                                    None
-                                };
-
-                            // Check event type to track ContentBlockStart
-                            if let Some(event_type) = provider_response.event_type() {
-                                match event_type {
-                                    "content_block_start" => {
-                                        // Mark that we've seen ContentBlockStart for this index
-                                        if let (Some(decoder), Some(index)) =
-                                            (self.binary_frame_decoder.as_mut(), event_index)
-                                        {
-                                            decoder.set_content_block_start_sent(index);
+                                        } => {
+                                            // Mark that we've seen ContentBlockStart for this index
+                                            self.binary_frame_decoder
+                                                .as_mut()
+                                                .unwrap()
+                                                .set_content_block_start_sent(*index as i32);
                                             debug!(
                                                 "[ARCHGW_REQ_ID:{}] BEDROCK_CONTENT_BLOCK_START_TRACKED: index={}",
                                                 self.request_identifier(),
-                                                index
+                                                *index
                                             );
                                         }
-                                    }
-                                    "content_block_delta" => {
-                                        // Check if ContentBlockStart was sent for this index
-                                        if let Some(index) = event_index {
-                                            let needs_start = if let Some(decoder) =
-                                                self.binary_frame_decoder.as_ref()
-                                            {
-                                                !decoder.has_content_block_start_been_sent(index)
-                                            } else {
-                                                false
-                                            };
+                                        MessagesStreamEvent::ContentBlockDelta {
+                                            index, ..
+                                        } => {
+                                            // Check if ContentBlockStart was sent for this index
+                                            let needs_start = !self
+                                                .binary_frame_decoder
+                                                .as_ref()
+                                                .unwrap()
+                                                .has_content_block_start_been_sent(*index as i32);
 
                                             if needs_start {
                                                 // Emit empty ContentBlockStart before delta
-                                                use hermesllm::apis::anthropic::{
-                                                    MessagesContentBlock, MessagesStreamEvent,
-                                                };
                                                 let content_block_start =
                                                     MessagesStreamEvent::ContentBlockStart {
-                                                        index: index as u32,
+                                                        index: *index,
                                                         content_block: MessagesContentBlock::Text {
                                                             text: String::new(),
                                                             cache_control: None,
@@ -606,22 +578,22 @@ impl StreamContext {
                                                     .extend_from_slice(start_sse.as_bytes());
 
                                                 // Mark that we've now sent it
-                                                if let Some(decoder) =
-                                                    self.binary_frame_decoder.as_mut()
-                                                {
-                                                    decoder.set_content_block_start_sent(index);
-                                                }
+                                                self.binary_frame_decoder
+                                                    .as_mut()
+                                                    .unwrap()
+                                                    .set_content_block_start_sent(*index as i32);
 
                                                 debug!(
                                                     "[ARCHGW_REQ_ID:{}] BEDROCK_INJECTED_CONTENT_BLOCK_START: index={}",
                                                     self.request_identifier(),
-                                                    index
+                                                    *index
                                                 );
                                             }
                                         }
+                                        _ => {}
                                     }
-                                    _ => {}
                                 }
+                                _ => {}
                             }
 
                             let sse_string: String = provider_response.into();

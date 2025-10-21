@@ -1,16 +1,15 @@
-use crate::clients::endpoints::SupportedUpstreamAPIs;
-use crate::providers::id::ProviderId;
-use bytes::Buf;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use std::error::Error;
 use std::fmt;
 use std::convert::TryFrom;
-use std::str::FromStr;
 
+use crate::clients::endpoints::SupportedUpstreamAPIs;
+use crate::clients::endpoints::SupportedAPIs;
+use crate::providers::id::ProviderId;
+use crate::apis::sse::SseEvent;
 use crate::apis::openai::ChatCompletionsResponse;
 use crate::apis::openai::ChatCompletionsStreamResponse;
 use crate::apis::anthropic::MessagesStreamEvent;
-use crate::clients::endpoints::SupportedAPIs;
 use crate::apis::anthropic::MessagesResponse;
 use crate::apis::amazon_bedrock::ConverseResponse;
 use crate::apis::amazon_bedrock::ConverseStreamEvent;
@@ -241,124 +240,6 @@ impl TryFrom<(&[u8], &SupportedAPIs, &SupportedUpstreamAPIs)> for ProviderStream
 }
 
 
-// ============================================================================
-// SSE EVENT CONTAINER
-// ============================================================================
-
-/// Represents a single Server-Sent Event with the complete wire format
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SseEvent {
-    #[serde(rename = "data")]
-    pub data: Option<String>,  // The JSON payload after "data: "
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub event: Option<String>,  // Optional event type (e.g., "message_start", "content_block_delta")
-
-    #[serde(skip_serializing, skip_deserializing)]
-    pub raw_line: String,  // The complete line as received including "data: " prefix and "\n\n"
-
-     #[serde(skip_serializing, skip_deserializing)]
-    pub sse_transform_buffer: String,  // The complete line as received including "data: " prefix and "\n\n"
-
-    #[serde(skip_serializing, skip_deserializing)]
-    pub provider_stream_response: Option<ProviderStreamResponseType>,  // Parsed provider stream response object
-}
-
-impl SseEvent {
-    /// Check if this event represents the end of the stream
-    pub fn is_done(&self) -> bool {
-        self.data == Some("[DONE]".into())
-    }
-
-    /// Check if this event should be skipped during processing
-    /// This includes ping messages and other provider-specific events that don't contain content
-    pub fn should_skip(&self) -> bool {
-        // Skip ping messages (commonly used by providers for connection keep-alive)
-        self.data == Some(r#"{"type": "ping"}"#.into())
-    }
-
-    /// Check if this is an event-only SSE event (no data payload)
-    pub fn is_event_only(&self) -> bool {
-        self.event.is_some() && self.data.is_none()
-    }
-
-    /// Get the parsed provider response if available
-    pub fn provider_response(&self) -> Result<&dyn ProviderStreamResponse, std::io::Error> {
-        self.provider_stream_response.as_ref()
-            .map(|resp| resp as &dyn ProviderStreamResponse)
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "Provider response not found")
-            })
-    }
-
-}
-
-impl FromStr for SseEvent {
-    type Err = SseParseError;
-
-    fn from_str(line: &str) -> Result<Self, Self::Err> {
-        if line.starts_with("data: ") {
-            let data: String = line[6..].to_string(); // Remove "data: " prefix
-            if data.is_empty() {
-                return Err(SseParseError {
-                    message: "Empty data field is not a valid SSE event".to_string(),
-                });
-            }
-            Ok(SseEvent {
-                data: Some(data),
-                event: None,
-                raw_line: line.to_string(),
-                sse_transform_buffer: line.to_string(),
-                provider_stream_response: None,
-            })
-        } else if line.starts_with("event: ") { //used by Anthropic
-            let event_type = line[7..].to_string();
-            if event_type.is_empty() {
-                return Err(SseParseError {
-                    message: "Empty event field is not a valid SSE event".to_string(),
-                });
-            }
-            Ok(SseEvent {
-                data: None,
-                event: Some(event_type),
-                raw_line: line.to_string(),
-                sse_transform_buffer: line.to_string(),
-                provider_stream_response: None,
-            })
-        } else {
-            Err(SseParseError {
-                message: format!("Line does not start with 'data: ' or 'event: ': {}", line),
-            })
-        }
-    }
-}
-
-impl fmt::Display for SseEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sse_transform_buffer)
-    }
-}
-
-// Into implementation to convert SseEvent to bytes for response buffer
-impl Into<Vec<u8>> for SseEvent {
-    fn into(self) -> Vec<u8> {
-        format!("{}\n\n", self.sse_transform_buffer).into_bytes()
-    }
-}
-
-#[derive(Debug)]
-pub struct SseParseError {
-    pub message: String,
-}
-
-impl fmt::Display for SseParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SSE parse error: {}", self.message)
-    }
-}
-
-impl Error for SseParseError {}
-
 // TryFrom implementation to convert raw bytes to SseEvent with parsed provider response
 impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedUpstreamAPIs)> for SseEvent {
     type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -471,135 +352,6 @@ impl TryFrom<(&aws_smithy_eventstream::frame::DecodedFrame, &SupportedAPIs, &Sup
 }
 
 
-/// AWS Event Stream frame decoder wrapper
-pub struct BedrockBinaryFrameDecoder<B>
-where
-    B: Buf,
-{
-    decoder: aws_smithy_eventstream::frame::MessageFrameDecoder,
-    buffer: B,
-    content_block_start_indices: std::collections::HashSet<i32>,
-}
-
-impl BedrockBinaryFrameDecoder<bytes::BytesMut> {
-    /// This is a convenience constructor that creates a BytesMut buffer internally
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        let buffer = bytes::BytesMut::from(bytes);
-        Self {
-            decoder: aws_smithy_eventstream::frame::MessageFrameDecoder::new(),
-            buffer,
-            content_block_start_indices: std::collections::HashSet::new(),
-        }
-    }
-}
-
-impl<B> BedrockBinaryFrameDecoder<B>
-where
-    B: Buf,
-{
-    pub fn new(buffer: B) -> Self {
-        Self {
-            decoder: aws_smithy_eventstream::frame::MessageFrameDecoder::new(),
-            buffer,
-            content_block_start_indices: std::collections::HashSet::new(),
-        }
-    }
-
-    pub fn decode_frame(&mut self) -> Option<aws_smithy_eventstream::frame::DecodedFrame> {
-        match self.decoder.decode_frame(&mut self.buffer) {
-            Ok(frame) => Some(frame),
-            Err(_e) => None, // Fatal decode error
-        }
-    }
-
-    pub fn buffer_mut(&mut self) -> &mut B {
-        &mut self.buffer
-    }
-
-    /// Check if there are any bytes remaining in the buffer
-    pub fn has_remaining(&self) -> bool {
-        self.buffer.has_remaining()
-    }
-
-    /// Check if a content_block_start event has been sent for the given index
-    pub fn has_content_block_start_been_sent(&self, index: i32) -> bool {
-        self.content_block_start_indices.contains(&index)
-    }
-
-    /// Mark that a content_block_start event has been sent for the given index
-    pub fn set_content_block_start_sent(&mut self, index: i32) {
-        self.content_block_start_indices.insert(index);
-    }
-}
-
-/// Generic SSE (Server-Sent Events) streaming iterator container
-/// Parses raw SSE lines into SseEvent objects
-pub struct SseStreamIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    pub lines: I,
-    pub done_seen: bool,
-}
-
-impl<I> SseStreamIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    pub fn new(lines: I) -> Self {
-        Self { lines, done_seen: false }
-    }
-}
-
-// TryFrom implementation to parse bytes into SseStreamIter
-// Handles both text-based SSE and binary AWS Event Stream formats
-impl TryFrom<&[u8]> for SseStreamIter<std::vec::IntoIter<String>> {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
-
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-            // Parse as text-based SSE format
-            let s = std::str::from_utf8(bytes)?;
-            let lines: Vec<String> = s.lines().map(|line| line.to_string()).collect();
-            Ok(SseStreamIter::new(lines.into_iter()))
-    }
-}
-
-
-impl<I> Iterator for SseStreamIter<I>
-where
-    I: Iterator,
-    I::Item: AsRef<str>,
-{
-    type Item = SseEvent;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // If we already returned [DONE], terminate the stream
-        if self.done_seen {
-            return None;
-        }
-
-        for line in &mut self.lines {
-            let line_str = line.as_ref();
-
-            // Try to parse as either data: or event: line
-            if let Ok(event) = line_str.parse::<SseEvent>() {
-                // For data: lines, check if this is the [DONE] marker
-                if event.data.is_some() && event.is_done() {
-                    self.done_seen = true;
-                    return Some(event); // Return [DONE] event for transformation
-                }
-                // For data: lines, skip events that should be filtered at the transport layer
-                if event.data.is_some() && event.should_skip() {
-                    continue;
-                }
-                return Some(event);
-            }
-        }
-        None
-    }
-}
 
 #[derive(Debug)]
 pub struct ProviderResponseError {
@@ -623,11 +375,14 @@ impl Error for ProviderResponseError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::apis::sse::SseStreamIter;
+    use crate::apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
     use crate::clients::endpoints::SupportedAPIs;
     use crate::providers::id::ProviderId;
     use crate::apis::openai::OpenAIApi;
     use crate::apis::anthropic::AnthropicApi;
     use serde_json::json;
+
 
     #[test]
     fn test_openai_response_from_bytes() {

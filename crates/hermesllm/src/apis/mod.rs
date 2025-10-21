@@ -1,6 +1,8 @@
 pub mod anthropic;
 pub mod openai;
 pub mod amazon_bedrock;
+pub mod amazon_bedrock_binary_frame;
+pub mod sse;
 
 // Explicit exports to avoid naming conflicts
 pub use anthropic::{AnthropicApi, MessagesRequest, MessagesResponse, MessagesStreamEvent};

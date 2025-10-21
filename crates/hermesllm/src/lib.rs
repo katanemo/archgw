@@ -7,7 +7,9 @@ pub mod clients;
 pub mod transforms;
 // Re-export important types and traits
 pub use providers::request::{ProviderRequestType, ProviderRequest, ProviderRequestError};
-pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage, SseEvent, SseStreamIter, BedrockBinaryFrameDecoder};
+pub use apis::sse::{SseEvent, SseStreamIter};
+pub use apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
+pub use providers::response::{ProviderResponseType, ProviderStreamResponseType, ProviderResponse, ProviderStreamResponse, ProviderResponseError, TokenUsage};
 pub use providers::id::ProviderId;
 pub use aws_smithy_eventstream::frame::DecodedFrame;
 

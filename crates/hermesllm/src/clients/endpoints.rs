@@ -104,12 +104,13 @@ impl SupportedAPIs {
                         }
                     }
                     ProviderId::AmazonBedrock => {
-                        if request_path.starts_with("/v1/") && !is_streaming {
-                            format!("/model/{}/converse", model_id)
-                        } else if request_path.starts_with("/v1/") && is_streaming {
-                            format!("/model/{}/converse-stream", model_id)
-                        }
-                        else {
+                        if request_path.starts_with("/v1/") {
+                            if !is_streaming {
+                                format!("/model/{}/converse", model_id)
+                            } else {
+                                 format!("/model/{}/converse-stream", model_id)
+                            }
+                        } else {
                             default_endpoint
                         }
                     }

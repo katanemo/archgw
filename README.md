@@ -315,6 +315,75 @@ Arch is designed to support best-in class observability by supporting open stand
 
 ![alt text](docs/source/_static/img/tracing.png)
 
+## Deployment without cli
+
+Below is a minimal, production-ish example showing how to deploy Arch docker image directly using docker and how to run a few basic runtime checks (routing / health). Adjust image names, tags and the arch_config.yaml path to match your environment.
+
+Note: you will need to pass all the required environment variables that are referred in arch_config.yaml file
+
+For arch_config.yaml you can use any sample config that is defined earlier in the doc. For example you can try [Model-based Routing](#model-based-routing) sample config.
+
+### Docker Compose sample
+
+```yaml
+# docker-compose.yml
+services:
+  archgw:
+    image: katanemo/archgw:0.3.15
+    container_name: archgw
+    ports:
+      - "10000:10000" # ingress (client -> arch)
+      - "12000:12000" # egress (arch -> upstream/llm proxy)
+    volumes:
+      - ./arch_config.yaml:/app/arch_config.yaml:ro
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?error}
+      - MODEL_SERVER_PORT=51000
+```
+
+Start the stack:
+
+```bash
+# from the directory containing docker-compose.yml and arch_config.yaml
+OPENAI_API_KEY=xxx ANTHROPIC_API_KEY=yyy docker compose up -d
+```
+
+Check container health and logs:
+
+```bash
+docker compose ps
+docker compose logs -f archgw
+```
+
+### Basic runtime tests (routing + smoke checks)
+
+1) Simple gateway smoke test (chat completion endpoint)
+
+```bash
+# Example: request handled by the gateway. 'model: "none"' lets Arch decide routing
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages":[{"role":"user","content":"tell me a hoke"}], "model":"none"}' \
+  http://localhost:12000/v1/chat/completions |  jq .model
+"gpt-4o-2024-08-06"
+```
+
+2) Model-based routing (explicit provider/model)
+
+```bash
+(venv) ➜  test_docker curl -s -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Explain quantum computing"}], "model":"anthropic/claude-3-5-sonnet-20241022"}' \
+  http://localhost:12000/v1/chat/completions | jq .model
+"claude-3-5-sonnet-20241022"
+```
+
+### Notes & troubleshooting
+
+- Ensure env vars (OPENAI_API_KEY, etc.) used by arch_config.yaml are set before bringing services up.
+- If you get TLS/connection errors to upstream providers, check DNS, proxy and correct protocol/port in your arch_config endpoints.
+- To enable more verbose logs for debugging, run archgw with a higher component log level (see Debugging section below and rebuild image if required).
+- For CI / automated checks, run the curl tests above in your pipeline (assert status codes and expected substrings in responses).
+
 ## Debugging
 
 When debugging issues / errors application logs and access logs provide key information to give you more context on whats going on with the system. Arch gateway runs in info log level and following is a typical output you could see in a typical interaction between developer and arch gateway,

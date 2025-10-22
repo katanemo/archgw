@@ -4,8 +4,8 @@
 <div align="center">
 
 
-_Arch is a smart edge and LLM proxy server for agents._<br><br>
- Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
+_Arch is a models-native (edge and service) proxy server for agents._<br><br>
+ Arch handles the *pesky plumbing work* in building AI agents — like applying guardrails, routing prompts to the right agent, generating hyper-rich information traces for RL, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
 
 
 [Quickstart](#Quickstart) •
@@ -24,7 +24,7 @@ _Arch is a smart edge and LLM proxy server for agents._<br><br>
 </div>
 
 # About The Latest Release:
-[0.3.15] [Preference-aware multi LLM routing for Claude Code 2.0](demos/use_cases/claude_code_router/README.md) <br><img src="docs/source/_static/img/claude_code_router.png" alt="high-level network architecture for ArchGW" width="50%">
+[0.3.16] [Preference-aware multi LLM routing for Claude Code 2.0](demos/use_cases/claude_code_router/README.md) <br><img src="docs/source/_static/img/claude_code_router.png" alt="high-level network architecture for ArchGW" width="50%">
 
 
 # Overview
@@ -87,7 +87,7 @@ Arch's CLI allows you to manage and interact with the Arch gateway efficiently. 
 ```console
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install archgw==0.3.15
+$ pip install archgw==0.3.16
 ```
 
 ### Use Arch as a LLM Router
@@ -276,7 +276,7 @@ endpoints:
 ```sh
 
 $ archgw up arch_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.15
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.16
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!

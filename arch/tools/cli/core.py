@@ -35,8 +35,6 @@ def _get_gateway_ports(arch_config_file: str) -> list[int]:
     with open(arch_config_file) as f:
         arch_config_dict = yaml.safe_load(f)
 
-    print("arch config dict json string: ", json.dumps(arch_config_dict))
-
     listeners, _, _ = convert_legacy_listeners(
         arch_config_dict.get("listeners"), arch_config_dict.get("llm_providers")
     )
@@ -82,15 +80,11 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
         while True:
             all_listeners_healthy = True
             for port in gateway_ports:
-                log.info(f"Checking health endpoint on port {port}")
                 health_check_status = health_check_endpoint(
                     f"http://localhost:{port}/healthz"
                 )
-                if health_check_status:
-                    log.info(f"Gateway on port {port} is healthy!")
-                else:
+                if not health_check_status:
                     all_listeners_healthy = False
-                    log.info(f"Gateway on port {port} is not healthy yet.")
 
             archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
             current_time = time.time()
@@ -111,7 +105,12 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
                 log.info("archgw is running and is healthy!")
                 break
             else:
-                log.info(f"archgw status: {archgw_status}, health status: starting")
+                health_check_status_str = (
+                    "healthy" if health_check_status else "not healthy"
+                )
+                log.info(
+                    f"archgw status: {archgw_status}, health status: {health_check_status_str}"
+                )
                 time.sleep(1)
 
         if foreground:

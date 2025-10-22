@@ -15,3 +15,27 @@ services:
       - DEFAULT_MODEL=gpt-4o-mini
       - ENABLE_OPENAI_API=true
       - OPENAI_API_BASE_URL=http://host.docker.internal:8001/v1
+  rag_agents:
+    build:
+      context: .
+    container_name: rag_agents
+    ports:
+      - "10500:10500"
+      - "10501:10501"
+      - "10502:10502"
+    env_file:
+      - .env
+    environment:
+      - LLM_GATEWAY_ENDPOINT=http://host.docker.internal:12000/v1
+  archgw:
+    image: katanemo/archgw:0.3.16
+    container_name: archgw
+    ports:
+      - "8001:8001"
+      - "12000:12000"
+    volumes:
+      - ./arch_config.yaml:/app/arch_config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY?Please set the OPENAI_API_KEY environment variable}

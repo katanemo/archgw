@@ -10,9 +10,9 @@ A FastAPI service that rewrites user queries using archgw and gpt-4o-mini for be
 
 ## Setup and Running
 
-1. **Start archgw**:
+1. **Start archgw with open-web and jaeger ui**:
    ```bash
-   archgw up --foreground
+   docker compose up -d
    ```
 
 2. **Start the query parser service**:

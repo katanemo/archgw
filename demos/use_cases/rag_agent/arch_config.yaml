@@ -7,10 +7,6 @@ agents:
     url: http://host.docker.internal:10501/v1/chat/completions
   - id: rag_agent
     url: http://host.docker.internal:10502/v1/chat/completions
-  - id: research_agent
-    url: http://host.docker.internal:10503/v1/chat/completions
-  - id: weather_forecast_agent
-    url: http://host.docker.internal:10504/process
 
 model_providers:
   - model: openai/gpt-4o-mini
@@ -18,8 +14,6 @@ model_providers:
     default: true
   - model: openai/gpt-4o
     access_key: $OPENAI_API_KEY
-  - model: ollama/llama3.1
-    base_url: http://host.docker.internal:11434
 
 model_aliases:
   fast-llm:

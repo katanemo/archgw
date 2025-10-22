@@ -14,15 +14,11 @@ A FastAPI service that rewrites user queries using archgw and gpt-4o-mini for be
    ```bash
    docker compose up -d
    ```
+1. **Interact with rag agent using open-web-ui**:
+   Navigate to http://localhost:8080 and try some sample queries like "What is the guaranteed uptime percentage for TechCorp's cloud services?"
 
-2. **Start the query parser service**:
-   ```bash
-   uv run python -m rag_agent.query_parser
-   ```
+Note: open-web-ui takes some time to load.
 
-## Configuration
+Sample screenshot of UI,
 
-```bash
-# archgw LLM Gateway base URL (default: http://localhost:12000/v1)
-export LLM_GATEWAY_ENDPOINT="http://localhost:12000/v1"
-```
+<img src="image.png" width="75%" height=auto>

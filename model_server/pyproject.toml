@@ -33,6 +33,8 @@ setuptools = "75.5.0"
 
 [tool.poetry.scripts]
 archgw_modelserver = "src.cli:main"
+# Convenient alias to match the PEP 621 script name used by `uv`
+model_server = "src.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -44,3 +46,46 @@ addopts = ["-v", "-s"]
 retries = 2
 retry_delay = 0.5
 cumulative_timing = false
+
+# ---------------------------------------------------------------------------
+# PEP 621 project metadata for tools like `uv` that expect a [project] table.
+# This co-exists with Poetry's configuration above and is used for local runs.
+# ---------------------------------------------------------------------------
+[project]
+name = "archgw_modelserver"
+version = "0.3.15"
+description = "A model server for serving models"
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Katanemo Labs, Inc", email = "info@katanemo.com" }
+]
+
+dependencies = [
+    "fastapi==0.115.0",
+    "torch==2.6.0",
+    "uvicorn==0.31.0",
+    "transformers>=4.37.0,<5.0.0",
+    "accelerate>=1.0.0,<2.0.0",
+    "pydantic>=2.10.1,<3.0.0",
+    "dateparser",
+    "openai>=1.50.2,<2.0.0",
+    "httpx==0.27.2",
+    "pytest-asyncio",
+    "pytest",
+    "opentelemetry-api>=1.28.0,<2.0.0",
+    "opentelemetry-sdk>=1.28.0,<2.0.0",
+    "opentelemetry-exporter-otlp>=1.28.0,<2.0.0",
+    "opentelemetry-instrumentation-fastapi==0.49b0",
+    "overrides>=7.7.0,<8.0.0",
+    "pytest-retry>=1.6.3,<2.0.0",
+    "pytest-httpserver>=1.1.0,<2.0.0",
+    "setuptools==75.5.0",
+]
+
+[project.scripts]
+# Preferred local CLI name
+model_server = "src.cli:main"
+# Backwards-compatible alias matching Poetry's entry point
+archgw_modelserver = "src.cli:main"

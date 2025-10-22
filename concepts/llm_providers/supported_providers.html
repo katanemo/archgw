@@ -718,6 +718,36 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </span></code></pre></div>
 </div>
 </section>
+<section id="amazon-bedrock">
+<h3>Amazon Bedrock<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#amazon-bedrock" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#amazon-bedrock'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">amazon_bedrock/</span></code></p>
+<dl class="simple">
+<dt><strong>API Endpoint:</strong> Arch automatically constructs the endpoint as:</dt><dd><ul class="simple">
+<li><p>Non-streaming: <code class="docutils literal notranslate"><span class="pre">/model/{model-id}/converse</span></code></p></li>
+<li><p>Streaming: <code class="docutils literal notranslate"><span class="pre">/model/{model-id}/converse-stream</span></code></p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>Authentication:</strong> AWS Bearer Token + Base URL - Get your API Keys from <a class="reference external" href="https://console.aws.amazon.com/bedrock/" rel="nofollow noopener">AWS Bedrock Console<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> → Discover → API Keys.</p>
+<p><strong>Supported Chat Models:</strong> All Amazon Bedrock foundation models including Claude (Anthropic), Nova (Amazon), Llama (Meta), Mistral AI, and Cohere Command models.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Amazon Nova models</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">amazon_bedrock/us.amazon.nova-premier-v1:0</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$AWS_BEARER_TOKEN_BEDROCK</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://bedrock-runtime.us-west-2.amazonaws.com</span>
+</span><span id="line-6"><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-7">
+</span><span id="line-8"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">amazon_bedrock/us.amazon.nova-pro-v1:0</span>
+</span><span id="line-9"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$AWS_BEARER_TOKEN_BEDROCK</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://bedrock-runtime.us-west-2.amazonaws.com</span>
+</span><span id="line-11">
+</span><span id="line-12"><span class="w">  </span><span class="c1"># Claude on Bedrock</span>
+</span><span id="line-13"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">amazon_bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0</span>
+</span><span id="line-14"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$AWS_BEARER_TOKEN_BEDROCK</span>
+</span><span id="line-15"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://bedrock-runtime.us-west-2.amazonaws.com</span>
+</span></code></pre></div>
+</div>
+</section>
 <section id="qwen-alibaba">
 <h3>Qwen (Alibaba)<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#qwen-alibaba" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#qwen-alibaba'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
 <p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">qwen/</span></code></p>
@@ -733,7 +763,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </span><span id="line-7"><span class="w">  </span><span class="c1"># Multiple deployments</span>
 </span><span id="line-8"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">qwen/qwen3-coder</span>
 </span><span id="line-9"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$DASHSCOPE_API_KEY</span>
-</span><span id="line-10"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="s">"https://dashscope-intl.aliyuncs.com"</span><span class="err">,</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="s">"https://dashscope-intl.aliyuncs.com"</span>
 </span></code></pre></div>
 </div>
 </section>
@@ -883,6 +913,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </li>
 <li><a :data-current="activeSection === '#providers-requiring-base-url'" class="reference internal" href="#providers-requiring-base-url">Providers Requiring Base URL</a><ul>
 <li><a :data-current="activeSection === '#azure-openai'" class="reference internal" href="#azure-openai">Azure OpenAI</a></li>
+<li><a :data-current="activeSection === '#amazon-bedrock'" class="reference internal" href="#amazon-bedrock">Amazon Bedrock</a></li>
 <li><a :data-current="activeSection === '#qwen-alibaba'" class="reference internal" href="#qwen-alibaba">Qwen (Alibaba)</a></li>
 <li><a :data-current="activeSection === '#ollama'" class="reference internal" href="#ollama">Ollama</a></li>
 <li><a :data-current="activeSection === '#openai-compatible-providers'" class="reference internal" href="#openai-compatible-providers">OpenAI-Compatible Providers</a></li>
@@ -904,7 +935,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Oct 21, 2025. </p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Oct 22, 2025. </p>
 </div>
 </div>
 </footer>

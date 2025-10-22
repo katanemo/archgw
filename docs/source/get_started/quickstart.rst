@@ -12,8 +12,8 @@ Prerequisites
 Before you begin, ensure you have the following:
 
 1. `Docker System <https://docs.docker.com/get-started/get-docker/>`_ (v24)
-2. `Docker compose <https://docs.docker.com/compose/install/>`_ (v2.29)
-3. `Python <https://www.python.org/downloads/>`_ (v3.12)
+2. `Docker Compose <https://docs.docker.com/compose/install/>`_ (v2.29)
+3. `Python <https://www.python.org/downloads/>`_ (v3.10+)
 
 Arch's CLI allows you to manage and interact with the Arch gateway efficiently. To install the CLI, simply run the following command:
 

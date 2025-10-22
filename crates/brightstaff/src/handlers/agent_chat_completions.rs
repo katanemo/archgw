@@ -118,9 +118,6 @@ async fn handle_agent_chat(
             AgentFilterChainError::RequestParsing(err)
         })?;
 
-    // Check if streaming is enabled
-    let is_streaming = chat_completions_request.stream.unwrap_or(false);
-
     // Extract trace parent for routing
     let trace_parent = request_headers
         .iter()
@@ -141,16 +138,35 @@ async fn handle_agent_chat(
         agent_selector.create_agent_map(agents)
     };
 
-    return response_handler
-        .create_response_with_reasoning(
+    // Process the filter chain
+    let processed_messages = pipeline_processor
+        .process_filter_chain(
             &chat_completions_request,
             &selected_agent,
             &agent_map,
             &request_headers,
-            &pipeline_processor,
-            is_streaming,
         )
-        .await
-        .map_err(AgentFilterChainError::from);
+        .await?;
 
+    // Get terminal agent and send final response
+    let terminal_agent_name = selected_agent.id;
+    let terminal_agent = agent_map.get(&terminal_agent_name).unwrap();
+
+    debug!("Processing terminal agent: {}", terminal_agent_name);
+    debug!("Terminal agent details: {:?}", terminal_agent);
+
+    let llm_response = pipeline_processor
+        .invoke_upstream_agent(
+            &processed_messages,
+            &chat_completions_request,
+            terminal_agent,
+            &request_headers,
+        )
+        .await?;
+
+    // Create streaming response
+    response_handler
+        .create_streaming_response(llm_response)
+        .await
+        .map_err(AgentFilterChainError::from)
 }

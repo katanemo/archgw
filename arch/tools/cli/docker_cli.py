@@ -44,17 +44,18 @@ def docker_start_archgw_detached(
     arch_config_file: str,
     logs_path_abs: str,
     env: dict,
-    prompt_gateway_port,
-    llm_gateway_port,
+    gateway_ports: list[int],
 ) -> str:
     env_args = [item for key, value in env.items() for item in ["-e", f"{key}={value}"]]
 
     port_mappings = [
-        f"{prompt_gateway_port}:{prompt_gateway_port}",
-        f"{llm_gateway_port}:{llm_gateway_port}",
-        f"{llm_gateway_port+1}:{llm_gateway_port+1}",
+        f"{12001}:{12001}",
         "19901:9901",
     ]
+
+    for port in gateway_ports:
+        port_mappings.append(f"{port}:{port}")
+
     port_mappings_args = [item for port in port_mappings for item in ("-p", port)]
 
     volume_mappings = [
@@ -126,7 +127,8 @@ def docker_validate_archgw_schema(arch_config_file):
             "--entrypoint",
             "python",
             ARCHGW_DOCKER_IMAGE,
-            "config_generator.py",
+            "-m",
+            "cli.config_generator",
         ],
         capture_output=True,
         text=True,

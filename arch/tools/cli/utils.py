@@ -37,16 +37,98 @@ def has_ingress_listener(arch_config_file):
         return False
 
 
+def convert_legacy_listeners(
+    listeners: dict | list, model_providers: list | None
+) -> tuple[list, dict | None, dict | None]:
+    llm_gateway_listener = {
+        "name": "egress_traffic",
+        "type": "model_listener",
+        "port": 12000,
+        "address": "0.0.0.0",
+        "timeout": "30s",
+        "model_providers": model_providers or [],
+    }
+
+    prompt_gateway_listener = {
+        "name": "ingress_traffic",
+        "type": "prompt_listener",
+        "port": 10000,
+        "address": "0.0.0.0",
+        "timeout": "30s",
+    }
+
+    if isinstance(listeners, dict):
+        # legacy listeners
+        # check if type is array or object
+        # if its dict its legacy format let's convert it to array
+        updated_listeners = []
+        ingress_traffic = listeners.get("ingress_traffic", {})
+        egress_traffic = listeners.get("egress_traffic", {})
+
+        llm_gateway_listener["port"] = egress_traffic.get(
+            "port", llm_gateway_listener["port"]
+        )
+        llm_gateway_listener["address"] = egress_traffic.get(
+            "address", llm_gateway_listener["address"]
+        )
+        llm_gateway_listener["timeout"] = egress_traffic.get(
+            "timeout", llm_gateway_listener["timeout"]
+        )
+        if model_providers is None or model_providers == []:
+            raise ValueError("model_providers cannot be empty when using legacy format")
+
+        llm_gateway_listener["model_providers"] = model_providers
+        updated_listeners.append(llm_gateway_listener)
+
+        if ingress_traffic and ingress_traffic != {}:
+            prompt_gateway_listener["port"] = ingress_traffic.get(
+                "port", prompt_gateway_listener["port"]
+            )
+            prompt_gateway_listener["address"] = ingress_traffic.get(
+                "address", prompt_gateway_listener["address"]
+            )
+            prompt_gateway_listener["timeout"] = ingress_traffic.get(
+                "timeout", prompt_gateway_listener["timeout"]
+            )
+            updated_listeners.append(prompt_gateway_listener)
+
+        return updated_listeners, llm_gateway_listener, prompt_gateway_listener
+
+    model_provider_set = False
+    for listener in listeners:
+        if listener.get("type") == "model_listener":
+            if model_provider_set:
+                raise ValueError(
+                    "Currently only one listener can have model_providers set"
+                )
+            listener["model_providers"] = model_providers or []
+            model_provider_set = True
+            llm_gateway_listener = listener
+    if not model_provider_set:
+        listeners.append(llm_gateway_listener)
+
+    return listeners, llm_gateway_listener, prompt_gateway_listener
+
+
 def get_llm_provider_access_keys(arch_config_file):
     with open(arch_config_file, "r") as file:
         arch_config = file.read()
         arch_config_yaml = yaml.safe_load(arch_config)
 
     access_key_list = []
-    for llm_provider in arch_config_yaml.get("llm_providers", []):
-        acess_key = llm_provider.get("access_key")
-        if acess_key is not None:
-            access_key_list.append(acess_key)
+
+    # Convert legacy llm_providers to model_providers
+    if "llm_providers" in arch_config_yaml:
+        if "model_providers" in arch_config_yaml:
+            raise Exception(
+                "Please provide either llm_providers or model_providers, not both. llm_providers is deprecated, please use model_providers instead"
+            )
+        arch_config_yaml["model_providers"] = arch_config_yaml["llm_providers"]
+        del arch_config_yaml["llm_providers"]
+
+    listeners, _, _ = convert_legacy_listeners(
+        arch_config_yaml.get("listeners"), arch_config_yaml.get("model_providers")
+    )
 
     for prompt_target in arch_config_yaml.get("prompt_targets", []):
         for k, v in prompt_target.get("endpoint", {}).get("http_headers", {}).items():
@@ -59,6 +141,12 @@ def get_llm_provider_access_keys(arch_config_file):
                     access_key_list.append(auth_tokens[1])
                 else:
                     access_key_list.append(v)
+
+    for listener in listeners:
+        for llm_provider in listener.get("model_providers", []):
+            access_key = llm_provider.get("access_key")
+            if access_key is not None:
+                access_key_list.append(access_key)
 
     return access_key_list
 

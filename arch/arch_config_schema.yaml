@@ -8,46 +8,76 @@ properties:
       - v0.1.0
       - 0.1-beta
       - 0.2.0
+      - v0.3.0
+
+  agents:
+    type: array
+    items:
+      type: object
   listeners:
-    type: object
-    additionalProperties: false
-    properties:
-      ingress_traffic:
-        type: object
-        properties:
-          address:
-            type: string
-          port:
-            type: integer
-          message_format:
-            type: string
-            enum:
-              - openai
-          timeout:
-            type: string
+    oneOf:
+      - type: array
         additionalProperties: false
-      egress_traffic:
-        type: object
-        properties:
-          address:
-            type: string
-          port:
-            type: integer
-          message_format:
-            type: string
-            enum:
-              - openai
-          timeout:
-            type: string
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            port:
+              type: integer
+            address:
+              type: string
+            timeout:
+              type: string
+            type:
+              type: string
+              enum:
+                - model
+                - prompt
+                - agent
+          required:
+            - type
+            - name
+      - type: object # deprecated legacy format, use list format instead
         additionalProperties: false
+        properties:
+          ingress_traffic:
+            type: object
+            properties:
+              address:
+                type: string
+              port:
+                type: integer
+              message_format:
+                type: string
+                enum:
+                  - openai
+              timeout:
+                type: string
+            additionalProperties: false
+          egress_traffic:
+            type: object
+            properties:
+              address:
+                type: string
+              port:
+                type: integer
+              message_format:
+                type: string
+                enum:
+                  - openai
+              timeout:
+                type: string
+            additionalProperties: false
   endpoints:
     type: object
     patternProperties:
-      "^.*$":
+      "^[a-zA-Z][a-zA-Z0-9_]*$":
         type: object
         properties:
           endpoint:
             type: string
+            pattern: "^.*$"
           connect_timeout:
             type: string
           protocol:
@@ -60,7 +90,52 @@ properties:
         additionalProperties: false
         required:
           - endpoint
-  llm_providers:
+
+  model_providers:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        access_key:
+          type: string
+        model:
+          type: string
+        default:
+          type: boolean
+        base_url:
+          type: string
+        http_host:
+          type: string
+        provider_interface:
+          type: string
+          enum:
+            - arch
+            - claude
+            - deepseek
+            - groq
+            - mistral
+            - openai
+            - gemini
+        routing_preferences:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+          additionalProperties: false
+          required:
+            - name
+            - description
+      additionalProperties: false
+      required:
+        - model
+
+  llm_providers: # deprecated for legacy support, use model_providers instead
     type: array
     items:
       type: object
@@ -282,4 +357,4 @@ properties:
 additionalProperties: false
 required:
   - version
-  - llm_providers
+  - listeners

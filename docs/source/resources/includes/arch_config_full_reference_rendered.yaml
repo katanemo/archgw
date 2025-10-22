@@ -10,17 +10,40 @@ endpoints:
     endpoint: 127.0.0.1
     port: 8001
 listeners:
-  egress_traffic:
-    address: 0.0.0.0
-    message_format: openai
-    port: 12000
-    timeout: 5s
-  ingress_traffic:
-    address: 0.0.0.0
-    message_format: openai
-    port: 10000
-    timeout: 5s
-llm_providers:
+- address: 0.0.0.0
+  model_providers:
+  - access_key: $OPENAI_API_KEY
+    default: true
+    model: gpt-4o
+    name: openai/gpt-4o
+    provider_interface: openai
+  - access_key: $MISTRAL_API_KEY
+    model: mistral-8x7b
+    name: mistral/mistral-8x7b
+    provider_interface: mistral
+  - base_url: http://mistral_local
+    cluster_name: mistral_mistral_local
+    endpoint: mistral_local
+    model: mistral-7b-instruct
+    name: mistral/mistral-7b-instruct
+    port: 80
+    protocol: http
+    provider_interface: mistral
+  name: egress_traffic
+  port: 12000
+  timeout: 5s
+  type: model_listener
+- address: 0.0.0.0
+  name: ingress_traffic
+  port: 10000
+  timeout: 5s
+  type: prompt_listener
+model_aliases:
+  arch.summarize.v1:
+    target: gpt-4o
+  arch.v1:
+    target: mistral-8x7b
+model_providers:
 - access_key: $OPENAI_API_KEY
   default: true
   model: gpt-4o
@@ -38,11 +61,6 @@ llm_providers:
   port: 80
   protocol: http
   provider_interface: mistral
-model_aliases:
-  arch.summarize.v1:
-    target: gpt-4o
-  arch.v1:
-    target: mistral-8x7b
 overrides:
   prompt_target_intent_matching_threshold: 0.6
 prompt_guards:

@@ -1,3 +1,4 @@
+use brightstaff::handlers::agent_chat_completions::agent_chat;
 use brightstaff::handlers::chat_completions::chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::router::llm_router::RouterService;
@@ -61,7 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let arch_config = Arc::new(config);
 
-    let llm_providers = Arc::new(RwLock::new(arch_config.llm_providers.clone()));
+    let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
+    let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
+    let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
 
     debug!(
         "arch_config: {:?}",
@@ -84,11 +87,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let routing_llm_provider = arch_config
         .routing
         .as_ref()
-        .and_then(|r| r.llm_provider.clone())
+        .and_then(|r| r.model_provider.clone())
         .unwrap_or_else(|| DEFAULT_ROUTING_LLM_PROVIDER.to_string());
 
     let router_service: Arc<RouterService> = Arc::new(RouterService::new(
-        arch_config.llm_providers.clone(),
+        arch_config.model_providers.clone(),
         llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
         routing_model_name,
         routing_llm_provider,
@@ -106,12 +109,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
+        let agents_list = agents_list.clone();
+        let listeners = listeners.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
             let model_aliases = Arc::clone(&model_aliases);
+            let agents_list = agents_list.clone();
+            let listeners = listeners.clone();
 
             async move {
                 match (req.method(), req.uri().path()) {
@@ -122,8 +129,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             .with_context(parent_cx)
                             .await
                     }
-                    (&Method::GET, "/v1/models") => Ok(list_models(llm_providers).await),
-                    (&Method::OPTIONS, "/v1/models") => {
+                    (&Method::POST, "/agents/v1/chat/completions") => {
+                        let fully_qualified_url =
+                            format!("{}{}", llm_provider_url, req.uri().path());
+                        agent_chat(
+                            req,
+                            router_service,
+                            fully_qualified_url,
+                            agents_list,
+                            listeners,
+                        )
+                        .with_context(parent_cx)
+                        .await
+                    }
+                    (&Method::GET, "/v1/models" | "/agents/v1/models") => {
+                        Ok(list_models(llm_providers).await)
+                    }
+                    // hack for now to get openw-web-ui to work
+                    (&Method::OPTIONS, "/v1/models" | "/agents/v1/models") => {
                         let mut response = Response::new(empty());
                         *response.status_mut() = StatusCode::NO_CONTENT;
                         response
@@ -147,6 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         Ok(response)
                     }
                     _ => {
+                        debug!("No route for {} {}", req.method(), req.uri().path());
                         let mut not_found = Response::new(empty());
                         *not_found.status_mut() = StatusCode::NOT_FOUND;
                         Ok(not_found)

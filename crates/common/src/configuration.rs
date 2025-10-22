@@ -9,7 +9,7 @@ use crate::api::open_ai::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Routing {
-    pub llm_provider: Option<String>,
+    pub model_provider: Option<String>,
     pub model: Option<String>,
 }
 
@@ -19,10 +19,33 @@ pub struct ModelAlias {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Agent {
+    pub id: String,
+    pub kind: Option<String>,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentFilterChain {
+    pub id: String,
+    pub default: Option<bool>,
+    pub description: Option<String>,
+    pub filter_chain: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Listener {
+    pub name: String,
+    pub router: Option<String>,
+    pub agents: Option<Vec<AgentFilterChain>>,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
-    pub llm_providers: Vec<LlmProvider>,
+    pub model_providers: Vec<LlmProvider>,
     pub model_aliases: Option<HashMap<String, ModelAlias>>,
     pub overrides: Option<Overrides>,
     pub system_prompt: Option<String>,
@@ -33,6 +56,8 @@ pub struct Configuration {
     pub tracing: Option<Tracing>,
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
+    pub agents: Option<Vec<Agent>>,
+    pub listeners: Vec<Listener>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

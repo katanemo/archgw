@@ -5,7 +5,7 @@ import time
 import sys
 
 import yaml
-from cli.utils import getLogger
+from cli.utils import convert_legacy_listeners, getLogger
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
@@ -26,7 +26,7 @@ from cli.docker_cli import (
 log = getLogger(__name__)
 
 
-def _get_gateway_ports(arch_config_file: str) -> tuple:
+def _get_gateway_ports(arch_config_file: str) -> list[int]:
     PROMPT_GATEWAY_DEFAULT_PORT = 10000
     LLM_GATEWAY_DEFAULT_PORT = 12000
 
@@ -35,18 +35,15 @@ def _get_gateway_ports(arch_config_file: str) -> tuple:
     with open(arch_config_file) as f:
         arch_config_dict = yaml.safe_load(f)
 
-    prompt_gateway_port = (
-        arch_config_dict.get("listeners", {})
-        .get("ingress_traffic", {})
-        .get("port", PROMPT_GATEWAY_DEFAULT_PORT)
-    )
-    llm_gateway_port = (
-        arch_config_dict.get("listeners", {})
-        .get("egress_traffic", {})
-        .get("port", LLM_GATEWAY_DEFAULT_PORT)
+    print("arch config dict json string: ", json.dumps(arch_config_dict))
+
+    listeners, _, _ = convert_legacy_listeners(
+        arch_config_dict.get("listeners"), arch_config_dict.get("llm_providers")
     )
 
-    return prompt_gateway_port, llm_gateway_port
+    all_ports = [listener.get("port") for listener in listeners]
+
+    return all_ports
 
 
 def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
@@ -68,14 +65,13 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
             docker_stop_container(ARCHGW_DOCKER_NAME)
             docker_remove_container(ARCHGW_DOCKER_NAME)
 
-        prompt_gateway_port, llm_gateway_port = _get_gateway_ports(arch_config_file)
+        gateway_ports = _get_gateway_ports(arch_config_file)
 
         return_code, _, archgw_stderr = docker_start_archgw_detached(
             arch_config_file,
             os.path.expanduser("~/archgw_logs"),
             env,
-            prompt_gateway_port,
-            llm_gateway_port,
+            gateway_ports,
         )
         if return_code != 0:
             log.info("Failed to start arch gateway: " + str(return_code))
@@ -84,13 +80,17 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
 
         start_time = time.time()
         while True:
-            prompt_gateway_health_check_status = health_check_endpoint(
-                f"http://localhost:{prompt_gateway_port}/healthz"
-            )
-
-            llm_gateway_health_check_status = health_check_endpoint(
-                f"http://localhost:{llm_gateway_port}/healthz"
-            )
+            all_listeners_healthy = True
+            for port in gateway_ports:
+                log.info(f"Checking health endpoint on port {port}")
+                health_check_status = health_check_endpoint(
+                    f"http://localhost:{port}/healthz"
+                )
+                if health_check_status:
+                    log.info(f"Gateway on port {port} is healthy!")
+                else:
+                    all_listeners_healthy = False
+                    log.info(f"Gateway on port {port} is not healthy yet.")
 
             archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
             current_time = time.time()
@@ -107,7 +107,7 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
                 stream_gateway_logs(follow=False)
                 sys.exit(1)
 
-            if prompt_gateway_health_check_status or llm_gateway_health_check_status:
+            if all_listeners_healthy:
                 log.info("archgw is running and is healthy!")
                 break
             else:

@@ -5,9 +5,9 @@ use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 use super::ApiDefinition;
-use crate::clients::transformer::ExtractText;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::{ProviderResponse, ProviderStreamResponse};
+use crate::transforms::lib::ExtractText;
 use crate::MESSAGES_PATH;
 
 // Enum for all supported Anthropic APIs

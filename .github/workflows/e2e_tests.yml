@@ -32,6 +32,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
         run: |
           python -mvenv venv
           source venv/bin/activate && cd tests/e2e && bash run_e2e_tests.sh

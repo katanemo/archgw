@@ -517,6 +517,36 @@ Azure OpenAI
         access_key: $AZURE_OPENAI_API_KEY
         base_url: https://your-resource.openai.azure.com
 
+Amazon Bedrock
+~~~~~~~~~~~~~~
+
+**Provider Prefix:** ``amazon_bedrock/``
+
+**API Endpoint:** Arch automatically constructs the endpoint as:
+  - Non-streaming: ``/model/{model-id}/converse``
+  - Streaming: ``/model/{model-id}/converse-stream``
+
+**Authentication:** AWS Bearer Token + Base URL - Get your API Keys from `AWS Bedrock Console <https://console.aws.amazon.com/bedrock/>`_ → Discover → API Keys.
+
+**Supported Chat Models:** All Amazon Bedrock foundation models including Claude (Anthropic), Nova (Amazon), Llama (Meta), Mistral AI, and Cohere Command models.
+
+.. code-block:: yaml
+
+    llm_providers:
+      # Amazon Nova models
+      - model: amazon_bedrock/us.amazon.nova-premier-v1:0
+        access_key: $AWS_BEARER_TOKEN_BEDROCK
+        base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+        default: true
+
+      - model: amazon_bedrock/us.amazon.nova-pro-v1:0
+        access_key: $AWS_BEARER_TOKEN_BEDROCK
+        base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+
+      # Claude on Bedrock
+      - model: amazon_bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+        access_key: $AWS_BEARER_TOKEN_BEDROCK
+        base_url: https://bedrock-runtime.us-west-2.amazonaws.com
 
 Qwen (Alibaba)
 ~~~~~~~~~~~~~~
@@ -540,8 +570,7 @@ Qwen (Alibaba)
       # Multiple deployments
       - model: qwen/qwen3-coder
         access_key: $DASHSCOPE_API_KEY
-        base_url: "https://dashscope-intl.aliyuncs.com",
-
+        base_url: "https://dashscope-intl.aliyuncs.com"
 
 Ollama
 ~~~~~~

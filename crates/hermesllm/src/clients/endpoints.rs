@@ -1,30 +1,5 @@
-//! Supported endpoint registry for LLM APIs
-//!
-//! This module provides a simple registry to check which API endpoint paths
-//! we support across different providers.
-//!
-//! # Examples
-//!
-//! ```rust
-//! use hermesllm::clients::endpoints::supported_endpoints;
-//!
-//! // Check if we support an endpoint
-//! use hermesllm::clients::endpoints::SupportedAPIs;
-//! assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
-//! assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
-//! assert!(!SupportedAPIs::from_endpoint("/v1/unknown").is_some());
-//!
-//! // Get all supported endpoints
-//! let endpoints = supported_endpoints();
-//! assert_eq!(endpoints.len(), 2);
-//! assert!(endpoints.contains(&"/v1/chat/completions"));
-//! assert!(endpoints.contains(&"/v1/messages"));
-//! ```
-
-use crate::{
-    apis::{AnthropicApi, ApiDefinition, OpenAIApi},
-    ProviderId,
-};
+use crate::apis::{AmazonBedrockApi, AnthropicApi, ApiDefinition, OpenAIApi};
+use crate::ProviderId;
 use std::fmt;
 
 /// Unified enum representing all supported API endpoints across providers
@@ -32,6 +7,14 @@ use std::fmt;
 pub enum SupportedAPIs {
     OpenAIChatCompletions(OpenAIApi),
     AnthropicMessagesAPI(AnthropicApi),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SupportedUpstreamAPIs {
+    OpenAIChatCompletions(OpenAIApi),
+    AnthropicMessagesAPI(AnthropicApi),
+    AmazonBedrockConverse(AmazonBedrockApi),
+    AmazonBedrockConverseStream(AmazonBedrockApi),
 }
 
 impl fmt::Display for SupportedAPIs {
@@ -74,11 +57,21 @@ impl SupportedAPIs {
         provider_id: &ProviderId,
         request_path: &str,
         model_id: &str,
+        is_streaming: bool,
     ) -> String {
         let default_endpoint = "/v1/chat/completions".to_string();
         match self {
             SupportedAPIs::AnthropicMessagesAPI(AnthropicApi::Messages) => match provider_id {
                 ProviderId::Anthropic => "/v1/messages".to_string(),
+                ProviderId::AmazonBedrock => {
+                    if request_path.starts_with("/v1/") && !is_streaming {
+                        format!("/model/{}/converse", model_id)
+                    } else if request_path.starts_with("/v1/") && is_streaming {
+                        format!("/model/{}/converse-stream", model_id)
+                    } else {
+                        default_endpoint
+                    }
+                }
                 _ => default_endpoint,
             },
             _ => match provider_id {
@@ -113,6 +106,17 @@ impl SupportedAPIs {
                 ProviderId::Gemini => {
                     if request_path.starts_with("/v1/") {
                         "/v1beta/openai/chat/completions".to_string()
+                    } else {
+                        default_endpoint
+                    }
+                }
+                ProviderId::AmazonBedrock => {
+                    if request_path.starts_with("/v1/") {
+                        if !is_streaming {
+                            format!("/model/{}/converse", model_id)
+                        } else {
+                            format!("/model/{}/converse-stream", model_id)
+                        }
                     } else {
                         default_endpoint
                     }
@@ -161,7 +165,6 @@ mod tests {
     fn test_is_supported_endpoint() {
         // OpenAI endpoints
         assert!(SupportedAPIs::from_endpoint("/v1/chat/completions").is_some());
-
         // Anthropic endpoints
         assert!(SupportedAPIs::from_endpoint("/v1/messages").is_some());
 
@@ -174,7 +177,7 @@ mod tests {
     #[test]
     fn test_supported_endpoints() {
         let endpoints = supported_endpoints();
-        assert_eq!(endpoints.len(), 2);
+        assert_eq!(endpoints.len(), 2); // We have 2 APIs defined
         assert!(endpoints.contains(&"/v1/chat/completions"));
         assert!(endpoints.contains(&"/v1/messages"));
     }
@@ -217,7 +220,6 @@ mod tests {
                 endpoint
             );
         }
-
         // Total should match
         assert_eq!(
             endpoints.len(),

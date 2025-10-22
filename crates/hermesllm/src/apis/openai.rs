@@ -6,9 +6,9 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use super::ApiDefinition;
-use crate::clients::transformer::ExtractText;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
 use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
+use crate::transforms::lib::ExtractText;
 use crate::CHAT_COMPLETIONS_PATH;
 
 // ============================================================================

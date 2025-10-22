@@ -118,13 +118,6 @@ async fn handle_agent_chat(
             AgentFilterChainError::RequestParsing(err)
         })?;
 
-    // Check for debug/reasoning mode, by default its enabled
-    let debug_mode = request_headers
-        .get("x-debug-mode")
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v == "true")
-        .unwrap_or(true);
-
     // Check if streaming is enabled
     let is_streaming = chat_completions_request.stream.unwrap_or(false);
 
@@ -149,45 +142,15 @@ async fn handle_agent_chat(
     };
 
     return response_handler
-        .create_streaming_response_with_realtime_reasoning(
+        .create_response_with_reasoning(
             &chat_completions_request,
             &selected_agent,
             &agent_map,
             &request_headers,
             &pipeline_processor,
             is_streaming,
-            debug_mode,
         )
         .await
         .map_err(AgentFilterChainError::from);
 
-    // // For normal mode, process pipeline and stream response
-    // let processed_messages = pipeline_processor
-    //     .process_filter_chain(
-    //         &chat_completions_request,
-    //         &selected_agent,
-    //         &agent_map,
-    //         &request_headers,
-    //     )
-    //     .await?;
-
-    // // Get terminal agent and send final response
-    // let terminal_agent = agent_map.get(&selected_agent.id).unwrap();
-
-    // debug!("Processing terminal agent: {}", selected_agent.id);
-    // debug!("Terminal agent details: {:?}", terminal_agent);
-
-    // let llm_response = pipeline_processor
-    //     .invoke_upstream_agent(
-    //         &processed_messages,
-    //         &chat_completions_request,
-    //         terminal_agent,
-    //         &request_headers,
-    //     )
-    //     .await?;
-
-    // response_handler
-    //     .create_streaming_response(llm_response)
-    //     .await
-    //     .map_err(AgentFilterChainError::from)
 }

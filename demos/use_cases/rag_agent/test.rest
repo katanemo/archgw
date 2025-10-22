@@ -1,5 +1,4 @@
 @baseUrl = http://0.0.0.0:10502
-@model = gpt-4o
 
 # Health Check
 GET {{baseUrl}}/health
@@ -11,7 +10,7 @@ POST {{baseUrl}}/v1/chat/completions
 Content-Type: application/json
 
 {
-  "model": "{{model}}",
+  "model": "gpt-4o",
   "messages": [
     {
       "role": "user",
@@ -27,7 +26,7 @@ POST {{baseUrl}}/v1/chat/completions
 Content-Type: application/json
 
 {
-  "model": "{{model}}",
+  "model": "gpt-4o",
   "messages": [
     {
       "role": "user",
@@ -42,7 +41,7 @@ POST http://localhost:8001/v1/chat/completions
 Content-Type: application/json
 
 {
-  "model": "{{model}}",
+  "model": "gpt-4o",
   "messages": [
     {
       "role": "user",
@@ -72,7 +71,7 @@ Content-Type: application/json
 x-debug-mode: true
 
 {
-  "model": "{{model}}",
+  "model": "gpt-4o",
   "messages": [
     {
       "role": "user",
@@ -88,7 +87,7 @@ Content-Type: application/json
 X-Debug-Mode: true
 
 {
-  "model": "{{model}}",
+  "model": "gpt-4o",
   "messages": [
     {
       "role": "user",
@@ -101,7 +100,6 @@ X-Debug-Mode: true
 ### Test debug mode without streaming (should work normally)
 POST http://localhost:8001/v1/chat/completions
 Content-Type: application/json
-x-debug-mode: true
 
 {
   "model": "gpt-4o",

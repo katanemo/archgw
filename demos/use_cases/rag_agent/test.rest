@@ -65,3 +65,51 @@ Content-Type: application/json
     }
   ]
 }
+
+### Test with debug mode and reasoning blocks (streaming)
+POST http://localhost:8001/v1/chat/completions
+Content-Type: application/json
+x-debug-mode: true
+
+{
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ],
+  "stream": true
+}
+
+### Test debug mode without streaming (should work normally)
+POST {{baseUrl}}/v1/chat/completions
+Content-Type: application/json
+X-Debug-Mode: true
+
+{
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ],
+  "stream": false
+}
+
+### Test debug mode without streaming (should work normally)
+POST http://localhost:8001/v1/chat/completions
+Content-Type: application/json
+x-debug-mode: true
+
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ],
+  "stream": true
+}

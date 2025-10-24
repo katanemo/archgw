@@ -25,7 +25,7 @@ llm_providers:
     default: true
     access_key: $ANTHROPIC_API_KEY
 
-  - model: anthropic/claude-haiku-4-5-20251001
+  - model: anthropic/claude-haiku-4-5
     access_key: $ANTHROPIC_API_KEY
 
   # Ollama Models
@@ -37,8 +37,7 @@ llm_providers:
 model_aliases:
   # Alias for a small faster Claude model
   arch.claude.code.small.fast:
-    target: claude-haiku-4-5-20251001
+    target: claude-haiku-4-5
 
 tracing:
   random_sampling: 100
-  trace_arch_internal: true

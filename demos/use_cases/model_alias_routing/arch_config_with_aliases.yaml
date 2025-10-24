@@ -81,4 +81,3 @@ model_aliases:
 
 tracing:
   random_sampling: 100
-  trace_arch_internal: true

@@ -97,21 +97,24 @@ impl TryFrom<AnthropicMessagesRequest> for ConverseRequest {
         });
 
         // Convert tools and tool choice to ToolConfiguration
-        let tool_config = if req.tools.is_some() || req.tool_choice.is_some() {
-            let tools = req.tools.map(|anthropic_tools| {
-                anthropic_tools
-                    .into_iter()
-                    .map(|tool| BedrockTool::ToolSpec {
-                        tool_spec: ToolSpecDefinition {
-                            name: tool.name,
-                            description: tool.description,
-                            input_schema: ToolInputSchema {
-                                json: tool.input_schema,
-                            },
+        // Only include toolConfig if we have actual tools (Bedrock requires at least 1 tool)
+        let tool_config = req.tools.and_then(|anthropic_tools| {
+            if anthropic_tools.is_empty() {
+                return None;
+            }
+
+            let tools = anthropic_tools
+                .into_iter()
+                .map(|tool| BedrockTool::ToolSpec {
+                    tool_spec: ToolSpecDefinition {
+                        name: tool.name,
+                        description: tool.description,
+                        input_schema: ToolInputSchema {
+                            json: tool.input_schema,
                         },
-                    })
-                    .collect()
-            });
+                    },
+                })
+                .collect();
 
             let tool_choice = req.tool_choice.map(|choice| {
                 match choice.kind {
@@ -136,10 +139,11 @@ impl TryFrom<AnthropicMessagesRequest> for ConverseRequest {
                 }
             });
 
-            Some(ToolConfiguration { tools, tool_choice })
-        } else {
-            None
-        };
+            Some(ToolConfiguration {
+                tools: Some(tools),
+                tool_choice,
+            })
+        });
 
         Ok(ConverseRequest {
             model_id: req.model,

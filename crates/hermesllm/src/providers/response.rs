@@ -380,6 +380,16 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedUpstreamAPIs)> for SseEvent {
                     transformed_event.sse_transform_buffer = format!("\n"); // suppress the event upstream for OpenAI
                 }
             }
+            (
+                SupportedAPIs::AnthropicMessagesAPI(_),
+                SupportedUpstreamAPIs::AnthropicMessagesAPI(_),
+            ) => {
+                // When both client and upstream are Anthropic, suppress event-only lines
+                // because the data line transformation already includes the event line
+                if transformed_event.is_event_only() && transformed_event.event.is_some() {
+                    transformed_event.sse_transform_buffer = String::new(); // suppress duplicate event line
+                }
+            }
             _ => {
                 // Other combinations can be handled here as needed
             }

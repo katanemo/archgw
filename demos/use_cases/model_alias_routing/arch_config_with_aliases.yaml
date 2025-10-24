@@ -78,3 +78,6 @@ model_aliases:
 
   coding-model:
     target: us.amazon.nova-premier-v1:0
+
+tracing:
+  random_sampling: 100

@@ -21,10 +21,29 @@ impl fmt::Display for SupportedAPIs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SupportedAPIs::OpenAIChatCompletions(api) => {
-                write!(f, "OpenAI API ({})", api.endpoint())
+                write!(f, "OpenAI ({})", api.endpoint())
             }
             SupportedAPIs::AnthropicMessagesAPI(api) => {
-                write!(f, "Anthropic API ({})", api.endpoint())
+                write!(f, "Anthropic AI ({})", api.endpoint())
+            }
+        }
+    }
+}
+
+impl fmt::Display for SupportedUpstreamAPIs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SupportedUpstreamAPIs::OpenAIChatCompletions(api) => {
+                write!(f, "OpenAI ({})", api.endpoint())
+            }
+            SupportedUpstreamAPIs::AnthropicMessagesAPI(api) => {
+                write!(f, "Anthropic ({})", api.endpoint())
+            }
+            SupportedUpstreamAPIs::AmazonBedrockConverse(api) => {
+                write!(f, "Amazon Bedrock ({})", api.endpoint())
+            }
+            SupportedUpstreamAPIs::AmazonBedrockConverseStream(api) => {
+                write!(f, "Amazon Bedrock ({})", api.endpoint())
             }
         }
     }

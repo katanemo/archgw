@@ -27,3 +27,33 @@ model: Arch-Router
 ### get model list from Arch-Router (notice model header)
 GET https://archfc.katanemo.dev/v1/models HTTP/1.1
 model: Arch-Router
+
+
+### test try code generating
+POST http://localhost:12000/v1/chat/completions HTTP/1.1
+Content-Type: application/json
+
+{
+  "model": "none",
+  "messages": [
+    {
+      "role": "user",
+      "content": "write code in python to generate a random number between 1 and 10"
+    }
+  ]
+}
+
+
+### test try code understanding
+POST http://localhost:12000/v1/chat/completions HTTP/1.1
+Content-Type: application/json
+
+{
+  "model": "none",
+  "messages": [
+    {
+      "role": "user",
+      "content": "help me understand this python code:\n\nimport random\n\ndef generate_random_number():\n    return random.randint(1, 10)\n\nprint(generate_random_number())"
+    }
+  ]
+}

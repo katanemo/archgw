@@ -295,19 +295,18 @@ def validate_and_render_schema():
                 }
             )
 
-    updated_model_providers = []
+    config_yaml["model_providers"] = deepcopy(updated_model_providers)
+
+    listeners_with_provider = 0
     for listener in listeners:
         print("Processing listener: ", listener)
         model_providers = listener.get("model_providers", None)
-        if model_providers is not None and model_providers != []:
-            print("processing egress traffic listener")
-            print("updated_model_providers: ", updated_model_providers)
-            if updated_model_providers is not None and updated_model_providers != []:
+        if model_providers is not None:
+            listeners_with_provider += 1
+            if listeners_with_provider > 1:
                 raise Exception(
                     "Please provide model_providers either under listeners or at root level, not both. Currently we don't support multiple listeners with model_providers"
                 )
-            updated_model_providers = deepcopy(model_providers)
-    config_yaml["model_providers"] = updated_model_providers
 
     # Validate model aliases if present
     if "model_aliases" in config_yaml:

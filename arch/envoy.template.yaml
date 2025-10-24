@@ -51,7 +51,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: arch_gateway
+                      service_name: archgw(inbound)
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
@@ -416,7 +416,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: arch_gateway
+                      service_name: archgw(outbound)
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
@@ -497,21 +497,6 @@ static_resources:
             - name: envoy.filters.network.http_connection_manager
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                {% if "random_sampling" in arch_tracing and arch_tracing["random_sampling"] > 0 %}
-                generate_request_id: true
-                tracing:
-                  provider:
-                    name: envoy.tracers.opentelemetry
-                    typed_config:
-                      "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
-                      grpc_service:
-                        envoy_grpc:
-                          cluster_name: opentelemetry_collector
-                        timeout: 0.250s
-                      service_name: egress_traffic_llm
-                  random_sampling:
-                    value: {{ arch_tracing.random_sampling }}
-                {% endif %}
                 stat_prefix: egress_traffic
                 codec_type: AUTO
                 scheme_header_transformation:

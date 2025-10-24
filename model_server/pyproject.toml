@@ -20,16 +20,18 @@ pydantic = "^2.10.1"
 dateparser = "*"
 openai = "^1.50.2"
 httpx = "0.27.2" # https://community.openai.com/t/typeerror-asyncclient-init-got-an-unexpected-keyword-argument-proxies/1040287
-pytest-asyncio = "*"
-pytest = "*"
 opentelemetry-api = "^1.28.0"
 opentelemetry-sdk = "^1.28.0"
 opentelemetry-exporter-otlp = "^1.28.0"
 opentelemetry-instrumentation-fastapi = "^0.49b0"
 overrides = "^7.7.0"
-pytest-retry = "^1.6.3"
-pytest-httpserver = "^1.1.0"
 setuptools = "75.5.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-httpserver = "^1.1.0"
+pytest-retry = "^1.6.3"
 
 [tool.poetry.scripts]
 archgw_modelserver = "src.cli:main"

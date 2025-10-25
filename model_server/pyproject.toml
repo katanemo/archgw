@@ -8,7 +8,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi==0.115.0",
-    "torch==2.6.0",
+    "torch>=2.6.0",
     "uvicorn==0.31.0",
     "transformers>=4.37.0,<5.0.0",
     "accelerate>=1.0.0,<2.0.0",
@@ -21,7 +21,6 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.28.0,<2.0.0",
     "opentelemetry-instrumentation-fastapi>=0.49b0,<1.0",
     "overrides>=7.7.0,<8.0.0",
-    "setuptools==75.5.0",
 ]
 
 [project.scripts]

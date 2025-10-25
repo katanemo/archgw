@@ -1,6 +1,6 @@
 [project]
 name = "archgw_modelserver"
-version = "0.3.16"
+version = "0.3.17"
 description = "A model server for serving models"
 authors = [{name = "Katanemo Labs, Inc", email = "info@katanemo.com"}]
 license = "Apache 2.0"

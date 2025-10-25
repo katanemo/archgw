@@ -25,7 +25,7 @@ Create a ``docker-compose.yml`` file with the following configuration:
    # docker-compose.yml
    services:
      archgw:
-       image: katanemo/archgw:0.3.16
+       image: katanemo/archgw:0.3.17
        container_name: archgw
        ports:
          - "10000:10000" # ingress (client -> arch)

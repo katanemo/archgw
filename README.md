@@ -24,7 +24,7 @@ _Arch is a models-native (edge and service) proxy server for agents._<br><br>
 </div>
 
 # About The Latest Release:
-[0.3.16] [Preference-aware multi LLM routing for Claude Code 2.0](demos/use_cases/claude_code_router/README.md) <br><img src="docs/source/_static/img/claude_code_router.png" alt="high-level network architecture for ArchGW" width="50%">
+[0.3.17] [Preference-aware multi LLM routing for Claude Code 2.0](demos/use_cases/claude_code_router/README.md) <br><img src="docs/source/_static/img/claude_code_router.png" alt="high-level network architecture for ArchGW" width="50%">
 
 
 # Overview
@@ -87,7 +87,7 @@ Arch's CLI allows you to manage and interact with the Arch gateway efficiently. 
 ```console
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install archgw==0.3.16
+$ pip install archgw==0.3.17
 ```
 
 ### Use Arch as a LLM Router
@@ -276,7 +276,7 @@ endpoints:
 ```sh
 
 $ archgw up arch_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.16
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.3.17
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
 2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!

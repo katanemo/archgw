@@ -1,0 +1,58 @@
+### send request to query rewriter agent
+POST http://localhost:10500/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ]
+}
+
+### send request to context builder agent
+POST http://localhost:10501/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ]
+}
+
+### Test directly with RAG agent
+POST http://localhost:8001/v1/chat/completions
+Content-Type: application/json
+x-debug-mode: true
+
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ]
+}
+
+### Test directly with RAG agent with streaming
+POST http://localhost:8001/v1/chat/completions
+Content-Type: application/json
+x-debug-mode: true
+
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+    }
+  ],
+  "stream": true
+}

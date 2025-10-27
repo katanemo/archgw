@@ -39,6 +39,11 @@ llm_providers:
     access_key: $AWS_BEARER_TOKEN_BEDROCK
     base_url: https://bedrock-runtime.us-west-2.amazonaws.com
 
+  - model: amazon_bedrock/us.amazon.nova-pro-v1:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+
+
   # Ollama Models
   - model: ollama/llama3.1
     base_url: http://host.docker.internal:11434

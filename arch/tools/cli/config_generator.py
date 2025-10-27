@@ -143,6 +143,7 @@ def validate_and_render_schema():
     arch_tracing = config_yaml.get("tracing", {})
 
     llms_with_endpoint = []
+    llms_with_endpoint_cluster_names = set()
     updated_model_providers = []
     model_provider_name_set = set()
     llms_with_usage = []
@@ -267,10 +268,14 @@ def validate_and_render_schema():
                 model_provider["endpoint"] = endpoint
                 model_provider["port"] = port
                 model_provider["protocol"] = protocol
-                model_provider["cluster_name"] = (
+                cluster_name = (
                     provider + "_" + endpoint
                 )  # make name unique by appending endpoint
-                llms_with_endpoint.append(model_provider)
+                model_provider["cluster_name"] = cluster_name
+                # Only add if cluster_name is not already present to avoid duplicates
+                if cluster_name not in llms_with_endpoint_cluster_names:
+                    llms_with_endpoint.append(model_provider)
+                    llms_with_endpoint_cluster_names.add(cluster_name)
 
     if len(model_usage_name_keys) > 0:
         routing_model_provider = config_yaml.get("routing", {}).get(

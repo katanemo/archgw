@@ -8,7 +8,14 @@ from urllib.parse import urlparse
 from copy import deepcopy
 
 
-SUPPORTED_PROVIDERS = [
+SUPPORTED_PROVIDERS_WITH_BASE_URL = [
+    "azure_openai",
+    "ollama",
+    "qwen",
+    "amazon_bedrock",
+]
+
+SUPPORTED_PROVIDERS_WITHOUT_BASE_URL = [
     "arch",
     "deepseek",
     "groq",
@@ -17,14 +24,14 @@ SUPPORTED_PROVIDERS = [
     "gemini",
     "anthropic",
     "together_ai",
-    "azure_openai",
     "xai",
-    "ollama",
     "moonshotai",
     "zhipu",
-    "qwen",
-    "amazon_bedrock",
 ]
+
+SUPPORTED_PROVIDERS = (
+    SUPPORTED_PROVIDERS_WITHOUT_BASE_URL + SUPPORTED_PROVIDERS_WITH_BASE_URL
+)
 
 
 def get_endpoint_and_port(endpoint, protocol):
@@ -189,12 +196,9 @@ def validate_and_render_schema():
             provider = model_name_tokens[0]
 
             # Validate azure_openai and ollama provider requires base_url
-            if (
-                provider == "azure_openai"
-                or provider == "ollama"
-                or provider == "qwen"
-                or provider == "amazon_bedrock"
-            ) and model_provider.get("base_url") is None:
+            if (provider in SUPPORTED_PROVIDERS_WITH_BASE_URL) and model_provider.get(
+                "base_url"
+            ) is None:
                 raise Exception(
                     f"Provider '{provider}' requires 'base_url' to be set for model {model_name}"
                 )
@@ -245,11 +249,11 @@ def validate_and_render_schema():
             if model_provider.get("base_url", None):
                 base_url = model_provider["base_url"]
                 urlparse_result = urlparse(base_url)
-                url_path = urlparse_result.path
-                if url_path and url_path != "/":
-                    raise Exception(
-                        f"Please provide base_url without path, got {base_url}. Use base_url like 'http://example.com' instead of 'http://example.com/path'."
-                    )
+                base_url_path_prefix = urlparse_result.path
+                if base_url_path_prefix and base_url_path_prefix != "/":
+                    # we will now support base_url_path_prefix. This means that the user can provide base_url like http://example.com/path and we will extract /path as base_url_path_prefix
+                    model_provider["base_url_path_prefix"] = base_url_path_prefix
+
                 if urlparse_result.scheme == "" or urlparse_result.scheme not in [
                     "http",
                     "https",

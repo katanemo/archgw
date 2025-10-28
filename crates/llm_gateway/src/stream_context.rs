@@ -121,6 +121,10 @@ impl StreamContext {
                     .as_ref()
                     .unwrap_or(&"".to_string()),
                 self.streaming_response,
+                self.llm_provider()
+                    .base_url_path_prefix
+                    .as_deref()
+                    .unwrap_or(""),
             );
             if target_endpoint != request_path {
                 self.set_http_request_header(":path", Some(&target_endpoint));

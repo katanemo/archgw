@@ -267,6 +267,7 @@ pub struct LlmProvider {
     pub usage: Option<String>,
     pub routing_preferences: Option<Vec<RoutingPreference>>,
     pub cluster_name: Option<String>,
+    pub base_url_path_prefix: Option<String>,
 }
 
 pub trait IntoModels {
@@ -307,6 +308,7 @@ impl Default for LlmProvider {
             usage: None,
             routing_preferences: None,
             cluster_name: None,
+            base_url_path_prefix: None,
         }
     }
 }

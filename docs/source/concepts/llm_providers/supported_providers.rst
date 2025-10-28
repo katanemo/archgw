@@ -36,7 +36,7 @@ All providers are configured in the ``llm_providers`` section of your ``arch_con
 - ``access_key``: API key for authentication (supports environment variables)
 - ``default``: Mark a model as the default (optional, boolean)
 - ``name``: Custom name for the provider instance (optional)
-- ``base_url``: Custom endpoint URL (required for some providers)
+- ``base_url``: Custom endpoint URL (required for some providers, optional for others - see :ref:`base_url_details`)
 
 Provider Categories
 -------------------
@@ -493,6 +493,8 @@ Zhipu AI
 Providers Requiring Base URL
 ----------------------------
 
+The following providers require a ``base_url`` parameter to be configured. For detailed information on base URL configuration including path prefix behavior and examples, see :ref:`base_url_details`.
+
 Azure OpenAI
 ~~~~~~~~~~~~
 
@@ -615,6 +617,92 @@ For providers that implement the OpenAI API but aren't natively supported:
       - model: local/llama2-7b
         base_url: http://localhost:8000
         provider_interface: openai
+
+.. _base_url_details:
+
+Base URL Configuration
+----------------------
+
+The ``base_url`` parameter allows you to specify custom endpoints for model providers. It supports both hostname and path components, enabling flexible routing to different API endpoints.
+
+**Format:** ``<scheme>://<hostname>[:<port>][/<path>]``
+
+**Components:**
+
+- ``scheme``: ``http`` or ``https``
+- ``hostname``: API server hostname or IP address
+- ``port``: Optional, defaults to 80 for http, 443 for https
+- ``path``: Optional path prefix that **replaces** the provider's default API path
+
+**How Path Prefixes Work:**
+
+When you include a path in ``base_url``, it replaces the provider's default path prefix while preserving the endpoint suffix:
+
+- **Without path prefix**: Uses the provider's default path structure
+- **With path prefix**: Your custom path replaces the provider's default prefix, then the endpoint suffix is appended
+
+**Examples:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - Path Prefix in base_url
+     - Resulting Request Path
+   * - ``https://api.z.ai`` (no path)
+     - ``/api/paas/v4/chat/completions``
+   * - ``https://api.z.ai/api/coding/paas/v4``
+     - ``/api/coding/paas/v4/chat/completions``
+   * - ``https://mycompany.openai.azure.com``
+     - ``/openai/deployments/{model}/...``
+   * - ``https://mycompany.openai.azure.com/custom/path``
+     - ``/custom/path/{model}/...``
+   * - ``http://localhost:11434`` (no path)
+     - ``/v1/chat/completions``
+   * - ``http://localhost:11434/api/v2``
+     - ``/api/v2/chat/completions``
+
+**Configuration Examples:**
+
+.. code-block:: yaml
+
+    llm_providers:
+      # Simple hostname only - uses provider's default path
+      - model: zhipu/glm-4.6
+        access_key: $ZHIPU_API_KEY
+        base_url: https://api.z.ai
+        # Results in: https://api.z.ai/api/paas/v4/chat/completions
+
+      # With custom path prefix - replaces provider's default path
+      - model: zhipu/glm-4.6
+        access_key: $ZHIPU_API_KEY
+        base_url: https://api.z.ai/api/coding/paas/v4
+        # Results in: https://api.z.ai/api/coding/paas/v4/chat/completions
+
+      # Azure with custom path
+      - model: azure_openai/gpt-4
+        access_key: $AZURE_API_KEY
+        base_url: https://mycompany.openai.azure.com/custom/deployment/path
+        # Path prefix /custom/deployment/path replaces /openai/deployments
+
+      # Behind a proxy or API gateway
+      - model: openai/gpt-4o
+        access_key: $OPENAI_API_KEY
+        base_url: https://proxy.company.com/ai-gateway/openai
+        # Path prefix /ai-gateway/openai replaces /v1
+        # Results in: https://proxy.company.com/ai-gateway/openai/chat/completions
+
+      # Local endpoint with custom port
+      - model: ollama/llama3.1
+        base_url: http://localhost:8080
+        # Results in: http://localhost:8080/v1/chat/completions
+
+      # Custom provider with path prefix
+      - model: vllm/custom-model
+        access_key: $VLLM_API_KEY
+        base_url: https://vllm.example.com/models/v2
+        provider_interface: openai
+        # Results in: https://vllm.example.com/models/v2/chat/completions
 
 Advanced Configuration
 ----------------------

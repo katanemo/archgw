@@ -641,27 +641,6 @@ When you include a path in ``base_url``, it replaces the provider's default path
 - **Without path prefix**: Uses the provider's default path structure
 - **With path prefix**: Your custom path replaces the provider's default prefix, then the endpoint suffix is appended
 
-**Examples:**
-
-.. list-table::
-   :header-rows: 1
-   :widths: 50 50
-
-   * - Path Prefix in base_url
-     - Resulting Request Path
-   * - ``https://api.z.ai`` (no path)
-     - ``/api/paas/v4/chat/completions``
-   * - ``https://api.z.ai/api/coding/paas/v4``
-     - ``/api/coding/paas/v4/chat/completions``
-   * - ``https://mycompany.openai.azure.com``
-     - ``/openai/deployments/{model}/...``
-   * - ``https://mycompany.openai.azure.com/custom/path``
-     - ``/custom/path/{model}/...``
-   * - ``http://localhost:11434`` (no path)
-     - ``/v1/chat/completions``
-   * - ``http://localhost:11434/api/v2``
-     - ``/api/v2/chat/completions``
-
 **Configuration Examples:**
 
 .. code-block:: yaml
@@ -683,13 +662,12 @@ When you include a path in ``base_url``, it replaces the provider's default path
       - model: azure_openai/gpt-4
         access_key: $AZURE_API_KEY
         base_url: https://mycompany.openai.azure.com/custom/deployment/path
-        # Path prefix /custom/deployment/path replaces /openai/deployments
+        # Results in: https://mycompany.openai.azure.com/custom/deployment/path/chat/completions
 
       # Behind a proxy or API gateway
       - model: openai/gpt-4o
         access_key: $OPENAI_API_KEY
         base_url: https://proxy.company.com/ai-gateway/openai
-        # Path prefix /ai-gateway/openai replaces /v1
         # Results in: https://proxy.company.com/ai-gateway/openai/chat/completions
 
       # Local endpoint with custom port

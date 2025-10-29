@@ -243,14 +243,13 @@ listeners:
     timeout: 30s
 
 llm_providers:
-
   - model: custom/gpt-4o
 
 """,
     },
     {
-        "id": "base_url_no_prefix",
-        "expected_error": "Please provide base_url without path",
+        "id": "base_url_with_path_prefix",
+        "expected_error": None,
         "arch_config": """
 version: v0.1.0
 
@@ -264,7 +263,7 @@ listeners:
 llm_providers:
 
   - model: custom/gpt-4o
-    base_url: "http://custom.com/test"
+    base_url: "http://custom.com/api/v2"
     provider_interface: openai
 
 """,
@@ -322,8 +321,7 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
     monkeypatch.setenv("TEMPLATE_ROOT", "../")
 
     arch_config = arch_config_test_case["arch_config"]
-    expected_error = arch_config_test_case["expected_error"]
-    test_id = arch_config_test_case["id"]
+    expected_error = arch_config_test_case.get("expected_error")
 
     arch_config_schema = ""
     with open("../arch_config_schema.yaml", "r") as file:
@@ -346,9 +344,14 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
     ]
     with mock.patch("builtins.open", m_open):
         with mock.patch("config_generator.Environment"):
-            with pytest.raises(Exception) as excinfo:
+            if expected_error:
+                # Test expects an error
+                with pytest.raises(Exception) as excinfo:
+                    validate_and_render_schema()
+                assert expected_error in str(excinfo.value)
+            else:
+                # Test expects success - no exception should be raised
                 validate_and_render_schema()
-            assert expected_error in str(excinfo.value)
 
 
 def test_convert_legacy_llm_providers():

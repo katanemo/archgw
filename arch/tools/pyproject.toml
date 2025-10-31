@@ -1,12 +1,12 @@
 [project]
 name = "archgw"
-version = "0.3.17"
+version = "0.3.18"
 description = "Python-based CLI tool to manage Arch Gateway."
 authors = [{ name = "Katanemo Labs, Inc." }]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "archgw_modelserver==0.3.17",
+    "archgw_modelserver==0.3.18",
     "click>=8.1.7,<9.0.0",
     "jinja2>=3.1.4,<4.0.0",
     "jsonschema>=4.23.0,<5.0.0",

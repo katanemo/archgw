@@ -68,7 +68,7 @@ trio = ["trio (>=0.31.0)"]
 
 [[package]]
 name = "archgw-modelserver"
-version = "0.3.17"
+version = "0.3.18"
 description = "A model server for serving models"
 optional = false
 python-versions = ">=3.10"
@@ -3235,4 +3235,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "e05a2536064dfdc436d9609492a313b93c6a55d9670ea47b003ce17d04bf4f42"
+content-hash = "c831ac5cd8333c5519b29a9c1b8d95de79d19a2f651bac1c998c0e5b64ff3240"

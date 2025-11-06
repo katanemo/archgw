@@ -1,0 +1,36 @@
+import React from "react";
+import { Button } from "./ui/button";
+
+interface UnlockPotentialSectionProps {
+  variant?: "transparent" | "black";
+  className?: string;
+}
+
+export function UnlockPotentialSection({ 
+  variant = "transparent", 
+  className = "" 
+}: UnlockPotentialSectionProps) {
+  const backgroundClass = variant === "black" ? "bg-[#1a1a1a]" : "";
+  const textColor = variant === "black" ? "text-white" : "text-black";
+
+  return (
+    <section className={`relative py-24 px-6 lg:px-[102px] ${backgroundClass} ${className}`}>
+      <div className="max-w-[81rem] mx-auto">
+        <div className="max-w-4xl">
+          <h2 className={`font-sans font-normal text-3xl lg:text-4xl tracking-[-2.88px]! ${textColor} leading-[1.03] mb-8`}>
+            Unlock the full potential of your applications with Plano.
+          </h2>
+          
+          <div className="flex flex-col sm:flex-row gap-5">
+            <Button>
+              Deploy today
+            </Button>
+            <Button variant="secondaryDark">
+              Documentation
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

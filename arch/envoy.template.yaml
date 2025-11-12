@@ -262,19 +262,16 @@ static_resources:
                       domains:
                         - "*"
                       routes:
-                        {% for internal_cluster in ["arch_fc", "model_server"] %}
                         - match:
                             prefix: "/"
                             headers:
                               - name: "x-arch-upstream"
                                 string_match:
-                                  exact: {{ internal_cluster }}
+                                  exact: bright_staff
                           route:
                             auto_host_rewrite: true
-                            cluster: {{ internal_cluster }}
+                            cluster: bright_staff
                             timeout: 300s
-                        {% endfor %}
-
                         {% for cluster_name, cluster in arch_clusters.items() %}
                         - match:
                             prefix: "/"
@@ -868,24 +865,6 @@ static_resources:
             tls_params:
               tls_minimum_protocol_version: TLSv1_2
               tls_maximum_protocol_version: TLSv1_3
-
-    {% for internal_cluster in ["arch_fc", "model_server"] %}
-    - name: {{ internal_cluster }}
-      connect_timeout: 0.5s
-      type: STRICT_DNS
-      dns_lookup_family: V4_ONLY
-      lb_policy: ROUND_ROBIN
-      load_assignment:
-        cluster_name: {{ internal_cluster }}
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: host.docker.internal
-                      port_value: 51000
-                  hostname: {{ internal_cluster }}
-    {% endfor %}
     - name: mistral_7b_instruct
       connect_timeout: 0.5s
       type: STRICT_DNS

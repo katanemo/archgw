@@ -10,7 +10,7 @@ pytestmark = pytest.mark.skip(
 )
 
 MODEL_SERVER_ENDPOINT = os.getenv(
-    "MODEL_SERVER_ENDPOINT", "http://localhost:51000/function_calling"
+    "MODEL_SERVER_ENDPOINT", "http://localhost:12000/function_calling"
 )
 
 # Load test data from YAML file

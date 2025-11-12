@@ -6,18 +6,15 @@ use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
 use hermesllm::clients::SupportedAPIs;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
-use http_body_util::{BodyExt, Full, StreamBody};
-use hyper::body::Frame;
+use http_body_util::{BodyExt, Full};
 use hyper::header::{self};
 use hyper::{Request, Response, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
 use tracing::{debug, info, warn};
 
 use crate::router::llm_router::RouterService;
+use crate::handlers::utils::{create_streaming_response, PassthroughProcessor};
 
 fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
     Full::new(chunk.into())
@@ -25,7 +22,7 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
         .boxed()
 }
 
-pub async fn chat(
+pub async fn router_chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
     full_qualified_llm_provider_url: String,
@@ -237,34 +234,12 @@ pub async fn chat(
         headers.insert(header_name, header_value.clone());
     }
 
-    // channel to create async stream
-    let (tx, rx) = mpsc::channel::<Bytes>(16);
+    // Use the streaming utility with a passthrough processor (no modification of chunks)
+    let byte_stream = llm_response.bytes_stream();
+    let processor = PassthroughProcessor;
+    let streaming_response = create_streaming_response(byte_stream, processor, 16);
 
-    // Spawn a task to send data as it becomes available
-    tokio::spawn(async move {
-        let mut byte_stream = llm_response.bytes_stream();
-
-        while let Some(item) = byte_stream.next().await {
-            let item = match item {
-                Ok(item) => item,
-                Err(err) => {
-                    warn!("Error receiving chunk: {:?}", err);
-                    break;
-                }
-            };
-
-            if tx.send(item).await.is_err() {
-                warn!("Receiver dropped");
-                break;
-            }
-        }
-    });
-
-    let stream = ReceiverStream::new(rx).map(|chunk| Ok::<_, hyper::Error>(Frame::data(chunk)));
-
-    let stream_body = BoxBody::new(StreamBody::new(stream));
-
-    match response.body(stream_body) {
+    match response.body(streaming_response.body) {
         Ok(response) => Ok(response),
         Err(err) => {
             let err_msg = format!("Failed to create response: {}", err);

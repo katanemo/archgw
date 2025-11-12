@@ -1,6 +1,7 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
-use brightstaff::handlers::chat_completions::chat;
+use brightstaff::handlers::router::router_chat;
 use brightstaff::handlers::models::list_models;
+use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
@@ -125,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, req.uri().path());
-                        chat(req, router_service, fully_qualified_url, model_aliases)
+                        router_chat(req, router_service, fully_qualified_url, model_aliases)
                             .with_context(parent_cx)
                             .await
                     }
@@ -141,6 +142,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         )
                         .with_context(parent_cx)
                         .await
+                    }
+
+                    (&Method::POST, "/function_calling") => {
+                        let fully_qualified_url =
+                            format!("{}{}", llm_provider_url, "/v1");
+                        function_calling_chat_handler(req, fully_qualified_url)
+                            .with_context(parent_cx)
+                            .await
                     }
                     (&Method::GET, "/v1/models" | "/agents/v1/models") => {
                         Ok(list_models(llm_providers).await)

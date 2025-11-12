@@ -316,6 +316,17 @@ impl TryFrom<(SseEvent, &SupportedAPIs, &SupportedUpstreamAPIs)> for SseEvent {
         // Create a new transformed event based on the original
         let mut transformed_event = sse_event;
 
+        // Handle [DONE] marker early - don't try to parse as JSON
+        if transformed_event.is_done() {
+            // For OpenAI client API, keep [DONE] as-is
+            // For Anthropic client API, it will be transformed via ProviderStreamResponseType
+            if matches!(client_api, SupportedAPIs::OpenAIChatCompletions(_)) {
+                // Keep the [DONE] marker as-is for OpenAI clients
+                transformed_event.sse_transform_buffer = "data: [DONE]".to_string();
+                return Ok(transformed_event);
+            }
+        }
+
         // If has data, parse the data as a provider stream response (business logic layer)
         if transformed_event.data.is_some() {
             let data_str = transformed_event.data.as_ref().unwrap();

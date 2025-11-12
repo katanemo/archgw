@@ -304,6 +304,14 @@ def validate_and_render_schema():
                 }
             )
 
+    # Always add arch-function model provider
+    updated_model_providers.append(
+        {
+            "name": "arch-function",
+            "provider_interface": "arch",
+            "model": "Arch-Function",
+        }
+    )
     config_yaml["model_providers"] = deepcopy(updated_model_providers)
 
     listeners_with_provider = 0

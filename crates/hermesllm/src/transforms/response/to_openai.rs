@@ -83,8 +83,7 @@ impl TryFrom<MessagesResponse> for ChatCompletionsResponse {
             model: resp.model,
             choices: vec![choice],
             usage,
-            system_fingerprint: None,
-            service_tier: None,
+            ..Default::default()
         })
     }
 }
@@ -169,8 +168,7 @@ impl TryFrom<ConverseResponse> for ChatCompletionsResponse {
             model,
             choices: vec![choice],
             usage,
-            system_fingerprint: None,
-            service_tier: None,
+            ..Default::default()
         })
     }
 }

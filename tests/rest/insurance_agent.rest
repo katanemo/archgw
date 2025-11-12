@@ -1,4 +1,4 @@
-@model_server_endpoint = http://localhost:51000
+@model_server_endpoint = http://localhost:12000
 @archfc_endpoint = https://archfc.katanemo.dev
 
 ### multi turn conversation with intent, except parameter gathering
@@ -54,26 +54,8 @@ Content-Type: application/json
     }
   ]
 }
-### talk to Arch-Intent directly for completion
-POST https://archfc.katanemo.dev/v1/chat/completions HTTP/1.1
-Content-Type: application/json
 
-{
-  "model": "Arch-Intent",
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant.\n\nYou task is to check if there are any tools that can be used to help the last user message in conversations according to the available tools listed below.\n\n<tools>\n{\"index\": \"T0\", \"type\": \"function\", \"function\": {\"name\": \"weather_forecast\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"str\"}, \"days\": {\"type\": \"int\"}}, \"required\": [\"city\", \"days\"]}}}\n</tools>\n\nProvide your tool assessment for ONLY THE LAST USER MESSAGE in the above conversation:\n- First line must read 'Yes' or 'No'.\n- If yes, a second line must include a comma-separated list of tool indexes.\n"
-    },
-    { "role": "user", "content": "hi" }
-  ],
-  "stream": false
-}
-
-
-
-### multi turn conversation with correct parameters
-
+### multi turn conversation with intent, except parameter gathering
 POST {{model_server_endpoint}}/function_calling HTTP/1.1
 Content-Type: application/json
 
@@ -124,21 +106,6 @@ Content-Type: application/json
         }
     }
   ]
-}
-### talk to Arch-Intent directly for completion, expect No
-POST https://archfc.katanemo.dev/v1/chat/completions HTTP/1.1
-Content-Type: application/json
-
-{
-  "model": "Arch-Intent",
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a helpful assistant.\n\nYou task is to check if there are any tools that can be used to help the last user message in conversations according to the available tools listed below.\n\n<tools>\n{\"index\": \"T0\", \"type\": \"function\", \"function\": {\"name\": \"weather_forecast\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"str\"}, \"days\": {\"type\": \"int\"}}, \"required\": [\"city\", \"days\"]}}}\n</tools>\n\nProvide your tool assessment for ONLY THE LAST USER MESSAGE in the above conversation:\n- First line must read 'Yes' or 'No'.\n- If yes, a second line must include a comma-separated list of tool indexes.\n"
-    },
-    { "role": "user", "content": "what is your name" }
-  ],
-  "stream": false
 }
 
 ### multi turn conversation with correct parameters

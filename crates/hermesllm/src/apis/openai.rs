@@ -385,6 +385,8 @@ pub struct ChatCompletionsResponse {
     pub usage: Usage,
     pub system_fingerprint: Option<String>,
     pub service_tier: Option<String>,
+    // This isn't a standard OpenAI field, but we include it for extensibility
+    pub metadata: Option<HashMap<String, Value>>,
 }
 
 impl Default for ChatCompletionsResponse {
@@ -398,6 +400,7 @@ impl Default for ChatCompletionsResponse {
             usage: Usage::default(),
             system_fingerprint: None,
             service_tier: None,
+            metadata: None,
         }
     }
 }

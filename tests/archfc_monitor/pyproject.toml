@@ -1,0 +1,16 @@
+[project]
+name = "archfc-monitor"
+version = "0.1.0"
+description = "Monitoring tool for Arch-FC endpoints"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+archfc-monitor = "archfc_monitor:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

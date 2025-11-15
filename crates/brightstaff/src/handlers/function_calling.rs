@@ -987,10 +987,13 @@ impl ArchFunctionHandler {
 
         info!("[arch-fc]: raw model response: {}", response_dict.raw_response);
 
+        // General model response (no intent matched - should route to default target)
         let model_message = if response_dict.response.as_ref().map_or(false, |s| !s.is_empty()) {
+            // When arch-fc returns a "response" field, it means no intent was matched
+            // Return empty content and empty tool_calls so prompt_gateway routes to default target
             ResponseMessage {
                 role: Role::Assistant,
-                content: response_dict.response.clone(),
+                content: Some(String::new()),
                 refusal: None,
                 annotations: None,
                 audio: None,
@@ -1105,6 +1108,14 @@ impl ArchFunctionHandler {
             }
         };
 
+        // Create metadata with the raw model response
+        let mut metadata = HashMap::new();
+        metadata.insert(
+            "x-arch-fc-model-response".to_string(),
+            serde_json::to_value(&response_dict.raw_response)
+                .unwrap_or_else(|_| Value::String(response_dict.raw_response.clone())),
+        );
+
         let chat_completion_response = ChatCompletionsResponse {
             id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
             object: Some("chat.completion".to_string()),
@@ -1125,7 +1136,7 @@ impl ArchFunctionHandler {
             },
             system_fingerprint: None,
             service_tier: None,
-            metadata: None,
+            metadata: Some(metadata),
         };
 
         info!("[response arch-fc]: {:?}", chat_completion_response);

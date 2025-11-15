@@ -264,13 +264,6 @@ impl StreamContext {
             .tool_calls
             .clone_into(&mut self.tool_calls);
 
-        if self.tool_calls.as_ref().unwrap().len() > 1 {
-            warn!(
-                "multiple tool calls not supported yet, tool_calls count found: {}",
-                self.tool_calls.as_ref().unwrap().len()
-            );
-        }
-
         if self.tool_calls.is_none() || self.tool_calls.as_ref().unwrap().is_empty() {
             // This means that Arch FC did not have enough information to resolve the function call
             // Arch FC probably responded with a message asking for more information.
@@ -311,6 +304,14 @@ impl StreamContext {
                 StatusCode::OK.as_u16().into(),
                 vec![],
                 Some(direct_response_str.as_bytes()),
+            );
+        }
+
+        // At this point, we know tool_calls is not None and not empty
+        if self.tool_calls.as_ref().unwrap().len() > 1 {
+            warn!(
+                "multiple tool calls not supported yet, tool_calls count found: {}",
+                self.tool_calls.as_ref().unwrap().len()
             );
         }
 

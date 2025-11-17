@@ -19,6 +19,8 @@ use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
 
+
+
 // ============================================================================
 // CONSTANTS FOR HALLUCINATION DETECTION
 // ============================================================================
@@ -32,6 +34,7 @@ const PARAMETER_NAME_END_TOKENS: &[&str] = &["\":", ":\"", "':", ":'", "\":\"", 
 const PARAMETER_NAME_START_PATTERN: &[&str] = &["\",\"", "','"];
 const PARAMETER_VALUE_START_PATTERN: &[&str] = &["\":", "':"];
 const PARAMETER_VALUE_END_TOKEN: &[&str] = &["\",", "\"}"];
+const ARCH_FUNCTION_MODEL_NAME: &str = "Arch-Function";
 
 /// Default hallucination detection thresholds
 #[derive(Debug, Clone)]
@@ -1241,7 +1244,7 @@ pub async fn function_calling_chat_handler(
 
     // Add "model": "Arch-Function" to the request
     if let Some(obj) = body_json.as_object_mut() {
-        obj.insert("model".to_string(), json!("Arch-Function"));
+        obj.insert("model".to_string(), ARCH_FUNCTION_MODEL_NAME.into());
     }
 
     // Parse as ChatCompletionsRequest
@@ -1282,13 +1285,13 @@ pub async fn function_calling_chat_handler(
     // Call the handler
     let final_response = if use_agent_orchestrator {
         let handler = ArchAgentHandler::new(
-            chat_request.model.clone(),
+            ARCH_FUNCTION_MODEL_NAME.to_string(),
             llm_provider_url.clone(),
         );
         handler.function_handler.function_calling_chat(chat_request).await
     } else {
         let handler = ArchFunctionHandler::new(
-            chat_request.model.clone(),
+            ARCH_FUNCTION_MODEL_NAME.to_string(),
             ArchFunctionConfig::default(),
             llm_provider_url.clone(),
         );

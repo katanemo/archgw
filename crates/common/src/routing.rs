@@ -40,8 +40,14 @@ pub fn get_llm_provider(
     let mut rng = thread_rng();
     llm_providers
         .iter()
+        .filter(|(_, provider)| {
+            provider.model
+                .as_ref()
+                .map(|m| !m.starts_with("Arch"))
+                .unwrap_or(true)
+        })
         .choose(&mut rng)
-        .expect("There should always be at least one llm provider")
+        .expect("There should always be at least one non-Arch llm provider")
         .1
         .clone()
 }

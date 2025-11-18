@@ -1,34 +1,47 @@
 import React from "react";
-import { AsciiDiagram } from "@/components/AsciiDiagram";
-import { diagrams } from "@/data/diagrams";
+import Image from "next/image";
 
 export function IntroSection() {
   return (
     <section className="relative bg-[#1a1a1a] text-white py-20 px-6 lg:px-[102px]">
       <div className="max-w-324 mx-auto">
-        <div className="flex flex-col lg:flex-row gap-12 items-start">
+        <div className="flex flex-col lg:flex-row gap-12 items-center">
           {/* Left Content */}
           <div className="flex-1">
             {/* Heading */}
+            <p className="font-mono font-bold text-primary-light text-xl tracking-[1.92px]! mb-4 leading-[1.102]">
+              WHY PLANO?
+            </p>
             <h2 className="font-sans font-medium tracking-[-1.92px]! text-[#9797ea] text-4xl leading-[1.102] mb-6 max-w-[633px]">
-              Go beyond AI nascent demos
+              Ship prototypes to production
+              <span className="italic">—fast.</span>
             </h2>
 
             {/* Body Text */}
             <div className="font-mono tracking-[-0.96px]! text-white text-lg max-w-[713px]">
               <p className="mb-0 leading-8">
-                Plano is the infrastructure layer for building, scaling, and routing AI agents. It sits between your app and your models, enforcing safety guardrails, orchestrating multi-agent workflows, and unifying access across large language models.
-              </p>
-              <br />
-              <p className="mb-0 leading-8">
-                Developers use Plano to build faster, platform teams use it to unify governance, and AI leads use it to run continuously learning systems that stay aligned, safe, and performant. From SaaS backends to distributed ecosystems, Plano turns raw agent logic into something you can deploy, monitor, and evolve in production.
+                Plano is a framework-friendly proxy server and dataplane for agents, 
+                deployed as a sidecar. Plano handles the critical plumbing work in AI 
+                like agent routing and orchestration, comprehensive traces for agentic
+                interactions, guardrail hooks, unified APIs for LLMs — so <strong> developers </strong> 
+                can focus more on modeling workflows, <strong> product teams </strong> can accelerate 
+                feedback loops for reinforcement learning and <strong>engineering teams</strong> can 
+                standardize policies and access controls across every agent and LLM for
+                safer, more reliable scaling.
               </p>
             </div>
           </div>
 
           {/* Right Diagram */}
-          <div className="lg:w-[660px] relative flex-shrink-0">
-            <AsciiDiagram content={diagrams.infrastructureLayer} className="max-w-none mx-0" />
+          <div className="flex-1 relative w-full">
+            <Image 
+              src="/NetworkPathDiagram.svg" 
+              alt="Network Path Diagram" 
+              width={800} 
+              height={600} 
+              className="w-full h-auto"
+              priority
+            />
           </div>
         </div>
       </div>

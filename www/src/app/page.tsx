@@ -7,6 +7,7 @@ import { IntroSection } from "@/components/IntroSection";
 import { IdeaToAgentSection } from "@/components/IdeaToAgentSection";
 import { UseCasesSection } from "@/components/UseCasesSection";
 import { VerticalCarouselSection } from "@/components/VerticalCarouselSection";
+import { HowItWorksSection } from "@/components/HowItWorksSection";
 import { UnlockPotentialSection } from "@/components/UnlockPotentialSection";
 import { Footer } from "@/components/Footer";
 import { LogoCloud } from "@/components/LogoCloud";
@@ -22,6 +23,7 @@ export default function Home() {
           <IdeaToAgentSection />
           <UseCasesSection />
           <VerticalCarouselSection />
+          <HowItWorksSection />
           <UnlockPotentialSection variant="black" />
 
           {/* Rest of the sections will be refactored next */}

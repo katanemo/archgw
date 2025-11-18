@@ -9,35 +9,35 @@ const carouselData = [
     id: 1,
     category: "LAUNCH FASTER",
     title: "Focus on core objectives",
-    description: "Plano handles the heavy lifting for agentic apps with purpose-built LLMs that automate request clarification, query routing, and data extraction. Ship faster without juggling prompt engineering or infrastructure details.",
+    description: "Building AI agents is hard enough (iterate on prompts and evaluate LLMs, etc), the plumbing work shouldn't add to that complexity. Plano takes care of the critical plumbing work like routing and orchestration to agents that slows you down and locks you into rigid frameworks, freeing developers to innovate on what truly matters.",
     image: "/LaunchFaster.svg"
   },
   {
     id: 2,
-    category: "SCALE EFFICIENTLY", 
-    title: "Build without limits",
-    description: "From prototype to production, Plano scales with your needs. Handle thousands of concurrent requests while maintaining consistent performance and reliability across your agent network.",
-    image: "/ShipConfidently.svg"
-  },
-  {
-    id: 3,
-    category: "DEPLOY CONFIDENTLY",
-    title: "Production-ready infrastructure",
-    description: "Enterprise-grade security, monitoring, and governance built-in. Deploy your agents with confidence knowing they're protected by battle-tested infrastructure and compliance frameworks.",
+    category: "BUILD WITH CHOICE", 
+    title: "Rapidly incorporate LLMs",
+    description: "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code.",
     image: "/BuildWithChoice.svg"
   },
   {
-    id: 4,
-    category: "INTEGRATE SEAMLESSLY",
-    title: "Connect everything",
-    description: "Unified API access across all major LLM providers. Switch between models, combine capabilities, and route requests intelligently without vendor lock-in or complex integrations.",
+    id: 3,
+    category: "RICH LEARNING SIGNALS",
+    title: "Hyper-rich agent traces and logs",
+    description: "Knowing when agents fail or delight users is a critical signal that feeds into a reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
     image: "/Telemetry.svg"
   },
   {
+    id: 4,
+    category: "SHIP CONFIDENTLY",
+    title: "Centrally apply guardrail policies",
+    description: "Plano comes built-in with a state-of-the-art guardrail model you can use for things like jailbreak detection. But you can easily extend those capabilities via plano's agent filter chain to apply custom policy checks in a centralized way and keep users engaged on topics relevant to your requirements.",
+    image: "/ShipConfidently.svg"
+  },
+  {
     id: 5,
-    category: "OPTIMIZE CONTINUOUSLY",
-    title: "Learn and improve",
-    description: "Built-in analytics and feedback loops help your agents get smarter over time. Track performance, identify bottlenecks, and optimize workflows with real-time insights and automated improvements.",
+    category: "SCALABLE ARCHITECTURE",
+    title: "Protocol-Native Infrastructure",
+    description: "Plano's sidecar deployment model avoids library-based abstractions - operating as a protocol-native data plane that integrates seamlessly with your existing agents via agentic APIs (like v1/responses). This decouples your core agent logic from plumbing concerns - run it alongside any framework without code changes, vendor lock-in, or performance overhead.",
     image: "/Contextual.svg"
   }
 ];

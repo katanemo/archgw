@@ -14,23 +14,23 @@ export function Hero() {
           {/* Version Badge */}
           <div className="mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[rgba(185,191,255,0.4)] border border-[var(--secondary)] shadow backdrop-blur">
-              <span className="text-sm font-medium text-black/65">v0.3.12</span>
+              <span className="text-sm font-medium text-black/65">v0.4</span>
               <span className="text-sm font-medium text-black">—</span>
-              <span className="text-sm font-[600] tracking-[-0.6px]! text-black">RAG Agent Launch!</span>
+              <span className="text-sm font-[600] tracking-[-0.6px]! text-black">Unified /v1/responses API with state management</span>
             </div>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-5xl lg:text-7xl font-normal leading-tight tracking-tight text-black mb-4 flex flex-col -space-y-3">
-            <span className="font-sans">The AI-native </span>
-            <span className="font-sans font-medium text-[var(--secondary)]">network for agents</span>
+            <span className="font-sans">Models-native </span>
+            <span className="font-sans font-medium text-[var(--secondary)]">dataplane for agents</span>
           </h1>
         </div>
 
         {/* Subheading with CTA Buttons on the right */}
         <div className="max-w-7xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <p className="text-xl lg:text-2xl font-sans font-[500] tracking-[-1.92px]! text-black max-w-2xl">
-            Build and scale AI agents without handling the low-level plumbing.
+          <p className="text-xl lg:text-2xl font-sans font-[500] tracking-[-1.92px]! text-black max-w-4xl">
+            Build agents faster, and scale them reliably by offloading the plumbing work in AI agents.
           </p>
 
           {/* CTA Buttons */}

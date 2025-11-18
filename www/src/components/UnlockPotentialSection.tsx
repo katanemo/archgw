@@ -17,8 +17,9 @@ export function UnlockPotentialSection({
     <section className={`relative py-24 px-6 lg:px-[102px] ${backgroundClass} ${className}`}>
       <div className="max-w-[81rem] mx-auto">
         <div className="max-w-4xl">
-          <h2 className={`font-sans font-normal text-3xl lg:text-4xl tracking-[-2.88px]! ${textColor} leading-[1.03] mb-8`}>
-            Unlock the full potential of your applications with Plano.
+          <h2 className={`font-sans font-normal text-3xl lg:text-4xl tracking-[-2.88px]! ${textColor} leading-[1.4] mb-8`}>
+            Focus on prompting, not plumbing<br />
+            Build with <strong className="font-medium text-primary">plano</strong>, get started in less than a minute.
           </h2>
           
           <div className="flex flex-col sm:flex-row gap-5">

@@ -7,9 +7,11 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { href: "/start", label: "start locally" },
   { href: "/docs", label: "docs" },
-  { href: "/pricing", label: "pricing" },
+  { href: "/model-research", label: "models research" },
   { href: "/blog", label: "blog" },
+  { href: "/why", label: "why plano?" },
 ];
 
 export function Navbar() {

@@ -101,6 +101,12 @@ pub struct ChatCompletionsRequest {
     pub top_logprobs: Option<u32>,
     pub user: Option<String>,
     // pub web_search: Option<bool>, // GOOD FIRST ISSUE: Future support for web search
+
+    // VLLM-specific parameters (used by Arch-Function)
+    pub top_k: Option<u32>,
+    pub stop_token_ids: Option<Vec<u32>>,
+    pub continue_final_message: Option<bool>,
+    pub add_generation_prompt: Option<bool>,
 }
 
 impl ChatCompletionsRequest {

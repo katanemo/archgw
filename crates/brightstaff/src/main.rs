@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
                     (&Method::POST, "/function_calling") => {
                         let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, "/v1");
+                            format!("{}{}", llm_provider_url, "/v1/chat/completions");
                         function_calling_chat_handler(req, fully_qualified_url)
                             .with_context(parent_cx)
                             .await

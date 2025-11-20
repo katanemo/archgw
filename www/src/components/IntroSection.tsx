@@ -35,7 +35,7 @@ export function IntroSection() {
           {/* Right Diagram */}
           <div className="flex-1 relative w-full">
             <Image 
-              src="/NetworkPathDiagram.svg" 
+              src="/IntroDiagram.svg" 
               alt="Network Path Diagram" 
               width={800} 
               height={600} 

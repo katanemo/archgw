@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
 
@@ -9,31 +10,36 @@ const verticalCarouselData = [
     id: 1,
     category: "INTRODUCTION",
     title: "Simple to revolutionary",
-    description: "By handling the critical yet complex tasks of prompt processing, Plano enables you to focus on what truly matters — achieving your business goals. With built-in capabilities like intelligent task routing, jailbreaking prevention, and centralized observability, Plano ensures your system runs smoothly and securely from the start, while continuously scaling with your needs."
+    description: "Plano is an intelligent (edge and LLM) proxy server designed for agents - to help you focus on core business objectives. Arch handles critical but the pesky tasks related to the handling and processing of prompts, which includes detecting and rejecting jailbreak attempts, intelligent task routing for improved accuracy, mapping user requests into 'backend' functions, and managing the observability of prompts and LLM in a centralized way.",
+    diagram: "/Introduction.svg"
   },
   {
     id: 2,
     category: "OPEN SOURCE",
-    title: "Built on proven foundations",
-    description: "Plano is built on open-source technologies and proven infrastructure patterns. This ensures transparency, community-driven development, and the ability to customize and extend the platform to meet your specific needs while maintaining enterprise-grade reliability."
+    title: "Freedom to extend & deploy",
+    description: "No lock-in. No black boxes. Just an open, intelligent (edge and LLM) proxy for building smarter, agentic AI applications. Created by contributors to Envoy Proxy, Arch brings enterprise-grade reliability to prompt orchestration, while giving you the flexibility to shape, extend, and integrate it into your AI workflows.",
+    diagram: "/OpenSource.svg"
   },
   {
     id: 3,
     category: "BUILT ON ENVOY",
-    title: "Enterprise-grade infrastructure", 
-    description: "Leveraging the battle-tested Envoy Proxy, Plano inherits years of production-hardened networking capabilities. This foundation provides unmatched performance, reliability, and scalability for your AI agent infrastructure."
+    title: "Production-proven infrastructure", 
+    description: "Plano takes a dependency on Envoy and is a self-contained process designed to run alongside your application servers. Plano extends Envoy's HTTP connection management subsystem, filtering, and telemetry capabilities exclusively for prompts and LLMs. Use Plano with any application language or framework, and use Plano with any LLM provider.",
+    diagram: "/BuiltOnEnvoy.svg"
   },
   {
     id: 4,
     category: "PURPOSE-BUILT",
-    title: "Designed for AI agents",
-    description: "Unlike generic API gateways, Plano is purpose-built for AI agent workloads. Every feature is designed with prompt processing, model routing, and agent orchestration in mind, providing optimal performance for your AI applications."
+    title: "Task-optimized, efficient LLMs",
+    description: "Unlike generic API gateways, Plano is purpose-built for AI agent workloads. Every feature is designed with prompt processing, model routing, and agent orchestration in mind, providing optimal performance for your AI applications.",
+    diagram: "/PurposeBuiltLLMs.svg"
   },
   {
     id: 5,
     category: "PROMPT ROUTING",
     title: "Intelligent request handling",
-    description: "Advanced prompt routing capabilities ensure that each request is directed to the most appropriate model or agent. This intelligent routing optimizes for cost, performance, and accuracy based on your specific requirements and preferences."
+    description: "Prompt Targets are a core concept in Plano, enabling developers to define how different types of user prompts should get processed and routed. Define prompt targets, so you can seperate business logic from the complexities of processing and handling of prompts, focusing on the quality of your application and a cleaner seperation of concerns in your codebase.",
+    diagram: "/PromptRouting.svg"
   }
 ];
 
@@ -46,7 +52,7 @@ export function VerticalCarouselSection() {
 
   return (
     <section className="relative bg-[#1a1a1a] text-white py-24 px-6 lg:px-[102px]">
-      <div className="max-w-[81rem] mx-auto">
+      <div className="max-w-324 mx-auto">
         {/* Main Heading */}
         <h2 className="font-sans font-normal text-3xl lg:text-4xl tracking-[-2.88px]! text-white leading-[1.03] mb-16 max-w-4xl">
           Basic scenarios to powerful agentic apps in minutes
@@ -55,7 +61,7 @@ export function VerticalCarouselSection() {
         {/* Vertical Carousel Layout */}
         <div className="flex flex-col lg:flex-row">
           {/* Left Sidebar Navigation */}
-          <div className="lg:w-72 flex-shrink-0">
+          <div className="lg:w-72 shrink-0">
             <div className="relative space-y-6">
               {/* Sliding Rectangle Indicator */}
               <motion.div
@@ -91,7 +97,7 @@ export function VerticalCarouselSection() {
           </div>
 
           {/* Right Content Area */}
-          <div className="flex-1 min-h-[400px] relative lg:-ml-8">
+          <div className="flex-1 min-h-[600px] relative lg:-ml-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSlide}
@@ -101,24 +107,38 @@ export function VerticalCarouselSection() {
                 transition={{ duration: 0.5, ease: "easeInOut" }}
                 className="absolute inset-0"
               >
-                <div className="max-w-2xl">
-                  {/* Title */}
-                  <h3 className="font-sans font-medium text-[var(--primary)] text-2xl lg:text-[34px] tracking-[-2.4px]! leading-[1.03] mb-4">
-                    {verticalCarouselData[activeSlide].title}
-                  </h3>
+                <div className="flex flex-col lg:flex-row gap-12 items-start h-full">
+                  {/* Text Content */}
+                  <div className="flex-1 max-w-2xl">
+                    {/* Title */}
+                    <h3 className="font-sans font-medium text-primary text-2xl lg:text-[34px] tracking-[-2.4px]! leading-[1.03] mb-4">
+                      {verticalCarouselData[activeSlide].title}
+                    </h3>
 
-                  {/* Description */}
-                  <div className="font-mono text-white text-xl lg:text-lg leading-10 tracking-[-1.2px]! max-w-md">
-                    <p className="mb-0">
-                      {verticalCarouselData[activeSlide].description}
-                    </p>
+                    {/* Description */}
+                    <div className="font-mono text-white text-xl lg:text-lg leading-10 tracking-[-1.2px]! max-w-md">
+                      <p className="mb-0">
+                        {verticalCarouselData[activeSlide].description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Diagram - Right Side */}
+                  <div className="flex-1 w-full flex items-start justify-center lg:justify-start pt-2">
+                    <Image 
+                      src={verticalCarouselData[activeSlide].diagram} 
+                      alt={verticalCarouselData[activeSlide].title} 
+                      width={600} 
+                      height={400} 
+                      className="w-full max-w-[600px] h-auto object-contain" 
+                      priority 
+                    />
                   </div>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
-
       </div>
     </section>
   );

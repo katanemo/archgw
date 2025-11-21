@@ -15,4 +15,3 @@ export function Logo() {
     </div>
   );
 }
-

@@ -6,7 +6,8 @@
 /* Font Face Declarations */
 @font-face {
   font-family: "IBM Plex Sans";
-  src: url("/fonts/IBMPlexSans-VariableFont_wdth,wght.ttf") format("truetype-variations");
+  src: url("/fonts/IBMPlexSans-VariableFont_wdth,wght.ttf")
+    format("truetype-variations");
   font-weight: 100 700; /* Variable font weight range */
   font-style: normal;
   font-display: swap;
@@ -14,7 +15,8 @@
 
 @font-face {
   font-family: "IBM Plex Sans";
-  src: url("/fonts/IBMPlexSans-Italic-VariableFont_wdth,wght.ttf") format("truetype-variations");
+  src: url("/fonts/IBMPlexSans-Italic-VariableFont_wdth,wght.ttf")
+    format("truetype-variations");
   font-weight: 100 700; /* Variable font weight range */
   font-style: italic;
   font-display: swap;

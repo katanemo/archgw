@@ -10,37 +10,42 @@ const verticalCarouselData = [
     id: 1,
     category: "INTRODUCTION",
     title: "Simple to revolutionary",
-    description: "Plano is an intelligent (edge and LLM) proxy server designed for agents - to help you focus on core business objectives. Arch handles critical but the pesky tasks related to the handling and processing of prompts, which includes detecting and rejecting jailbreak attempts, intelligent task routing for improved accuracy, mapping user requests into 'backend' functions, and managing the observability of prompts and LLM in a centralized way.",
-    diagram: "/IntroDiagram.svg"
+    description:
+      "Plano is an intelligent (edge and LLM) proxy server designed for agents - to help you focus on core business objectives. Arch handles critical but the pesky tasks related to the handling and processing of prompts, which includes detecting and rejecting jailbreak attempts, intelligent task routing for improved accuracy, mapping user requests into 'backend' functions, and managing the observability of prompts and LLM in a centralized way.",
+    diagram: "/IntroDiagram.svg",
   },
   {
     id: 2,
     category: "OPEN SOURCE",
     title: "Freedom to extend & deploy",
-    description: "No lock-in. No black boxes. Just an open, intelligent (edge and LLM) proxy for building smarter, agentic AI applications. Created by contributors to Envoy Proxy, Arch brings enterprise-grade reliability to prompt orchestration, while giving you the flexibility to shape, extend, and integrate it into your AI workflows.",
-    diagram: "/OpenSource.svg"
+    description:
+      "No lock-in. No black boxes. Just an open, intelligent (edge and LLM) proxy for building smarter, agentic AI applications. Created by contributors to Envoy Proxy, Arch brings enterprise-grade reliability to prompt orchestration, while giving you the flexibility to shape, extend, and integrate it into your AI workflows.",
+    diagram: "/OpenSource.svg",
   },
   {
     id: 3,
     category: "BUILT ON ENVOY",
-    title: "Production-proven infrastructure", 
-    description: "Plano takes a dependency on Envoy and is a self-contained process designed to run alongside your application servers. Plano extends Envoy's HTTP connection management subsystem, filtering, and telemetry capabilities exclusively for prompts and LLMs. Use Plano with any application language or framework, and use Plano with any LLM provider.",
-    diagram: "/BuiltOnEnvoy.svg"
+    title: "Production-proven infrastructure",
+    description:
+      "Plano takes a dependency on Envoy and is a self-contained process designed to run alongside your application servers. Plano extends Envoy's HTTP connection management subsystem, filtering, and telemetry capabilities exclusively for prompts and LLMs. Use Plano with any application language or framework, and use Plano with any LLM provider.",
+    diagram: "/BuiltOnEnvoy.svg",
   },
   {
     id: 4,
     category: "PURPOSE-BUILT",
     title: "Task-optimized, efficient LLMs",
-    description: "Unlike generic API gateways, Plano is purpose-built for AI agent workloads. Every feature is designed with prompt processing, model routing, and agent orchestration in mind, providing optimal performance for your AI applications.",
-    diagram: "/PurposeBuilt.svg"
+    description:
+      "Unlike generic API gateways, Plano is purpose-built for AI agent workloads. Every feature is designed with prompt processing, model routing, and agent orchestration in mind, providing optimal performance for your AI applications.",
+    diagram: "/PurposeBuilt.svg",
   },
   {
     id: 5,
     category: "PROMPT ROUTING",
     title: "Intelligent request handling",
-    description: "Prompt Targets are a core concept in Plano, enabling developers to define how different types of user prompts should get processed and routed. Define prompt targets, so you can seperate business logic from the complexities of processing and handling of prompts, focusing on the quality of your application and a cleaner seperation of concerns in your codebase.",
-    diagram: "/PromptRouting.svg"
-  }
+    description:
+      "Prompt Targets are a core concept in Plano, enabling developers to define how different types of user prompts should get processed and routed. Define prompt targets, so you can seperate business logic from the complexities of processing and handling of prompts, focusing on the quality of your application and a cleaner seperation of concerns in your codebase.",
+    diagram: "/PromptRouting.svg",
+  },
 ];
 
 export function VerticalCarouselSection() {
@@ -64,7 +69,7 @@ export function VerticalCarouselSection() {
             className="relative overflow-x-auto pb-2"
             style={{
               scrollbarWidth: "none",
-              msOverflowStyle: "none"
+              msOverflowStyle: "none",
             }}
           >
             <style jsx>{`
@@ -79,8 +84,8 @@ export function VerticalCarouselSection() {
                   onClick={() => handleSlideClick(index)}
                   className={`relative px-4 py-2 rounded transition-all duration-300 whitespace-nowrap ${
                     index === activeSlide
-                      ? 'bg-[#6363d2]/90 text-[#f9faff]'
-                      : 'bg-[#6363d2]/10 text-[rgba(182,188,255,0.71)] hover:bg-[#6363d2]/15'
+                      ? "bg-[#6363d2]/90 text-[#f9faff]"
+                      : "bg-[#6363d2]/10 text-[rgba(182,188,255,0.71)] hover:bg-[#6363d2]/15"
                   }`}
                 >
                   <span className="font-mono font-bold text-sm tracking-[1.44px]!">
@@ -100,16 +105,16 @@ export function VerticalCarouselSection() {
               <motion.div
                 className="absolute left-0 top-0 w-2 h-4 bg-[#6363d2] z-10 rounded-xs"
                 animate={{
-                  y: activeSlide * 52 + 6 // Each item is ~28px text + 24px gap = 52px, +10px to center smaller rectangle
+                  y: activeSlide * 52 + 6, // Each item is ~28px text + 24px gap = 52px, +10px to center smaller rectangle
                 }}
                 transition={{
                   type: "spring",
                   stiffness: 300,
                   damping: 30,
-                  duration: 0.6
+                  duration: 0.6,
                 }}
               />
-              
+
               {verticalCarouselData.map((item, index) => (
                 <div
                   key={item.id}
@@ -117,11 +122,13 @@ export function VerticalCarouselSection() {
                   className="cursor-pointer relative pl-6 transition-all duration-300"
                 >
                   {/* Category Text */}
-                  <span className={`font-mono font-bold text-lg tracking-[1.69px]! transition-colors duration-300 ${
-                    index === activeSlide 
-                      ? 'text-[#acb3fe]' 
-                      : 'text-[rgba(172,179,254,0.71)]'
-                  }`}>
+                  <span
+                    className={`font-mono font-bold text-lg tracking-[1.69px]! transition-colors duration-300 ${
+                      index === activeSlide
+                        ? "text-[#acb3fe]"
+                        : "text-[rgba(172,179,254,0.71)]"
+                    }`}
+                  >
                     {item.category}
                   </span>
                 </div>
@@ -144,12 +151,12 @@ export function VerticalCarouselSection() {
                   {/* Diagram - Above on mobile, Right Side on desktop */}
                   <div className="w-full lg:flex-1 flex items-center justify-center lg:justify-start order-first lg:order-last shrink-0">
                     <div className="relative w-full max-w-full sm:max-w-md lg:max-w-[600px] aspect-4/3">
-                      <Image 
-                        src={verticalCarouselData[activeSlide].diagram} 
-                        alt={verticalCarouselData[activeSlide].title} 
+                      <Image
+                        src={verticalCarouselData[activeSlide].diagram}
+                        alt={verticalCarouselData[activeSlide].title}
                         fill
-                        className="object-contain object-top" 
-                        priority 
+                        className="object-contain object-top"
+                        priority
                       />
                     </div>
                   </div>

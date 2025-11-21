@@ -4,24 +4,24 @@ import Image from "next/image";
 const customerLogos = [
   {
     name: "HuggingFace",
-    src: "/logos/huggingface.svg"
+    src: "/logos/huggingface.svg",
   },
   {
     name: "T-Mobile",
-    src: "/logos/tmobile.svg"
+    src: "/logos/tmobile.svg",
   },
   {
     name: "Chase",
-    src: "/logos/chase.svg"
+    src: "/logos/chase.svg",
   },
   {
     name: "SanDisk",
-    src: "/logos/sandisk.svg"
+    src: "/logos/sandisk.svg",
   },
   {
     name: "Oracle",
-    src: "/logos/oracle.svg"
-  }
+    src: "/logos/oracle.svg",
+  },
 ];
 
 export function LogoCloud() {
@@ -35,7 +35,7 @@ export function LogoCloud() {
               <div
                 key={logo.name}
                 className={`flex items-center justify-center opacity-60 hover:opacity-80 transition-opacity duration-300 w-full max-w-32 sm:max-w-40 md:max-w-48 h-10 sm:h-12 md:h-16 ${
-                  isLast ? 'col-span-2 md:col-span-3 lg:col-span-1' : ''
+                  isLast ? "col-span-2 md:col-span-3 lg:col-span-1" : ""
                 }`}
               >
                 <Image

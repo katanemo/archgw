@@ -36,33 +36,34 @@ export function Navbar() {
         const navRect = nav.getBoundingClientRect();
         const dropdownBottom = navRect.bottom;
         const checkY = dropdownBottom + 20; // Just below the dropdown
-        
+
         // First, try to find section elements directly
         const main = document.querySelector("main");
         if (main) {
           const sections = main.querySelectorAll("section");
           let foundDarkSection = false;
-          
+
           sections.forEach((section) => {
             const rect = section.getBoundingClientRect();
             // Check if this section is visible below the navbar
             if (rect.top <= checkY && rect.bottom > checkY) {
               // Check for dark background classes
               const classList = Array.from(section.classList);
-              const hasDarkBg = classList.some(cls => 
-                cls.includes('bg-[#1a1a1a]') || 
-                cls.includes('bg-black') || 
-                cls.includes('bg-gray-900') ||
-                cls.includes('bg-neutral-900') ||
-                cls.includes('dark')
+              const hasDarkBg = classList.some(
+                (cls) =>
+                  cls.includes("bg-[#1a1a1a]") ||
+                  cls.includes("bg-black") ||
+                  cls.includes("bg-gray-900") ||
+                  cls.includes("bg-neutral-900") ||
+                  cls.includes("dark"),
               );
-              
+
               if (hasDarkBg) {
                 foundDarkSection = true;
                 setIsDarkBackground(true);
                 return;
               }
-              
+
               // Also check computed background
               const computed = window.getComputedStyle(section);
               const bg = computed.backgroundColor;
@@ -80,26 +81,33 @@ export function Navbar() {
               }
             }
           });
-          
+
           if (foundDarkSection) return;
         }
-        
+
         // Fallback: Check element at point
         const centerX = window.innerWidth / 2;
         const elementBelow = document.elementFromPoint(centerX, checkY);
-        
+
         if (elementBelow) {
           let current: HTMLElement | null = elementBelow as HTMLElement;
           let backgroundColor = "";
-          
+
           // Walk up the DOM tree
           let levels = 0;
-          while (current && !backgroundColor && current !== document.body && levels < 15) {
+          while (
+            current &&
+            !backgroundColor &&
+            current !== document.body &&
+            levels < 15
+          ) {
             const computed = window.getComputedStyle(current);
             const bg = computed.backgroundColor;
-            
+
             if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") {
-              const rgbaMatch = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+              const rgbaMatch = bg.match(
+                /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/,
+              );
               if (rgbaMatch) {
                 const alpha = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
                 if (alpha > 0.1) {
@@ -111,18 +119,22 @@ export function Navbar() {
                 break;
               }
             }
-            
+
             current = current.parentElement;
             levels++;
           }
-          
+
           if (!backgroundColor) {
-            const bodyBg = window.getComputedStyle(document.body).backgroundColor;
+            const bodyBg = window.getComputedStyle(
+              document.body,
+            ).backgroundColor;
             backgroundColor = bodyBg;
           }
-          
+
           if (backgroundColor) {
-            const rgbMatch = backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            const rgbMatch = backgroundColor.match(
+              /rgba?\((\d+),\s*(\d+),\s*(\d+)/,
+            );
             if (rgbMatch) {
               const r = parseInt(rgbMatch[1]);
               const g = parseInt(rgbMatch[2]);
@@ -130,8 +142,17 @@ export function Navbar() {
               const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
               setIsDarkBackground(luminance < 0.5);
             } else {
-              const darkColors = ['black', '#000', '#000000', 'rgb(0,0,0)', 'rgba(0,0,0', '#1a1a1a'];
-              const isDark = darkColors.some(color => backgroundColor.toLowerCase().includes(color.toLowerCase()));
+              const darkColors = [
+                "black",
+                "#000",
+                "#000000",
+                "rgb(0,0,0)",
+                "rgba(0,0,0",
+                "#1a1a1a",
+              ];
+              const isDark = darkColors.some((color) =>
+                backgroundColor.toLowerCase().includes(color.toLowerCase()),
+              );
               setIsDarkBackground(isDark);
             }
           }
@@ -143,7 +164,7 @@ export function Navbar() {
     detectBackground();
     const scrollHandler = () => detectBackground();
     const resizeHandler = () => detectBackground();
-    
+
     window.addEventListener("scroll", scrollHandler, { passive: true });
     window.addEventListener("resize", resizeHandler);
 
@@ -176,7 +197,7 @@ export function Navbar() {
                 className={cn(
                   "text-lg font-medium text-[var(--muted)]",
                   "hover:text-[var(--primary)] transition-colors",
-                  "font-mono tracking-tighter"
+                  "font-mono tracking-tighter",
                 )}
               >
                 {item.label}
@@ -253,7 +274,8 @@ export function Navbar() {
                         "block px-0 py-1.5 border-b border-dashed transition-colors font-mono tracking-tighter",
                         "text-sm font-medium",
                         "text-white",
-                      )}>
+                      )}
+                    >
                       {item.label}
                     </Link>
                   </motion.div>
@@ -266,4 +288,3 @@ export function Navbar() {
     </nav>
   );
 }
-

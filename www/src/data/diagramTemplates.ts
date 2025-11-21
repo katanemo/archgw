@@ -1,4 +1,4 @@
-import { createFlowDiagram, FlowStep } from '@/utils/asciiBuilder';
+import { createFlowDiagram, FlowStep } from "@/utils/asciiBuilder";
 
 /**
  * Easy-to-use diagram templates that automatically handle spacing
@@ -8,9 +8,13 @@ import { createFlowDiagram, FlowStep } from '@/utils/asciiBuilder';
 // Example: Simple 3-step process
 export const createSimpleProcess = (steps: string[]) => {
   return createFlowDiagram({
-    title: 'Process Flow',
+    title: "Process Flow",
     width: 60,
-    steps: steps.map(label => ({ label, type: 'regular' as const, shadow: true }))
+    steps: steps.map((label) => ({
+      label,
+      type: "regular" as const,
+      shadow: true,
+    })),
   });
 };
 
@@ -18,39 +22,38 @@ export const createSimpleProcess = (steps: string[]) => {
 export const createNestedDiagram = (
   title: string,
   innerContent: FlowStep[],
-  width: number = 70
+  width: number = 70,
 ) => {
   return createFlowDiagram({
     title,
     width,
-    steps: innerContent
+    steps: innerContent,
   });
 };
 
 // Pre-built templates
 export const templates = {
-  simpleFlow: createSimpleProcess(['Start', 'Process', 'End']),
-  
+  simpleFlow: createSimpleProcess(["Start", "Process", "End"]),
+
   apiFlow: createFlowDiagram({
-    title: 'API Request Flow',
+    title: "API Request Flow",
     width: 65,
     steps: [
-      { label: 'Client Request', type: 'regular', shadow: true },
-      { label: 'API Gateway', type: 'container', shadow: true },
-      { label: 'Process', type: 'inner', shadow: true },
-      { label: 'Response', type: 'regular', shadow: true }
-    ]
+      { label: "Client Request", type: "regular", shadow: true },
+      { label: "API Gateway", type: "container", shadow: true },
+      { label: "Process", type: "inner", shadow: true },
+      { label: "Response", type: "regular", shadow: true },
+    ],
   }),
-  
+
   dataPipeline: createFlowDiagram({
-    title: 'Data Pipeline',
+    title: "Data Pipeline",
     width: 70,
     steps: [
-      { label: 'Input Data', type: 'regular', shadow: true },
-      { label: 'Transform', type: 'inner', shadow: true },
-      { label: 'Validate', type: 'regular', shadow: true },
-      { label: 'Store', type: 'regular', shadow: true }
-    ]
-  })
+      { label: "Input Data", type: "regular", shadow: true },
+      { label: "Transform", type: "inner", shadow: true },
+      { label: "Validate", type: "regular", shadow: true },
+      { label: "Store", type: "regular", shadow: true },
+    ],
+  }),
 };
-

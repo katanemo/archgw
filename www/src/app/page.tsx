@@ -17,18 +17,18 @@ export default function Home() {
     <div className="min-h-screen">
       <Navbar />
       <main className="pt-20">
-          <Hero />
-          <LogoCloud />
-          <IntroSection />
-          <IdeaToAgentSection />
-          <UseCasesSection />
-          <VerticalCarouselSection />
-          <HowItWorksSection />
-          <UnlockPotentialSection variant="black" />
+        <Hero />
+        <LogoCloud />
+        <IntroSection />
+        <IdeaToAgentSection />
+        <UseCasesSection />
+        <VerticalCarouselSection />
+        <HowItWorksSection />
+        <UnlockPotentialSection variant="black" />
 
-          {/* Rest of the sections will be refactored next */}
-        </main>
-        <Footer />
-      </div>
+        {/* Rest of the sections will be refactored next */}
+      </main>
+      <Footer />
+    </div>
   );
 }

@@ -6,29 +6,32 @@ interface UnlockPotentialSectionProps {
   className?: string;
 }
 
-export function UnlockPotentialSection({ 
-  variant = "transparent", 
-  className = "" 
+export function UnlockPotentialSection({
+  variant = "transparent",
+  className = "",
 }: UnlockPotentialSectionProps) {
   const backgroundClass = variant === "black" ? "bg-[#1a1a1a]" : "";
   const textColor = variant === "black" ? "text-white" : "text-black";
 
   return (
-    <section className={`relative py-24 px-6 lg:px-[102px] ${backgroundClass} ${className}`}>
+    <section
+      className={`relative py-24 px-6 lg:px-[102px] ${backgroundClass} ${className}`}
+    >
       <div className="max-w-[81rem] mx-auto">
         <div className="max-w-4xl">
-          <h2 className={`font-sans font-normal text-[1.8rem] lg:text-4xl tracking-[-2.55px]! ${textColor} leading-[1.4] mb-8`}>
-            Focus on prompting, not plumbing.<br />
-            Build with <strong className="font-medium text-primary">plano</strong>, get started in less than a minute.
+          <h2
+            className={`font-sans font-normal text-[1.8rem] lg:text-4xl tracking-[-2.55px]! ${textColor} leading-[1.4] mb-8`}
+          >
+            Focus on prompting, not plumbing.
+            <br />
+            Build with{" "}
+            <strong className="font-medium text-primary">plano</strong>, get
+            started in less than a minute.
           </h2>
-          
+
           <div className="flex flex-col sm:flex-row gap-5">
-            <Button>
-              Deploy today
-            </Button>
-            <Button variant="secondaryDark">
-              Documentation
-            </Button>
+            <Button>Deploy today</Button>
+            <Button variant="secondaryDark">Documentation</Button>
           </div>
         </div>
       </div>

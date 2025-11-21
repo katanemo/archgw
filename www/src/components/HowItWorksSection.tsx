@@ -15,14 +15,25 @@ export function HowItWorksSection() {
             </h2>
             <div className="font-mono text-white w-100 sm:w-full text-sm sm:text-lg lg:text-lg tracking-[-0.8px] sm:tracking-[-1.2px]!">
               <p className="mb-0">
-                Plano offers a delightful developer experience with a simple configuration file that describes the types of prompts your agentic app supports, a set of APIs that need to be plugged in for agentic scenarios (including retrieval queries) and your choice of LLMs.
+                Plano offers a delightful developer experience with a simple
+                configuration file that describes the types of prompts your
+                agentic app supports, a set of APIs that need to be plugged in
+                for agentic scenarios (including retrieval queries) and your
+                choice of LLMs.
               </p>
             </div>
           </div>
 
           {/* Large Diagram - Scrollable on mobile, normal on desktop */}
           {/* Mobile: Full-width scrollable container that extends to viewport edges */}
-          <div className="mt-5 lg:hidden relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-x-auto overflow-y-visible" style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}>
+          <div
+            className="mt-5 lg:hidden relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-x-auto overflow-y-visible"
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
             <style jsx>{`
               .diagram-scroll-container::-webkit-scrollbar {
                 display: none;
@@ -57,4 +68,3 @@ export function HowItWorksSection() {
     </section>
   );
 }
-

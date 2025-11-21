@@ -1,9 +1,24 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowRightIcon, Network, Filter, TrendingUp, Shield, Server, XIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  Network,
+  Filter,
+  TrendingUp,
+  Shield,
+  Server,
+  XIcon,
+} from "lucide-react";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "./ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface UseCase {
@@ -21,47 +36,59 @@ const useCasesData: UseCase[] = [
     id: 1,
     category: "AGENT ORCHESTRATION",
     title: "Multi-agent systems without framework lock-in",
-    summary: "Seamless routing and orchestration for complex agent interactions",
-    fullContent: "Plano manages agent routing and orchestration without framework dependencies, allowing seamless multi-agent interactions. This is ideal for building complex systems like automated customer support or data processing pipelines, where agents hand off tasks efficiently to deliver end-to-end solutions faster.",
+    summary:
+      "Seamless routing and orchestration for complex agent interactions",
+    fullContent:
+      "Plano manages agent routing and orchestration without framework dependencies, allowing seamless multi-agent interactions. This is ideal for building complex systems like automated customer support or data processing pipelines, where agents hand off tasks efficiently to deliver end-to-end solutions faster.",
     icon: Network,
-    gradient: "from-[rgba(119,128,217,0.15)] via-[rgba(119,128,217,0.08)] to-[rgba(17,28,132,0.05)]"
+    gradient:
+      "from-[rgba(119,128,217,0.15)] via-[rgba(119,128,217,0.08)] to-[rgba(17,28,132,0.05)]",
   },
   {
     id: 2,
     category: "CONTEXT ENGINEERING",
     title: "Reusable filters for smarter agents",
-    summary: "Inject data, reformulate queries, and enforce policies efficiently",
-    fullContent: "Plano's filter chain encourages reuse and decoupling for context engineering tasks like injecting data, reformulating queries, and enforcing policy before calls reach an agent or LLM. This means faster debugging, cleaner architecture, and more accurate, on-policy agents —without bespoke glue code.",
+    summary:
+      "Inject data, reformulate queries, and enforce policies efficiently",
+    fullContent:
+      "Plano's filter chain encourages reuse and decoupling for context engineering tasks like injecting data, reformulating queries, and enforcing policy before calls reach an agent or LLM. This means faster debugging, cleaner architecture, and more accurate, on-policy agents —without bespoke glue code.",
     icon: Filter,
-    gradient: "from-[rgba(177,184,255,0.15)] via-[rgba(177,184,255,0.08)] to-[rgba(17,28,132,0.05)]"
+    gradient:
+      "from-[rgba(177,184,255,0.15)] via-[rgba(177,184,255,0.08)] to-[rgba(17,28,132,0.05)]",
   },
   {
     id: 3,
     category: "REINFORCEMENT LEARNING",
     title: "Production signals for continuous improvement",
     summary: "Capture rich traces to accelerate training and refinement",
-    fullContent: "Plano captures hyper-rich tracing and log samples from production traffic, feeding into reinforcement learning and fine-tuning cycles. This accelerates iteration in areas like recommendation engines, helping teams quickly identify failures, refine prompts, and boost agent effectiveness based on real-user signals.",
+    fullContent:
+      "Plano captures hyper-rich tracing and log samples from production traffic, feeding into reinforcement learning and fine-tuning cycles. This accelerates iteration in areas like recommendation engines, helping teams quickly identify failures, refine prompts, and boost agent effectiveness based on real-user signals.",
     icon: TrendingUp,
-    gradient: "from-[rgba(185,191,255,0.15)] via-[rgba(185,191,255,0.08)] to-[rgba(17,28,132,0.05)]"
+    gradient:
+      "from-[rgba(185,191,255,0.15)] via-[rgba(185,191,255,0.08)] to-[rgba(17,28,132,0.05)]",
   },
   {
     id: 4,
     category: "CENTRALIZED SECURITY",
     title: "Built-in guardrails and centralized policies",
     summary: "Safe scaling with jailbreak detection and access controls",
-    fullContent: "With built-in guardrails, centralized policies, and access controls, Plano ensures safe scaling across LLMs, detecting issues like jailbreak attempts. This is critical for deployments in regulated fields like finance or healthcare, and minimizing risks while standardizing reliability and security of agents.",
+    fullContent:
+      "With built-in guardrails, centralized policies, and access controls, Plano ensures safe scaling across LLMs, detecting issues like jailbreak attempts. This is critical for deployments in regulated fields like finance or healthcare, and minimizing risks while standardizing reliability and security of agents.",
     icon: Shield,
-    gradient: "from-[rgba(119,128,217,0.15)] via-[rgba(119,128,217,0.08)] to-[rgba(17,28,132,0.05)]"
+    gradient:
+      "from-[rgba(119,128,217,0.15)] via-[rgba(119,128,217,0.08)] to-[rgba(17,28,132,0.05)]",
   },
   {
     id: 5,
     category: "ON-PREMISES DEPLOYMENT",
     title: "Full data control in regulated environments",
     summary: "Deploy on private infrastructure without compromising features",
-    fullContent: "Plano's lightweight sidecar model deploys effortlessly on your private infrastructure, empowering teams in regulated sectors to maintain full data control while benefiting from unified LLM access, custom filter chains, and production-grade tracing—without compromising on security or scalability.",
+    fullContent:
+      "Plano's lightweight sidecar model deploys effortlessly on your private infrastructure, empowering teams in regulated sectors to maintain full data control while benefiting from unified LLM access, custom filter chains, and production-grade tracing—without compromising on security or scalability.",
     icon: Server,
-    gradient: "from-[rgba(177,184,255,0.15)] via-[rgba(177,184,255,0.08)] to-[rgba(17,28,132,0.05)]"
-  }
+    gradient:
+      "from-[rgba(177,184,255,0.15)] via-[rgba(177,184,255,0.08)] to-[rgba(17,28,132,0.05)]",
+  },
 ];
 
 export function UseCasesSection() {
@@ -75,7 +102,9 @@ export function UseCasesSection() {
           {/* USE CASES Badge */}
           <div className="mb-4 sm:mb-6">
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 rounded-full bg-[rgba(185,191,255,0.4)] border border-[var(--secondary)] shadow backdrop-blur">
-              <span className="font-mono font-bold text-[#2a3178] text-xs sm:text-sm tracking-[1.44px] sm:tracking-[1.62px]!">USE CASES</span>
+              <span className="font-mono font-bold text-[#2a3178] text-xs sm:text-sm tracking-[1.44px] sm:tracking-[1.62px]!">
+                USE CASES
+              </span>
             </div>
           </div>
 
@@ -84,9 +113,7 @@ export function UseCasesSection() {
             <h2 className="font-sans font-normal text-2xl sm:text-3xl lg:text-4xl tracking-[-2px] sm:tracking-[-2.88px]! text-black leading-[1.03]">
               What's possible with Plano
             </h2>
-            <Button className="hidden lg:block">
-              Start building
-            </Button>
+            <Button className="hidden lg:block">Start building</Button>
           </div>
         </div>
 
@@ -125,115 +152,143 @@ export function UseCasesSection() {
 
         {/* Start building button - Mobile only, appears last */}
         <div className="lg:hidden mt-8">
-          <Button className="w-full">
-            Start building
-          </Button>
+          <Button className="w-full">Start building</Button>
         </div>
       </div>
 
       {/* Modal */}
-      <Dialog open={selectedUseCase !== null} onOpenChange={(open) => !open && setSelectedUseCase(null)}>
+      <Dialog
+        open={selectedUseCase !== null}
+        onOpenChange={(open) => !open && setSelectedUseCase(null)}
+      >
         <AnimatePresence>
-          {selectedUseCase && (() => {
-            const IconComponent = selectedUseCase.icon;
-            return (
-              <DialogContent key={selectedUseCase.id} className="max-w-[90rem]! p-0 overflow-hidden" showCloseButton={false}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.98, y: 8 }}
-                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative"
+          {selectedUseCase &&
+            (() => {
+              const IconComponent = selectedUseCase.icon;
+              return (
+                <DialogContent
+                  key={selectedUseCase.id}
+                  className="max-w-[90rem]! p-0 overflow-hidden"
+                  showCloseButton={false}
                 >
-                  {/* Gradient Background */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${selectedUseCase.gradient} opacity-50`} />
-                  
-                  {/* Decorative Border */}
-                  <div className="absolute inset-0 border-2 border-[rgba(171,178,250,0.3)] rounded-lg pointer-events-none" />
-                  
-                  {/* Custom Close Button */}
-                  <DialogClose className="absolute top-4 right-4 z-50 rounded-xs opacity-70 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgba(171,178,250,0.5)] bg-white/80 backdrop-blur-sm p-2 hover:bg-white/90">
-                    <XIcon className="w-5 h-5 text-[#2a3178]" />
-                    <span className="sr-only">Close</span>
-                  </DialogClose>
-                  
-                  {/* Content Container */}
-                  <div className="relative z-10 p-5 sm:p-8 md:p-10 lg:p-14">
-                    {/* Header Section with Icon */}
-                    <DialogHeader className="mb-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mb-8">
-                        {/* Icon Container - hidden on mobile */}
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                          className="hidden sm:flex shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[rgba(119,128,217,0.2)] to-[rgba(17,28,132,0.1)] border-2 border-[rgba(171,178,250,0.4)] items-center justify-center shadow-lg backdrop-blur-sm mx-0"
-                        >
-                          <IconComponent className="w-8 h-8 text-[#2a3178]" />
-                        </motion.div>
-                      
-                      {/* Title Section */}
-                      <div className="flex-1 text-left mt-4 sm:mt-0">
-                        <motion.p
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-                          className="font-mono font-bold text-[#2a3178] text-xs tracking-[1.62px]! mb-1 uppercase"
-                        >
-                          USE CASE
-                        </motion.p>
-                        <motion.div
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-                        >
-                          <DialogTitle className="font-sans font-medium text-2xl sm:text-3xl lg:text-4xl xl:text-4xl tracking-[-1.5px]! text-black leading-[1.1] mb-4">
-                            {selectedUseCase.title}
-                          </DialogTitle>
-                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-[rgba(185,191,255,0.3)] border border-[rgba(171,178,250,0.4)] backdrop-blur-sm">
-                            <span className="font-mono font-bold text-[#2a3178] text-xs tracking-[1.44px]!">
-                              {selectedUseCase.category}
-                            </span>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.98, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98, y: 8 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="relative"
+                  >
+                    {/* Gradient Background */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${selectedUseCase.gradient} opacity-50`}
+                    />
+
+                    {/* Decorative Border */}
+                    <div className="absolute inset-0 border-2 border-[rgba(171,178,250,0.3)] rounded-lg pointer-events-none" />
+
+                    {/* Custom Close Button */}
+                    <DialogClose className="absolute top-4 right-4 z-50 rounded-xs opacity-70 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgba(171,178,250,0.5)] bg-white/80 backdrop-blur-sm p-2 hover:bg-white/90">
+                      <XIcon className="w-5 h-5 text-[#2a3178]" />
+                      <span className="sr-only">Close</span>
+                    </DialogClose>
+
+                    {/* Content Container */}
+                    <div className="relative z-10 p-5 sm:p-8 md:p-10 lg:p-14">
+                      {/* Header Section with Icon */}
+                      <DialogHeader className="mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8 mb-8">
+                          {/* Icon Container - hidden on mobile */}
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{
+                              duration: 0.3,
+                              ease: [0.16, 1, 0.3, 1],
+                              delay: 0.1,
+                            }}
+                            className="hidden sm:flex shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[rgba(119,128,217,0.2)] to-[rgba(17,28,132,0.1)] border-2 border-[rgba(171,178,250,0.4)] items-center justify-center shadow-lg backdrop-blur-sm mx-0"
+                          >
+                            <IconComponent className="w-8 h-8 text-[#2a3178]" />
+                          </motion.div>
+
+                          {/* Title Section */}
+                          <div className="flex-1 text-left mt-4 sm:mt-0">
+                            <motion.p
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{
+                                duration: 0.3,
+                                ease: [0.16, 1, 0.3, 1],
+                                delay: 0.15,
+                              }}
+                              className="font-mono font-bold text-[#2a3178] text-xs tracking-[1.62px]! mb-1 uppercase"
+                            >
+                              USE CASE
+                            </motion.p>
+                            <motion.div
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{
+                                duration: 0.3,
+                                ease: [0.16, 1, 0.3, 1],
+                                delay: 0.2,
+                              }}
+                            >
+                              <DialogTitle className="font-sans font-medium text-2xl sm:text-3xl lg:text-4xl xl:text-4xl tracking-[-1.5px]! text-black leading-[1.1] mb-4">
+                                {selectedUseCase.title}
+                              </DialogTitle>
+                              <div className="inline-flex items-center px-3 py-1 rounded-full bg-[rgba(185,191,255,0.3)] border border-[rgba(171,178,250,0.4)] backdrop-blur-sm">
+                                <span className="font-mono font-bold text-[#2a3178] text-xs tracking-[1.44px]!">
+                                  {selectedUseCase.category}
+                                </span>
+                              </div>
+                            </motion.div>
                           </div>
-                        </motion.div>
-                      </div>
+                        </div>
+                      </DialogHeader>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          ease: [0.16, 1, 0.3, 1],
+                          delay: 0.3,
+                        }}
+                        className="mb-10"
+                      >
+                        <DialogDescription className="font-mono text-[#494949] text-base lg:text-base xl:text-lg leading-relaxed tracking-tight max-w-none mb-0">
+                          {selectedUseCase.fullContent}
+                        </DialogDescription>
+                      </motion.div>
+
+                      {/* Footer with CTA - mobile friendly */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          ease: [0.16, 1, 0.3, 1],
+                          delay: 0.35,
+                        }}
+                        className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-8 border-t border-[rgba(171,178,250,0.2)]"
+                      >
+                        {/* "Ready to get started?" is now first in column on mobile */}
+                        <div className="flex items-center gap-2 text-sm font-mono text-[#494949] justify-center sm:justify-start order-0">
+                          <span>Ready to get started?</span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1">
+                          <Button className="w-full sm:w-auto">
+                            Start building
+                            <ArrowRightIcon className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
                     </div>
-                  </DialogHeader>
-                  
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-                    className="mb-10"
-                  >
-                    <DialogDescription className="font-mono text-[#494949] text-base lg:text-base xl:text-lg leading-relaxed tracking-tight max-w-none mb-0">
-                      {selectedUseCase.fullContent}
-                    </DialogDescription>
                   </motion.div>
-                  
-                  {/* Footer with CTA - mobile friendly */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
-                    className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-8 border-t border-[rgba(171,178,250,0.2)]"
-                  >
-                    {/* "Ready to get started?" is now first in column on mobile */}
-                    <div className="flex items-center gap-2 text-sm font-mono text-[#494949] justify-center sm:justify-start order-0">
-                      <span>Ready to get started?</span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1">
-                      <Button className="w-full sm:w-auto">
-                        Start building
-                        <ArrowRightIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-            </DialogContent>
-            );
-          })()}
+                </DialogContent>
+              );
+            })()}
         </AnimatePresence>
       </Dialog>
     </section>

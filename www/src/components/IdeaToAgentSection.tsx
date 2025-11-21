@@ -9,37 +9,42 @@ const carouselData = [
     id: 1,
     category: "LAUNCH FASTER",
     title: "Focus on core objectives",
-    description: "Building AI agents is hard enough (iterate on prompts and evaluate LLMs, etc), the plumbing work shouldn't add to that complexity. Plano takes care of the critical plumbing work like routing and orchestration to agents that slows you down and locks you into rigid frameworks, freeing developers to innovate on what truly matters.",
-    image: "/LaunchFaster.svg"
+    description:
+      "Building AI agents is hard enough (iterate on prompts and evaluate LLMs, etc), the plumbing work shouldn't add to that complexity. Plano takes care of the critical plumbing work like routing and orchestration to agents that slows you down and locks you into rigid frameworks, freeing developers to innovate on what truly matters.",
+    image: "/LaunchFaster.svg",
   },
   {
     id: 2,
-    category: "BUILD WITH CHOICE", 
+    category: "BUILD WITH CHOICE",
     title: "Rapidly incorporate LLMs",
-    description: "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code.",
-    image: "/BuildWithChoice.svg"
+    description:
+      "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code.",
+    image: "/BuildWithChoice.svg",
   },
   {
     id: 3,
     category: "RICH LEARNING SIGNALS",
     title: "Hyper-rich agent traces and logs",
-    description: "Knowing when agents fail or delight users is a critical signal that feeds into a reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
-    image: "/Telemetry.svg"
+    description:
+      "Knowing when agents fail or delight users is a critical signal that feeds into a reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
+    image: "/Telemetry.svg",
   },
   {
     id: 4,
     category: "SHIP CONFIDENTLY",
     title: "Centrally apply guardrail policies",
-    description: "Plano comes built-in with a state-of-the-art guardrail model you can use for things like jailbreak detection. But you can easily extend those capabilities via plano's agent filter chain to apply custom policy checks in a centralized way and keep users engaged on topics relevant to your requirements.",
-    image: "/ShipConfidently.svg"
+    description:
+      "Plano comes built-in with a state-of-the-art guardrail model you can use for things like jailbreak detection. But you can easily extend those capabilities via plano's agent filter chain to apply custom policy checks in a centralized way and keep users engaged on topics relevant to your requirements.",
+    image: "/ShipConfidently.svg",
   },
   {
     id: 5,
     category: "SCALABLE ARCHITECTURE",
     title: "Protocol-Native Infrastructure",
-    description: "Plano's sidecar deployment model avoids library-based abstractions - operating as a protocol-native data plane that integrates seamlessly with your existing agents via agentic APIs (like v1/responses). This decouples your core agent logic from plumbing concerns - run it alongside any framework without code changes, vendor lock-in, or performance overhead.",
-    image: "/Contextual.svg"
-  }
+    description:
+      "Plano's sidecar deployment model avoids library-based abstractions - operating as a protocol-native data plane that integrates seamlessly with your existing agents via agentic APIs (like v1/responses). This decouples your core agent logic from plumbing concerns - run it alongside any framework without code changes, vendor lock-in, or performance overhead.",
+    image: "/Contextual.svg",
+  },
 ];
 
 export function IdeaToAgentSection() {
@@ -49,7 +54,7 @@ export function IdeaToAgentSection() {
   // Auto-advance slides
   useEffect(() => {
     if (!isAutoPlaying) return;
-    
+
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % carouselData.length);
     }, 10000); // 10 seconds per slide
@@ -79,14 +84,14 @@ export function IdeaToAgentSection() {
               key={index}
               onClick={() => handleSlideClick(index)}
               className={`relative h-1.5 sm:h-2 rounded-full overflow-hidden transition-all duration-300 hover:opacity-80 ${
-                index === currentSlide 
-                  ? 'flex-1 sm:w-16 md:w-20 lg:w-[292px]' 
-                  : 'flex-1 sm:w-16 md:w-20 lg:w-[293px]'
+                index === currentSlide
+                  ? "flex-1 sm:w-16 md:w-20 lg:w-[292px]"
+                  : "flex-1 sm:w-16 md:w-20 lg:w-[293px]"
               }`}
             >
               {/* Background */}
               <div className="absolute inset-0 bg-black/6 rounded-full" />
-              
+
               {/* Active Progress */}
               {index === currentSlide && (
                 <motion.div
@@ -97,7 +102,7 @@ export function IdeaToAgentSection() {
                   key={currentSlide}
                 />
               )}
-              
+
               {/* Completed State */}
               {index < currentSlide && (
                 <div className="absolute inset-0 bg-purple-200/90 rounded-full" />
@@ -158,14 +163,16 @@ export function IdeaToAgentSection() {
                     />
                   </div>
                 )}
-                
+
                 {/* Right Image - Desktop only */}
                 {carouselData[currentSlide].image && (
-                  <div className={`hidden lg:flex shrink-0 justify-end items-center order-2 ${
-                    carouselData[currentSlide].image === "/Telemetry.svg" 
-                      ? "w-[500px] xl:w-[600px]" 
-                      : "w-[400px] xl:w-[500px]"
-                  }`}>
+                  <div
+                    className={`hidden lg:flex shrink-0 justify-end items-center order-2 ${
+                      carouselData[currentSlide].image === "/Telemetry.svg"
+                        ? "w-[500px] xl:w-[600px]"
+                        : "w-[400px] xl:w-[500px]"
+                    }`}
+                  >
                     <img
                       src={carouselData[currentSlide].image}
                       alt={carouselData[currentSlide].category}

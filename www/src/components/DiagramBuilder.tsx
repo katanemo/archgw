@@ -1,6 +1,6 @@
-import React from 'react';
-import { createFlowDiagram, FlowDiagramConfig } from '@/utils/asciiBuilder';
-import { AsciiDiagram } from './AsciiDiagram';
+import React from "react";
+import { createFlowDiagram, FlowDiagramConfig } from "@/utils/asciiBuilder";
+import { AsciiDiagram } from "./AsciiDiagram";
 
 interface DiagramBuilderProps {
   config: FlowDiagramConfig;
@@ -9,9 +9,9 @@ interface DiagramBuilderProps {
 
 /**
  * Simple Diagram Builder Component
- * 
+ *
  * Usage:
- * 
+ *
  * <DiagramBuilder
  *   config={{
  *     title: "My Process",
@@ -24,9 +24,11 @@ interface DiagramBuilderProps {
  *   }}
  * />
  */
-export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({ config, title }) => {
+export const DiagramBuilder: React.FC<DiagramBuilderProps> = ({
+  config,
+  title,
+}) => {
   const asciiDiagram = createFlowDiagram(config);
-  
+
   return <AsciiDiagram content={asciiDiagram} title={title} />;
 };
-

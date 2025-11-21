@@ -7,25 +7,27 @@ const footerLinks = {
     { label: "Product", href: "/product" },
     { label: "Use Cases", href: "/use-cases" },
     { label: "Blog", href: "/blog" },
-    { label: "Plano LLMs", href: "/llms" }
+    { label: "Plano LLMs", href: "/llms" },
   ],
-  developerResources: [
-    { label: "Documentation", href: "/docs" }
-  ]
+  developerResources: [{ label: "Documentation", href: "/docs" }],
 };
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden pt-20 px-6 lg:px-[102px] pb-48" style={{ background: 'linear-gradient(to top right, #ffffff, #dcdfff)' }}>
+    <footer
+      className="relative overflow-hidden pt-20 px-6 lg:px-[102px] pb-48"
+      style={{ background: "linear-gradient(to top right, #ffffff, #dcdfff)" }}
+    >
       <div className="max-w-[81rem] mx-auto relative z-10">
         {/* Main Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
           {/* Left Column - Tagline and Copyright */}
           <div className="flex flex-col">
             <p className="font-sans font-normal text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-7  mb-6 sm:mb-8">
-              Plano is the powerful, intelligent platform that empowers teams to seamlessly build, automate, and scale agentic systems with ease.
+              Plano is the powerful, intelligent platform that empowers teams to
+              seamlessly build, automate, and scale agentic systems with ease.
             </p>
-            
+
             {/* Copyright */}
             <div className="mt-auto">
               <p className="font-sans text-sm sm:text-base text-black/63 tracking-[-0.6px] sm:tracking-[-0.8px]!">
@@ -86,8 +88,8 @@ export function Footer() {
               height={200}
               className="w-150 h-auto opacity-30 select-none"
               style={{
-                transform: 'translateY(0%)', // Push logo down more while showing top part
-                transformOrigin: 'center bottom'
+                transform: "translateY(0%)", // Push logo down more while showing top part
+                transformOrigin: "center bottom",
               }}
             />
           </div>

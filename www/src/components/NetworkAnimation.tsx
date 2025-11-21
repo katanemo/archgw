@@ -28,12 +28,12 @@ const nodes: Node[] = [
   { id: "1", x: 20, y: 35, size: 18, delay: 0 },
   { id: "2", x: 70, y: 42, size: 12, delay: 0.8 },
   { id: "3", x: 76, y: 38, size: 16, delay: 1.6 },
-  
+
   // // Group 2
   // { id: "4", x: 80, y: 30, size: 18, delay: 0.4 },
   // { id: "5", x: 87, y: 36, size: 12, delay: 1.2 },
   // { id: "6", x: 92, y: 33, size: 16, delay: 2.0 },
-  
+
   // Group 3
   { id: "7", x: 62, y: 48, size: 10, delay: 0.6 },
   { id: "8", x: 65, y: 52, size: 18, delay: 1.4 },
@@ -44,11 +44,11 @@ const connections: Connection[] = [
   // Group 1 connections
   { from: "1", to: "2" },
   { from: "2", to: "3" },
-  
+
   // // Group 2 connections
   // { from: "4", to: "5" },
   // { from: "5", to: "6" },
-  
+
   // Group 3 connections
   { from: "7", to: "8" },
   { from: "8", to: "9" },
@@ -66,7 +66,7 @@ export function NetworkAnimation() {
         connectionIndex,
         progress: 0,
       };
-      
+
       setParticles((prev) => [...prev, particle]);
 
       // Remove particle after animation completes
@@ -86,7 +86,7 @@ export function NetworkAnimation() {
       setParticles((prev) =>
         prev
           .map((p) => ({ ...p, progress: p.progress + 0.008 })) // Much slower
-          .filter((p) => p.progress <= 1)
+          .filter((p) => p.progress <= 1),
       );
     }, 50);
 
@@ -144,8 +144,12 @@ export function NetworkAnimation() {
           const toNode = nodes.find((n) => n.id === conn.to);
           if (!fromNode || !toNode) return null;
 
-          const x = ((fromNode.x + (toNode.x - fromNode.x) * particle.progress) / 100) * 1920;
-          const y = ((fromNode.y + (toNode.y - fromNode.y) * particle.progress) / 100) * 800;
+          const x =
+            ((fromNode.x + (toNode.x - fromNode.x) * particle.progress) / 100) *
+            1920;
+          const y =
+            ((fromNode.y + (toNode.y - fromNode.y) * particle.progress) / 100) *
+            800;
 
           return (
             <motion.circle
@@ -155,13 +159,13 @@ export function NetworkAnimation() {
               r={4}
               fill="#b9bfff"
               initial={{ opacity: 0 }}
-              animate={{ 
-                opacity: [0, 0.4, 0.4, 0]
+              animate={{
+                opacity: [0, 0.4, 0.4, 0],
               }}
-              transition={{ 
+              transition={{
                 duration: 5,
                 times: [0, 0.2, 0.8, 1],
-                ease: "linear"
+                ease: "linear",
               }}
             />
           );

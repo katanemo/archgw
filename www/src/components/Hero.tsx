@@ -14,10 +14,16 @@ export function Hero() {
           {/* Version Badge */}
           <div className="mb-4 sm:mb-6">
             <div className="inline-flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 rounded-full bg-[rgba(185,191,255,0.4)] border border-[var(--secondary)] shadow backdrop-blur">
-              <span className="text-xs sm:text-sm font-medium text-black/65">v0.4</span>
-              <span className="text-xs sm:text-sm font-medium text-black hidden sm:inline">—</span>
+              <span className="text-xs sm:text-sm font-medium text-black/65">
+                v0.4
+              </span>
+              <span className="text-xs sm:text-sm font-medium text-black hidden sm:inline">
+                —
+              </span>
               <span className="text-xs sm:text-sm font-[600] tracking-[-0.6px]! text-black leading-tight">
-                <span className="hidden sm:inline">Unified /v1/responses API with state management</span>
+                <span className="hidden sm:inline">
+                  Unified /v1/responses API with state management
+                </span>
                 <span className="sm:hidden">Unified /v1/responses API</span>
               </span>
             </div>
@@ -26,14 +32,17 @@ export function Hero() {
           {/* Main Heading */}
           <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-7xl font-normal leading-tight tracking-tighter text-black mb-4 sm:mb-6 flex flex-col gap-0 sm:-space-y-2 lg:-space-y-3">
             <span className="font-sans">Models-native </span>
-            <span className="font-sans font-medium text-[var(--secondary)]">dataplane for agents</span>
+            <span className="font-sans font-medium text-[var(--secondary)]">
+              dataplane for agents
+            </span>
           </h1>
         </div>
 
         {/* Subheading with CTA Buttons */}
         <div className="max-w-7xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.92px]! text-black max-w-4xl">
-            Build agents faster, and scale them reliably by offloading the plumbing work in AI.
+            Build agents faster, and scale them reliably by offloading the
+            plumbing work in AI.
           </p>
 
           {/* CTA Buttons */}
@@ -50,4 +59,3 @@ export function Hero() {
     </section>
   );
 }
-

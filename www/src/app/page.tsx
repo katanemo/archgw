@@ -24,7 +24,7 @@ export default function Home() {
         <UseCasesSection />
         <VerticalCarouselSection />
         <HowItWorksSection />
-        <UnlockPotentialSection variant="black" />
+        <UnlockPotentialSection variant="transparent" />
 
         {/* Rest of the sections will be refactored next */}
       </main>

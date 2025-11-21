@@ -329,9 +329,6 @@ impl ArchFunctionHandler {
     pub fn parse_model_response(&self, content: &str) -> ParsedModelResponse {
         let mut response_dict = ParsedModelResponse::default();
 
-        // Store original content for raw_response before any processing
-        let original_content = content.trim().to_string();
-
         // Remove markdown code blocks
         let mut content = content.trim().to_string();
         if content.starts_with("```") && content.ends_with("```") {
@@ -350,16 +347,7 @@ impl ArchFunctionHandler {
         // Try to fix JSON if needed
         let fixed_content = match self.fix_json_string(&content) {
             Ok(fixed) => {
-                // Build raw_response with literal \n sequences (not actual newlines)
-                // Replace actual newlines with \n string literal
-                let sanitized_content = if original_content.starts_with("```") {
-                    // Original had code blocks - replace actual newlines with \n literals
-                    original_content.replace('\n', r"\n")
-                } else {
-                    // Wrap the content with literal \n sequences
-                    format!(r"```json\n{}\n```", content)
-                };
-                response_dict.raw_response = sanitized_content;
+                response_dict.raw_response = format!("```json\n{}\n```", fixed);
                 fixed
             }
             Err(e) => {
@@ -373,7 +361,6 @@ impl ArchFunctionHandler {
             Ok(model_response) => {
                 // Successfully parsed - mark as valid
                 response_dict.is_valid = true;
-                info!("c8: {:?}", model_response);
 
                 // Extract response field
                 if let Some(resp) = model_response.get("response") {

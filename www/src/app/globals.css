@@ -159,16 +159,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Global letter-spacing for fonts */
-.font-sans,
-[class*="font-sans"] {
-  letter-spacing: -4.56px;
-}
-
-.font-mono,
-[class*="font-mono"] {
-  letter-spacing: -0.96px;
-}
+/* Global letter-spacing removed - use Tailwind tracking utilities (tracking-tight, tracking-[-1.92px], etc.) instead */
 
 body {
   font-family: var(--font-sans);

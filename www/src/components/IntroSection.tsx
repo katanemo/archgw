@@ -23,8 +23,10 @@ export function IntroSection() {
                 Plano is a framework-friendly proxy server and dataplane for agents, 
                 deployed as a sidecar. Plano handles the critical plumbing work in AI 
                 like agent routing and orchestration, comprehensive traces for agentic
-                interactions, guardrail hooks, unified APIs for LLMs — so <strong> developers </strong> 
-                can focus more on modeling workflows, <strong> product teams </strong> can accelerate 
+                interactions, guardrail hooks, unified APIs for LLMs —
+              </p>
+              <p className="mb-0 leading-8 mt-4">
+                <strong>Developers</strong> can focus more on modeling workflows, <strong>product teams</strong> can accelerate 
                 feedback loops for reinforcement learning and <strong>engineering teams</strong> can 
                 standardize policies and access controls across every agent and LLM for
                 safer, more reliable scaling.

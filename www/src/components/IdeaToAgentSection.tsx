@@ -65,21 +65,24 @@ export function IdeaToAgentSection() {
   };
 
   return (
-    <section className="relative py-24 px-6 lg:px-[102px]">
+    <section className="relative py-12 sm:py-16 lg:py-24 px-4 sm:px-6 lg:px-[102px]">
       <div className="max-w-[81rem] mx-auto">
         {/* Main Heading */}
-        <h2 className="font-sans font-normal text-4xl tracking-[-2.96px]!  text-black mb-10">
+        <h2 className="font-sans font-normal text-2xl sm:text-3xl lg:text-4xl tracking-[-2px] sm:tracking-[-2.96px]! text-black mb-6 sm:mb-8 lg:mb-10">
           Idea to agent — without overhead
         </h2>
 
         {/* Progress Indicators */}
-        <div className="flex gap-2 mb-12">
+        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 lg:mb-6 w-full">
           {carouselData.map((_, index) => (
             <button
               key={index}
               onClick={() => handleSlideClick(index)}
-              className="relative h-2 rounded-full overflow-hidden transition-all duration-300 hover:opacity-80"
-              style={{ width: index === currentSlide ? '292px' : '293px' }}
+              className={`relative h-1.5 sm:h-2 rounded-full overflow-hidden transition-all duration-300 hover:opacity-80 ${
+                index === currentSlide 
+                  ? 'flex-1 sm:w-16 md:w-20 lg:w-[292px]' 
+                  : 'flex-1 sm:w-16 md:w-20 lg:w-[293px]'
+              }`}
             >
               {/* Background */}
               <div className="absolute inset-0 bg-black/6 rounded-full" />
@@ -103,51 +106,74 @@ export function IdeaToAgentSection() {
           ))}
         </div>
 
-        {/* Carousel Content */}
-        <div className="relative min-h-[300px] lg:min-h-[400px]">
+        {/* Carousel Content - Fixed height to prevent layout shift */}
+        <div className="relative h-[500px] sm:h-[550px] md:h-[600px] lg:h-[500px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentSlide}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="absolute inset-0"
             >
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center lg:gap-12">
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center lg:gap-12 h-full">
                 {/* Left Content */}
-                <div className="flex-1">
-                  <div className="max-w-[692px] mt-6">
+                <div className="flex-1 order-1 lg:order-1 flex flex-col justify-center">
+                  <div className="max-w-[692px] mt-0 lg:mt-0">
                     {/* Category */}
-                    <p className="font-mono font-bold text-[#2a3178] text-xl tracking-[1.92px]! mb-4 leading-[1.102]">
+                    <p className="font-mono font-bold text-[#2a3178] text-sm sm:text-base lg:text-xl tracking-[1.44px] sm:tracking-[1.92px]! mb-3 sm:mb-4 leading-[1.102]">
                       {carouselData[currentSlide].category}
                     </p>
 
                     {/* Title */}
-                    <h3 className="font-sans font-medium text-[#9797ea] text-5xl tracking-[-2.96px]!  mb-7">
+                    <h3 className="font-sans font-medium text-[#9797ea] text-2xl sm:text-3xl lg:text-5xl tracking-tight sm:tracking-[-2.96px]! mb-4 sm:mb-6 lg:mb-7">
                       {carouselData[currentSlide].title}
                     </h3>
 
                     {/* Description */}
-                    <div className="font-mono text-black text-lg leading-8 max-w-140">
+                    <div className="font-mono text-black text-sm sm:text-base lg:text-lg leading-6 sm:leading-7 lg:leading-8 max-w-full lg:max-w-140 tracking-[-0.8px] sm:tracking-[-1.2px]!">
                       <p className="mb-0">
                         {carouselData[currentSlide].description}
                       </p>
                     </div>
 
-                    <Button className="mt-8">
+                    <Button className="mt-6 sm:mt-8 w-full sm:w-auto">
                       Learn more
                     </Button>
                   </div>
                 </div>
 
-                {/* Right Image - Only show if current slide has an image */}
+                {/* Image - Show below on mobile, right side on desktop */}
                 {carouselData[currentSlide].image && (
-                  <div className="hidden lg:flex shrink-0 w-[400px] xl:w-[500px] justify-end items-center ">
+                  <div className="flex lg:hidden shrink-0 w-full justify-center items-center mb-6 sm:mb-8 order-0 lg:order-2">
                     <img
                       src={carouselData[currentSlide].image}
                       alt={carouselData[currentSlide].category}
-                      className="w-full h-auto max-h-[450px] object-contain"
+                      className={`w-full h-auto object-contain ${
+                        carouselData[currentSlide].image === "/Telemetry.svg"
+                          ? "max-w-md sm:max-w-lg max-h-[300px] sm:max-h-[350px]"
+                          : "max-w-sm sm:max-w-md max-h-[250px] sm:max-h-[300px]"
+                      }`}
+                    />
+                  </div>
+                )}
+                
+                {/* Right Image - Desktop only */}
+                {carouselData[currentSlide].image && (
+                  <div className={`hidden lg:flex shrink-0 justify-end items-center order-2 ${
+                    carouselData[currentSlide].image === "/Telemetry.svg" 
+                      ? "w-[500px] xl:w-[600px]" 
+                      : "w-[400px] xl:w-[500px]"
+                  }`}>
+                    <img
+                      src={carouselData[currentSlide].image}
+                      alt={carouselData[currentSlide].category}
+                      className={`w-full h-auto object-contain ${
+                        carouselData[currentSlide].image === "/Telemetry.svg"
+                          ? "max-h-[550px]"
+                          : "max-h-[450px]"
+                      }`}
                     />
                   </div>
                 )}

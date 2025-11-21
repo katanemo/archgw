@@ -5,7 +5,7 @@ import { NetworkAnimation } from "./NetworkAnimation";
 
 export function Hero() {
   return (
-    <section className="relative pt-8 sm:pt-12 lg:pt-15 pb-6 px-4 sm:px-6 lg:px-8">
+    <section className="relative pt-8 sm:pt-12 lg:pt-1 pb-6 px-4 sm:px-6 lg:px-8">
       <div className="hidden lg:block">
         <NetworkAnimation />
       </div>

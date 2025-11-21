@@ -18,16 +18,16 @@ export function IntroSection() {
             </h2>
 
             {/* Body Text */}
-            <div className="font-mono tracking-[-0.96px]! text-white text-lg max-w-[713px]">
-              <p className="mb-0 leading-8">
+            <div className="font-mono tracking-[-0.96px]! text-white text-sm sm:text-base lg:text-lg max-w-[713px]">
+              <p className="mb-0">
                 Plano is a framework-friendly proxy server and dataplane for agents, 
                 deployed as a sidecar. Plano handles the critical plumbing work in AI 
                 like agent routing and orchestration, comprehensive traces for agentic
                 interactions, guardrail hooks, unified APIs for LLMs —
               </p>
-              <p className="mb-0 leading-8 mt-4">
-                <strong>Developers</strong> can focus more on modeling workflows, <strong>product teams</strong> can accelerate 
-                feedback loops for reinforcement learning and <strong>engineering teams</strong> can 
+              <p className="mb-0  mt-4">
+                <strong><u>Developers</u></strong> can focus more on modeling workflows, <strong><u>product teams</u></strong> can accelerate 
+                feedback loops for reinforcement learning and <strong><u>engineering teams</u></strong> can 
                 standardize policies and access controls across every agent and LLM for
                 safer, more reliable scaling.
               </p>

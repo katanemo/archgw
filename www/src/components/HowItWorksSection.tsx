@@ -5,15 +5,15 @@ import Image from "next/image";
 
 export function HowItWorksSection() {
   return (
-    <section className="bg-[#1a1a1a] text-white pb-16 sm:pb-20 lg:pb-28 sm:pt-3 pt-20">
-      <div className="max-w-324 mx-auto sm:pl-0">
+    <section className="bg-[#1a1a1a] text-white pb-16 sm:pb-20 lg:pb-28 sm:pt-0 pt-20">
+      <div className="max-w-312 mx-auto sm:pl-0">
         <div className="flex flex-col gap-8 sm:gap-12 lg:gap-16">
           {/* Header and Description */}
           <div className="max-w-4xl lg:-ml-[102px] lg:pl-[102px] sm:pl-0 pl-4">
-            <h2 className="font-sans font-normal text-2xl sm:text-3xl lg:text-4xl tracking-[-2px] sm:tracking-[-2.4px]! text-white leading-[1.03] mb-6 sm:mb-8">
-              A high-level overview of how Plano works
+            <h2 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl tracking-[-1.6px] sm:tracking-[-2px]! text-white leading-[1.03] mb-6 sm:mb-8">
+              One configuration file to orchestrate
             </h2>
-            <div className="font-mono text-white w-100 sm:w-full text-sm sm:text-lg lg:text-lg leading-7 sm:leading-9 lg:leading-10 tracking-[-0.8px] sm:tracking-[-1.2px]!">
+            <div className="font-mono text-white w-100 sm:w-full text-sm sm:text-lg lg:text-lg tracking-[-0.8px] sm:tracking-[-1.2px]!">
               <p className="mb-0">
                 Plano offers a delightful developer experience with a simple configuration file that describes the types of prompts your agentic app supports, a set of APIs that need to be plugged in for agentic scenarios (including retrieval queries) and your choice of LLMs.
               </p>

@@ -46,7 +46,7 @@ const useCasesData: UseCase[] = [
   },
   {
     id: 4,
-    category: "SECURITY",
+    category: "CENTRALIZED SECURITY",
     title: "Built-in guardrails and centralized policies",
     summary: "Safe scaling with jailbreak detection and access controls",
     fullContent: "With built-in guardrails, centralized policies, and access controls, Plano ensures safe scaling across LLMs, detecting issues like jailbreak attempts. This is critical for deployments in regulated fields like finance or healthcare, and minimizing risks while standardizing reliability and security of agents.",
@@ -55,7 +55,7 @@ const useCasesData: UseCase[] = [
   },
   {
     id: 5,
-    category: "ON-PREMISES",
+    category: "ON-PREMISES DEPLOYMENT",
     title: "Full data control in regulated environments",
     summary: "Deploy on private infrastructure without compromising features",
     fullContent: "Plano's lightweight sidecar model deploys effortlessly on your private infrastructure, empowering teams in regulated sectors to maintain full data control while benefiting from unified LLM access, custom filter chains, and production-grade tracing—without compromising on security or scalability.",
@@ -97,17 +97,17 @@ export function UseCasesSection() {
               key={useCase.id}
               whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
-              className="bg-gradient-to-b from-[rgba(177,184,255,0.16)] to-[rgba(17,28,132,0.035)] border-2 border-[rgba(171,178,250,0.27)] rounded-md p-4 sm:p-6 lg:p-8 h-auto sm:h-64 md:h-72 lg:h-90 flex flex-col justify-between cursor-pointer"
+              className="bg-gradient-to-b from-[rgba(177,184,255,0.16)] to-[rgba(17,28,132,0.035)] border-2 border-[rgba(171,178,250,0.27)] rounded-md p-4 sm:p-6 lg:p-6 h-auto sm:h-64 md:h-72 lg:h-90 flex flex-col justify-between cursor-pointer"
               onClick={() => setSelectedUseCase(useCase)}
             >
               {/* Category */}
               <div className="mb-4 sm:mb-6">
-                <p className="font-mono font-bold text-[#2a3178] text-sm sm:text-base tracking-[1.44px] sm:tracking-[1.92px]! mb-3 sm:mb-4">
+                <p className="font-mono font-bold text-[#2a3178] text-sm sm:text-sm tracking-[1.44px] sm:tracking-[1.92px]! mb-3 sm:mb-4">
                   {useCase.category}
                 </p>
 
                 {/* Title */}
-                <h3 className="font-sans font-medium text-black text-lg sm:text-xl lg:text-2xl tracking-[-1.2px]! leading-[1.102]">
+                <h3 className="font-sans font-normal text-black text-lg sm:text-xl lg:text-2xl tracking-[-1.2px]! leading-[1.102]">
                   {useCase.title}
                 </h3>
               </div>

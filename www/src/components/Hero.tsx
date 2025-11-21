@@ -31,13 +31,13 @@ export function Hero() {
         </div>
 
         {/* Subheading with CTA Buttons */}
-        <div className="max-w-7xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[500] tracking-[-1.2px] sm:tracking-[-1.92px]! text-black max-w-4xl">
-            Build agents faster, and scale them reliably by offloading the plumbing work in AI agents.
+        <div className="max-w-7xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.92px]! text-black max-w-4xl">
+            Build agents faster, and scale them reliably by offloading the plumbing work in AI.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto lg:justify-end">
+          <div className="mb-0.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto lg:justify-end">
             <Button asChild className="w-full sm:w-auto">
               <Link href="/get-started">Get started</Link>
             </Button>

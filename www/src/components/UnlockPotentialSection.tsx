@@ -17,8 +17,8 @@ export function UnlockPotentialSection({
     <section className={`relative py-24 px-6 lg:px-[102px] ${backgroundClass} ${className}`}>
       <div className="max-w-[81rem] mx-auto">
         <div className="max-w-4xl">
-          <h2 className={`font-sans font-normal text-3xl lg:text-4xl tracking-[-2.88px]! ${textColor} leading-[1.4] mb-8`}>
-            Focus on prompting, not plumbing<br />
+          <h2 className={`font-sans font-normal text-[1.8rem] lg:text-4xl tracking-[-2.55px]! ${textColor} leading-[1.4] mb-8`}>
+            Focus on prompting, not plumbing.<br />
             Build with <strong className="font-medium text-primary">plano</strong>, get started in less than a minute.
           </h2>
           

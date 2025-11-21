@@ -22,7 +22,7 @@ export function Footer() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
           {/* Left Column - Tagline and Copyright */}
           <div className="flex flex-col">
-            <p className="font-sans text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-7 sm:leading-8 mb-6 sm:mb-8">
+            <p className="font-sans font-normal text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-7  mb-6 sm:mb-8">
               Plano is the powerful, intelligent platform that empowers teams to seamlessly build, automate, and scale agentic systems with ease.
             </p>
             
@@ -38,7 +38,7 @@ export function Footer() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {/* Company Links */}
             <div>
-              <h3 className="font-sans font-medium text-2xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
+              <h3 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
                 Company
               </h3>
               <nav className="space-y-3 sm:space-y-4">
@@ -46,7 +46,7 @@ export function Footer() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="block font-sans text-base sm:text-lg lg:text-xl text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
+                    className="block font-sans font-normal text-sm sm:text-base lg:text-lg text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -56,7 +56,7 @@ export function Footer() {
 
             {/* Developer Resources */}
             <div>
-              <h3 className="font-sans font-medium text-2xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
+              <h3 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
                 Developer Resources
               </h3>
               <nav className="space-y-3 sm:space-y-4">
@@ -64,7 +64,7 @@ export function Footer() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="block font-sans text-base sm:text-lg lg:text-xl text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
+                    className="block font-sans font-normal text-sm sm:text-base lg:text-lg text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
                   >
                     {link.label}
                   </Link>

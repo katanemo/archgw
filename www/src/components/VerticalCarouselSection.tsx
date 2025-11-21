@@ -51,11 +51,11 @@ export function VerticalCarouselSection() {
   };
 
   return (
-    <section className="relative bg-[#1a1a1a] text-white py-12 sm:py-16 lg:py-24 px-4 sm:px-6 lg:px-[102px]">
+    <section className="relative bg-[#1a1a1a] text-white pt-20 pb-0 lg:pb-4 px-4 sm:px-6 lg:px-[102px] h-auto sm:h-[650px]">
       <div className="max-w-324 mx-auto">
         {/* Main Heading */}
         <h2 className="font-sans font-normal text-2xl sm:text-3xl lg:text-4xl tracking-[-2px] sm:tracking-[-2.88px]! text-white leading-[1.03] mb-8 sm:mb-12 lg:mb-12 max-w-4xl">
-          Basic scenarios to powerful agentic apps in minutes
+          Under the hood
         </h2>
 
         {/* Mobile: Horizontal Scroller Navigation */}
@@ -156,13 +156,13 @@ export function VerticalCarouselSection() {
 
                   {/* Text Content */}
                   <div className="flex-1 max-w-2xl order-last lg:order-first flex flex-col justify-start">
-                    {/* Title */}
+                    {/* Title
                     <h3 className="font-sans font-medium text-primary text-xl sm:text-2xl lg:text-[34px] tracking-[-1px]! leading-[1.03] mb-4 sm:mb-6">
                       {verticalCarouselData[activeSlide].title}
-                    </h3>
+                    </h3> */}
 
                     {/* Description */}
-                    <div className="font-mono text-white text-sm sm:text-base lg:text-lg leading-6 sm:leading-8 lg:leading-10 tracking-[-0.8px] sm:tracking-[-1.2px]! max-w-full lg:max-w-md">
+                    <div className="font-mono text-white text-sm sm:text-base lg:text-lg  tracking-[-0.8px] sm:tracking-[-1.2px]! max-w-full lg:max-w-md">
                       <p className="mb-0">
                         {verticalCarouselData[activeSlide].description}
                       </p>

@@ -132,7 +132,7 @@ export function IdeaToAgentSection() {
                     </h3>
 
                     {/* Description */}
-                    <div className="font-mono text-black text-sm sm:text-base lg:text-lg leading-6 sm:leading-7 lg:leading-8 max-w-full lg:max-w-140 tracking-[-0.8px] sm:tracking-[-1.2px]!">
+                    <div className="font-mono text-black text-sm sm:text-base lg:text-lg max-w-full lg:max-w-140 tracking-[-0.8px] sm:tracking-[-1.2px]!">
                       <p className="mb-0">
                         {carouselData[currentSlide].description}
                       </p>

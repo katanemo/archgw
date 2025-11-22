@@ -1,28 +1,24 @@
-[project]
+[tool.poetry]
 name = "archgw"
 version = "0.3.18"
 description = "Python-based CLI tool to manage Arch Gateway."
-authors = [{ name = "Katanemo Labs, Inc." }]
+authors = ["Katanemo Labs, Inc."]
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "click>=8.1.7,<9.0.0",
-    "jinja2>=3.1.4,<4.0.0",
-    "jsonschema>=4.23.0,<5.0.0",
-    "pyyaml>=6.0.2,<7.0.0",
-    "requests>=2.31.0,<3.0.0",
-]
-
-[project.scripts]
-archgw = "cli.main:main"
-
-[dependency-groups]
-dev = [
-    "pytest>=8.4.1,<9.0.0",
-]
-
-[tool.poetry]
 packages = [{ include = "cli" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+click = ">=8.1.7,<9.0.0"
+jinja2 = ">=3.1.4,<4.0.0"
+jsonschema = ">=4.23.0,<5.0.0"
+pyyaml = ">=6.0.2,<7.0.0"
+requests = ">=2.31.0,<3.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.4.1,<9.0.0"
+
+[tool.poetry.scripts]
+archgw = "cli.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

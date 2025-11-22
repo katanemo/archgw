@@ -43,7 +43,7 @@ jobs:
       - name: install arch gateway and test dependencies
         run: |
           source venv/bin/activate
-          cd ../arch/tools && echo "installing archgw cli" && poetry install
+          cd arch/tools && echo "installing archgw cli" && poetry install
           cd ../../demos/shared/test_runner && echo "installing test dependencies" && poetry install
 
       - name: run demo tests

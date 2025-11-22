@@ -113,11 +113,6 @@ venv.bak/
 arch/tools/config
 arch/tools/build
 
-# Archgw - model_server
-model_server/venv_model_server
-model_server/build
-model_server/dist
-
 # Archgw - Docs
 docs/build/
 

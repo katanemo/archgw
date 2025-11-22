@@ -79,7 +79,6 @@ files = [
 ]
 
 [package.dependencies]
-archgw_modelserver = ">=0.3.12,<0.4.0"
 click = ">=8.1.7,<9.0.0"
 jinja2 = ">=3.1.4,<4.0.0"
 jsonschema = ">=4.23.0,<5.0.0"
@@ -93,11 +92,6 @@ description = "A model server for serving models"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
-files = [
-    {file = "archgw_modelserver-0.3.12-py3-none-any.whl", hash = "sha256:ddc4536108e74bee637b41e35f80ad5cdf1708a32f670f33b2eef3526eb6d4a1"},
-    {file = "archgw_modelserver-0.3.12.tar.gz", hash = "sha256:b749edd0b3d4e6f01e94bcf6b363bf52b8ca515e8191a0951b99152f45745212"},
-]
-
 [package.dependencies]
 accelerate = ">=1.0.0,<2.0.0"
 dateparser = "*"

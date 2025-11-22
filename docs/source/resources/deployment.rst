@@ -35,7 +35,6 @@ Create a ``docker-compose.yml`` file with the following configuration:
        environment:
          - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
          - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?error}
-         - MODEL_SERVER_PORT=51000
 
 Starting the Stack
 ~~~~~~~~~~~~~~~~~~

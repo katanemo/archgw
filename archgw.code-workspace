@@ -13,10 +13,6 @@
       "path": "arch/tools"
     },
     {
-      "name": "model_server",
-      "path": "model_server"
-    },
-    {
       "name": "tests_e2e",
       "path": "tests/e2e"
     },

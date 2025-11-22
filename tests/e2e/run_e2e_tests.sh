@@ -11,9 +11,6 @@ touch ~/archgw_logs/modelserver.log
 
 print_debug() {
   log "Received signal to stop"
-  log "Printing debug logs for model_server"
-  log "===================================="
-  tail -n 100 ~/archgw_logs/modelserver.log
   log "Printing debug logs for docker"
   log "===================================="
   tail -n 100 ../build.log
@@ -28,12 +25,6 @@ log building and running function_calling demo
 log ===========================================
 cd ../../demos/samples_python/weather_forecast/
 docker compose up weather_forecast_service --build -d
-cd -
-
-log building and install model server
-log =================================
-cd ../../model_server
-poetry install
 cd -
 
 log building and installing archgw cli
@@ -53,11 +44,8 @@ poetry install
 
 log startup arch gateway with function calling demo
 cd ../../
-tail -F ~/archgw_logs/modelserver.log &
-model_server_tail_pid=$!
 archgw down
 archgw up demos/samples_python/weather_forecast/arch_config.yaml
-kill $model_server_tail_pid
 cd -
 
 log running e2e tests for prompt gateway

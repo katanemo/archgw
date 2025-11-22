@@ -9,9 +9,7 @@ from cli.utils import convert_legacy_listeners, getLogger
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
-    KATANEMO_LOCAL_MODEL_LIST,
 )
-from huggingface_hub import snapshot_download
 import subprocess
 from cli.docker_cli import (
     docker_container_status,
@@ -142,49 +140,6 @@ def stop_docker_container(service=ARCHGW_DOCKER_NAME):
 
     except subprocess.CalledProcessError as e:
         log.info(f"Failed to shut down services: {str(e)}")
-
-
-def download_models_from_hf():
-    for model in KATANEMO_LOCAL_MODEL_LIST:
-        log.info(f"Downloading model: {model}")
-        snapshot_download(repo_id=model)
-
-
-def start_arch_modelserver(foreground):
-    """
-    Start the model server. This assumes that the archgw_modelserver package is installed locally
-
-    """
-    try:
-        log.info("archgw_modelserver restart")
-        if foreground:
-            subprocess.run(
-                ["archgw_modelserver", "start", "--foreground"],
-                check=True,
-            )
-        else:
-            subprocess.run(
-                ["archgw_modelserver", "start"],
-                check=True,
-            )
-    except subprocess.CalledProcessError as e:
-        log.info(f"Failed to start model_server. Please check archgw_modelserver logs")
-        sys.exit(1)
-
-
-def stop_arch_modelserver():
-    """
-    Stop the model server. This assumes that the archgw_modelserver package is installed locally
-
-    """
-    try:
-        subprocess.run(
-            ["archgw_modelserver", "stop"],
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        log.info(f"Failed to start model_server. Please check archgw_modelserver logs")
-        sys.exit(1)
 
 
 def start_cli_agent(arch_config_file=None, settings_json="{}"):

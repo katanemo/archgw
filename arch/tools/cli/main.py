@@ -20,20 +20,14 @@ from cli.utils import (
     find_config_file,
 )
 from cli.core import (
-    start_arch_modelserver,
-    stop_arch_modelserver,
     start_arch,
     stop_docker_container,
-    download_models_from_hf,
     start_cli_agent,
 )
 from cli.consts import (
     ARCHGW_DOCKER_IMAGE,
     ARCHGW_DOCKER_NAME,
-    KATANEMO_DOCKERHUB_REPO,
     SERVICE_NAME_ARCHGW,
-    SERVICE_NAME_MODEL_SERVER,
-    SERVICE_ALL,
 )
 
 log = getLogger(__name__)
@@ -47,9 +41,8 @@ logo = r"""
 
 """
 
-# Command to build archgw and model_server Docker images
+# Command to build archgw Docker images
 ARCHGW_DOCKERFILE = "./arch/Dockerfile"
-MODEL_SERVER_BUILD_FILE = "./model_server/pyproject.toml"
 
 
 def get_version():
@@ -58,18 +51,6 @@ def get_version():
         return version
     except importlib.metadata.PackageNotFoundError:
         return "version not found"
-
-
-def verify_service_name(service):
-    """Verify if the service name is valid."""
-    if service not in [
-        SERVICE_NAME_ARCHGW,
-        SERVICE_NAME_MODEL_SERVER,
-        SERVICE_ALL,
-    ]:
-        print(f"Error: Invalid service {service}. Exiting")
-        sys.exit(1)
-    return True
 
 
 @click.group(invoke_without_command=True)
@@ -89,17 +70,11 @@ def main(ctx, version):
 
 
 @click.command()
-@click.option(
-    "--service",
-    default=SERVICE_ALL,
-    help="Optional parameter to specify which service to build. Options are model_server, archgw",
-)
-def build(service):
+def build():
     """Build Arch from source. Must be in root of cloned repo."""
-    verify_service_name(service)
 
     # Check if /arch/Dockerfile exists
-    if service == SERVICE_NAME_ARCHGW or service == SERVICE_ALL:
+    if os.path.exists(ARCHGW_DOCKERFILE):
         if os.path.exists(ARCHGW_DOCKERFILE):
             click.echo("Building archgw image...")
             try:
@@ -109,8 +84,6 @@ def build(service):
                         "build",
                         "-f",
                         ARCHGW_DOCKERFILE,
-                        "-t",
-                        f"{KATANEMO_DOCKERHUB_REPO}:latest",
                         "-t",
                         f"{ARCHGW_DOCKER_IMAGE}",
                         ".",
@@ -128,25 +101,6 @@ def build(service):
 
     click.echo("archgw image built successfully.")
 
-    """Install the model server dependencies using Poetry."""
-    if service == SERVICE_NAME_MODEL_SERVER or service == SERVICE_ALL:
-        # Check if pyproject.toml exists
-        if os.path.exists(MODEL_SERVER_BUILD_FILE):
-            click.echo("Installing model server dependencies with Poetry...")
-            try:
-                subprocess.run(
-                    ["poetry", "install", "--no-cache"],
-                    cwd=os.path.dirname(MODEL_SERVER_BUILD_FILE),
-                    check=True,
-                )
-                click.echo("Model server dependencies installed successfully.")
-            except subprocess.CalledProcessError as e:
-                click.echo(f"Error installing model server dependencies: {e}")
-                sys.exit(1)
-        else:
-            click.echo(f"Error: pyproject.toml not found in {MODEL_SERVER_BUILD_FILE}")
-            sys.exit(1)
-
 
 @click.command()
 @click.argument("file", required=False)  # Optional file argument
@@ -154,31 +108,13 @@ def build(service):
     "--path", default=".", help="Path to the directory containing arch_config.yaml"
 )
 @click.option(
-    "--service",
-    default=SERVICE_ALL,
-    help="Service to start. Options are model_server, archgw.",
-)
-@click.option(
     "--foreground",
     default=False,
     help="Run Arch in the foreground. Default is False",
     is_flag=True,
 )
-def up(file, path, service, foreground):
+def up(file, path, foreground):
     """Starts Arch."""
-    verify_service_name(service)
-
-    if service == SERVICE_ALL and foreground:
-        # foreground can only be specified when starting individual services
-        log.info("foreground flag is only supported for individual services. Exiting.")
-        sys.exit(1)
-
-    if service == SERVICE_NAME_MODEL_SERVER:
-        log.info("Download models from HuggingFace...")
-        download_models_from_hf()
-        start_arch_modelserver(foreground)
-        return
-
     # Use the utility function to find config file
     arch_config_file = find_config_file(path, file)
 
@@ -202,7 +138,6 @@ def up(file, path, service, foreground):
     # Set the ARCH_CONFIG_FILE environment variable
     env_stage = {
         "OTEL_TRACING_HTTP_ENDPOINT": "http://host.docker.internal:4318/v1/traces",
-        "MODEL_SERVER_PORT": os.getenv("MODEL_SERVER_PORT", "51000"),
     }
     env = os.environ.copy()
     # Remove PATH variable if present
@@ -242,40 +177,13 @@ def up(file, path, service, foreground):
                     env_stage[access_key] = env_file_dict[access_key]
 
     env.update(env_stage)
-
-    if service == SERVICE_NAME_ARCHGW:
-        start_arch(arch_config_file, env, foreground=foreground)
-    else:
-        # Check if ingress_traffic listener is configured before starting model_server
-        if has_ingress_listener(arch_config_file):
-            download_models_from_hf()
-            start_arch_modelserver(foreground)
-        else:
-            log.info(
-                "Skipping model_server startup: no ingress_traffic listener configured in arch_config.yaml"
-            )
-
-        start_arch(arch_config_file, env, foreground=foreground)
+    start_arch(arch_config_file, env, foreground=foreground)
 
 
 @click.command()
-@click.option(
-    "--service",
-    default=SERVICE_ALL,
-    help="Service to down. Options are all, model_server, archgw. Default is all",
-)
-def down(service):
+def down():
     """Stops Arch."""
-
-    verify_service_name(service)
-
-    if service == SERVICE_NAME_MODEL_SERVER:
-        stop_arch_modelserver()
-    elif service == SERVICE_NAME_ARCHGW:
-        stop_docker_container()
-    else:
-        stop_arch_modelserver()
-        stop_docker_container(SERVICE_NAME_ARCHGW)
+    stop_docker_container()
 
 
 @click.command()
@@ -303,7 +211,7 @@ def generate_prompt_targets(file):
 @click.command()
 @click.option(
     "--debug",
-    help="For detailed debug logs to trace calls from archgw <> model_server <> api_server, etc",
+    help="For detailed debug logs to trace calls from archgw <> api_server, etc",
     is_flag=True,
 )
 @click.option("--follow", help="Follow the logs", is_flag=True)

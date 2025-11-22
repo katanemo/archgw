@@ -56,15 +56,8 @@ poetry install
 archgw build
 ```
 
-### Step 5: download models
-This will help download models so model_server can load faster. This should be done once.
-
-```bash
-archgw download-models
-```
-
 ### Logs
-`archgw` command can also view logs from gateway and model_server. Use following command to view logs,
+`archgw` command can also view logs from the gateway. Use following command to view logs,
 
 ```bash
 archgw logs --follow

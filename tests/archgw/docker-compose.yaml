@@ -12,4 +12,3 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY:?error}
-      - MODEL_SERVER_PORT=${MODEL_SERVER_PORT:-51001}

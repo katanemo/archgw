@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: [
+    "@katanemo/ui",
+    "@katanemo/shared-styles",
+    "@katanemo/tailwind-config",
+    "@katanemo/tsconfig",
+  ],
 };
 
 export default nextConfig;

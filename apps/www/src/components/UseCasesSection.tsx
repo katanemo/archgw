@@ -10,15 +10,15 @@ import {
   Server,
   XIcon,
 } from "lucide-react";
-import { Button } from "./ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogClose,
-} from "./ui/dialog";
+} from "@katanemo/ui";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface UseCase {

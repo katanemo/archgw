@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "@katanemo/shared-styles/globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { Navbar, Footer } from "@katanemo/ui";
 
 export const metadata: Metadata = {
   title: "Plano - The AI-native network for agents",
@@ -15,8 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
-      <Analytics />
+      <body className="antialiased">
+        <div className="min-h-screen">
+          <Navbar />
+          <main className="pt-20">{children}</main>
+          <Footer />
+        </div>
+        <Analytics />
+      </body>
     </html>
   );
 }

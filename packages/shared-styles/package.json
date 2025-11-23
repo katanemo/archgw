@@ -1,0 +1,10 @@
+{
+  "name": "@katanemo/shared-styles",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./globals.css",
+  "files": [
+    "globals.css"
+  ]
+}
+

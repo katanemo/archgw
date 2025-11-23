@@ -1,29 +1,26 @@
 {
-  "name": "website",
+  "name": "@katanemo/docs",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "biome check",
     "format": "biome format --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@vercel/analytics": "^1.5.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.548.0",
+    "@katanemo/shared-styles": "*",
+    "@katanemo/ui": "*",
     "next": "16.0.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "tailwind-merge": "^3.3.1"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@katanemo/tailwind-config": "*",
+    "@katanemo/tsconfig": "*",
     "@biomejs/biome": "2.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -34,3 +31,4 @@
     "typescript": "^5"
   }
 }
+

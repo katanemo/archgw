@@ -1,4 +1,8 @@
 @import "tailwindcss";
+
+@source "../../apps/*/src/**/*.{js,ts,jsx,tsx,mdx}";
+@source "../../packages/ui/src/**/*.{js,ts,jsx,tsx,mdx}";
+
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -163,6 +167,7 @@
 
 /* Global letter-spacing removed - use Tailwind tracking utilities (tracking-tight, tracking-[-1.92px], etc.) instead */
 
+/* Apply custom font to body by default */
 body {
   font-family: var(--font-sans);
 }
@@ -211,8 +216,10 @@ body {
   }
   body {
     @apply text-foreground;
+    font-family: var(--font-sans);
     background: linear-gradient(to top right, #ffffff, #dcdfff);
     min-height: 100vh;
     overflow-x: hidden;
   }
 }
+

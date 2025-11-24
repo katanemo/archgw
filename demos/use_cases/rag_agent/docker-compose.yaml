@@ -1,0 +1,17 @@
+services:
+  jaeger:
+    build:
+      context: ../../shared/jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+  open-web-ui:
+    image: dyrnq/open-webui:main
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - DEFAULT_MODEL=gpt-4o-mini
+      - ENABLE_OPENAI_API=true
+      - OPENAI_API_BASE_URL=http://host.docker.internal:8001/v1

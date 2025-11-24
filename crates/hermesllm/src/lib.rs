@@ -18,6 +18,7 @@ pub use providers::response::{
 
 //TODO: Refactor such that commons doesn't depend on Hermes. For now this will clean up strings
 pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";
+pub const OPENAI_RESPONSES_API_PATH: &str = "/v1/responses";
 pub const MESSAGES_PATH: &str = "/v1/messages";
 
 #[cfg(test)]
@@ -42,9 +43,9 @@ mod tests {
     data: [DONE]
     "#;
 
-        use crate::clients::endpoints::SupportedAPIs;
+        use crate::clients::endpoints::SupportedAPIsFromClients;
         let client_api =
-            SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
+            SupportedAPIsFromClients::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
         let upstream_api =
             SupportedUpstreamAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
 

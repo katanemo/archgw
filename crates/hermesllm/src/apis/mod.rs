@@ -2,6 +2,7 @@ pub mod amazon_bedrock;
 pub mod amazon_bedrock_binary_frame;
 pub mod anthropic;
 pub mod openai;
+pub mod openai_responses;
 pub mod sse;
 
 // Explicit exports to avoid naming conflicts
@@ -88,8 +89,9 @@ mod tests {
     fn test_all_variants_method() {
         // Test that all_variants returns the expected variants
         let openai_variants = OpenAIApi::all_variants();
-        assert_eq!(openai_variants.len(), 1);
+        assert_eq!(openai_variants.len(), 2);
         assert!(openai_variants.contains(&OpenAIApi::ChatCompletions));
+        assert!(openai_variants.contains(&OpenAIApi::Responses));
 
         let anthropic_variants = AnthropicApi::all_variants();
         assert_eq!(anthropic_variants.len(), 1);

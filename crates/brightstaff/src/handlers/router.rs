@@ -3,7 +3,7 @@ use common::configuration::{ModelAlias, ModelUsagePreference};
 use common::consts::{ARCH_IS_STREAMING_HEADER, ARCH_PROVIDER_HINT_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
-use hermesllm::clients::SupportedAPIs;
+use hermesllm::clients::SupportedAPIsFromClients;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
@@ -39,7 +39,7 @@ pub async fn router_chat(
 
     let mut client_request = match ProviderRequestType::try_from((
         &chat_request_bytes[..],
-        &SupportedAPIs::from_endpoint(request_path.as_str()).unwrap(),
+        &SupportedAPIsFromClients::from_endpoint(request_path.as_str()).unwrap(),
     )) {
         Ok(request) => request,
         Err(err) => {
@@ -91,10 +91,11 @@ pub async fn router_chat(
             Ok(
                 ProviderRequestType::MessagesRequest(_)
                 | ProviderRequestType::BedrockConverse(_)
-                | ProviderRequestType::BedrockConverseStream(_),
+                | ProviderRequestType::BedrockConverseStream(_)
+                | ProviderRequestType::ResponsesAPIRequest(_),
             ) => {
                 // This should not happen after conversion to OpenAI format
-                warn!("Unexpected: got MessagesRequest after converting to OpenAI format");
+                warn!("Unexpected: got non-ChatCompletions request after converting to OpenAI format");
                 let err_msg = "Request conversion failed".to_string();
                 let mut bad_request = Response::new(full(err_msg));
                 *bad_request.status_mut() = StatusCode::BAD_REQUEST;

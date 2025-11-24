@@ -6,7 +6,7 @@ use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
-use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH};
+use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
             async move {
                 match (req.method(), req.uri().path()) {
-                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH) => {
+                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, req.uri().path());
                         router_chat(req, router_service, fully_qualified_url, model_aliases)

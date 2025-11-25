@@ -152,3 +152,4 @@ apps/*/.next/
 apps/*/out/
 apps/*/dist/
 ./node_modules
+.vercel

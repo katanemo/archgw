@@ -24,22 +24,12 @@ export function IntroSection() {
                 agents, deployed as a sidecar. Plano handles the critical
                 plumbing work in AI like agent routing and orchestration,
                 comprehensive traces for agentic interactions, guardrail hooks,
-                unified APIs for LLMs —
+                unified APIs for LLMs.
               </p>
               <p className="mb-0  mt-4">
-                <strong>
-                  <u>Developers</u>
-                </strong>{" "}
-                can focus more on modeling workflows,{" "}
-                <strong>
-                  <u>product teams</u>
-                </strong>{" "}
-                can accelerate feedback loops for reinforcement learning and{" "}
-                <strong>
-                  <u>engineering teams</u>
-                </strong>{" "}
-                can standardize policies and access controls across every agent
-                and LLM for safer, more reliable scaling.
+                Developers can focus more on modeling workflows. 
+                Product teams can accelerate feedback loops for reinforcement learning. 
+                Engineering teams can standardize policies and access controls across every agent and LLM for safer, more reliable scaling.
               </p>
             </div>
           </div>

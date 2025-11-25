@@ -15,7 +15,8 @@ export function UnlockPotentialSection({
 
   return (
     <section
-      className={`relative py-24 px-6 lg:px-[102px]`} style={{ background: "linear-gradient(to top right, #ffffff, #dcdfff)" }}
+      className={`relative py-24 px-6 lg:px-[102px]`}
+      style={{ background: "linear-gradient(to top right, #ffffff, #dcdfff)" }}
     >
       <div className="max-w-[81rem] mx-auto">
         <div className="max-w-4xl">

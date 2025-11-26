@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!www/src/lib/
 lib64/
 parts/
 sdist/
@@ -133,3 +134,17 @@ crates/target/
 build.log
 
 archgw.log
+
+# Next.js / Turborepo
+.next/
+out/
+.turbo
+*.tsbuildinfo
+next-env.d.ts
+apps/*/node_modules/
+packages/*/node_modules/
+apps/*/.next/
+apps/*/out/
+apps/*/dist/
+./node_modules
+.vercel

@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
     // Ensure workspace packages are handled correctly
     externalDir: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
+        port: "",
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

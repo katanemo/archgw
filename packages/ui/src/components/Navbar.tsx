@@ -9,11 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Menu } from "lucide-react";
 
 const navItems = [
-  { href: "/start", label: "start locally" },
-  { href: "/docs", label: "docs" },
+  { href: "https://docs.plano.katanemo.com/getting-started/installation", label: "start locally" },
+  { href: "https://docs.plano.katanemo.com", label: "docs" },
   { href: "/model-research", label: "models research" },
   { href: "/blog", label: "blog" },
-  { href: "/why", label: "why plano?" },
 ];
 
 export function Navbar() {

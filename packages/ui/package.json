@@ -23,6 +23,7 @@
     }
   },
   "scripts": {
+    "build": "echo 'Skipping build'",
     "lint": "biome check",
     "typecheck": "tsc --noEmit"
   },

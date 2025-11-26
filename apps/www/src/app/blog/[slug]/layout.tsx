@@ -46,11 +46,28 @@ export async function generateMetadata({
       };
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000");
+    // Get baseUrl - use NEXT_PUBLIC_APP_URL if set, otherwise construct from VERCEL_URL
+    // Restrict to allowed hosts: localhost:3000, archgw-tau.vercel.app, or plano.katanemo.com
+    let baseUrl = "http://localhost:3000";
+    
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      const url = process.env.NEXT_PUBLIC_APP_URL;
+      if (
+        url.includes("archgw-tau.vercel.app") ||
+        url.includes("plano.katanemo.com") ||
+        url.includes("localhost:3000")
+      ) {
+        baseUrl = url;
+      }
+    } else if (process.env.VERCEL_URL) {
+      const hostname = process.env.VERCEL_URL;
+      // VERCEL_URL is just the hostname, not the full URL
+      if (hostname === "archgw-tau.vercel.app") {
+        baseUrl = `https://${hostname}`;
+      } else if (hostname === "plano.katanemo.com") {
+        baseUrl = `https://${hostname}`;
+      }
+    }
 
     const ogImageUrl = `${baseUrl}/api/og/${resolvedParams.slug}`;
 

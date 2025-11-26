@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@katanemo/shared-styles/globals.css";
 import { Analytics } from "@vercel/analytics/next";
-import { Navbar, Footer } from "@katanemo/ui";
+import { ConditionalLayout } from "@/components/ConditionalLayout";
 
 export const metadata: Metadata = {
   title: "Plano - The AI-native network for agents",
@@ -17,11 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <div className="min-h-screen">
-          <Navbar />
-          <main className="pt-20">{children}</main>
-          <Footer />
-        </div>
+        <ConditionalLayout>{children}</ConditionalLayout>
         <Analytics />
       </body>
     </html>

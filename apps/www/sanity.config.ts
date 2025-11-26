@@ -9,6 +9,8 @@ export default defineConfig({
   projectId: "71ny25bn",
   dataset: "production",
 
+  basePath: "/studio",
+
   plugins: [structureTool()],
 
   schema: {

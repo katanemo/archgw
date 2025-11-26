@@ -19,8 +19,8 @@ const customerLogos = [
     src: "/logos/sandisk.svg",
   },
   {
-    name: "Oracle",
-    src: "/logos/oracle.svg",
+    name: "HP",
+    src: "/logos/hp.svg",
   },
 ];
 

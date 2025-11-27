@@ -6,6 +6,99 @@ use serde::{Deserialize, Serialize, ser::Serialize as SerializeTrait};
 use tracing::{debug, warn};
 
 use super::orchestrator_model::{OrchestratorModel, OrchestratorModelError};
+
+/// Custom JSON formatter that produces spaced JSON (space after colons and commas), same as JSON in python
+struct SpacedJsonFormatter;
+
+impl serde_json::ser::Formatter for SpacedJsonFormatter {
+    fn begin_array<W>(&mut self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        writer.write_all(b"[")
+    }
+
+    fn end_array<W>(&mut self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        writer.write_all(b"]")
+    }
+
+    fn begin_array_value<W>(&mut self, writer: &mut W, first: bool) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b", ")
+        }
+    }
+
+    fn end_array_value<W>(&mut self, _writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        Ok(())
+    }
+
+    fn begin_object<W>(&mut self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        writer.write_all(b"{")
+    }
+
+    fn end_object<W>(&mut self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        writer.write_all(b"}")
+    }
+
+    fn begin_object_key<W>(&mut self, writer: &mut W, first: bool) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b", ")
+        }
+    }
+
+    fn end_object_key<W>(&mut self, _writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        Ok(())
+    }
+
+    fn begin_object_value<W>(&mut self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        writer.write_all(b": ")
+    }
+
+    fn end_object_value<W>(&mut self, _writer: &mut W) -> std::io::Result<()>
+    where
+        W: ?Sized + std::io::Write,
+    {
+        Ok(())
+    }
+}
+
+/// Serialize a value to JSON with standard spacing (space after colons and commas)
+/// e.g. {"name": "foo", "key": "value"} instead of {"name":"foo","key":"value"}
+fn to_spaced_json<T: serde::Serialize>(value: &T) -> String {
+    let mut buf = Vec::new();
+    let mut serializer = serde_json::Serializer::with_formatter(&mut buf, SpacedJsonFormatter);
+    value.serialize(&mut serializer).unwrap();
+    String::from_utf8(buf).unwrap_or_default()
+}
+
 pub const ARCH_ORCHESTRATOR_V1_SYSTEM_PROMPT: &str = r#"
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
@@ -37,14 +130,6 @@ pub struct OrchestratorModelV1 {
     orchestration_model: String,
     max_token_length: usize,
 }
-/// Convert compact JSON parameters to Python-style spacing
-/// e.g. {"type":"object","properties":{},"required":[]} -> {"type": "object", "properties": {}, "required": []}
-fn to_python_style_parameters(json_str: &str) -> String {
-    json_str.replace(
-        r#""parameters":{"type":"object","properties":{},"required":[]}"#,
-        r#""parameters":{"type": "object", "properties": {}, "required": []}"#,
-    )
-}
 
 impl OrchestratorModelV1 {
     pub fn new(
@@ -54,10 +139,10 @@ impl OrchestratorModelV1 {
     ) -> Self {
         let agent_orchestration_values: Vec<OrchestrationPreference> =
             agent_orchestrations.values().flatten().cloned().collect();
-        // Format routes: each route as compact JSON on its own line with Python-style spacing for parameters
+        // Format routes: each route as JSON on its own line with standard spacing
         let agent_orchestration_json_str = agent_orchestration_values
             .iter()
-            .map(|pref| to_python_style_parameters(&serde_json::to_string(pref).unwrap_or_default()))
+            .map(|pref| to_spaced_json(pref))
             .collect::<Vec<String>>()
             .join("\n");
         let agent_orchestration_to_model_map: HashMap<String, String> = agent_orchestrations
@@ -154,7 +239,6 @@ impl OrchestratorModel for OrchestratorModelV1 {
             .map(|message| {
                 Message {
                     role: message.role.clone(),
-                    // we can unwrap here because we have already filtered out messages without content
                     content: MessageContent::Text(message.content.to_string()),
                     name: None,
                     tool_calls: None,
@@ -164,7 +248,8 @@ impl OrchestratorModel for OrchestratorModelV1 {
             .collect::<Vec<Message>>();
 
         // Generate the orchestrator request message based on the usage preferences.
-        // If preferences are passed in request then we use them otherwise we use the default orchestration modelpreferences.
+        // If preferences are passed in request then we use them;
+        // Otherwise, we use the default orchestration modelpreferences.
         let orchestrator_message = match convert_to_orchestrator_preferences(usage_preferences_from_request) {
             Some(prefs) => generate_orchestrator_message(&prefs, &selected_conversation_list),
             None => generate_orchestrator_message(&self.agent_orchestration_json_str, &selected_conversation_list),
@@ -285,10 +370,10 @@ fn convert_to_orchestrator_preferences(
             })
             .collect();
 
-        // Format routes: each route as compact JSON on its own line with Python-style spacing for parameters
+        // Format routes: each route as JSON on its own line with standard spacing
         let routes_str = orchestration_preferences
             .iter()
-            .map(|pref| to_python_style_parameters(&serde_json::to_string(pref).unwrap_or_default()))
+            .map(|pref| to_spaced_json(pref))
             .collect::<Vec<String>>()
             .join("\n");
 
@@ -314,12 +399,64 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    fn test_spaced_json_formatter() {
+        // Test basic object
+        let obj = serde_json::json!({"name": "foo", "value": 123});
+        let result = to_spaced_json(&obj);
+        assert_eq!(result, r#"{"name": "foo", "value": 123}"#);
+
+        // Test nested object
+        let nested = serde_json::json!({"outer": {"inner": "value"}});
+        let result = to_spaced_json(&nested);
+        assert_eq!(result, r#"{"outer": {"inner": "value"}}"#);
+
+        // Test array
+        let arr = serde_json::json!(["a", "b", "c"]);
+        let result = to_spaced_json(&arr);
+        assert_eq!(result, r#"["a", "b", "c"]"#);
+
+        // Test object with array
+        let obj_arr = serde_json::json!({"items": [1, 2, 3]});
+        let result = to_spaced_json(&obj_arr);
+        assert_eq!(result, r#"{"items": [1, 2, 3]}"#);
+
+        // CRITICAL: Test that colons inside string values are NOT modified
+        let with_colon = serde_json::json!({"name": "foo:bar", "url": "http://example.com"});
+        let result = to_spaced_json(&with_colon);
+        assert_eq!(result, r#"{"name": "foo:bar", "url": "http://example.com"}"#);
+
+        // Test empty object and array
+        let empty_obj = serde_json::json!({});
+        let result = to_spaced_json(&empty_obj);
+        assert_eq!(result, r#"{}"#);
+
+        let empty_arr = serde_json::json!([]);
+        let result = to_spaced_json(&empty_arr);
+        assert_eq!(result, r#"[]"#);
+
+        // Test complex nested structure with special characters in values
+        // Note: serde_json doesn't guarantee field order, so we verify the formatting is correct
+        // by checking key properties of the output
+        let complex = serde_json::json!({
+            "type": "object",
+            "properties": {},
+            "urls": ["https://api.example.com:8080/path", "file:///local/path"]
+        });
+        let result = to_spaced_json(&complex);
+        // Verify URLs with colons are preserved correctly
+        assert!(result.contains(r#""urls": ["https://api.example.com:8080/path", "file:///local/path"]"#));
+        // Verify spacing format
+        assert!(result.contains(r#""type": "object""#));
+        assert!(result.contains(r#""properties": {}"#));
+    }
+
+    #[test]
     fn test_system_prompt_format() {
         let expected_prompt = r#"
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -394,7 +531,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"code-generation","description":"generating new code snippets, functions, or boilerplate based on user prompts or requirements","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "code-generation", "description": "generating new code snippets, functions, or boilerplate based on user prompts or requirements", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -469,7 +606,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -538,7 +675,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -608,7 +745,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -693,7 +830,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:
@@ -779,7 +916,7 @@ If no routes are needed, return an empty list for `route`.
 You are a helpful assistant that selects the most suitable routes based on user intent.
 You are provided with a list of available routes enclosed within <routes></routes> XML tags:
 <routes>
-{"name":"Image generation","description":"generating image","parameters":{"type": "object", "properties": {}, "required": []}}
+{"name": "Image generation", "description": "generating image", "parameters": {"type": "object", "properties": {}, "required": []}}
 </routes>
 
 You are also given the conversation context enclosed within <conversation></conversation> XML tags:

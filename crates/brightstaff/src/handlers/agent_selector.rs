@@ -8,6 +8,7 @@ use hermesllm::apis::openai::Message;
 use tracing::{debug, warn};
 
 use crate::router::llm_router::RouterService;
+use crate::utils::mcp_client::McpClient;
 
 /// Errors that can occur during agent selection
 #[derive(Debug, thiserror::Error)]
@@ -20,16 +21,22 @@ pub enum AgentSelectionError {
     RoutingError(String),
     #[error("Default agent not found for listener: {0}")]
     DefaultAgentNotFound(String),
+    #[error("MCP client error: {0}")]
+    McpError(String),
 }
 
 /// Service for selecting agents based on routing preferences and listener configuration
 pub struct AgentSelector {
     router_service: Arc<RouterService>,
+    mcp_client: McpClient,
 }
 
 impl AgentSelector {
     pub fn new(router_service: Arc<RouterService>) -> Self {
-        Self { router_service }
+        Self {
+            router_service,
+            mcp_client: McpClient::new(),
+        }
     }
 
     /// Find listener by name from the request headers
@@ -65,6 +72,7 @@ impl AgentSelector {
         messages: &[Message],
         listener: &Listener,
         trace_parent: Option<String>,
+        agent_map: &HashMap<String, Agent>,
     ) -> Result<AgentFilterChain, AgentSelectionError> {
         let agents = listener
             .agents
@@ -77,7 +85,9 @@ impl AgentSelector {
             return Ok(agents[0].clone());
         }
 
-        let usage_preferences = self.convert_agent_description_to_routing_preferences(agents);
+        let usage_preferences = self
+            .convert_agent_description_to_routing_preferences(agents, agent_map)
+            .await;
         debug!(
             "Agents usage preferences for agent routing str: {}",
             serde_json::to_string(&usage_preferences).unwrap_or_default()
@@ -131,20 +141,75 @@ impl AgentSelector {
     }
 
     /// Convert agent descriptions to routing preferences
-    fn convert_agent_description_to_routing_preferences(
+    /// For agents with MCP URLs, fetches the tool description from the MCP server
+    async fn convert_agent_description_to_routing_preferences(
         &self,
         agents: &[AgentFilterChain],
+        agent_map: &HashMap<String, Agent>,
     ) -> Vec<ModelUsagePreference> {
-        agents
-            .iter()
-            .map(|agent| ModelUsagePreference {
-                model: agent.id.clone(),
+        let mut preferences = Vec::new();
+
+        for agent_chain in agents {
+            // Get the actual agent from the agent_map
+            let agent = agent_map.get(&agent_chain.id);
+            
+            // Determine the description to use
+            let description = if let Some(agent) = agent {
+                // Check if this is an MCP agent (URL starts with mcp://)
+                if agent.url.starts_with("mcp://") {
+                    debug!(
+                        "Agent {} is an MCP agent, fetching tool description from: {}",
+                        agent.id, agent.url
+                    );
+                    
+                    // Fetch description from MCP endpoint
+                    match self
+                        .mcp_client
+                        .fetch_tool_description(&agent.url, agent.tool.as_deref())
+                        .await
+                    {
+                        Ok(mcp_description) => {
+                            if !mcp_description.is_empty() {
+                                debug!(
+                                    "Fetched MCP description for agent {}: {}",
+                                    agent.id, mcp_description
+                                );
+                                mcp_description
+                            } else {
+                                warn!(
+                                    "MCP tool description is empty for agent {}, using config description",
+                                    agent.id
+                                );
+                                agent_chain.description.clone().unwrap_or_default()
+                            }
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to fetch MCP description for agent {}: {}, using config description",
+                                agent.id, e
+                            );
+                            agent_chain.description.clone().unwrap_or_default()
+                        }
+                    }
+                } else {
+                    // Not an MCP agent, use description from config
+                    agent_chain.description.clone().unwrap_or_default()
+                }
+            } else {
+                // Agent not found in map, use description from config
+                agent_chain.description.clone().unwrap_or_default()
+            };
+
+            preferences.push(ModelUsagePreference {
+                model: agent_chain.id.clone(),
                 routing_preferences: vec![RoutingPreference {
-                    name: agent.id.clone(),
-                    description: agent.description.as_ref().unwrap_or(&String::new()).clone(),
+                    name: agent_chain.id.clone(),
+                    description,
                 }],
-            })
-            .collect()
+            });
+        }
+
+        preferences
     }
 }
 
@@ -185,6 +250,7 @@ mod tests {
             id: name.to_string(),
             kind: Some("test".to_string()),
             url: "http://localhost:8080".to_string(),
+            tool: None,
         }
     }
 
@@ -240,8 +306,8 @@ mod tests {
         assert!(agent_map.contains_key("agent2"));
     }
 
-    #[test]
-    fn test_convert_agent_description_to_routing_preferences() {
+    #[tokio::test]
+    async fn test_convert_agent_description_to_routing_preferences() {
         let router_service = create_test_router_service();
         let selector = AgentSelector::new(router_service);
 
@@ -250,7 +316,15 @@ mod tests {
             create_test_agent("agent2", "Second agent description", false),
         ];
 
-        let preferences = selector.convert_agent_description_to_routing_preferences(&agents);
+        let agent_structs = vec![
+            create_test_agent_struct("agent1"),
+            create_test_agent_struct("agent2"),
+        ];
+        let agent_map = selector.create_agent_map(&agent_structs);
+
+        let preferences = selector
+            .convert_agent_description_to_routing_preferences(&agents, &agent_map)
+            .await;
 
         assert_eq!(preferences.len(), 2);
         assert_eq!(preferences[0].model, "agent1");

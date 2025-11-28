@@ -14,6 +14,10 @@ properties:
     type: array
     items:
       type: object
+  agent_filters:
+    type: array
+    items:
+      type: object
   listeners:
     oneOf:
       - type: array

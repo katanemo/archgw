@@ -8,7 +8,8 @@ import logging
 import uvicorn
 
 from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
-
+from . import mcp
+from fastmcp.server.dependencies import get_http_headers
 
 # Set up logging
 logging.basicConfig(
@@ -28,11 +29,10 @@ archgw_client = AsyncOpenAI(
     api_key="EMPTY",  # archgw doesn't require a real API key
 )
 
-
 async def rewrite_query_with_archgw(
     messages: List[ChatMessage], traceparent_header: str
 ) -> str:
-    # Prepare the system prompt for query rewriting
+    """ Rewrite the user query using LLM for better retrieval. """
     system_prompt = """You are a query rewriter that improves user queries for better retrieval.
 
     Given a conversation history, rewrite the last user message to be more specific and context-aware.
@@ -90,7 +90,8 @@ app = FastAPI(title="RAG Agent Query Parser", version="1.0.0")
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request_body: ChatCompletionRequest, request: Request):
+@mcp.tool()
+async def query_rewriter(request_body: ChatCompletionRequest):
     """Chat completions endpoint that rewrites the last user query using archgw."""
     import time
     import uuid
@@ -99,8 +100,10 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         f"Received chat completion request with {len(request_body.messages)} messages"
     )
 
-    # Read traceparent header if present
-    traceparent_header = request.headers.get("traceparent")
+    # Get traceparent header from HTTP request using FastMCP's dependency function
+    headers = get_http_headers()
+    traceparent_header = headers.get("traceparent")
+    
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
     else:

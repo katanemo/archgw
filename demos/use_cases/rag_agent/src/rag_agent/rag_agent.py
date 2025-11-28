@@ -15,6 +15,9 @@ from .api import (
     ChatCompletionStreamResponse,
 )
 
+from . import mcp
+from fastmcp.server.dependencies import get_http_headers
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -60,14 +63,17 @@ def prepare_response_messages(request_body: ChatCompletionRequest):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completions(request_body: ChatCompletionRequest, request: Request):
+@mcp.tool(name="invoke")
+async def chat_completion(request_body: ChatCompletionRequest):
     """Chat completions endpoint that generates a coherent response based on all context."""
     logger.info(
         f"Received chat completion request with {len(request_body.messages)} messages"
     )
 
-    # Read traceparent header if present
-    traceparent_header = request.headers.get("traceparent")
+    # Get traceparent header from HTTP request using FastMCP's dependency function
+    headers = get_http_headers()
+    traceparent_header = headers.get("traceparent")
+    
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
     else:

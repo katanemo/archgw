@@ -10,7 +10,8 @@ from pathlib import Path
 import uvicorn
 
 from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
-
+from . import mcp
+from fastmcp.server.dependencies import get_http_headers
 
 # Set up logging
 logging.basicConfig(
@@ -190,12 +191,12 @@ class Response(BaseModel):
 # FastAPI app for REST server
 app = FastAPI(title="RAG Content Builder Agent", version="1.0.0")
 
-
+@mcp.tool()
 @app.post("/v1/chat/completions")
-async def chat_completions(
-    request_body: ChatCompletionRequest, request: Request
+async def context_builder(
+    request_body: ChatCompletionRequest
 ) -> ChatCompletionResponse:
-    """Chat completions endpoint that augments user queries with relevant context from the knowledge base."""
+    """ chat completions endpoint that augments user queries with relevant context from the knowledge base."""
     import time
     import uuid
 
@@ -203,8 +204,10 @@ async def chat_completions(
         f"Received chat completion request with {len(request_body.messages)} messages"
     )
 
-    # Read traceparent header if present
-    traceparent_header = request.headers.get("traceparent")
+    # Get traceparent header from HTTP request using FastMCP's dependency function
+    headers = get_http_headers()
+    traceparent_header = headers.get("traceparent")
+    
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
     else:

@@ -124,19 +124,24 @@ async fn handle_agent_chat(
         .find(|(key, _)| key.as_str() == "traceparent")
         .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
 
-    // Select appropriate agent using arch router llm model
-    let selected_agent = agent_selector
-        .select_agent(&chat_completions_request.messages, &listener, trace_parent)
-        .await?;
-
-    debug!("Processing agent pipeline: {}", selected_agent.id);
-
-    // Create agent map for pipeline processing
+    // Create agent map for pipeline processing and agent selection
     let agent_map = {
         let agents = agents_list.read().await;
         let agents = agents.as_ref().unwrap();
         agent_selector.create_agent_map(agents)
     };
+
+    // Select appropriate agent using arch router llm model
+    let selected_agent = agent_selector
+        .select_agent(
+            &chat_completions_request.messages,
+            &listener,
+            trace_parent,
+            &agent_map,
+        )
+        .await?;
+
+    debug!("Processing agent pipeline: {}", selected_agent.id);
 
     // Process the filter chain
     let processed_messages = pipeline_processor

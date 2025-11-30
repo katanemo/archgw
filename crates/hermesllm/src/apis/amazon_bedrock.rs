@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::ProviderStreamResponse;
+use crate::providers::streaming_response::ProviderStreamResponse;
 
 // ============================================================================
 // AMAZON BEDROCK CONVERSE API ENUMERATION

@@ -7,9 +7,10 @@ use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
+use crate::providers::response::{ProviderResponse, TokenUsage};
+use crate::providers::streaming_response::ProviderStreamResponse;
 use crate::transforms::lib::ExtractText;
-use crate::CHAT_COMPLETIONS_PATH;
+use crate::{CHAT_COMPLETIONS_PATH, OPENAI_RESPONSES_API_PATH};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -19,6 +20,7 @@ use crate::CHAT_COMPLETIONS_PATH;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OpenAIApi {
     ChatCompletions,
+    Responses,
     // Future APIs can be added here:
     // Embeddings,
     // FineTuning,
@@ -29,12 +31,14 @@ impl ApiDefinition for OpenAIApi {
     fn endpoint(&self) -> &'static str {
         match self {
             OpenAIApi::ChatCompletions => CHAT_COMPLETIONS_PATH,
+            OpenAIApi::Responses => OPENAI_RESPONSES_API_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
             CHAT_COMPLETIONS_PATH => Some(OpenAIApi::ChatCompletions),
+            OPENAI_RESPONSES_API_PATH => Some(OpenAIApi::Responses),
             _ => None,
         }
     }
@@ -42,23 +46,26 @@ impl ApiDefinition for OpenAIApi {
     fn supports_streaming(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn supports_tools(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn supports_vision(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![OpenAIApi::ChatCompletions]
+        vec![OpenAIApi::ChatCompletions, OpenAIApi::Responses]
     }
 }
 
@@ -1077,8 +1084,9 @@ mod tests {
 
         // Test all_variants
         let all_variants = OpenAIApi::all_variants();
-        assert_eq!(all_variants.len(), 1);
-        assert_eq!(all_variants[0], OpenAIApi::ChatCompletions);
+        assert_eq!(all_variants.len(), 2);
+        assert!(all_variants.contains(&OpenAIApi::ChatCompletions));
+        assert!(all_variants.contains(&OpenAIApi::Responses));
     }
 
     #[test]

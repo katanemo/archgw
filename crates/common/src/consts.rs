@@ -13,6 +13,7 @@ pub const MESSAGES_KEY: &str = "messages";
 pub const ARCH_PROVIDER_HINT_HEADER: &str = "x-arch-llm-provider-hint";
 pub const ARCH_IS_STREAMING_HEADER: &str = "x-arch-streaming-request";
 pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";
+pub const OPENAI_RESPONSES_API_PATH: &str = "/v1/responses";
 pub const MESSAGES_PATH: &str = "/v1/messages";
 pub const HEALTHZ_PATH: &str = "/healthz";
 pub const X_ARCH_STATE_HEADER: &str = "x-arch-state";

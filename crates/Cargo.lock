@@ -912,10 +912,12 @@ version = "0.1.0"
 dependencies = [
  "aws-smithy-eventstream",
  "bytes",
+ "log",
  "serde",
  "serde_json",
  "serde_with",
  "thiserror 2.0.12",
+ "uuid",
 ]
 
 [[package]]

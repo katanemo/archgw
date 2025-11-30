@@ -12,6 +12,10 @@ use crate::apis::anthropic::{
 use crate::apis::openai::{
     ChatCompletionsRequest, Message, MessageContent, Role, Tool, ToolChoice, ToolChoiceType,
 };
+
+use crate::apis::openai_responses::{
+    ResponsesAPIRequest, InputContent, InputItem, InputParam, MessageRole, Modality, ReasoningEffort, Tool as ResponsesTool, ToolChoice as ResponsesToolChoice
+};
 use crate::clients::TransformError;
 use crate::transforms::lib::ExtractText;
 use crate::transforms::lib::*;
@@ -240,6 +244,202 @@ impl TryFrom<Message> for BedrockMessage {
         Ok(BedrockMessage {
             role,
             content: content_blocks,
+        })
+    }
+}
+
+impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
+    type Error = TransformError;
+
+    fn try_from(req: ResponsesAPIRequest) -> Result<Self, Self::Error> {
+
+        // Convert input to messages
+        let messages = match req.input {
+            InputParam::Text(text) => {
+                // Simple text input becomes a user message
+                vec![Message {
+                    role: Role::User,
+                    content: MessageContent::Text(text),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: None,
+                }]
+            }
+            InputParam::Items(items) => {
+                // Convert input items to messages
+                let mut converted_messages = Vec::new();
+
+                // Add instructions as system message if present
+                if let Some(instructions) = &req.instructions {
+                    converted_messages.push(Message {
+                        role: Role::System,
+                        content: MessageContent::Text(instructions.clone()),
+                        name: None,
+                        tool_call_id: None,
+                        tool_calls: None,
+                    });
+                }
+
+                // Convert each input item
+                for item in items {
+                    match item {
+                        InputItem::Message(input_msg) => {
+                            let role = match input_msg.role {
+                                MessageRole::User => Role::User,
+                                MessageRole::Assistant => Role::Assistant,
+                                MessageRole::System => Role::System,
+                                MessageRole::Developer => Role::System, // Map developer to system
+                            };
+
+                            // Convert content blocks
+                            let content = if input_msg.content.len() == 1 {
+                                // Single content item - check if it's simple text
+                                match &input_msg.content[0] {
+                                    InputContent::InputText { text } => MessageContent::Text(text.clone()),
+                                    _ => {
+                                        // Convert to parts for non-text content
+                                        MessageContent::Parts(
+                                            input_msg.content.iter()
+                                                .filter_map(|c| match c {
+                                                    InputContent::InputText { text } => {
+                                                        Some(crate::apis::openai::ContentPart::Text { text: text.clone() })
+                                                    }
+                                                    InputContent::InputImage { image_url, .. } => {
+                                                        Some(crate::apis::openai::ContentPart::ImageUrl {
+                                                            image_url: crate::apis::openai::ImageUrl {
+                                                                url: image_url.clone(),
+                                                                detail: None,
+                                                            }
+                                                        })
+                                                    }
+                                                    InputContent::InputFile { .. } => None, // Skip files for now
+                                                    InputContent::InputAudio { .. } => None, // Skip audio for now
+                                                })
+                                                .collect()
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Multiple content items - convert to parts
+                                MessageContent::Parts(
+                                    input_msg.content.iter()
+                                        .filter_map(|c| match c {
+                                            InputContent::InputText { text } => {
+                                                Some(crate::apis::openai::ContentPart::Text { text: text.clone() })
+                                            }
+                                            InputContent::InputImage { image_url, .. } => {
+                                                Some(crate::apis::openai::ContentPart::ImageUrl {
+                                                    image_url: crate::apis::openai::ImageUrl {
+                                                        url: image_url.clone(),
+                                                        detail: None,
+                                                    }
+                                                })
+                                            }
+                                            InputContent::InputFile { .. } => None, // Skip files for now
+                                            InputContent::InputAudio { .. } => None, // Skip audio for now
+                                        })
+                                        .collect()
+                                )
+                            };
+
+                            converted_messages.push(Message {
+                                role,
+                                content,
+                                name: None,
+                                tool_call_id: None,
+                                tool_calls: None,
+                            });
+                        }
+                    }
+                }
+
+                converted_messages
+            }
+        };
+
+        // Build the ChatCompletionsRequest
+        Ok(ChatCompletionsRequest {
+            model: req.model,
+            messages,
+            temperature: req.temperature,
+            top_p: req.top_p,
+            max_completion_tokens: req.max_output_tokens.map(|t| t as u32),
+            stream: req.stream,
+            metadata: req.metadata,
+            user: req.user,
+            store: req.store,
+            service_tier: req.service_tier,
+            top_logprobs: req.top_logprobs.map(|t| t as u32),
+            modalities: req.modalities.map(|mods| {
+                mods.into_iter().map(|m| {
+                    match m {
+                        Modality::Text => "text".to_string(),
+                        Modality::Audio => "audio".to_string(),
+                    }
+                }).collect()
+            }),
+            stream_options: req.stream_options.map(|opts| {
+                crate::apis::openai::StreamOptions {
+                    include_usage: opts.include_usage,
+                }
+            }),
+            reasoning_effort: req.reasoning_effort.map(|effort| {
+                match effort {
+                    ReasoningEffort::Low => "low".to_string(),
+                    ReasoningEffort::Medium => "medium".to_string(),
+                    ReasoningEffort::High => "high".to_string(),
+                }
+            }),
+            tools: req.tools.map(|tools| {
+                tools.into_iter().map(|tool| {
+
+                    // Only convert Function tools - other types are not supported in ChatCompletions
+                    match tool {
+                        ResponsesTool::Function { name, description, parameters, strict } => Ok(Tool {
+                            tool_type: "function".to_string(),
+                            function: crate::apis::openai::Function {
+                                name,
+                                description,
+                                parameters: parameters.unwrap_or_else(|| serde_json::json!({
+                                    "type": "object",
+                                    "properties": {}
+                                })),
+                                strict,
+                            }
+                        }),
+                        ResponsesTool::FileSearch { .. } => Err(TransformError::UnsupportedConversion(
+                            "FileSearch tool is not supported in ChatCompletions API. Only function tools are supported.".to_string()
+                        )),
+                        ResponsesTool::WebSearchPreview { .. } => Err(TransformError::UnsupportedConversion(
+                            "WebSearchPreview tool is not supported in ChatCompletions API. Only function tools are supported.".to_string()
+                        )),
+                        ResponsesTool::CodeInterpreter => Err(TransformError::UnsupportedConversion(
+                            "CodeInterpreter tool is not supported in ChatCompletions API. Only function tools are supported.".to_string()
+                        )),
+                        ResponsesTool::Computer { .. } => Err(TransformError::UnsupportedConversion(
+                            "Computer tool is not supported in ChatCompletions API. Only function tools are supported.".to_string()
+                        )),
+                    }
+                }).collect::<Result<Vec<_>, _>>()
+            }).transpose()?,
+            tool_choice: req.tool_choice.map(|choice| {
+                match choice {
+                    ResponsesToolChoice::String(s) => {
+                        match s.as_str() {
+                            "auto" => ToolChoice::Type(ToolChoiceType::Auto),
+                            "required" => ToolChoice::Type(ToolChoiceType::Required),
+                            "none" => ToolChoice::Type(ToolChoiceType::None),
+                            _ => ToolChoice::Type(ToolChoiceType::Auto), // Default to auto for unknown strings
+                        }
+                    }
+                    ResponsesToolChoice::Named { function, .. } => ToolChoice::Function {
+                        choice_type: "function".to_string(),
+                        function: crate::apis::openai::FunctionChoice { name: function.name }
+                    }
+                }
+            }),
+            parallel_tool_calls: req.parallel_tool_calls,
+            ..Default::default()
         })
     }
 }

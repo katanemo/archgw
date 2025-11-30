@@ -6,7 +6,8 @@ use std::collections::HashMap;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse};
+use crate::providers::response::ProviderResponse;
+use crate::providers::streaming_response::ProviderStreamResponse;
 use crate::transforms::lib::ExtractText;
 use crate::MESSAGES_PATH;
 

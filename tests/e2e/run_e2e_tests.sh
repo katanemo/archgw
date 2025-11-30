@@ -65,6 +65,10 @@ log running e2e tests for model alias routing
 log ========================================
 poetry run pytest test_model_alias_routing.py
 
+log running e2e tests for openai responses api client
+log ========================================
+poetry run pytest test_openai_responses_api_client.py
+
 log shutting down the weather_forecast demo
 log =======================================
 cd ../../demos/samples_python/weather_forecast

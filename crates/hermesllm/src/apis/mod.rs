@@ -1,9 +1,8 @@
 pub mod amazon_bedrock;
-pub mod amazon_bedrock_binary_frame;
 pub mod anthropic;
 pub mod openai;
 pub mod openai_responses;
-pub mod sse;
+pub mod streaming_shapes;
 
 // Explicit exports to avoid naming conflicts
 pub use amazon_bedrock::{AmazonBedrockApi, ConverseRequest, ConverseStreamRequest};

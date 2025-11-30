@@ -395,16 +395,16 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
 
                     // Only convert Function tools - other types are not supported in ChatCompletions
                     match tool {
-                        ResponsesTool::Function { function } => Ok(Tool {
+                        ResponsesTool::Function { name, description, parameters, strict } => Ok(Tool {
                             tool_type: "function".to_string(),
                             function: crate::apis::openai::Function {
-                                name: function.name,
-                                description: function.description,
-                                parameters: function.parameters.unwrap_or_else(|| serde_json::json!({
+                                name,
+                                description,
+                                parameters: parameters.unwrap_or_else(|| serde_json::json!({
                                     "type": "object",
                                     "properties": {}
                                 })),
-                                strict: function.strict,
+                                strict,
                             }
                         }),
                         ResponsesTool::FileSearch { .. } => Err(TransformError::UnsupportedConversion(

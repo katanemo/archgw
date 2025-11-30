@@ -3,7 +3,7 @@ use crate::apis::openai::ChatCompletionsRequest;
 
 use crate::apis::amazon_bedrock::{ConverseRequest, ConverseStreamRequest};
 use crate::apis::openai_responses::ResponsesAPIRequest;
-use crate::clients::endpoints::SupportedAPIsFromClients;
+use crate::clients::endpoints::SupportedAPIsFromClient;
 use crate::clients::endpoints::SupportedUpstreamAPIs;
 
 use serde_json::Value;
@@ -127,13 +127,13 @@ impl ProviderRequest for ProviderRequestType {
 }
 
 /// Parse the client API from a byte slice.
-impl TryFrom<(&[u8], &SupportedAPIsFromClients)> for ProviderRequestType {
+impl TryFrom<(&[u8], &SupportedAPIsFromClient)> for ProviderRequestType {
     type Error = std::io::Error;
 
-    fn try_from((bytes, client_api): (&[u8], &SupportedAPIsFromClients)) -> Result<Self, Self::Error> {
+    fn try_from((bytes, client_api): (&[u8], &SupportedAPIsFromClient)) -> Result<Self, Self::Error> {
         // Use SupportedApi to determine the appropriate request type
         match client_api {
-            SupportedAPIsFromClients::OpenAIChatCompletions(_) => {
+            SupportedAPIsFromClient::OpenAIChatCompletions(_) => {
                 let chat_completion_request: ChatCompletionsRequest =
                     ChatCompletionsRequest::try_from(bytes)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -141,13 +141,13 @@ impl TryFrom<(&[u8], &SupportedAPIsFromClients)> for ProviderRequestType {
                     chat_completion_request,
                 ))
             }
-            SupportedAPIsFromClients::AnthropicMessagesAPI(_) => {
+            SupportedAPIsFromClient::AnthropicMessagesAPI(_) => {
                 let messages_request: MessagesRequest = MessagesRequest::try_from(bytes)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                 Ok(ProviderRequestType::MessagesRequest(messages_request))
             }
 
-            SupportedAPIsFromClients::OpenAIResponsesAPI(_) => {
+            SupportedAPIsFromClient::OpenAIResponsesAPI(_) => {
                 let responses_apirequest: ResponsesAPIRequest =
                     ResponsesAPIRequest::try_from(bytes)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -170,14 +170,10 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
             // ============================================================================
             // ChatCompletionsRequest conversions
             // ============================================================================
-
-            // ChatCompletions -> ChatCompletions (pass-through)
             (
                 ProviderRequestType::ChatCompletionsRequest(chat_req),
                 SupportedUpstreamAPIs::OpenAIChatCompletions(_),
             ) => Ok(ProviderRequestType::ChatCompletionsRequest(chat_req)),
-
-            // ChatCompletions -> Anthropic Messages
             (
                 ProviderRequestType::ChatCompletionsRequest(chat_req),
                 SupportedUpstreamAPIs::AnthropicMessagesAPI(_),
@@ -192,8 +188,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                     })?;
                 Ok(ProviderRequestType::MessagesRequest(messages_req))
             }
-
-            // ChatCompletions -> Bedrock Converse
             (
                 ProviderRequestType::ChatCompletionsRequest(chat_req),
                 SupportedUpstreamAPIs::AmazonBedrockConverse(_),
@@ -205,8 +199,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                     })?;
                 Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
-
-            // ChatCompletions -> Bedrock Converse Stream
             (
                 ProviderRequestType::ChatCompletionsRequest(chat_req),
                 SupportedUpstreamAPIs::AmazonBedrockConverseStream(_),
@@ -218,8 +210,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                     })?;
                 Ok(ProviderRequestType::BedrockConverseStream(bedrock_req))
             }
-
-            // ChatCompletions -> ResponsesAPI (not supported)
             (
                 ProviderRequestType::ChatCompletionsRequest(_),
                 SupportedUpstreamAPIs::OpenAIResponsesAPI(_),
@@ -233,14 +223,10 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
             // ============================================================================
             // MessagesRequest conversions
             // ============================================================================
-
-            // MessagesRequest -> MessagesRequest (pass-through)
             (
                 ProviderRequestType::MessagesRequest(messages_req),
                 SupportedUpstreamAPIs::AnthropicMessagesAPI(_),
             ) => Ok(ProviderRequestType::MessagesRequest(messages_req)),
-
-            // MessagesRequest -> ChatCompletions
             (
                 ProviderRequestType::MessagesRequest(messages_req),
                 SupportedUpstreamAPIs::OpenAIChatCompletions(_),
@@ -256,8 +242,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                 })?;
                 Ok(ProviderRequestType::ChatCompletionsRequest(chat_req))
             }
-
-            // MessagesRequest -> Bedrock Converse
             (
                 ProviderRequestType::MessagesRequest(messages_req),
                 SupportedUpstreamAPIs::AmazonBedrockConverse(_),
@@ -272,8 +256,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                     })?;
                 Ok(ProviderRequestType::BedrockConverse(bedrock_req))
             }
-
-            // MessagesRequest -> Bedrock Converse Stream
             (
                 ProviderRequestType::MessagesRequest(messages_req),
                 SupportedUpstreamAPIs::AmazonBedrockConverseStream(_),
@@ -289,8 +271,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
                 })?;
                 Ok(ProviderRequestType::BedrockConverseStream(bedrock_req))
             }
-
-            // MessagesRequest -> ResponsesAPI (not supported)
             (
                 ProviderRequestType::MessagesRequest(_),
                 SupportedUpstreamAPIs::OpenAIResponsesAPI(_),
@@ -304,8 +284,6 @@ impl TryFrom<(ProviderRequestType, &SupportedUpstreamAPIs)> for ProviderRequestT
             // ============================================================================
             // ResponsesAPIRequest conversions (only converts TO other formats)
             // ============================================================================
-
-            // ResponsesAPI -> ResponsesAPI (pass-through, OpenAI only)
             (
                 ProviderRequestType::ResponsesAPIRequest(responses_req),
                 SupportedUpstreamAPIs::OpenAIResponsesAPI(_),
@@ -461,7 +439,7 @@ mod tests {
     use crate::apis::anthropic::MessagesRequest as AnthropicMessagesRequest;
     use crate::apis::openai::ChatCompletionsRequest;
     use crate::apis::openai::OpenAIApi::ChatCompletions;
-    use crate::clients::endpoints::SupportedAPIsFromClients;
+    use crate::clients::endpoints::SupportedAPIsFromClient;
     use crate::transforms::lib::ExtractText;
     use serde_json::json;
 
@@ -475,7 +453,7 @@ mod tests {
             ]
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let api = SupportedAPIsFromClients::OpenAIChatCompletions(ChatCompletions);
+        let api = SupportedAPIsFromClient::OpenAIChatCompletions(ChatCompletions);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &api));
         assert!(result.is_ok());
         match result.unwrap() {
@@ -498,7 +476,7 @@ mod tests {
             ]
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let endpoint = SupportedAPIsFromClients::AnthropicMessagesAPI(Messages);
+        let endpoint = SupportedAPIsFromClient::AnthropicMessagesAPI(Messages);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         assert!(result.is_ok());
         match result.unwrap() {
@@ -520,7 +498,7 @@ mod tests {
             ]
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let endpoint = SupportedAPIsFromClients::OpenAIChatCompletions(ChatCompletions);
+        let endpoint = SupportedAPIsFromClient::OpenAIChatCompletions(ChatCompletions);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         assert!(result.is_ok());
         match result.unwrap() {
@@ -543,7 +521,7 @@ mod tests {
         });
         let bytes = serde_json::to_vec(&req).unwrap();
         // Intentionally use OpenAI endpoint for Anthropic payload
-        let endpoint = SupportedAPIsFromClients::OpenAIChatCompletions(ChatCompletions);
+        let endpoint = SupportedAPIsFromClient::OpenAIChatCompletions(ChatCompletions);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &endpoint));
         // Should parse as ChatCompletionsRequest, not error
         assert!(result.is_ok());
@@ -673,7 +651,7 @@ mod tests {
             "input": "Hello, how are you?"
         });
         let bytes = serde_json::to_vec(&req).unwrap();
-        let api = SupportedAPIsFromClients::OpenAIResponsesAPI(Responses);
+        let api = SupportedAPIsFromClient::OpenAIResponsesAPI(Responses);
         let result = ProviderRequestType::try_from((bytes.as_slice(), &api));
         assert!(result.is_ok());
         match result.unwrap() {

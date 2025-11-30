@@ -3,7 +3,7 @@ use common::configuration::{ModelAlias, ModelUsagePreference};
 use common::consts::{ARCH_IS_STREAMING_HEADER, ARCH_PROVIDER_HINT_HEADER};
 use hermesllm::apis::openai::ChatCompletionsRequest;
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
-use hermesllm::clients::SupportedAPIsFromClients;
+use hermesllm::clients::SupportedAPIsFromClient;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
@@ -39,7 +39,7 @@ pub async fn router_chat(
 
     let mut client_request = match ProviderRequestType::try_from((
         &chat_request_bytes[..],
-        &SupportedAPIsFromClients::from_endpoint(request_path.as_str()).unwrap(),
+        &SupportedAPIsFromClient::from_endpoint(request_path.as_str()).unwrap(),
     )) {
         Ok(request) => request,
         Err(err) => {
@@ -58,7 +58,7 @@ pub async fn router_chat(
     let resolved_model = if let Some(model_aliases) = model_aliases.as_ref() {
         if let Some(model_alias) = model_aliases.get(&model_from_request) {
             debug!(
-                "Model Alias: 'From {}' -> 'To{}'",
+                "Model Alias: 'From {}' -> 'To {}'",
                 model_from_request, model_alias.target
             );
             model_alias.target.clone()

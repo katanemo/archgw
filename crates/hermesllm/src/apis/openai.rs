@@ -7,7 +7,8 @@ use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
+use crate::providers::response::{ProviderResponse, TokenUsage};
+use crate::providers::streaming_response::ProviderStreamResponse;
 use crate::transforms::lib::ExtractText;
 use crate::{CHAT_COMPLETIONS_PATH, OPENAI_RESPONSES_API_PATH};
 

@@ -22,10 +22,12 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
 use hermesllm::apis::anthropic::{MessagesContentBlock, MessagesStreamEvent};
-use hermesllm::apis::sse::{SseEvent, SseStreamIter};
-use hermesllm::clients::endpoints::SupportedAPIsFromClients;
+use hermesllm::apis::streaming_shapes::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
+use hermesllm::apis::streaming_shapes::sse::{
+    SseEvent, SseStreamBuffer, SseStreamBufferTrait, SseStreamIter,
+};
+use hermesllm::clients::endpoints::SupportedAPIsFromClient;
 use hermesllm::providers::response::ProviderResponse;
 use hermesllm::{
     DecodedFrame, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType,
@@ -38,7 +40,7 @@ pub struct StreamContext {
     streaming_response: bool,
     response_tokens: usize,
     /// The API that is requested by the client (before compatibility mapping)
-    client_api: Option<SupportedAPIsFromClients>,
+    client_api: Option<SupportedAPIsFromClient>,
     /// The API that should be used for the upstream provider (after compatibility mapping)
     resolved_api: Option<SupportedUpstreamAPIs>,
     llm_providers: Rc<LlmProviders>,
@@ -56,6 +58,7 @@ pub struct StreamContext {
     binary_frame_decoder: Option<BedrockBinaryFrameDecoder<bytes::BytesMut>>,
     http_method: Option<String>,
     http_protocol: Option<String>,
+    sse_buffer: Option<SseStreamBuffer>,
 }
 
 impl StreamContext {
@@ -87,6 +90,7 @@ impl StreamContext {
             binary_frame_decoder: None,
             http_method: None,
             http_protocol: None,
+            sse_buffer: None,
         }
     }
 
@@ -477,7 +481,17 @@ impl StreamContext {
                         }
                     };
 
-                let mut response_buffer = Vec::new();
+                // Initialize SSE buffer if not present
+                if self.sse_buffer.is_none() {
+                    self.sse_buffer = match SseStreamBuffer::try_from((&client_api, &upstream_api))
+                    {
+                        Ok(buffer) => Some(buffer),
+                        Err(e) => {
+                            warn!("Failed to create SSE buffer: {}", e);
+                            return Err(Action::Continue);
+                        }
+                    };
+                }
 
                 // Process each SSE event
                 for sse_event in sse_iter {
@@ -528,12 +542,15 @@ impl StreamContext {
                         }
                     }
 
-                    // Add transformed event to response buffer
-                    let bytes: Vec<u8> = transformed_event.into();
-                    response_buffer.extend_from_slice(&bytes);
+                    // Add transformed event to buffer (buffer may inject lifecycle events)
+                    self.sse_buffer
+                        .as_mut()
+                        .unwrap()
+                        .add_transformed_event(transformed_event);
                 }
 
-                Ok(response_buffer)
+                // Get accumulated bytes from buffer and return
+                Ok(self.sse_buffer.as_mut().unwrap().into_bytes())
             }
             None => {
                 warn!("Missing client_api for non-streaming response");
@@ -545,7 +562,7 @@ impl StreamContext {
     fn handle_bedrock_binary_stream(
         &mut self,
         body: &[u8],
-        client_api: &SupportedAPIsFromClients,
+        client_api: &SupportedAPIsFromClient,
         upstream_api: &SupportedUpstreamAPIs,
     ) -> Result<Vec<u8>, Action> {
         // Initialize decoder if not present
@@ -783,14 +800,14 @@ impl HttpContext for StreamContext {
             self.select_llm_provider();
 
             // Check if this is a supported API endpoint
-            if SupportedAPIsFromClients::from_endpoint(&request_path).is_none() {
+            if SupportedAPIsFromClient::from_endpoint(&request_path).is_none() {
                 self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
                 return Action::Continue;
             }
 
             // Get the SupportedApi for routing decisions
-            let supported_api: Option<SupportedAPIsFromClients> =
-                SupportedAPIsFromClients::from_endpoint(&request_path);
+            let supported_api: Option<SupportedAPIsFromClient> =
+                SupportedAPIsFromClient::from_endpoint(&request_path);
             self.client_api = supported_api;
 
             // Debug: log provider, client API, resolved API, and request path
@@ -1133,8 +1150,9 @@ impl HttpContext for StreamContext {
         }
 
         match self.client_api {
-            Some(SupportedAPIsFromClients::OpenAIChatCompletions(_)) => {}
-            Some(SupportedAPIsFromClients::AnthropicMessagesAPI(_)) => {}
+            Some(SupportedAPIsFromClient::OpenAIChatCompletions(_)) => {}
+            Some(SupportedAPIsFromClient::AnthropicMessagesAPI(_)) => {}
+            Some(SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {}
             _ => {
                 let api_info = match &self.client_api {
                     Some(api) => format!("{}", api),

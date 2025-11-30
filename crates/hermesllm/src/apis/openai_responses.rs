@@ -252,9 +252,12 @@ pub struct ConversationParam {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Tool {
-    /// Function tool
+    /// Function tool - flat structure in Responses API
     Function {
-        function: FunctionDefinition,
+        name: String,
+        description: Option<String>,
+        parameters: Option<serde_json::Value>,
+        strict: Option<bool>,
     },
     /// File search tool
     FileSearch {
@@ -277,20 +280,6 @@ pub enum Tool {
         display_height_px: Option<i32>,
         display_number: Option<i32>,
     },
-}
-
-/// Function definition for function calling
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionDefinition {
-    /// Function name
-    pub name: String,
-    /// Function description
-    pub description: Option<String>,
-    /// JSON schema for function parameters
-    pub parameters: Option<serde_json::Value>,
-    /// Whether the function is strict
-    pub strict: Option<bool>,
 }
 
 /// Ranking options for file search
@@ -433,8 +422,8 @@ pub struct ResponsesAPIResponse {
 }
 
 /// Response status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum ResponseStatus {
     Completed,
     Failed,
@@ -573,7 +562,7 @@ pub enum OutputItem {
 
 /// Output item status
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum OutputItemStatus {
     InProgress,
     Completed,
@@ -731,10 +720,17 @@ pub struct Conversation {
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ResponseAPIStreamEvent {
+pub enum ResponsesAPIStreamEvent {
     /// Response created
     #[serde(rename = "response.created")]
     ResponseCreated {
+        response: ResponsesAPIResponse,
+        sequence_number: i32,
+    },
+
+    /// Response in progress
+    #[serde(rename = "response.in_progress")]
+    ResponseInProgress {
         response: ResponsesAPIResponse,
         sequence_number: i32,
     },
@@ -851,6 +847,8 @@ pub enum ResponseAPIStreamEvent {
         item_id: String,
         delta: String,
         sequence_number: i32,
+        call_id: Option<String>,
+        name: Option<String>,
     },
 
     /// Function call arguments done
@@ -1089,57 +1087,58 @@ impl ProviderRequest for ResponsesAPIRequest {
 // Into<String> Implementation for SSE Formatting
 // ============================================================================
 
-impl Into<String> for ResponseAPIStreamEvent {
+impl Into<String> for ResponsesAPIStreamEvent {
     fn into(self) -> String {
         let transformed_json = serde_json::to_string(&self).unwrap_or_default();
         let event_type = match &self {
-            ResponseAPIStreamEvent::ResponseCreated { .. } => "response.created",
-            ResponseAPIStreamEvent::ResponseCompleted { .. } => "response.completed",
-            ResponseAPIStreamEvent::ResponseOutputItemAdded { .. } => "response.output_item.added",
-            ResponseAPIStreamEvent::ResponseOutputItemDone { .. } => "response.output_item.done",
-            ResponseAPIStreamEvent::ResponseContentPartAdded { .. } => {
+            ResponsesAPIStreamEvent::ResponseCreated { .. } => "response.created",
+            ResponsesAPIStreamEvent::ResponseInProgress { .. } => "response.in_progress",
+            ResponsesAPIStreamEvent::ResponseCompleted { .. } => "response.completed",
+            ResponsesAPIStreamEvent::ResponseOutputItemAdded { .. } => "response.output_item.added",
+            ResponsesAPIStreamEvent::ResponseOutputItemDone { .. } => "response.output_item.done",
+            ResponsesAPIStreamEvent::ResponseContentPartAdded { .. } => {
                 "response.content_part.added"
             }
-            ResponseAPIStreamEvent::ResponseContentPartDone { .. } => "response.content_part.done",
-            ResponseAPIStreamEvent::ResponseOutputTextDelta { .. } => "response.output_text.delta",
-            ResponseAPIStreamEvent::ResponseOutputTextDone { .. } => "response.output_text.done",
-            ResponseAPIStreamEvent::ResponseAudioDelta { .. } => "response.audio.delta",
-            ResponseAPIStreamEvent::ResponseAudioDone { .. } => "response.audio.done",
-            ResponseAPIStreamEvent::ResponseAudioTranscriptDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseContentPartDone { .. } => "response.content_part.done",
+            ResponsesAPIStreamEvent::ResponseOutputTextDelta { .. } => "response.output_text.delta",
+            ResponsesAPIStreamEvent::ResponseOutputTextDone { .. } => "response.output_text.done",
+            ResponsesAPIStreamEvent::ResponseAudioDelta { .. } => "response.audio.delta",
+            ResponsesAPIStreamEvent::ResponseAudioDone { .. } => "response.audio.done",
+            ResponsesAPIStreamEvent::ResponseAudioTranscriptDelta { .. } => {
                 "response.audio_transcript.delta"
             }
-            ResponseAPIStreamEvent::ResponseAudioTranscriptDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseAudioTranscriptDone { .. } => {
                 "response.audio_transcript.done"
             }
-            ResponseAPIStreamEvent::ResponseFunctionCallArgumentsDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDelta { .. } => {
                 "response.function_call_arguments.delta"
             }
-            ResponseAPIStreamEvent::ResponseFunctionCallArgumentsDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDone { .. } => {
                 "response.function_call_arguments.done"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { .. } => {
                 "response.code_interpreter_call.code.delta"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCodeDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCodeDone { .. } => {
                 "response.code_interpreter_call.code.done"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallInProgress { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallInProgress { .. } => {
                 "response.code_interpreter_call.in_progress"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallInterpreting { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallInterpreting { .. } => {
                 "response.code_interpreter_call.interpreting"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCompleted { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCompleted { .. } => {
                 "response.code_interpreter_call.completed"
             }
-            ResponseAPIStreamEvent::ResponseCustomToolCallInputDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseCustomToolCallInputDelta { .. } => {
                 "response.custom_tool_call.input.delta"
             }
-            ResponseAPIStreamEvent::ResponseCustomToolCallInputDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseCustomToolCallInputDone { .. } => {
                 "response.custom_tool_call.input.done"
             }
-            ResponseAPIStreamEvent::Error { .. } => "error",
-            ResponseAPIStreamEvent::Done { .. } => "done",
+            ResponsesAPIStreamEvent::Error { .. } => "error",
+            ResponsesAPIStreamEvent::Done { .. } => "done",
         };
 
         let event = format!("event: {}\n", event_type);
@@ -1152,19 +1151,19 @@ impl Into<String> for ResponseAPIStreamEvent {
 // ProviderStreamResponse Implementation
 // ============================================================================
 
-impl crate::providers::response::ProviderStreamResponse for ResponseAPIStreamEvent {
+impl crate::providers::streaming_response::ProviderStreamResponse for ResponsesAPIStreamEvent {
     fn content_delta(&self) -> Option<&str> {
         match self {
-            ResponseAPIStreamEvent::ResponseOutputTextDelta { delta, .. } => Some(delta),
-            ResponseAPIStreamEvent::ResponseAudioDelta { delta, .. } => Some(delta),
-            ResponseAPIStreamEvent::ResponseAudioTranscriptDelta { delta, .. } => Some(delta),
-            ResponseAPIStreamEvent::ResponseFunctionCallArgumentsDelta { delta, .. } => {
+            ResponsesAPIStreamEvent::ResponseOutputTextDelta { delta, .. } => Some(delta),
+            ResponsesAPIStreamEvent::ResponseAudioDelta { delta, .. } => Some(delta),
+            ResponsesAPIStreamEvent::ResponseAudioTranscriptDelta { delta, .. } => Some(delta),
+            ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDelta { delta, .. } => {
                 Some(delta)
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { delta, .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { delta, .. } => {
                 Some(delta)
             }
-            ResponseAPIStreamEvent::ResponseCustomToolCallInputDelta { delta, .. } => Some(delta),
+            ResponsesAPIStreamEvent::ResponseCustomToolCallInputDelta { delta, .. } => Some(delta),
             _ => None,
         }
     }
@@ -1172,14 +1171,14 @@ impl crate::providers::response::ProviderStreamResponse for ResponseAPIStreamEve
     fn is_final(&self) -> bool {
         matches!(
             self,
-            ResponseAPIStreamEvent::ResponseCompleted { .. }
-                | ResponseAPIStreamEvent::Done { .. }
+            ResponsesAPIStreamEvent::ResponseCompleted { .. }
+                | ResponsesAPIStreamEvent::Done { .. }
         )
     }
 
     fn role(&self) -> Option<&str> {
         match self {
-            ResponseAPIStreamEvent::ResponseOutputItemDone { item, .. } => match item {
+            ResponsesAPIStreamEvent::ResponseOutputItemDone { item, .. } => match item {
                 OutputItem::Message { role, .. } => Some(role.as_str()),
                 _ => None,
             },
@@ -1189,53 +1188,54 @@ impl crate::providers::response::ProviderStreamResponse for ResponseAPIStreamEve
 
     fn event_type(&self) -> Option<&str> {
         Some(match self {
-            ResponseAPIStreamEvent::ResponseCreated { .. } => "response.created",
-            ResponseAPIStreamEvent::ResponseCompleted { .. } => "response.completed",
-            ResponseAPIStreamEvent::ResponseOutputItemAdded { .. } => "response.output_item.added",
-            ResponseAPIStreamEvent::ResponseOutputItemDone { .. } => "response.output_item.done",
-            ResponseAPIStreamEvent::ResponseContentPartAdded { .. } => {
+            ResponsesAPIStreamEvent::ResponseCreated { .. } => "response.created",
+            ResponsesAPIStreamEvent::ResponseInProgress { .. } => "response.in_progress",
+            ResponsesAPIStreamEvent::ResponseCompleted { .. } => "response.completed",
+            ResponsesAPIStreamEvent::ResponseOutputItemAdded { .. } => "response.output_item.added",
+            ResponsesAPIStreamEvent::ResponseOutputItemDone { .. } => "response.output_item.done",
+            ResponsesAPIStreamEvent::ResponseContentPartAdded { .. } => {
                 "response.content_part.added"
             }
-            ResponseAPIStreamEvent::ResponseContentPartDone { .. } => "response.content_part.done",
-            ResponseAPIStreamEvent::ResponseOutputTextDelta { .. } => "response.output_text.delta",
-            ResponseAPIStreamEvent::ResponseOutputTextDone { .. } => "response.output_text.done",
-            ResponseAPIStreamEvent::ResponseAudioDelta { .. } => "response.audio.delta",
-            ResponseAPIStreamEvent::ResponseAudioDone { .. } => "response.audio.done",
-            ResponseAPIStreamEvent::ResponseAudioTranscriptDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseContentPartDone { .. } => "response.content_part.done",
+            ResponsesAPIStreamEvent::ResponseOutputTextDelta { .. } => "response.output_text.delta",
+            ResponsesAPIStreamEvent::ResponseOutputTextDone { .. } => "response.output_text.done",
+            ResponsesAPIStreamEvent::ResponseAudioDelta { .. } => "response.audio.delta",
+            ResponsesAPIStreamEvent::ResponseAudioDone { .. } => "response.audio.done",
+            ResponsesAPIStreamEvent::ResponseAudioTranscriptDelta { .. } => {
                 "response.audio_transcript.delta"
             }
-            ResponseAPIStreamEvent::ResponseAudioTranscriptDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseAudioTranscriptDone { .. } => {
                 "response.audio_transcript.done"
             }
-            ResponseAPIStreamEvent::ResponseFunctionCallArgumentsDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDelta { .. } => {
                 "response.function_call_arguments.delta"
             }
-            ResponseAPIStreamEvent::ResponseFunctionCallArgumentsDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDone { .. } => {
                 "response.function_call_arguments.done"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCodeDelta { .. } => {
                 "response.code_interpreter_call.code.delta"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCodeDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCodeDone { .. } => {
                 "response.code_interpreter_call.code.done"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallInProgress { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallInProgress { .. } => {
                 "response.code_interpreter_call.in_progress"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallInterpreting { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallInterpreting { .. } => {
                 "response.code_interpreter_call.interpreting"
             }
-            ResponseAPIStreamEvent::ResponseCodeInterpreterCallCompleted { .. } => {
+            ResponsesAPIStreamEvent::ResponseCodeInterpreterCallCompleted { .. } => {
                 "response.code_interpreter_call.completed"
             }
-            ResponseAPIStreamEvent::ResponseCustomToolCallInputDelta { .. } => {
+            ResponsesAPIStreamEvent::ResponseCustomToolCallInputDelta { .. } => {
                 "response.custom_tool_call.input.delta"
             }
-            ResponseAPIStreamEvent::ResponseCustomToolCallInputDone { .. } => {
+            ResponsesAPIStreamEvent::ResponseCustomToolCallInputDone { .. } => {
                 "response.custom_tool_call.input.done"
             }
-            ResponseAPIStreamEvent::Error { .. } => "error",
-            ResponseAPIStreamEvent::Done { .. } => "done",
+            ResponsesAPIStreamEvent::Error { .. } => "error",
+            ResponsesAPIStreamEvent::Done { .. } => "done",
         })
     }
 }
@@ -1257,11 +1257,11 @@ mod tests {
             "obfuscation":"sRhca4PA06"
         }"#;
 
-        let event: ResponseAPIStreamEvent =
+        let event: ResponsesAPIStreamEvent =
             serde_json::from_str(json).expect("Failed to deserialize");
 
         match event {
-            ResponseAPIStreamEvent::ResponseOutputTextDelta {
+            ResponsesAPIStreamEvent::ResponseOutputTextDelta {
                 item_id,
                 output_index,
                 content_index,
@@ -1297,11 +1297,11 @@ mod tests {
             "logprobs":[]
         }"#;
 
-        let event: ResponseAPIStreamEvent =
+        let event: ResponsesAPIStreamEvent =
             serde_json::from_str(json).expect("Failed to deserialize");
 
         match event {
-            ResponseAPIStreamEvent::ResponseOutputTextDone {
+            ResponsesAPIStreamEvent::ResponseOutputTextDone {
                 item_id,
                 output_index,
                 content_index,
@@ -1368,11 +1368,11 @@ mod tests {
             }
         }"#;
 
-        let event: ResponseAPIStreamEvent =
+        let event: ResponsesAPIStreamEvent =
             serde_json::from_str(json).expect("Failed to deserialize");
 
         match event {
-            ResponseAPIStreamEvent::ResponseCompleted {
+            ResponsesAPIStreamEvent::ResponseCompleted {
                 response,
                 sequence_number,
             } => {

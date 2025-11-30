@@ -10,3 +10,5 @@ serde_with = {version = "3.12.0", features = ["base64"]}
 thiserror = "2.0.12"
 aws-smithy-eventstream = "0.60"
 bytes = "1.10"
+uuid = { version = "1.11", features = ["v4"] }
+log = "0.4"

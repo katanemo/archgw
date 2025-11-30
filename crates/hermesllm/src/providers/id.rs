@@ -1,5 +1,5 @@
 use crate::apis::{AmazonBedrockApi, AnthropicApi, OpenAIApi};
-use crate::clients::endpoints::{SupportedAPIsFromClients, SupportedUpstreamAPIs};
+use crate::clients::endpoints::{SupportedAPIsFromClient, SupportedUpstreamAPIs};
 use std::fmt::Display;
 
 /// Provider identifier enum - simple enum for identifying providers
@@ -51,21 +51,21 @@ impl ProviderId {
     /// Given a client API, return the compatible upstream API for this provider
     pub fn compatible_api_for_client(
         &self,
-        client_api: &SupportedAPIsFromClients,
+        client_api: &SupportedAPIsFromClient,
         is_streaming: bool,
     ) -> SupportedUpstreamAPIs {
         match (self, client_api) {
             // Claude/Anthropic providers natively support Anthropic APIs
-            (ProviderId::Anthropic, SupportedAPIsFromClients::AnthropicMessagesAPI(_)) => {
+            (ProviderId::Anthropic, SupportedAPIsFromClient::AnthropicMessagesAPI(_)) => {
                 SupportedUpstreamAPIs::AnthropicMessagesAPI(AnthropicApi::Messages)
             }
             (
                 ProviderId::Anthropic,
-                SupportedAPIsFromClients::OpenAIChatCompletions(_),
+                SupportedAPIsFromClient::OpenAIChatCompletions(_),
             ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // Anthropic doesn't support Responses API, fall back to chat completions
-            (ProviderId::Anthropic, SupportedAPIsFromClients::OpenAIResponsesAPI(_)) => {
+            (ProviderId::Anthropic, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
                 SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)
             }
 
@@ -85,7 +85,7 @@ impl ProviderId {
                 | ProviderId::Moonshotai
                 | ProviderId::Zhipu
                 | ProviderId::Qwen,
-                SupportedAPIsFromClients::AnthropicMessagesAPI(_),
+                SupportedAPIsFromClient::AnthropicMessagesAPI(_),
             ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             (
@@ -103,21 +103,21 @@ impl ProviderId {
                 | ProviderId::Moonshotai
                 | ProviderId::Zhipu
                 | ProviderId::Qwen,
-                SupportedAPIsFromClients::OpenAIChatCompletions(_),
+                SupportedAPIsFromClient::OpenAIChatCompletions(_),
             ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
             // OpenAI Responses API - only OpenAI supports this
-            (ProviderId::OpenAI, SupportedAPIsFromClients::OpenAIResponsesAPI(_)) => {
+            (ProviderId::OpenAI, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
                 SupportedUpstreamAPIs::OpenAIResponsesAPI(OpenAIApi::Responses)
             }
 
             // Non-OpenAI providers: if client requested the Responses API, fall back to Chat Completions
-            (_, SupportedAPIsFromClients::OpenAIResponsesAPI(_)) => {
+            (_, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
                 SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)
             }
 
             // Amazon Bedrock natively supports Bedrock APIs
-            (ProviderId::AmazonBedrock, SupportedAPIsFromClients::OpenAIChatCompletions(_)) => {
+            (ProviderId::AmazonBedrock, SupportedAPIsFromClient::OpenAIChatCompletions(_)) => {
                 if is_streaming {
                     SupportedUpstreamAPIs::AmazonBedrockConverseStream(
                         AmazonBedrockApi::ConverseStream,
@@ -126,7 +126,7 @@ impl ProviderId {
                     SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
                 }
             }
-            (ProviderId::AmazonBedrock, SupportedAPIsFromClients::AnthropicMessagesAPI(_)) => {
+            (ProviderId::AmazonBedrock, SupportedAPIsFromClient::AnthropicMessagesAPI(_)) => {
                 if is_streaming {
                     SupportedUpstreamAPIs::AmazonBedrockConverseStream(
                         AmazonBedrockApi::ConverseStream,

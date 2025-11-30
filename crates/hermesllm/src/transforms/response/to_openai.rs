@@ -1,14 +1,11 @@
 use crate::apis::amazon_bedrock::{
-    ConverseOutput, ConverseResponse, ConverseStreamEvent, StopReason,
+    ConverseOutput, ConverseResponse, StopReason,
 };
 use crate::apis::anthropic::{
-    MessagesContentBlock, MessagesContentDelta, MessagesResponse, MessagesStopReason,
-    MessagesStreamEvent, MessagesUsage,
+    MessagesContentBlock, MessagesResponse, MessagesUsage,
 };
 use crate::apis::openai::{
-    ChatCompletionsResponse, ChatCompletionsStreamResponse, Choice, FinishReason,
-    FunctionCallDelta, MessageContent, MessageDelta, ResponseMessage, Role, StreamChoice,
-    ToolCallDelta, Usage,
+    ChatCompletionsResponse, Choice, FinishReason, MessageContent, ResponseMessage, Role, Usage,
 };
 use crate::apis::openai_responses::ResponsesAPIResponse;
 use crate::clients::TransformError;
@@ -331,416 +328,6 @@ impl TryFrom<ConverseResponse> for ChatCompletionsResponse {
     }
 }
 
-// ============================================================================
-// STREAMING TRANSFORMATIONS
-// ============================================================================
-
-impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
-    type Error = TransformError;
-
-    fn try_from(event: MessagesStreamEvent) -> Result<Self, Self::Error> {
-        match event {
-            MessagesStreamEvent::MessageStart { message } => Ok(create_openai_chunk(
-                &message.id,
-                &message.model,
-                MessageDelta {
-                    role: Some(Role::Assistant),
-                    content: None,
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: None,
-                },
-                None,
-                None,
-            )),
-
-            MessagesStreamEvent::ContentBlockStart { content_block, .. } => {
-                convert_content_block_start(content_block)
-            }
-
-            MessagesStreamEvent::ContentBlockDelta { delta, .. } => convert_content_delta(delta),
-
-            MessagesStreamEvent::ContentBlockStop { .. } => Ok(create_empty_openai_chunk()),
-
-            MessagesStreamEvent::MessageDelta { delta, usage } => {
-                let finish_reason: Option<FinishReason> = Some(delta.stop_reason.into());
-                let openai_usage: Option<Usage> = Some(usage.into());
-
-                Ok(create_openai_chunk(
-                    "stream",
-                    "unknown",
-                    MessageDelta {
-                        role: None,
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    finish_reason,
-                    openai_usage,
-                ))
-            }
-
-            MessagesStreamEvent::MessageStop => Ok(create_openai_chunk(
-                "stream",
-                "unknown",
-                MessageDelta {
-                    role: None,
-                    content: None,
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: None,
-                },
-                Some(FinishReason::Stop),
-                None,
-            )),
-
-            MessagesStreamEvent::Ping => Ok(ChatCompletionsStreamResponse {
-                id: "stream".to_string(),
-                object: Some("chat.completion.chunk".to_string()),
-                created: current_timestamp(),
-                model: "unknown".to_string(),
-                choices: vec![],
-                usage: None,
-                system_fingerprint: None,
-                service_tier: None,
-            }),
-        }
-    }
-}
-
-impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
-    type Error = TransformError;
-
-    fn try_from(event: ConverseStreamEvent) -> Result<Self, Self::Error> {
-        match event {
-            ConverseStreamEvent::MessageStart(start_event) => {
-                let role = match start_event.role {
-                    crate::apis::amazon_bedrock::ConversationRole::User => Role::User,
-                    crate::apis::amazon_bedrock::ConversationRole::Assistant => Role::Assistant,
-                };
-
-                Ok(create_openai_chunk(
-                    "stream",
-                    "unknown",
-                    MessageDelta {
-                        role: Some(role),
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    None,
-                    None,
-                ))
-            }
-
-            ConverseStreamEvent::ContentBlockStart(start_event) => {
-                use crate::apis::amazon_bedrock::ContentBlockStart;
-
-                match start_event.start {
-                    ContentBlockStart::ToolUse { tool_use } => Ok(create_openai_chunk(
-                        "stream",
-                        "unknown",
-                        MessageDelta {
-                            role: None,
-                            content: None,
-                            refusal: None,
-                            function_call: None,
-                            tool_calls: Some(vec![ToolCallDelta {
-                                index: start_event.content_block_index as u32,
-                                id: Some(tool_use.tool_use_id),
-                                call_type: Some("function".to_string()),
-                                function: Some(FunctionCallDelta {
-                                    name: Some(tool_use.name),
-                                    arguments: Some("".to_string()),
-                                }),
-                            }]),
-                        },
-                        None,
-                        None,
-                    )),
-                }
-            }
-
-            ConverseStreamEvent::ContentBlockDelta(delta_event) => {
-                use crate::apis::amazon_bedrock::ContentBlockDelta;
-
-                match delta_event.delta {
-                    ContentBlockDelta::Text { text } => Ok(create_openai_chunk(
-                        "stream",
-                        "unknown",
-                        MessageDelta {
-                            role: None,
-                            content: Some(text),
-                            refusal: None,
-                            function_call: None,
-                            tool_calls: None,
-                        },
-                        None,
-                        None,
-                    )),
-                    ContentBlockDelta::ToolUse { tool_use } => Ok(create_openai_chunk(
-                        "stream",
-                        "unknown",
-                        MessageDelta {
-                            role: None,
-                            content: None,
-                            refusal: None,
-                            function_call: None,
-                            tool_calls: Some(vec![ToolCallDelta {
-                                index: delta_event.content_block_index as u32,
-                                id: None,
-                                call_type: None,
-                                function: Some(FunctionCallDelta {
-                                    name: None,
-                                    arguments: Some(tool_use.input),
-                                }),
-                            }]),
-                        },
-                        None,
-                        None,
-                    )),
-                }
-            }
-
-            ConverseStreamEvent::ContentBlockStop(_) => Ok(create_empty_openai_chunk()),
-
-            ConverseStreamEvent::MessageStop(stop_event) => {
-                let finish_reason = match stop_event.stop_reason {
-                    StopReason::EndTurn => FinishReason::Stop,
-                    StopReason::ToolUse => FinishReason::ToolCalls,
-                    StopReason::MaxTokens => FinishReason::Length,
-                    StopReason::StopSequence => FinishReason::Stop,
-                    StopReason::GuardrailIntervened => FinishReason::ContentFilter,
-                    StopReason::ContentFiltered => FinishReason::ContentFilter,
-                };
-
-                Ok(create_openai_chunk(
-                    "stream",
-                    "unknown",
-                    MessageDelta {
-                        role: None,
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    Some(finish_reason),
-                    None,
-                ))
-            }
-
-            ConverseStreamEvent::Metadata(metadata_event) => {
-                let usage = Usage {
-                    prompt_tokens: metadata_event.usage.input_tokens,
-                    completion_tokens: metadata_event.usage.output_tokens,
-                    total_tokens: metadata_event.usage.total_tokens,
-                    prompt_tokens_details: None,
-                    completion_tokens_details: None,
-                };
-
-                Ok(create_openai_chunk(
-                    "stream",
-                    "unknown",
-                    MessageDelta {
-                        role: None,
-                        content: None,
-                        refusal: None,
-                        function_call: None,
-                        tool_calls: None,
-                    },
-                    None,
-                    Some(usage),
-                ))
-            }
-
-            // Error events - convert to empty chunks (errors should be handled elsewhere)
-            ConverseStreamEvent::InternalServerException(_)
-            | ConverseStreamEvent::ModelStreamErrorException(_)
-            | ConverseStreamEvent::ServiceUnavailableException(_)
-            | ConverseStreamEvent::ThrottlingException(_)
-            | ConverseStreamEvent::ValidationException(_) => Ok(create_empty_openai_chunk()),
-        }
-    }
-}
-
-/// Convert content block start to OpenAI chunk
-fn convert_content_block_start(
-    content_block: MessagesContentBlock,
-) -> Result<ChatCompletionsStreamResponse, TransformError> {
-    match content_block {
-        MessagesContentBlock::Text { .. } => {
-            // No immediate output for text block start
-            Ok(create_empty_openai_chunk())
-        }
-        MessagesContentBlock::ToolUse { id, name, .. }
-        | MessagesContentBlock::ServerToolUse { id, name, .. }
-        | MessagesContentBlock::McpToolUse { id, name, .. } => {
-            // Tool use start → OpenAI chunk with tool_calls
-            Ok(create_openai_chunk(
-                "stream",
-                "unknown",
-                MessageDelta {
-                    role: None,
-                    content: None,
-                    refusal: None,
-                    function_call: None,
-                    tool_calls: Some(vec![ToolCallDelta {
-                        index: 0,
-                        id: Some(id),
-                        call_type: Some("function".to_string()),
-                        function: Some(FunctionCallDelta {
-                            name: Some(name),
-                            arguments: Some("".to_string()),
-                        }),
-                    }]),
-                },
-                None,
-                None,
-            ))
-        }
-        _ => Err(TransformError::UnsupportedContent(
-            "Unsupported content block type in stream start".to_string(),
-        )),
-    }
-}
-
-/// Convert content delta to OpenAI chunk
-fn convert_content_delta(
-    delta: MessagesContentDelta,
-) -> Result<ChatCompletionsStreamResponse, TransformError> {
-    match delta {
-        MessagesContentDelta::TextDelta { text } => Ok(create_openai_chunk(
-            "stream",
-            "unknown",
-            MessageDelta {
-                role: None,
-                content: Some(text),
-                refusal: None,
-                function_call: None,
-                tool_calls: None,
-            },
-            None,
-            None,
-        )),
-        MessagesContentDelta::ThinkingDelta { thinking } => Ok(create_openai_chunk(
-            "stream",
-            "unknown",
-            MessageDelta {
-                role: None,
-                content: Some(format!("thinking: {}", thinking)),
-                refusal: None,
-                function_call: None,
-                tool_calls: None,
-            },
-            None,
-            None,
-        )),
-        MessagesContentDelta::InputJsonDelta { partial_json } => Ok(create_openai_chunk(
-            "stream",
-            "unknown",
-            MessageDelta {
-                role: None,
-                content: None,
-                refusal: None,
-                function_call: None,
-                tool_calls: Some(vec![ToolCallDelta {
-                    index: 0,
-                    id: None,
-                    call_type: None,
-                    function: Some(FunctionCallDelta {
-                        name: None,
-                        arguments: Some(partial_json),
-                    }),
-                }]),
-            },
-            None,
-            None,
-        )),
-    }
-}
-
-/// Helper to create OpenAI streaming chunk
-fn create_openai_chunk(
-    id: &str,
-    model: &str,
-    delta: MessageDelta,
-    finish_reason: Option<FinishReason>,
-    usage: Option<Usage>,
-) -> ChatCompletionsStreamResponse {
-    ChatCompletionsStreamResponse {
-        id: id.to_string(),
-        object: Some("chat.completion.chunk".to_string()),
-        created: current_timestamp(),
-        model: model.to_string(),
-        choices: vec![StreamChoice {
-            index: 0,
-            delta,
-            finish_reason,
-            logprobs: None,
-        }],
-        usage,
-        system_fingerprint: None,
-        service_tier: None,
-    }
-}
-
-/// Helper to create empty OpenAI streaming chunk
-fn create_empty_openai_chunk() -> ChatCompletionsStreamResponse {
-    create_openai_chunk(
-        "stream",
-        "unknown",
-        MessageDelta {
-            role: None,
-            content: None,
-            refusal: None,
-            function_call: None,
-            tool_calls: None,
-        },
-        None,
-        None,
-    )
-}
-
-/// Convert Anthropic content blocks to OpenAI message content
-fn convert_anthropic_content_to_openai(
-    content: &[MessagesContentBlock],
-) -> Result<MessageContent, TransformError> {
-    let mut text_parts = Vec::new();
-
-    for block in content {
-        match block {
-            MessagesContentBlock::Text { text, .. } => {
-                text_parts.push(text.clone());
-            }
-            MessagesContentBlock::Thinking { thinking, .. } => {
-                text_parts.push(format!("thinking: {}", thinking));
-            }
-            _ => {
-                // Skip other content types for basic text conversion
-                continue;
-            }
-        }
-    }
-
-    Ok(MessageContent::Text(text_parts.join("\n")))
-}
-
-// Stop Reason Conversions
-impl Into<FinishReason> for MessagesStopReason {
-    fn into(self) -> FinishReason {
-        match self {
-            MessagesStopReason::EndTurn => FinishReason::Stop,
-            MessagesStopReason::MaxTokens => FinishReason::Length,
-            MessagesStopReason::StopSequence => FinishReason::Stop,
-            MessagesStopReason::ToolUse => FinishReason::ToolCalls,
-            MessagesStopReason::PauseTurn => FinishReason::Stop,
-            MessagesStopReason::Refusal => FinishReason::ContentFilter,
-        }
-    }
-}
-
 /// Convert Bedrock Message to OpenAI content and tool calls
 /// This function extracts text content and tool calls from a Bedrock message
 fn convert_bedrock_message_to_openai(
@@ -784,6 +371,31 @@ fn convert_bedrock_message_to_openai(
 
     Ok((content, tool_calls))
 }
+
+/// Convert Anthropic content blocks to OpenAI message content
+fn convert_anthropic_content_to_openai(
+    content: &[MessagesContentBlock],
+) -> Result<MessageContent, TransformError> {
+    let mut text_parts = Vec::new();
+
+    for block in content {
+        match block {
+            MessagesContentBlock::Text { text, .. } => {
+                text_parts.push(text.clone());
+            }
+            MessagesContentBlock::Thinking { thinking, .. } => {
+                text_parts.push(format!("thinking: {}", thinking));
+            }
+            _ => {
+                // Skip other content types for basic text conversion
+                continue;
+            }
+        }
+    }
+
+    Ok(MessageContent::Text(text_parts.join("\n")))
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -111,11 +111,6 @@ impl ProviderId {
                 SupportedUpstreamAPIs::OpenAIResponsesAPI(OpenAIApi::Responses)
             }
 
-            // Non-OpenAI providers: if client requested the Responses API, fall back to Chat Completions
-            (_, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
-                SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)
-            }
-
             // Amazon Bedrock natively supports Bedrock APIs
             (ProviderId::AmazonBedrock, SupportedAPIsFromClient::OpenAIChatCompletions(_)) => {
                 if is_streaming {
@@ -134,6 +129,11 @@ impl ProviderId {
                 } else {
                     SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
                 }
+            }
+
+            // Non-OpenAI providers: if client requested the Responses API, fall back to Chat Completions
+            (_, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
+                SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions)
             }
         }
     }

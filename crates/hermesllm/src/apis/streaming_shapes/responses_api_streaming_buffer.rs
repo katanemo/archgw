@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use log::debug;
 use crate::apis::openai_responses::{
     ResponsesAPIStreamEvent, ResponsesAPIResponse, OutputItem, OutputItemStatus,
     ResponseStatus, TextConfig, TextFormat, Reasoning,
@@ -17,10 +18,19 @@ fn event_to_sse(event: ResponsesAPIStreamEvent) -> SseEvent {
         ResponsesAPIStreamEvent::ResponseOutputTextDone { .. } => "response.output_text.done",
         ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDelta { .. } => "response.function_call_arguments.delta",
         ResponsesAPIStreamEvent::ResponseFunctionCallArgumentsDone { .. } => "response.function_call_arguments.done",
-        _ => "unknown",
+        unknown => {
+            debug!("Unknown ResponsesAPIStreamEvent type encountered: {:?}", unknown);
+            "unknown"
+        }
     };
 
-    let json_data = serde_json::to_string(&event).unwrap_or_default();
+    let json_data = match serde_json::to_string(&event) {
+        Ok(data) => data,
+        Err(e) => {
+            debug!("Error serializing ResponsesAPIStreamEvent to JSON: {}", e);
+            String::new()
+        }
+    };
     let wire_format: String = event.into();
 
     SseEvent {
@@ -95,7 +105,7 @@ impl ResponsesAPIStreamBuffer {
         seq
     }
 
-    fn generate_item_id(&self, prefix: &str) -> String {
+    fn generate_item_id(prefix: &str) -> String {
         format!("{}_{}", prefix, uuid::Uuid::new_v4().to_string().replace("-", ""))
     }
 
@@ -103,7 +113,7 @@ impl ResponsesAPIStreamBuffer {
         if let Some(id) = self.item_ids.get(&output_index) {
             return id.clone();
         }
-        let id = self.generate_item_id(prefix);
+        let id = ResponsesAPIStreamBuffer::generate_item_id(prefix);
         self.item_ids.insert(output_index, id.clone());
         id
     }

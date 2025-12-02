@@ -543,14 +543,19 @@ impl StreamContext {
                     }
 
                     // Add transformed event to buffer (buffer may inject lifecycle events)
-                    self.sse_buffer
-                        .as_mut()
-                        .unwrap()
-                        .add_transformed_event(transformed_event);
+                    if let Some(buffer) = self.sse_buffer.as_mut() {
+                        buffer.add_transformed_event(transformed_event);
+                    }
                 }
 
                 // Get accumulated bytes from buffer and return
-                Ok(self.sse_buffer.as_mut().unwrap().into_bytes())
+                match self.sse_buffer.as_mut() {
+                    Some(buffer) => Ok(buffer.into_bytes()),
+                    None => {
+                        warn!("SSE buffer unexpectedly missing after initialization");
+                        Err(Action::Continue)
+                    }
+                }
             }
             None => {
                 warn!("Missing client_api for non-streaming response");

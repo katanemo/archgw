@@ -24,7 +24,7 @@ pub struct AnthropicMessagesStreamBuffer {
     needs_content_block_stop: bool,
 
     /// Model name to use when generating message_start events
-    model: String,
+    model: Option<String>,
 }
 
 impl AnthropicMessagesStreamBuffer {
@@ -34,12 +34,12 @@ impl AnthropicMessagesStreamBuffer {
             message_started: false,
             content_block_started: false,
             needs_content_block_stop: false,
-            model: "unknown".to_string(),
+            model: None,
         }
     }
 
     /// Helper to create and format a ContentBlockStart SSE event
-    fn create_content_block_start_event(&self) -> SseEvent {
+    fn create_content_block_start_event() -> SseEvent {
         let content_block_start = MessagesStreamEvent::ContentBlockStart {
             index: 0,
             content_block: crate::apis::anthropic::MessagesContentBlock::Text {
@@ -59,14 +59,14 @@ impl AnthropicMessagesStreamBuffer {
     }
 
     /// Helper to create and format a MessageStart SSE event
-    fn create_message_start_event(&self) -> SseEvent {
+    fn create_message_start_event(model: &str) -> SseEvent {
         let message_start = MessagesStreamEvent::MessageStart {
             message: crate::apis::anthropic::MessagesStreamMessage {
                 id: format!("msg_{}", uuid::Uuid::new_v4().to_string().replace("-", "")),
                 obj_type: "message".to_string(),
                 role: crate::apis::anthropic::MessagesRole::Assistant,
                 content: vec![],
-                model: self.model.clone(),
+                model: model.to_string(),
                 stop_reason: None,
                 stop_sequence: None,
                 usage: crate::apis::anthropic::MessagesUsage {
@@ -89,7 +89,7 @@ impl AnthropicMessagesStreamBuffer {
     }
 
     /// Helper to create and format a ContentBlockStop SSE event
-    fn create_content_block_stop_event(&self) -> SseEvent {
+    fn create_content_block_stop_event() -> SseEvent {
         let content_block_stop = MessagesStreamEvent::ContentBlockStop { index: 0 };
         let sse_string: String = content_block_stop.into();
 
@@ -113,12 +113,12 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
         // FIRST: Try to extract model name from the raw event data before transformation
         // The provider_stream_response has already been transformed to Anthropic format,
         // so we need to extract the model from the original raw data if available
-        if self.model == "unknown" {
+        if self.model.is_none() {
             if let Some(data) = &event.data {
                 // Try to parse as JSON and extract model field
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                     if let Some(model) = json.get("model").and_then(|m| m.as_str()) {
-                        self.model = model.to_string();
+                        self.model = Some(model.to_string());
                     }
                 }
             }
@@ -132,12 +132,12 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
                         // Add the message_start event
                         self.buffered_events.push(event);
                         self.message_started = true;
-                        return;
                     }
                     "content_block_start" => {
                         // If we haven't seen message_start yet, inject it first
                         if !self.message_started {
-                            let message_start = self.create_message_start_event();
+                            let model = self.model.as_deref().unwrap_or("unknown");
+                            let message_start = AnthropicMessagesStreamBuffer::create_message_start_event(model);
                             self.buffered_events.push(message_start);
                             self.message_started = true;
                         }
@@ -146,21 +146,21 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
                         self.buffered_events.push(event);
                         self.content_block_started = true;
                         self.needs_content_block_stop = true;
-                        return;
                     }
                     "content_block_delta" => {
                         // If this is the first content delta and we haven't started yet,
                         // inject message_start and content_block_start first
                         if !self.message_started {
                             // Create and inject message_start event
-                            let message_start = self.create_message_start_event();
+                            let model = self.model.as_deref().unwrap_or("unknown");
+                            let message_start = AnthropicMessagesStreamBuffer::create_message_start_event(model);
                             self.buffered_events.push(message_start);
                             self.message_started = true;
                         }
 
                         if !self.content_block_started {
                             // Inject ContentBlockStart after message_start
-                            let content_block_start = self.create_content_block_start_event();
+                            let content_block_start = AnthropicMessagesStreamBuffer::create_content_block_start_event();
                             self.buffered_events.push(content_block_start);
                             self.content_block_started = true;
                             self.needs_content_block_stop = true;
@@ -168,26 +168,24 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
 
                         // Content deltas are between ContentBlockStart and ContentBlockStop
                         self.buffered_events.push(event);
-                        return;
                     }
                     "message_delta" => {
                         // Inject ContentBlockStop before message_delta
                         if self.needs_content_block_stop {
-                            let content_block_stop = self.create_content_block_stop_event();
+                            let content_block_stop = AnthropicMessagesStreamBuffer::create_content_block_stop_event();
                             self.buffered_events.push(content_block_stop);
                             self.needs_content_block_stop = false;
                         }
 
                         // Add the message_delta event
                         self.buffered_events.push(event);
-                        return;
                     }
                     _ => {
-                        // Other event types, just accumulate
+                        // Other event types, just accumulate the event
                         self.buffered_events.push(event);
-                        return;
                     }
                 }
+                return;
             }
         }
 
@@ -198,7 +196,7 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
     fn into_bytes(&mut self) -> Vec<u8> {
         // Inject ContentBlockStop if needed before flushing
         if self.needs_content_block_stop {
-            let content_block_stop = self.create_content_block_stop_event();
+            let content_block_stop = AnthropicMessagesStreamBuffer::create_content_block_stop_event();
             self.buffered_events.push(content_block_stop);
             self.needs_content_block_stop = false;
         }

@@ -550,7 +550,19 @@ impl StreamContext {
 
                 // Get accumulated bytes from buffer and return
                 match self.sse_buffer.as_mut() {
-                    Some(buffer) => Ok(buffer.into_bytes()),
+                    Some(buffer) => {
+                        let bytes = buffer.into_bytes();
+                        if !bytes.is_empty() {
+                            let content = String::from_utf8_lossy(&bytes);
+                            debug!(
+                                "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORMED_CLIENT_RESPONSE: size={} content={}",
+                                self.request_identifier(),
+                                bytes.len(),
+                                content
+                            );
+                        }
+                        Ok(bytes)
+                    }
                     None => {
                         warn!("SSE buffer unexpectedly missing after initialization");
                         Err(Action::Continue)
@@ -657,7 +669,19 @@ impl StreamContext {
 
         // Get accumulated bytes from buffer and return
         match self.sse_buffer.as_mut() {
-            Some(buffer) => Ok(buffer.into_bytes()),
+            Some(buffer) => {
+                let bytes = buffer.into_bytes();
+                if !bytes.is_empty() {
+                    let content = String::from_utf8_lossy(&bytes);
+                    debug!(
+                        "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORMED_CLIENT_RESPONSE: size={} content={}",
+                        self.request_identifier(),
+                        bytes.len(),
+                        content
+                    );
+                }
+                Ok(bytes)
+            }
             None => {
                 warn!(
                     "[ARCHGW_REQ_ID:{}] BEDROCK_BUFFER_MISSING",

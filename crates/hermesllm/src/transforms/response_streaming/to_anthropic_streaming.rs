@@ -1,5 +1,5 @@
 use crate::apis::amazon_bedrock::{
-    ContentBlockDelta, ConverseStreamEvent, StopReason,
+    ContentBlockDelta, ConverseStreamEvent,
 };
 use crate::apis::anthropic::{
     MessagesContentBlock, MessagesContentDelta, MessagesMessageDelta,
@@ -187,18 +187,19 @@ impl TryFrom<ConverseStreamEvent> for MessagesStreamEvent {
                 })
             }
 
-            // MessageStop - convert to Anthropic MessageDelta with stop reason + MessageStop
+            // MessageStop - convert to Anthropic MessageDelta with stop reason
+            // Note: Bedrock sends Metadata separately with usage info, creating a second MessageDelta
+            // The client should merge these or use the final one with complete usage
             ConverseStreamEvent::MessageStop(stop_event) => {
                 let anthropic_stop_reason = match stop_event.stop_reason {
-                    StopReason::EndTurn => MessagesStopReason::EndTurn,
-                    StopReason::ToolUse => MessagesStopReason::ToolUse,
-                    StopReason::MaxTokens => MessagesStopReason::MaxTokens,
-                    StopReason::StopSequence => MessagesStopReason::EndTurn,
-                    StopReason::GuardrailIntervened => MessagesStopReason::Refusal,
-                    StopReason::ContentFiltered => MessagesStopReason::Refusal,
+                    crate::apis::amazon_bedrock::StopReason::EndTurn => MessagesStopReason::EndTurn,
+                    crate::apis::amazon_bedrock::StopReason::ToolUse => MessagesStopReason::ToolUse,
+                    crate::apis::amazon_bedrock::StopReason::MaxTokens => MessagesStopReason::MaxTokens,
+                    crate::apis::amazon_bedrock::StopReason::StopSequence => MessagesStopReason::EndTurn,
+                    crate::apis::amazon_bedrock::StopReason::GuardrailIntervened => MessagesStopReason::Refusal,
+                    crate::apis::amazon_bedrock::StopReason::ContentFiltered => MessagesStopReason::Refusal,
                 };
 
-                // Return MessageDelta (MessageStop will be sent separately by the streaming handler)
                 Ok(MessagesStreamEvent::MessageDelta {
                     delta: MessagesMessageDelta {
                         stop_reason: anthropic_stop_reason,

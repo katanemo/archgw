@@ -92,6 +92,21 @@ pub struct SseEvent {
 }
 
 impl SseEvent {
+    /// Create an SseEvent from a ProviderStreamResponseType
+    /// This is useful for binary frame formats (like Bedrock) that need to be converted to SSE
+    pub fn from_provider_response(response: ProviderStreamResponseType) -> Self {
+        // Convert the provider response to SSE format string
+        let sse_string: String = response.clone().into();
+
+        SseEvent {
+            data: None, // Data is embedded in sse_transformed_lines
+            event: None, // Event type is embedded in sse_transformed_lines
+            raw_line: sse_string.clone(),
+            sse_transformed_lines: sse_string,
+            provider_stream_response: Some(response),
+        }
+    }
+
     /// Check if this event represents the end of the stream
     pub fn is_done(&self) -> bool {
         self.data == Some("[DONE]".into()) || self.event == Some("message_stop".into())

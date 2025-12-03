@@ -1,6 +1,7 @@
 use crate::apis::streaming_shapes::sse::{SseEvent, SseStreamBufferTrait};
 use crate::apis::anthropic::MessagesStreamEvent;
-use crate::providers::streaming_response::ProviderStreamResponse;
+use crate::providers::streaming_response::ProviderStreamResponseType;
+use std::collections::HashSet;
 
 /// SSE Stream Buffer for Anthropic Messages API streaming.
 ///
@@ -17,8 +18,8 @@ pub struct AnthropicMessagesStreamBuffer {
     /// Track if we've seen a message_start event
     message_started: bool,
 
-    /// Track if we've seen a content_block_start event
-    content_block_started: bool,
+    /// Track content block indices that have received ContentBlockStart events
+    content_block_start_indices: HashSet<i32>,
 
     /// Track if we need to inject ContentBlockStop before message_delta
     needs_content_block_stop: bool,
@@ -32,10 +33,20 @@ impl AnthropicMessagesStreamBuffer {
         Self {
             buffered_events: Vec::new(),
             message_started: false,
-            content_block_started: false,
+            content_block_start_indices: HashSet::new(),
             needs_content_block_stop: false,
             model: None,
         }
+    }
+
+    /// Check if a content_block_start event has been sent for the given index
+    fn has_content_block_start_been_sent(&self, index: i32) -> bool {
+        self.content_block_start_indices.contains(&index)
+    }
+
+    /// Mark that a content_block_start event has been sent for the given index
+    fn set_content_block_start_sent(&mut self, index: i32) {
+        self.content_block_start_indices.insert(index);
     }
 
     /// Helper to create and format a ContentBlockStart SSE event
@@ -124,17 +135,19 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
             }
         }
 
-        // Check if this event has a provider response to determine its type
-        if let Some(provider_response) = &event.provider_stream_response {
-            if let Some(event_type) = provider_response.event_type() {
-                match event_type {
-                    "message_start" => {
+        // Match directly on the provider response type to handle event processing
+        // We match on a reference first to determine the type, then move the event
+        match &event.provider_stream_response {
+            Some(ProviderStreamResponseType::MessagesStreamEvent(evt)) => {
+                match evt {
+                    MessagesStreamEvent::MessageStart { .. } => {
                         // Add the message_start event
                         self.buffered_events.push(event);
                         self.message_started = true;
                     }
-                    "content_block_start" => {
-                        // If we haven't seen message_start yet, inject it first
+                    MessagesStreamEvent::ContentBlockStart { index, .. } => {
+                        let index = *index as i32;
+                        // Inject message_start if needed
                         if !self.message_started {
                             let model = self.model.as_deref().unwrap_or("unknown");
                             let message_start = AnthropicMessagesStreamBuffer::create_message_start_event(model);
@@ -144,32 +157,32 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
 
                         // Add the content_block_start event (from tool calls or other sources)
                         self.buffered_events.push(event);
-                        self.content_block_started = true;
+                        self.set_content_block_start_sent(index);
                         self.needs_content_block_stop = true;
                     }
-                    "content_block_delta" => {
-                        // If this is the first content delta and we haven't started yet,
-                        // inject message_start and content_block_start first
+                    MessagesStreamEvent::ContentBlockDelta { index, .. } => {
+                        let index = *index as i32;
+                        // Inject message_start if needed
                         if !self.message_started {
-                            // Create and inject message_start event
                             let model = self.model.as_deref().unwrap_or("unknown");
                             let message_start = AnthropicMessagesStreamBuffer::create_message_start_event(model);
                             self.buffered_events.push(message_start);
                             self.message_started = true;
                         }
 
-                        if !self.content_block_started {
-                            // Inject ContentBlockStart after message_start
+                        // Check if ContentBlockStart was sent for this index
+                        if !self.has_content_block_start_been_sent(index) {
+                            // Inject ContentBlockStart before delta
                             let content_block_start = AnthropicMessagesStreamBuffer::create_content_block_start_event();
                             self.buffered_events.push(content_block_start);
-                            self.content_block_started = true;
+                            self.set_content_block_start_sent(index);
                             self.needs_content_block_stop = true;
                         }
 
                         // Content deltas are between ContentBlockStart and ContentBlockStop
                         self.buffered_events.push(event);
                     }
-                    "message_delta" => {
+                    MessagesStreamEvent::MessageDelta { .. } => {
                         // Inject ContentBlockStop before message_delta
                         if self.needs_content_block_stop {
                             let content_block_stop = AnthropicMessagesStreamBuffer::create_content_block_stop_event();
@@ -181,16 +194,16 @@ impl SseStreamBufferTrait for AnthropicMessagesStreamBuffer {
                         self.buffered_events.push(event);
                     }
                     _ => {
-                        // Other event types, just accumulate the event
+                        // Other Anthropic event types (ContentBlockStop, MessageStop, etc.), just accumulate
                         self.buffered_events.push(event);
                     }
                 }
-                return;
+            }
+            _ => {
+                // Non-Anthropic events or events without provider_stream_response, just accumulate
+                self.buffered_events.push(event);
             }
         }
-
-        // For events without provider_stream_response or event_type, just accumulate
-        self.buffered_events.push(event);
     }
 
     fn into_bytes(&mut self) -> Vec<u8> {

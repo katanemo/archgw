@@ -145,6 +145,7 @@ impl ProviderStreamResponse for ProviderStreamResponseType {
             ProviderStreamResponseType::ResponseAPIStreamEvent(resp) => resp.event_type(),
         }
     }
+
 }
 
 impl Into<String> for ProviderStreamResponseType {
@@ -257,6 +258,19 @@ impl TryFrom<(&[u8], &SupportedAPIsFromClient, &SupportedUpstreamAPIs)> for Prov
                 let anthropic_resp = bedrock_resp.try_into()?;
                 Ok(ProviderStreamResponseType::MessagesStreamEvent(
                     anthropic_resp,
+                ))
+            }
+            (
+                SupportedUpstreamAPIs::AmazonBedrockConverseStream(_),
+                SupportedAPIsFromClient::OpenAIResponsesAPI(_),
+            ) => {
+                // Chain: Bedrock -> ChatCompletions -> ResponsesAPI
+                let bedrock_resp: crate::apis::amazon_bedrock::ConverseStreamEvent =
+                    serde_json::from_slice(bytes)?;
+                let chat_resp: crate::apis::openai::ChatCompletionsStreamResponse = bedrock_resp.try_into()?;
+                let responses_resp = chat_resp.try_into()?;
+                Ok(ProviderStreamResponseType::ResponseAPIStreamEvent(
+                    responses_resp,
                 ))
             }
             _ => Err(std::io::Error::new(
@@ -399,6 +413,22 @@ impl
                             bedrock_event.try_into()?;
                         Ok(ProviderStreamResponseType::ChatCompletionsStreamResponse(
                             openai_event,
+                        ))
+                    }
+                                        (
+                        SupportedUpstreamAPIs::AmazonBedrockConverseStream(_),
+                        SupportedAPIsFromClient::OpenAIResponsesAPI(_),
+                    ) => {
+                        // Parse the DecodedFrame into ConverseStreamEvent
+                        let bedrock_event =
+                            crate::apis::amazon_bedrock::ConverseStreamEvent::try_from(frame)?;
+                        let openai_chat_completions_event: crate::apis::openai::ChatCompletionsStreamResponse =
+                            bedrock_event.try_into()?;
+                        let openai_responses_api_event: crate::apis::openai_responses::ResponsesAPIStreamEvent =
+                            openai_chat_completions_event.try_into()?;
+
+                        Ok(ProviderStreamResponseType::ResponseAPIStreamEvent(
+                            openai_responses_api_event,
                         ))
                     }
                     _ => Err("Unsupported API combination for event-stream decoding".into()),

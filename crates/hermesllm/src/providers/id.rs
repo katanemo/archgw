@@ -130,6 +130,15 @@ impl ProviderId {
                     SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
                 }
             }
+            (ProviderId::AmazonBedrock, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {
+                if is_streaming {
+                    SupportedUpstreamAPIs::AmazonBedrockConverseStream(
+                        AmazonBedrockApi::ConverseStream,
+                    )
+                } else {
+                    SupportedUpstreamAPIs::AmazonBedrockConverse(AmazonBedrockApi::Converse)
+                }
+            }
 
             // Non-OpenAI providers: if client requested the Responses API, fall back to Chat Completions
             (_, SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {

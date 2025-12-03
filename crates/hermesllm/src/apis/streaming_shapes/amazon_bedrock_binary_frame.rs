@@ -1,7 +1,6 @@
 use aws_smithy_eventstream::frame::DecodedFrame;
 use aws_smithy_eventstream::frame::MessageFrameDecoder;
 use bytes::Buf;
-use std::collections::HashSet;
 
 /// AWS Event Stream frame decoder wrapper
 pub struct BedrockBinaryFrameDecoder<B>
@@ -10,7 +9,6 @@ where
 {
     decoder: MessageFrameDecoder,
     buffer: B,
-    content_block_start_indices: HashSet<i32>,
 }
 
 impl BedrockBinaryFrameDecoder<bytes::BytesMut> {
@@ -20,7 +18,6 @@ impl BedrockBinaryFrameDecoder<bytes::BytesMut> {
         Self {
             decoder: MessageFrameDecoder::new(),
             buffer,
-            content_block_start_indices: std::collections::HashSet::new(),
         }
     }
 }
@@ -33,7 +30,6 @@ where
         Self {
             decoder: MessageFrameDecoder::new(),
             buffer,
-            content_block_start_indices: HashSet::new(),
         }
     }
 
@@ -51,15 +47,5 @@ where
     /// Check if there are any bytes remaining in the buffer
     pub fn has_remaining(&self) -> bool {
         self.buffer.has_remaining()
-    }
-
-    /// Check if a content_block_start event has been sent for the given index
-    pub fn has_content_block_start_been_sent(&self, index: i32) -> bool {
-        self.content_block_start_indices.contains(&index)
-    }
-
-    /// Mark that a content_block_start event has been sent for the given index
-    pub fn set_content_block_start_sent(&mut self, index: i32) {
-        self.content_block_start_indices.insert(index);
     }
 }

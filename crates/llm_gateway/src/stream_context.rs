@@ -22,13 +22,13 @@ use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
 use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::apis::anthropic::{MessagesContentBlock, MessagesStreamEvent};
 use hermesllm::apis::streaming_shapes::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
 use hermesllm::apis::streaming_shapes::sse::{
     SseEvent, SseStreamBuffer, SseStreamBufferTrait, SseStreamIter,
 };
 use hermesllm::clients::endpoints::SupportedAPIsFromClient;
 use hermesllm::providers::response::ProviderResponse;
+use hermesllm::providers::streaming_response::ProviderStreamResponse;
 use hermesllm::{
     DecodedFrame, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType,
     ProviderStreamResponseType,
@@ -575,83 +575,57 @@ impl StreamContext {
             self.binary_frame_decoder = Some(BedrockBinaryFrameDecoder::from_bytes(&[]));
         }
 
-        // Add incoming bytes to buffer
+        // Initialize SSE buffer if not present
+        if self.sse_buffer.is_none() {
+            self.sse_buffer = match SseStreamBuffer::try_from((client_api, upstream_api)) {
+                Ok(buffer) => Some(buffer),
+                Err(e) => {
+                    warn!(
+                        "[ARCHGW_REQ_ID:{}] BEDROCK_BUFFER_INIT_ERROR: {}",
+                        self.request_identifier(),
+                        e
+                    );
+                    return Err(Action::Continue);
+                }
+            };
+        }
+
+        // Add incoming bytes to decoder buffer
         let decoder = self.binary_frame_decoder.as_mut().unwrap();
         decoder.buffer_mut().extend_from_slice(body);
 
-        let mut response_buffer = Vec::new();
+        // Process all complete frames
         loop {
             let decoded_frame = self.binary_frame_decoder.as_mut().unwrap().decode_frame();
             match decoded_frame {
                 Some(DecodedFrame::Complete(ref frame_ref)) => {
                     let frame = DecodedFrame::Complete(frame_ref.clone());
+
+                    // Convert frame to provider response type
                     match ProviderStreamResponseType::try_from((&frame, client_api, upstream_api)) {
                         Ok(provider_response) => {
                             self.record_ttft_if_needed();
 
-                            // Handle ContentBlockStart and ContentBlockDelta events
-                            match &provider_response {
-                                ProviderStreamResponseType::MessagesStreamEvent(evt) => {
-                                    match evt {
-                                        MessagesStreamEvent::ContentBlockStart {
-                                            index, ..
-                                        } => {
-                                            // Mark that we've seen ContentBlockStart for this index
-                                            self.binary_frame_decoder
-                                                .as_mut()
-                                                .unwrap()
-                                                .set_content_block_start_sent(*index as i32);
-                                            debug!(
-                                                "[ARCHGW_REQ_ID:{}] BEDROCK_CONTENT_BLOCK_START_TRACKED: index={}",
-                                                self.request_identifier(),
-                                                *index
-                                            );
-                                        }
-                                        MessagesStreamEvent::ContentBlockDelta {
-                                            index, ..
-                                        } => {
-                                            // Check if ContentBlockStart was sent for this index
-                                            let needs_start = !self
-                                                .binary_frame_decoder
-                                                .as_ref()
-                                                .unwrap()
-                                                .has_content_block_start_been_sent(*index as i32);
-
-                                            if needs_start {
-                                                // Emit empty ContentBlockStart before delta
-                                                let content_block_start =
-                                                    MessagesStreamEvent::ContentBlockStart {
-                                                        index: *index,
-                                                        content_block: MessagesContentBlock::Text {
-                                                            text: String::new(),
-                                                            cache_control: None,
-                                                        },
-                                                    };
-                                                let start_sse: String = content_block_start.into();
-                                                response_buffer
-                                                    .extend_from_slice(start_sse.as_bytes());
-
-                                                // Mark that we've now sent it
-                                                self.binary_frame_decoder
-                                                    .as_mut()
-                                                    .unwrap()
-                                                    .set_content_block_start_sent(*index as i32);
-
-                                                debug!(
-                                                    "[ARCHGW_REQ_ID:{}] BEDROCK_INJECTED_CONTENT_BLOCK_START: index={}",
-                                                    self.request_identifier(),
-                                                    *index
-                                                );
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                _ => {}
+                            // Track token usage
+                            if let Some(content) = provider_response.content_delta() {
+                                let estimated_tokens = content.len() / 4;
+                                self.response_tokens += estimated_tokens.max(1);
+                                debug!(
+                                    "[ARCHGW_REQ_ID:{}] BEDROCK_TOKEN_UPDATE: delta_chars={} estimated_tokens={} total_tokens={}",
+                                    self.request_identifier(),
+                                    content.len(),
+                                    estimated_tokens.max(1),
+                                    self.response_tokens
+                                );
                             }
 
-                            let sse_string: String = provider_response.into();
-                            response_buffer.extend_from_slice(sse_string.as_bytes());
+                            // Create SseEvent from provider response
+                            let event = SseEvent::from_provider_response(provider_response);
+
+                            // Add to buffer (buffer handles all shim logic including ContentBlockStart injection)
+                            if let Some(buffer) = self.sse_buffer.as_mut() {
+                                buffer.add_transformed_event(event);
+                            }
                         }
                         Err(e) => {
                             warn!(
@@ -681,8 +655,17 @@ impl StreamContext {
             }
         }
 
-        // Return accumulated complete frames (may be empty if all frames incomplete)
-        Ok(response_buffer)
+        // Get accumulated bytes from buffer and return
+        match self.sse_buffer.as_mut() {
+            Some(buffer) => Ok(buffer.into_bytes()),
+            None => {
+                warn!(
+                    "[ARCHGW_REQ_ID:{}] BEDROCK_BUFFER_MISSING",
+                    self.request_identifier()
+                );
+                Err(Action::Continue)
+            }
+        }
     }
 
     fn handle_non_streaming_response(

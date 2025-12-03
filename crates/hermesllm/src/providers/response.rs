@@ -199,6 +199,31 @@ impl TryFrom<(&[u8], &SupportedAPIsFromClient, &ProviderId)> for ProviderRespons
                 })?;
                 Ok(ProviderResponseType::ResponsesAPIResponse(response_api))
             }
+            (
+                SupportedUpstreamAPIs::AmazonBedrockConverse(_),
+                SupportedAPIsFromClient::OpenAIResponsesAPI(_),
+            ) => {
+                // Chain transform: Bedrock Converse -> ChatCompletions -> ResponsesAPI
+                let bedrock_resp: ConverseResponse = serde_json::from_slice(bytes)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+                // Transform to ChatCompletions format
+                let chat_resp: ChatCompletionsResponse = bedrock_resp.try_into().map_err(|e| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("Bedrock to ChatCompletions transformation error: {}", e),
+                    )
+                })?;
+
+                // Transform to ResponsesAPI format
+                let response_api: ResponsesAPIResponse = chat_resp.try_into().map_err(|e| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("ChatCompletions to ResponsesAPI transformation error: {}", e),
+                    )
+                })?;
+                Ok(ProviderResponseType::ResponsesAPIResponse(response_api))
+            }
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Unsupported API combination for response transformation",

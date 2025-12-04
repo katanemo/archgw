@@ -1,9 +1,72 @@
-use crate::providers::response::ProviderStreamResponse;
-use crate::providers::response::ProviderStreamResponseType;
+use crate::providers::streaming_response::ProviderStreamResponse;
+use crate::providers::streaming_response::ProviderStreamResponseType;
+use crate::apis::streaming_shapes::chat_completions_streaming_buffer::OpenAIChatCompletionsStreamBuffer;
+use crate::apis::streaming_shapes::anthropic_streaming_buffer::AnthropicMessagesStreamBuffer;
+use crate::apis::streaming_shapes::passthrough_streaming_buffer::PassthroughStreamBuffer;
+use crate::apis::streaming_shapes::responses_api_streaming_buffer::ResponsesAPIStreamBuffer;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
+
+/// Trait defining the interface for SSE stream buffers.
+///
+/// This trait is implemented by both the enum `SseStreamBuffer` (for zero-cost dispatch)
+/// and individual buffer implementations (for direct use).
+///
+pub trait SseStreamBufferTrait: Send + Sync {
+    /// Add a transformed SSE event to the buffer.
+    ///
+    /// The buffer may inject additional events as needed based on internal state.
+    /// For example, Anthropic buffers inject ContentBlockStart before the first ContentBlockDelta.
+    ///
+    /// All events (original + injected) are accumulated internally for the next `into_bytes()` call.
+    ///
+    /// # Arguments
+    /// * `event` - A transformed SSE event to accumulate
+    fn add_transformed_event(&mut self, event: SseEvent);
+
+    /// Get bytes for all accumulated events since the last call.
+    ///
+    /// This method:
+    /// - Converts all buffered events to wire format bytes
+    /// - Clears the internal event buffer
+    /// - Preserves state for subsequent `add_transformed_event()` calls
+    ///
+    /// Call this after processing each chunk of upstream events to get bytes for immediate transmission.
+    ///
+    /// # Returns
+    /// Bytes ready for wire transmission (may be empty if no events were accumulated)
+    fn into_bytes(&mut self) -> Vec<u8>;
+}
+
+/// Unified SSE Stream Buffer enum that provides a zero-cost abstraction
+pub enum SseStreamBuffer {
+    Passthrough(PassthroughStreamBuffer),
+    OpenAIChatCompletions(OpenAIChatCompletionsStreamBuffer),
+    AnthropicMessages(AnthropicMessagesStreamBuffer),
+    OpenAIResponses(ResponsesAPIStreamBuffer),
+}
+
+impl SseStreamBufferTrait for SseStreamBuffer {
+    fn add_transformed_event(&mut self, event: SseEvent) {
+        match self {
+            Self::Passthrough(buffer) => buffer.add_transformed_event(event),
+            Self::OpenAIChatCompletions(buffer) => buffer.add_transformed_event(event),
+            Self::AnthropicMessages(buffer) => buffer.add_transformed_event(event),
+            Self::OpenAIResponses(buffer) => buffer.add_transformed_event(event),
+        }
+    }
+
+    fn into_bytes(&mut self) -> Vec<u8> {
+        match self {
+            Self::Passthrough(buffer) => buffer.into_bytes(),
+            Self::OpenAIChatCompletions(buffer) => buffer.into_bytes(),
+            Self::AnthropicMessages(buffer) => buffer.into_bytes(),
+            Self::OpenAIResponses(buffer) => buffer.into_bytes(),
+        }
+    }
+}
 
 // ============================================================================
 // SSE EVENT CONTAINER
@@ -22,16 +85,31 @@ pub struct SseEvent {
     pub raw_line: String, // The complete line as received including "data: " prefix and "\n\n"
 
     #[serde(skip_serializing, skip_deserializing)]
-    pub sse_transform_buffer: String, // The complete line as received including "data: " prefix and "\n\n"
+    pub sse_transformed_lines: String, // The complete line as received including "data: " prefix and "\n\n"
 
     #[serde(skip_serializing, skip_deserializing)]
     pub provider_stream_response: Option<ProviderStreamResponseType>, // Parsed provider stream response object
 }
 
 impl SseEvent {
+    /// Create an SseEvent from a ProviderStreamResponseType
+    /// This is useful for binary frame formats (like Bedrock) that need to be converted to SSE
+    pub fn from_provider_response(response: ProviderStreamResponseType) -> Self {
+        // Convert the provider response to SSE format string
+        let sse_string: String = response.clone().into();
+
+        SseEvent {
+            data: None, // Data is embedded in sse_transformed_lines
+            event: None, // Event type is embedded in sse_transformed_lines
+            raw_line: sse_string.clone(),
+            sse_transformed_lines: sse_string,
+            provider_stream_response: Some(response),
+        }
+    }
+
     /// Check if this event represents the end of the stream
     pub fn is_done(&self) -> bool {
-        self.data == Some("[DONE]".into())
+        self.data == Some("[DONE]".into()) || self.event == Some("message_stop".into())
     }
 
     /// Check if this event should be skipped during processing
@@ -61,23 +139,35 @@ impl FromStr for SseEvent {
     type Err = SseParseError;
 
     fn from_str(line: &str) -> Result<Self, Self::Err> {
-        if line.starts_with("data: ") {
-            let data: String = line[6..].to_string(); // Remove "data: " prefix
-            if data.is_empty() {
+        // Trim leading/trailing whitespace for parsing
+        let trimmed_line = line.trim();
+
+        // Skip empty or whitespace-only lines (SSE event separators)
+        if trimmed_line.is_empty() {
+            return Err(SseParseError {
+                message: "Empty line (SSE event separator)".to_string(),
+            });
+        }
+
+        if trimmed_line.starts_with("data: ") {
+            let data: String = trimmed_line[6..].to_string(); // Remove "data: " prefix
+            // Allow empty data content after "data: " prefix
+            // This handles cases like "data: " followed by newline
+            if data.trim().is_empty() {
                 return Err(SseParseError {
-                    message: "Empty data field is not a valid SSE event".to_string(),
+                    message: "Empty data field after 'data: ' prefix".to_string(),
                 });
             }
             Ok(SseEvent {
                 data: Some(data),
                 event: None,
                 raw_line: line.to_string(),
-                sse_transform_buffer: line.to_string(),
+                // Preserve original line format for passthrough, use trimmed for transformations
+                sse_transformed_lines: line.to_string(),
                 provider_stream_response: None,
             })
-        } else if line.starts_with("event: ") {
-            //used by Anthropic
-            let event_type = line[7..].to_string();
+        } else if trimmed_line.starts_with("event: ") {
+            let event_type = trimmed_line[7..].to_string();
             if event_type.is_empty() {
                 return Err(SseParseError {
                     message: "Empty event field is not a valid SSE event".to_string(),
@@ -87,12 +177,13 @@ impl FromStr for SseEvent {
                 data: None,
                 event: Some(event_type),
                 raw_line: line.to_string(),
-                sse_transform_buffer: line.to_string(),
+                // Preserve original line format for passthrough, use trimmed for transformations
+                sse_transformed_lines: line.to_string(),
                 provider_stream_response: None,
             })
         } else {
             Err(SseParseError {
-                message: format!("Line does not start with 'data: ' or 'event: ': {}", line),
+                message: format!("Line does not start with 'data: ' or 'event: ': {}", trimmed_line),
             })
         }
     }
@@ -100,14 +191,14 @@ impl FromStr for SseEvent {
 
 impl fmt::Display for SseEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sse_transform_buffer)
+        write!(f, "{}", self.sse_transformed_lines)
     }
 }
 
 // Into implementation to convert SseEvent to bytes for response buffer
 impl Into<Vec<u8>> for SseEvent {
     fn into(self) -> Vec<u8> {
-        format!("{}\n\n", self.sse_transform_buffer).into_bytes()
+        format!("{}\n\n", self.sse_transformed_lines).into_bytes()
     }
 }
 

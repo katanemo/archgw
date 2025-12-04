@@ -6,18 +6,21 @@ pub mod clients;
 pub mod providers;
 pub mod transforms;
 // Re-export important types and traits
-pub use apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
-pub use apis::sse::{SseEvent, SseStreamIter};
+pub use apis::streaming_shapes::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
+pub use apis::streaming_shapes::sse::{SseEvent, SseStreamIter};
 pub use aws_smithy_eventstream::frame::DecodedFrame;
 pub use providers::id::ProviderId;
 pub use providers::request::{ProviderRequest, ProviderRequestError, ProviderRequestType};
 pub use providers::response::{
-    ProviderResponse, ProviderResponseError, ProviderResponseType, ProviderStreamResponse,
-    ProviderStreamResponseType, TokenUsage,
+    ProviderResponse, ProviderResponseType, TokenUsage, ProviderResponseError
+};
+pub use providers::streaming_response::{
+    ProviderStreamResponse, ProviderStreamResponseType
 };
 
 //TODO: Refactor such that commons doesn't depend on Hermes. For now this will clean up strings
 pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";
+pub const OPENAI_RESPONSES_API_PATH: &str = "/v1/responses";
 pub const MESSAGES_PATH: &str = "/v1/messages";
 
 #[cfg(test)]
@@ -42,9 +45,9 @@ mod tests {
     data: [DONE]
     "#;
 
-        use crate::clients::endpoints::SupportedAPIs;
+        use crate::clients::endpoints::SupportedAPIsFromClient;
         let client_api =
-            SupportedAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
+            SupportedAPIsFromClient::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
         let upstream_api =
             SupportedUpstreamAPIs::OpenAIChatCompletions(crate::apis::OpenAIApi::ChatCompletions);
 
@@ -79,9 +82,16 @@ mod tests {
         assert_eq!(stream_response.content_delta(), Some("Hello"));
         assert!(!stream_response.is_final());
 
-        // Test that stream ends properly with [DONE] (SseStreamIter should stop before [DONE])
+        // Test that stream ends properly with [DONE]
+        // The iterator should return the [DONE] event, then None
+        let done_event = streaming_iter.next();
+        assert!(done_event.is_some(), "Should get [DONE] event");
+        let done_event = done_event.unwrap();
+        assert!(done_event.is_done(), "[DONE] event should be marked as done");
+
+        // After [DONE], iterator should return None
         let final_event = streaming_iter.next();
-        assert!(final_event.is_none()); // Should be None because iterator stops at [DONE]
+        assert!(final_event.is_none(), "Iterator should return None after [DONE]");
     }
 
     /// Test AWS Event Stream decoding for Bedrock ConverseStream responses.

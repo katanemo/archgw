@@ -47,6 +47,9 @@ llm_providers:
   - model: ollama/llama3.1
     base_url: http://host.docker.internal:11434
 
+  # Grok (xAI) Models
+  - model: xai/grok-4-0709
+    access_key: $GROK_API_KEY
 
 # Model aliases - friendly names that map to actual provider names
 model_aliases:
@@ -82,6 +85,10 @@ model_aliases:
 
   coding-model:
     target: us.amazon.nova-premier-v1:0
+
+  # Alias for grok testing
+  arch.grok.v1:
+    target: grok-4-0709
 
 tracing:
   random_sampling: 100

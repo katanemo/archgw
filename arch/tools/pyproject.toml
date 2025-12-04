@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "archgw"
-version = "0.3.20"
+version = "0.3.21"
 description = "Python-based CLI tool to manage Arch Gateway."
 authors = ["Katanemo Labs, Inc."]
 readme = "README.md"

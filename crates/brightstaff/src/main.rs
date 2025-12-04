@@ -65,6 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
     let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
+    let agent_filters = Arc::new(RwLock::new(arch_config.agent_filters.clone()));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
 
     debug!(
@@ -111,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let llm_providers = llm_providers.clone();
         let agents_list = agents_list.clone();
+        let agent_filters = agent_filters.clone();
         let listeners = listeners.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
@@ -119,6 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let llm_providers = llm_providers.clone();
             let model_aliases = Arc::clone(&model_aliases);
             let agents_list = agents_list.clone();
+            let agent_filters = agent_filters.clone();
             let listeners = listeners.clone();
 
             async move {

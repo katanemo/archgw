@@ -42,7 +42,21 @@ Content-Type: application/json
     }
   ]
 }
+### test archfc directly for routing
 
+POST https://archfc.katanemo.dev/v1/chat/completions HTTP/1.1
+model: Arch-Router
+Content-Type: application/json
+
+{
+  "model": "Arch-Router",
+  "messages": [
+    {
+      "role": "user",
+      "content": " You are a helpful assistant designed to find the best suited route.\nYou are provided with route description within <routes></routes> XML tags:\n<routes>\n[{\"name\":\"Image generation\",\"description\":\"generating image\"}]\n</routes>\n\n<conversation>\n[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"Hello! How can I assist you today?\"},{\"role\":\"user\",\"content\":\"given the image In style of Andy Warhol, portrait of Bart and Lisa Simpson\"}]\n</conversation>\n\nYour task is to decide which route is best suit with user intent on the conversation in <conversation></conversation> XML tags.  Follow the instruction:\n1. If the latest intent from user is irrelevant or user intent is full filled, response with other route {\"route\": \"other\"}.\n2. You must analyze the route descriptions and find the best match route for user latest intent.\n3. You only response the name of the route that best matches the user's request, use the exact name in the <routes></routes>.\n\nBased on your analysis, provide your response in the following JSON formats if you decide to match any route:\n{\"route\": \"route_name\"}"
+    }
+  ]
+}
 
 ### test try code understanding
 POST http://localhost:12000/v1/chat/completions HTTP/1.1

@@ -13,7 +13,7 @@ export function IntroSection() {
               WHY PLANO?
             </p>
             <h2 className="font-sans font-medium tracking-[-1.92px]! text-[#9797ea] text-4xl leading-[1.102] mb-6 max-w-[633px]">
-              Ship prototypes to production
+              Deliver prototypes to production
               <span className="italic">—fast.</span>
             </h2>
 

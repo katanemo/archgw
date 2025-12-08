@@ -20,11 +20,10 @@ export function IntroSection() {
             {/* Body Text */}
             <div className="font-mono tracking-[-0.96px]! text-white text-sm sm:text-base lg:text-lg max-w-[713px]">
               <p className="mb-0">
-                Plano is a framework-friendly proxy server and dataplane for
-                agents, deployed as a sidecar. Plano handles the critical
-                plumbing work in AI like agent routing and orchestration,
-                comprehensive traces for agentic interactions, guardrail hooks,
-                unified APIs for LLMs.
+              Plano is a models-native proxy server and dataplane for agents 
+              that handles the critical plumbing work in AI  like agent routing and 
+              orchestration, comprehensive traces for agentic interactions, guardrail 
+              hooks, unified APIs for LLMs 
               </p>
               <p className="mb-0  mt-4">
                 Developers can focus more on modeling workflows. 

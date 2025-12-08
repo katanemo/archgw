@@ -31,18 +31,17 @@ export function Hero() {
 
           {/* Main Heading */}
           <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-7xl font-normal leading-tight tracking-tighter text-black mb-4 sm:mb-6 flex flex-col gap-0 sm:-space-y-2 lg:-space-y-3">
-            <span className="font-sans">Models-native </span>
+            <span className="font-sans">Delivery infrastructure </span>
             <span className="font-sans font-medium text-[var(--secondary)]">
-              dataplane for agents
+              for agentic apps
             </span>
           </h1>
         </div>
 
         {/* Subheading with CTA Buttons */}
         <div className="max-w-7xl flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.92px]! text-black max-w-4xl">
-            Build agents faster, and scale them reliably by offloading the
-            plumbing work in AI.
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.82px]! text-black max-w-4xl">
+            Build agents faster, and deliver them reliably to prod by offloading plumbing work in AI
           </p>
 
           {/* CTA Buttons */}

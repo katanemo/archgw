@@ -140,7 +140,7 @@ impl PipelineProcessor {
         // Check for HTTP errors and handle them appropriately
         if !status.is_success() {
             let error_body = String::from_utf8_lossy(&response_bytes).to_string();
-            
+
             if status.is_client_error() {
                 // 4xx errors - cascade back to developer
                 return Err(PipelineError::ClientError {

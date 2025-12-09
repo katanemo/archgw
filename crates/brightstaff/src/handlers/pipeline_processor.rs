@@ -19,6 +19,18 @@ pub enum PipelineError {
     NoChoicesInResponse(String),
     #[error("No content in response from agent '{0}'")]
     NoContentInResponse(String),
+    #[error("Client error from agent '{agent}' (HTTP {status}): {body}")]
+    ClientError {
+        agent: String,
+        status: u16,
+        body: String,
+    },
+    #[error("Server error from agent '{agent}' (HTTP {status}): {body}")]
+    ServerError {
+        agent: String,
+        status: u16,
+        body: String,
+    },
 }
 
 /// Service for processing agent pipelines
@@ -122,7 +134,29 @@ impl PipelineProcessor {
             .send()
             .await?;
 
+        let status = response.status();
         let response_bytes = response.bytes().await?;
+
+        // Check for HTTP errors and handle them appropriately
+        if !status.is_success() {
+            let error_body = String::from_utf8_lossy(&response_bytes).to_string();
+            
+            if status.is_client_error() {
+                // 4xx errors - cascade back to developer
+                return Err(PipelineError::ClientError {
+                    agent: agent.id.clone(),
+                    status: status.as_u16(),
+                    body: error_body,
+                });
+            } else if status.is_server_error() {
+                // 5xx errors - server/agent error
+                return Err(PipelineError::ServerError {
+                    agent: agent.id.clone(),
+                    status: status.as_u16(),
+                    body: error_body,
+                });
+            }
+        }
 
         // Parse the response as JSON to extract the content
         let response_json: serde_json::Value = serde_json::from_slice(&response_bytes)?;

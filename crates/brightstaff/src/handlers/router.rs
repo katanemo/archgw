@@ -1,8 +1,7 @@
 use bytes::Bytes;
-use common::configuration::{ModelAlias, ModelUsagePreference};
+use common::configuration::{LlmProvider, ModelAlias};
 use common::consts::{ARCH_IS_STREAMING_HEADER, ARCH_PROVIDER_HINT_HEADER};
-use hermesllm::apis::openai::ChatCompletionsRequest;
-use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
+use common::traces::TraceCollector;
 use hermesllm::clients::SupportedAPIsFromClient;
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
@@ -11,10 +10,13 @@ use hyper::header::{self};
 use hyper::{Request, Response, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tokio::sync::RwLock;
+use tracing::{debug, warn};
 
 use crate::router::llm_router::RouterService;
-use crate::handlers::utils::{create_streaming_response, PassthroughProcessor};
+use crate::handlers::utils::{create_streaming_response, PassthroughProcessor, truncate_message};
+use crate::handlers::router_chat::router_chat_get_upstream_model;
+use crate::tracing::operation_component;
 
 fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
     Full::new(chunk.into())
@@ -22,14 +24,26 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
         .boxed()
 }
 
-pub async fn router_chat(
+pub async fn chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
     full_qualified_llm_provider_url: String,
     model_aliases: Arc<Option<HashMap<String, ModelAlias>>>,
+    llm_providers: Arc<RwLock<Vec<LlmProvider>>>,
+    trace_collector: Arc<TraceCollector>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
+
     let request_path = request.uri().path().to_string();
-    let mut request_headers = request.headers().clone();
+    let request_headers = request.headers().clone();
+
+    // Extract traceparent header early (Envoy should have added this)
+    let traceparent = request_headers
+        .get("traceparent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("00-00000000000000000000000000000000-0000000000000000-01")
+        .to_string();
+
+    let mut request_headers = request_headers;
     let chat_request_bytes = request.collect().await?.to_bytes();
 
     debug!(
@@ -55,141 +69,51 @@ pub async fn router_chat(
     // This ensures all downstream objects use the resolved model
     let model_from_request = client_request.model().to_string();
     let is_streaming_request = client_request.is_streaming();
-    let resolved_model = if let Some(model_aliases) = model_aliases.as_ref() {
-        if let Some(model_alias) = model_aliases.get(&model_from_request) {
-            debug!(
-                "Model Alias: 'From {}' -> 'To {}'",
-                model_from_request, model_alias.target
-            );
-            model_alias.target.clone()
-        } else {
-            model_from_request.clone()
-        }
-    } else {
-        model_from_request.clone()
-    };
+    let resolved_model = resolve_model_alias(&model_from_request, &model_aliases);
+
+    // Extract tool names and user message preview for span attributes
+    let tool_names = client_request.get_tool_names();
+    let user_message_preview = client_request.get_recent_user_message()
+        .map(|msg| truncate_message(&msg, 50));
+
     client_request.set_model(resolved_model.clone());
-
-    // Clone metadata for routing and remove archgw_preference_config from original
-    let routing_metadata = client_request.metadata().clone();
-
     if client_request.remove_metadata_key("archgw_preference_config") {
         debug!("Removed archgw_preference_config from metadata");
     }
 
     let client_request_bytes_for_upstream = ProviderRequestType::to_bytes(&client_request).unwrap();
 
-    // Convert to ChatCompletionsRequest regardless of input type (clone to avoid moving original)
-    let chat_completions_request_for_arch_router: ChatCompletionsRequest =
-        match ProviderRequestType::try_from((
-            client_request,
-            &SupportedUpstreamAPIs::OpenAIChatCompletions(
-                hermesllm::apis::OpenAIApi::ChatCompletions,
-            ),
-        )) {
-            Ok(ProviderRequestType::ChatCompletionsRequest(req)) => req,
-            Ok(
-                ProviderRequestType::MessagesRequest(_)
-                | ProviderRequestType::BedrockConverse(_)
-                | ProviderRequestType::BedrockConverseStream(_)
-                | ProviderRequestType::ResponsesAPIRequest(_),
-            ) => {
-                // This should not happen after conversion to OpenAI format
-                warn!("Unexpected: got non-ChatCompletions request after converting to OpenAI format");
-                let err_msg = "Request conversion failed".to_string();
-                let mut bad_request = Response::new(full(err_msg));
-                *bad_request.status_mut() = StatusCode::BAD_REQUEST;
-                return Ok(bad_request);
-            }
-            Err(err) => {
-                warn!(
-                    "Failed to convert request to ChatCompletionsRequest: {}",
-                    err
-                );
-                let err_msg = format!("Failed to convert request: {}", err);
-                let mut bad_request = Response::new(full(err_msg));
-                *bad_request.status_mut() = StatusCode::BAD_REQUEST;
-                return Ok(bad_request);
-            }
-        };
-
-    debug!(
-        "[ARCH_ROUTER REQ]: {}",
-        &serde_json::to_string(&chat_completions_request_for_arch_router).unwrap()
-    );
-
-    let trace_parent = request_headers
-        .iter()
-        .find(|(ty, _)| ty.as_str() == "traceparent")
-        .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
-
-    let usage_preferences_str: Option<String> = routing_metadata.as_ref().and_then(|metadata| {
-        metadata
-            .get("archgw_preference_config")
-            .map(|value| value.to_string())
-    });
-
-    let usage_preferences: Option<Vec<ModelUsagePreference>> = usage_preferences_str
-        .as_ref()
-        .and_then(|s| serde_yaml::from_str(s).ok());
-
-    let latest_message_for_log = chat_completions_request_for_arch_router
-        .messages
-        .last()
-        .map_or("None".to_string(), |msg| {
-            msg.content.to_string().replace('\n', "\\n")
-        });
-
-    const MAX_MESSAGE_LENGTH: usize = 50;
-    let latest_message_for_log = if latest_message_for_log.chars().count() > MAX_MESSAGE_LENGTH {
-        let truncated: String = latest_message_for_log
-            .chars()
-            .take(MAX_MESSAGE_LENGTH)
-            .collect();
-        format!("{}...", truncated)
-    } else {
-        latest_message_for_log
-    };
-
-    info!(
-        "request received, request type: chat_completion, usage preferences from request: {}, request path: {}, latest message: {}",
-        usage_preferences.is_some(),
-        request_path,
-        latest_message_for_log
-    );
-
-    debug!("usage preferences from request: {:?}", usage_preferences);
-
-    let model_name = match router_service
-        .determine_route(
-            &chat_completions_request_for_arch_router.messages,
-            trace_parent.clone(),
-            usage_preferences,
-        )
-        .await
+    // Determine routing using the dedicated router_chat module
+    let routing_result = match router_chat_get_upstream_model(
+        router_service,
+        client_request,  // Pass the original request - router_chat will convert it
+        &request_headers,
+        trace_collector.clone(),
+        &traceparent,
+        &request_path,
+    )
+    .await
     {
-        Ok(route) => match route {
-            Some((_, model_name)) => model_name,
-            None => {
-                info!(
-                    "No route determined, using default model from request: {}",
-                    chat_completions_request_for_arch_router.model
-                );
-                chat_completions_request_for_arch_router.model.clone()
-            }
-        },
+        Ok(result) => result,
         Err(err) => {
-            let err_msg = format!("Failed to determine route: {}", err);
-            let mut internal_error = Response::new(full(err_msg));
-            *internal_error.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            let mut internal_error = Response::new(full(err.message));
+            *internal_error.status_mut() = err.status_code;
             return Ok(internal_error);
         }
     };
+
+    let model_name = routing_result.model_name;
 
     debug!(
         "[ARCH_ROUTER] URL: {}, Resolved Model: {}",
         full_qualified_llm_provider_url, model_name
     );
+
+    // Extract trace_parent for upstream request headers
+    let trace_parent = request_headers
+        .iter()
+        .find(|(ty, _)| ty.as_str() == "traceparent")
+        .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
 
     request_headers.insert(
         ARCH_PROVIDER_HINT_HEADER,
@@ -209,6 +133,10 @@ pub async fn router_chat(
     }
     // remove content-length header if it exists
     request_headers.remove(header::CONTENT_LENGTH);
+
+    // Capture start time right before sending request to upstream
+    let request_start_time = std::time::Instant::now();
+    let request_start_system_time = std::time::SystemTime::now();
 
     let llm_response = match reqwest::Client::new()
         .post(full_qualified_llm_provider_url)
@@ -235,9 +163,31 @@ pub async fn router_chat(
         headers.insert(header_name, header_value.clone());
     }
 
-    // Use the streaming utility with a passthrough processor (no modification of chunks)
+    // Build LLM span with actual status code using constants
     let byte_stream = llm_response.bytes_stream();
-    let processor = PassthroughProcessor;
+
+    // Build the LLM span (will be finalized after streaming completes)
+    let llm_span = build_llm_span(
+        &traceparent,
+        &request_path,
+        &resolved_model,
+        &model_name,
+        upstream_status.as_u16(),
+        is_streaming_request,
+        request_start_system_time,
+        tool_names,
+        user_message_preview,
+        &llm_providers,
+    ).await;
+
+    // Use PassthroughProcessor to track streaming metrics and finalize the span
+    let processor = PassthroughProcessor::new(
+        trace_collector,
+        operation_component::LLM,
+        llm_span,
+        request_start_time,
+    );
+
     let streaming_response = create_streaming_response(byte_stream, processor, 16);
 
     match response.body(streaming_response.body) {
@@ -249,4 +199,141 @@ pub async fn router_chat(
             Ok(internal_error)
         }
     }
+}
+
+/// Resolves model aliases by looking up the requested model in the model_aliases map.
+/// Returns the target model if an alias is found, otherwise returns the original model.
+fn resolve_model_alias(
+    model_from_request: &str,
+    model_aliases: &Arc<Option<HashMap<String, ModelAlias>>>,
+) -> String {
+    if let Some(aliases) = model_aliases.as_ref() {
+        if let Some(model_alias) = aliases.get(model_from_request) {
+            debug!(
+                "Model Alias: 'From {}' -> 'To {}'",
+                model_from_request, model_alias.target
+            );
+            return model_alias.target.clone();
+        }
+    }
+    model_from_request.to_string()
+}
+
+/// Builds the LLM span with all required and optional attributes.
+async fn build_llm_span(
+    traceparent: &str,
+    request_path: &str,
+    resolved_model: &str,
+    model_name: &str,
+    status_code: u16,
+    is_streaming: bool,
+    start_time: std::time::SystemTime,
+    tool_names: Option<Vec<String>>,
+    user_message_preview: Option<String>,
+    llm_providers: &Arc<RwLock<Vec<LlmProvider>>>,
+) -> common::traces::Span {
+    use common::traces::{SpanBuilder, SpanKind, parse_traceparent};
+    use crate::tracing::{http, llm, OperationNameBuilder};
+
+    // Calculate the upstream path based on provider configuration
+    let upstream_path = get_upstream_path(
+        llm_providers,
+        model_name,
+        request_path,
+        resolved_model,
+        is_streaming,
+    ).await;
+
+    // Build operation name showing path transformation if different
+    let operation_name = if request_path != upstream_path {
+        OperationNameBuilder::new()
+            .with_method("POST")
+            .with_path(&format!("{} >> {}", request_path, upstream_path))
+            .with_target(resolved_model)
+            .build()
+    } else {
+        OperationNameBuilder::new()
+            .with_method("POST")
+            .with_path(request_path)
+            .with_target(resolved_model)
+            .build()
+    };
+
+    let (trace_id, parent_span_id) = parse_traceparent(traceparent);
+
+    let mut span_builder = SpanBuilder::new(&operation_name)
+        .with_trace_id(&trace_id)
+        .with_parent_span_id(&parent_span_id)
+        .with_kind(SpanKind::Client)
+        .with_start_time(start_time)
+        .with_attribute(http::METHOD, "POST")
+        .with_attribute(http::STATUS_CODE, status_code.to_string())
+        .with_attribute(http::TARGET, request_path.to_string())
+        .with_attribute(http::UPSTREAM_TARGET, upstream_path)
+        .with_attribute(llm::MODEL_NAME, resolved_model.to_string())
+        .with_attribute(llm::IS_STREAMING, is_streaming.to_string());
+
+    // Add optional attributes
+    if let Some(tools) = tool_names {
+        span_builder = span_builder.with_attribute(llm::TOOLS, tools.join("\n"));
+    }
+
+    if let Some(preview) = user_message_preview {
+        span_builder = span_builder.with_attribute(llm::USER_MESSAGE_PREVIEW, preview);
+    }
+
+    span_builder.build()
+}
+
+/// Calculates the upstream path for the provider based on the model name.
+/// Looks up provider configuration, gets the ProviderId and base_url_path_prefix,
+/// then uses target_endpoint_for_provider to calculate the correct upstream path.
+async fn get_upstream_path(
+    llm_providers: &Arc<RwLock<Vec<LlmProvider>>>,
+    model_name: &str,
+    request_path: &str,
+    resolved_model: &str,
+    is_streaming: bool,
+) -> String {
+    let providers_lock = llm_providers.read().await;
+
+    // First, try to find by model name or provider name
+    let provider = providers_lock.iter().find(|p| {
+        p.model.as_ref().map(|m| m == model_name).unwrap_or(false)
+            || p.name == model_name
+    });
+
+    let (provider_id, base_url_path_prefix) = if let Some(provider) = provider {
+        let provider_id = provider.provider_interface.to_provider_id();
+        let prefix = provider.base_url_path_prefix.clone();
+        (provider_id, prefix)
+    } else {
+        let default_provider = providers_lock.iter().find(|p| {
+            p.default.unwrap_or(false)
+        });
+
+        if let Some(provider) = default_provider {
+            let provider_id = provider.provider_interface.to_provider_id();
+            let prefix = provider.base_url_path_prefix.clone();
+            (provider_id, prefix)
+        } else {
+            // Last resort: use OpenAI as hardcoded fallback
+            warn!("No default provider found, falling back to OpenAI");
+            (hermesllm::ProviderId::OpenAI, None)
+        }
+    };
+
+    drop(providers_lock);
+
+    // Calculate the upstream path using the proper API
+    let client_api = SupportedAPIsFromClient::from_endpoint(request_path)
+        .expect("Should have valid API endpoint");
+
+    client_api.target_endpoint_for_provider(
+        &provider_id,
+        request_path,
+        resolved_model,
+        is_streaming,
+        base_url_path_prefix.as_deref(),
+    )
 }

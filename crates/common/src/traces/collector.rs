@@ -1,0 +1,259 @@
+use super::shapes::Span;
+use super::resource_span_builder::ResourceSpanBuilder;
+use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::time::{interval, Duration};
+use tracing::{debug, error, warn};
+
+/// Parse W3C traceparent header into trace_id and parent_span_id
+/// Format: "00-{trace_id}-{parent_span_id}-01"
+///
+/// Returns (trace_id, parent_span_id) as strings
+pub fn parse_traceparent(traceparent: &str) -> (String, String) {
+    let parts: Vec<&str> = traceparent.split('-').collect();
+    if parts.len() == 4 {
+        (parts[1].to_string(), parts[2].to_string())
+    } else {
+        warn!("Invalid traceparent format: {}", traceparent);
+        // Generate empty IDs if parsing fails
+        (String::new(), String::new())
+    }
+}
+
+/// Collects and batches spans, flushing them to an OTEL collector
+///
+/// Supports multiple services, with each service (e.g., "archgw(routing)", "archgw(llm)")
+/// maintaining its own span queue. Flushes all services together periodically.
+pub struct TraceCollector {
+    /// Spans grouped by service name
+    /// Key: service name (e.g., "archgw(routing)", "archgw(llm)")
+    /// Value: queue of spans for that service
+    spans_by_service: Arc<Mutex<HashMap<String, VecDeque<Span>>>>,
+    flush_interval: Duration,
+    otel_url: String,
+}
+
+impl TraceCollector {
+    /// Create a new trace collector
+    /// # Arguments
+    /// * `flush_interval` - How often to flush buffered spans
+    /// * `otel_url` - OTEL collector endpoint URL
+    pub fn new(
+        flush_interval: Duration,
+        otel_url: String,
+    ) -> Self {
+        Self {
+            spans_by_service: Arc::new(Mutex::new(HashMap::new())),
+            flush_interval,
+            otel_url,
+        }
+    }
+
+    /// Create with defaults from environment or sensible defaults
+    pub fn from_env() -> Self {
+        let batch_size = std::env::var("TRACE_BATCH_SIZE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(100);
+
+        let flush_interval_secs = std::env::var("TRACE_FLUSH_INTERVAL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1);
+
+        let otel_url = std::env::var("OTEL_COLLECTOR_URL")
+            .unwrap_or_else(|_| "http://host.docker.internal:4318/v1/traces".to_string());
+
+        debug!(
+            "TraceCollector initialized: batch_size={}, flush_interval={}s, url={}",
+            batch_size, flush_interval_secs, otel_url
+        );
+
+        Self::new(
+            Duration::from_secs(flush_interval_secs),
+            otel_url,
+        )
+    }
+
+    /// Record a span for a specific service
+    ///
+    /// # Arguments
+    /// * `service_name` - Name of the service (e.g., "archgw(routing)", "archgw(llm)")
+    /// * `span` - The span to record
+    pub fn record_span(&self, service_name: impl Into<String>, span: Span) {
+        let service_name = service_name.into();
+
+        // Use try_lock to avoid blocking in async contexts
+        // If the lock is held, we skip recording (telemetry shouldn't block the app)
+        if let Ok(mut spans_by_service) = self.spans_by_service.try_lock() {
+            // Get or create the queue for this service
+            let spans = spans_by_service
+                .entry(service_name)
+                .or_insert_with(VecDeque::new);
+
+            spans.push_back(span);
+        } else {
+            // Lock contention - skip recording this span
+            debug!("Skipped span recording due to lock contention");
+        }
+        // Flushing is handled by the periodic background flusher (see `start_background_flusher`).
+    }
+
+    /// Flush all buffered spans to the OTEL collector
+    /// Builds ResourceSpans for each service with spans
+    pub async fn flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut spans_by_service = self.spans_by_service.lock().await;
+
+        if spans_by_service.is_empty() {
+            return Ok(());
+        }
+
+        // Snapshot and drain all services' spans
+        let service_batches: Vec<(String, Vec<Span>)> = spans_by_service
+            .iter_mut()
+            .filter_map(|(service_name, spans)| {
+                if spans.is_empty() {
+                    None
+                } else {
+                    Some((service_name.clone(), spans.drain(..).collect()))
+                }
+            })
+            .collect();
+
+        drop(spans_by_service); // Release lock before HTTP call
+
+        if service_batches.is_empty() {
+            return Ok(());
+        }
+
+        let total_spans: usize = service_batches.iter().map(|(_, spans)| spans.len()).sum();
+        debug!("Flushing {} spans across {} services to OTEL collector", total_spans, service_batches.len());
+
+        // Build canonical OTEL payload structure - one ResourceSpan per service
+        let resource_spans = self.build_resource_spans(service_batches);
+
+        match self.send_to_otel(resource_spans).await {
+            Ok(_) => {
+                debug!("Successfully flushed {} spans", total_spans);
+                Ok(())
+            }
+            Err(e) => {
+                warn!("Failed to send spans to OTEL collector: {:?}", e);
+                Err(e)
+            }
+        }
+    }
+
+    /// Build OTEL-compliant resource spans from collected spans, one ResourceSpan per service
+    fn build_resource_spans(&self, service_batches: Vec<(String, Vec<Span>)>) -> Vec<super::shapes::ResourceSpan> {
+        service_batches
+            .into_iter()
+            .map(|(service_name, spans)| {
+                ResourceSpanBuilder::new(&service_name)
+                    .add_spans(spans)
+                    .build()
+            })
+            .collect()
+    }
+
+    /// Send resource spans to OTEL collector
+    /// Serializes as {"resourceSpans": [...]} per OTEL spec
+    async fn send_to_otel(
+        &self,
+        resource_spans: Vec<super::shapes::ResourceSpan>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = reqwest::Client::new();
+
+        // Create OTEL payload with proper structure
+        let payload = serde_json::json!({
+            "resourceSpans": resource_spans
+        });
+
+        let response = client
+            .post(&self.otel_url)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            warn!(
+                "OTEL collector returned non-success status: {}",
+                response.status()
+            );
+            return Err(format!("OTEL collector error: {}", response.status()).into());
+        }
+
+        Ok(())
+    }
+
+    /// Start a background task that periodically flushes traces
+    /// Returns a join handle that can be used to stop the flusher
+    pub fn start_background_flusher(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
+        let flush_interval = self.flush_interval;
+
+        tokio::spawn(async move {
+            let mut ticker = interval(flush_interval);
+
+            loop {
+                ticker.tick().await;
+
+                if let Err(e) = self.flush().await {
+                    error!("Background trace flush failed: {:?}", e);
+                }
+            }
+        })
+    }
+
+    /// Get current number of buffered spans across all services (for testing/monitoring)
+    pub async fn buffered_count(&self) -> usize {
+        self.spans_by_service
+            .lock()
+            .await
+            .values()
+            .map(|spans| spans.len())
+            .sum()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traces::SpanBuilder;
+
+    #[tokio::test]
+    async fn test_collector_basic() {
+        let collector = TraceCollector::new(
+            Duration::from_secs(60),
+            "http://test:4318/v1/traces".to_string(),
+        );
+
+        let span = SpanBuilder::new("test_operation")
+            .with_trace_id("abc123")
+            .build();
+
+        collector.record_span("test-service", span);
+
+        assert_eq!(collector.buffered_count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_collector_auto_flush() {
+        // Since batch-triggered flush behavior was removed, record two spans and verify both are buffered
+        let collector = Arc::new(TraceCollector::new(
+            Duration::from_secs(60),
+            "http://test:4318/v1/traces".to_string(),
+        ));
+
+        let span1 = SpanBuilder::new("test1").build();
+        let span2 = SpanBuilder::new("test2").build();
+
+        collector.record_span("test-service", span1);
+        collector.record_span("test-service", span2);
+
+        // With no batch-triggered flush, both spans should remain buffered
+        assert_eq!(collector.buffered_count().await, 2);
+    }
+}

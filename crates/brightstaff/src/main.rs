@@ -1,5 +1,5 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
-use brightstaff::handlers::router::router_chat;
+use brightstaff::handlers::router::chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
@@ -7,6 +7,7 @@ use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
 use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
+use common::traces::TraceCollector;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -46,10 +47,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _tracer_provider = init_tracer();
     let bind_address = env::var("BIND_ADDRESS").unwrap_or_else(|_| BIND_ADDRESS.to_string());
 
-    info!(
-        "current working directory: {}",
-        env::current_dir().unwrap().display()
-    );
     // loading arch_config.yaml file
     let arch_config_path = env::var("ARCH_CONFIG_PATH_RENDERED")
         .unwrap_or_else(|_| "./arch_config_rendered.yaml".to_string());
@@ -66,19 +63,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
     let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
-
-    debug!(
-        "arch_config: {:?}",
-        &serde_json::to_string(arch_config.as_ref()).unwrap()
-    );
-
     let llm_provider_url =
         env::var("LLM_PROVIDER_ENDPOINT").unwrap_or_else(|_| "http://localhost:12001".to_string());
 
-    info!("llm provider url: {}", llm_provider_url);
-    info!("listening on http://{}", bind_address);
     let listener = TcpListener::bind(bind_address).await?;
-
     let routing_model_name: String = arch_config
         .routing
         .as_ref()
@@ -100,18 +88,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let model_aliases = Arc::new(arch_config.model_aliases.clone());
 
+    // Initialize trace collector and start background flusher
+    let trace_collector = Arc::new(TraceCollector::from_env());
+    let _flusher_handle = trace_collector.clone().start_background_flusher();
+    info!("Trace collector initialized and background flusher started");
+
     loop {
         let (stream, _) = listener.accept().await?;
         let peer_addr = stream.peer_addr()?;
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
-        let model_aliases = Arc::clone(&model_aliases);
+        let model_aliases: Arc<Option<std::collections::HashMap<String, common::configuration::ModelAlias>>> = Arc::clone(&model_aliases);
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
         let agents_list = agents_list.clone();
         let listeners = listeners.clone();
+        let trace_collector = trace_collector.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
@@ -120,13 +114,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let model_aliases = Arc::clone(&model_aliases);
             let agents_list = agents_list.clone();
             let listeners = listeners.clone();
+            let trace_collector = trace_collector.clone();
 
             async move {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, req.uri().path());
-                        router_chat(req, router_service, fully_qualified_url, model_aliases)
+                        chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
                             .with_context(parent_cx)
                             .await
                     }

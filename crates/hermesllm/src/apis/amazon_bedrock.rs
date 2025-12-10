@@ -200,6 +200,17 @@ impl ProviderRequest for ConverseRequest {
             })
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        self.tool_config.as_ref()?.tools.as_ref().map(|tools| {
+            tools
+                .iter()
+                .filter_map(|tool| match tool {
+                    Tool::ToolSpec { tool_spec } => Some(tool_spec.name.clone()),
+                })
+                .collect()
+        })
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize Bedrock request: {}", e),

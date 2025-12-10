@@ -55,7 +55,7 @@ static_resources:
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
-                stat_prefix: ingress_traffic
+                stat_prefix: plano(inbound)
                 codec_type: AUTO
                 scheme_header_transformation:
                   scheme_to_overwrite: https
@@ -95,21 +95,6 @@ static_resources:
             - name: envoy.filters.network.http_connection_manager
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                {% if "random_sampling" in arch_tracing and arch_tracing["random_sampling"] > 0 %}
-                generate_request_id: true
-                tracing:
-                  provider:
-                    name: envoy.tracers.opentelemetry
-                    typed_config:
-                      "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
-                      grpc_service:
-                        envoy_grpc:
-                          cluster_name: opentelemetry_collector
-                        timeout: 0.250s
-                      service_name: ingress_traffic
-                  random_sampling:
-                    value: {{ arch_tracing.random_sampling }}
-                {% endif %}
                 stat_prefix: ingress_traffic
                 codec_type: AUTO
                 scheme_header_transformation:
@@ -240,7 +225,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: outbound_api_traffic
+                      service_name: tool
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
@@ -413,7 +398,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: archgw(outbound)
+                      service_name: plano(outbound)
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}

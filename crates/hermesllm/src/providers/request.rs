@@ -35,6 +35,9 @@ pub trait ProviderRequest: Send + Sync {
     /// Extract the user message for tracing/logging purposes
     fn get_recent_user_message(&self) -> Option<String>;
 
+    /// Get tool names if tools are defined in the request
+    fn get_tool_names(&self) -> Option<Vec<String>>;
+
     /// Convert the request to bytes for transmission
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError>;
 
@@ -92,6 +95,16 @@ impl ProviderRequest for ProviderRequestType {
             Self::BedrockConverse(r) => r.get_recent_user_message(),
             Self::BedrockConverseStream(r) => r.get_recent_user_message(),
             Self::ResponsesAPIRequest(r) => r.get_recent_user_message(),
+        }
+    }
+
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.get_tool_names(),
+            Self::MessagesRequest(r) => r.get_tool_names(),
+            Self::BedrockConverse(r) => r.get_tool_names(),
+            Self::BedrockConverseStream(r) => r.get_tool_names(),
+            Self::ResponsesAPIRequest(r) => r.get_tool_names(),
         }
     }
 

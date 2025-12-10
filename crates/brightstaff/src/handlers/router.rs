@@ -275,7 +275,11 @@ async fn build_llm_span(
 
     // Add optional attributes
     if let Some(tools) = tool_names {
-        span_builder = span_builder.with_attribute(llm::TOOLS, tools.join("\n"));
+        let formatted_tools = tools.iter()
+            .map(|name| format!("{}(...)", name))
+            .collect::<Vec<_>>()
+            .join("\n");
+        span_builder = span_builder.with_attribute(llm::TOOLS, formatted_tools);
     }
 
     if let Some(preview) = user_message_preview {

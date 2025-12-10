@@ -59,8 +59,8 @@ pub async fn agent_chat(
 
                 let json_string = error_json.to_string();
                 let mut response = Response::new(ResponseHandler::create_full_body(json_string));
-                *response.status_mut() =
-                    hyper::StatusCode::from_u16(*status).unwrap_or(hyper::StatusCode::BAD_REQUEST);
+                *response.status_mut() = hyper::StatusCode::from_u16(*status)
+                    .unwrap_or(hyper::StatusCode::INTERNAL_SERVER_ERROR);
                 response.headers_mut().insert(
                     hyper::header::CONTENT_TYPE,
                     "application/json".parse().unwrap(),

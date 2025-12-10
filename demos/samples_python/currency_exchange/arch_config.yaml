@@ -18,12 +18,6 @@ llm_providers:
       - name: code understanding
         description: understand and explain existing code snippets, functions, or libraries
 
-  - model: anthropic/claude-sonnet-4-20250514
-    access_key: $ANTHROPIC_API_KEY
-    routing_preferences:
-      - name: code generation
-        description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
-
 endpoints:
   frankfurther_api:
     endpoint: api.frankfurter.dev

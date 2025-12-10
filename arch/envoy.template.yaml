@@ -1042,6 +1042,38 @@ static_resources:
                   hostname: arch_listener_llm
 
 
+    # Cluster for OTEL HTTP proxy with retry/circuit breaking
+    # Always available even when tracing is not configured
+    - name: otel_collector_http_proxy
+      connect_timeout: 2s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: otel_collector_http_proxy
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: host.docker.internal
+                      port_value: 4318
+      # Circuit breaker configuration to prevent overwhelming OTEL collector
+      circuit_breakers:
+        thresholds:
+          - priority: DEFAULT
+            max_connections: 100
+            max_pending_requests: 100
+            max_requests: 100
+            max_retries: 3
+      # Health checking and outlier detection
+      outlier_detection:
+        consecutive_5xx: 5
+        interval: 10s
+        base_ejection_time: 30s
+        max_ejection_percent: 50
+        enforcing_consecutive_5xx: 100
+
 {% if "random_sampling" in arch_tracing and arch_tracing["random_sampling"] > 0 %}
     - name: opentelemetry_collector
       type: STRICT_DNS
@@ -1075,34 +1107,4 @@ static_resources:
                 socket_address:
                   address: host.docker.internal
                   port_value: 4318
-    # Cluster for OTEL HTTP proxy with retry/circuit breaking
-    - name: otel_collector_http_proxy
-      connect_timeout: 2s
-      type: STRICT_DNS
-      dns_lookup_family: V4_ONLY
-      lb_policy: ROUND_ROBIN
-      load_assignment:
-        cluster_name: otel_collector_http_proxy
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: host.docker.internal
-                      port_value: 4318
-      # Circuit breaker configuration to prevent overwhelming OTEL collector
-      circuit_breakers:
-        thresholds:
-          - priority: DEFAULT
-            max_connections: 100
-            max_pending_requests: 100
-            max_requests: 100
-            max_retries: 3
-      # Health checking and outlier detection
-      outlier_detection:
-        consecutive_5xx: 5
-        interval: 10s
-        base_ejection_time: 30s
-        max_ejection_percent: 50
-        enforcing_consecutive_5xx: 100
 {% endif %}

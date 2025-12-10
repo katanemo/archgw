@@ -89,9 +89,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let model_aliases = Arc::new(arch_config.model_aliases.clone());
 
     // Initialize trace collector and start background flusher
-    let trace_collector = Arc::new(TraceCollector::from_env());
+    // Tracing is enabled if the tracing config is present in arch_config.yaml
+    // Pass Some(true/false) to override, or None to use env var OTEL_TRACING_ENABLED
+    let tracing_enabled = if arch_config.tracing.is_some() {
+        info!("Tracing configuration found in arch_config.yaml");
+        Some(true)
+    } else {
+        info!("No tracing configuration in arch_config.yaml, will check OTEL_TRACING_ENABLED env var");
+        None
+    };
+    let trace_collector = Arc::new(TraceCollector::new(tracing_enabled));
     let _flusher_handle = trace_collector.clone().start_background_flusher();
-    info!("Trace collector initialized and background flusher started");
+
 
     loop {
         let (stream, _) = listener.accept().await?;

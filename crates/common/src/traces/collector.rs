@@ -25,6 +25,12 @@ pub fn parse_traceparent(traceparent: &str) -> (String, String) {
 ///
 /// Supports multiple services, with each service (e.g., "archgw(routing)", "archgw(llm)")
 /// maintaining its own span queue. Flushes all services together periodically.
+///
+/// Tracing can be enabled/disabled in two ways:
+/// 1. Via arch_config.yaml: presence of `tracing` configuration section
+/// 2. Via environment variable: `OTEL_TRACING_ENABLED=true/false`
+///
+/// When disabled, span recording and flushing are no-ops.
 pub struct TraceCollector {
     /// Spans grouped by service name
     /// Key: service name (e.g., "archgw(routing)", "archgw(llm)")
@@ -32,48 +38,53 @@ pub struct TraceCollector {
     spans_by_service: Arc<Mutex<HashMap<String, VecDeque<Span>>>>,
     flush_interval: Duration,
     otel_url: String,
+    /// Whether tracing is enabled
+    enabled: bool,
 }
 
 impl TraceCollector {
     /// Create a new trace collector
+    ///
     /// # Arguments
-    /// * `flush_interval` - How often to flush buffered spans
-    /// * `otel_url` - OTEL collector endpoint URL
-    pub fn new(
-        flush_interval: Duration,
-        otel_url: String,
-    ) -> Self {
-        Self {
-            spans_by_service: Arc::new(Mutex::new(HashMap::new())),
-            flush_interval,
-            otel_url,
-        }
-    }
-
-    /// Create with defaults from environment or sensible defaults
-    pub fn from_env() -> Self {
-        let batch_size = std::env::var("TRACE_BATCH_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(100);
-
+    /// * `enabled` - Whether tracing is enabled
+    ///   - `Some(true)` - Force enable tracing
+    ///   - `Some(false)` - Force disable tracing
+    ///   - `None` - Check `OTEL_TRACING_ENABLED` env var (defaults to true if not set)
+    ///
+    /// Other parameters are read from environment variables:
+    /// - `TRACE_FLUSH_INTERVAL_SECS` - Flush interval in seconds (default: 1)
+    /// - `OTEL_COLLECTOR_URL` - OTEL collector endpoint (default: http://localhost:9903/v1/traces)
+    pub fn new(enabled: Option<bool>) -> Self {
         let flush_interval_secs = std::env::var("TRACE_FLUSH_INTERVAL_SECS")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(1);
 
         let otel_url = std::env::var("OTEL_COLLECTOR_URL")
-            .unwrap_or_else(|_| "http://host.docker.internal:4318/v1/traces".to_string());
+            .unwrap_or_else(|_| "http://localhost:9903/v1/traces".to_string());
+
+        // Determine if tracing is enabled:
+        // 1. Use explicit parameter if provided
+        // 2. Otherwise check OTEL_TRACING_ENABLED env var
+        // 3. Default to true if neither is set
+        let enabled = enabled.unwrap_or_else(|| {
+            std::env::var("OTEL_TRACING_ENABLED")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(true)
+        });
 
         debug!(
-            "TraceCollector initialized: batch_size={}, flush_interval={}s, url={}",
-            batch_size, flush_interval_secs, otel_url
+            "TraceCollector initialized: flush_interval={}s, url={}, enabled={}",
+            flush_interval_secs, otel_url, enabled
         );
 
-        Self::new(
-            Duration::from_secs(flush_interval_secs),
+        Self {
+            spans_by_service: Arc::new(Mutex::new(HashMap::new())),
+            flush_interval: Duration::from_secs(flush_interval_secs),
             otel_url,
-        )
+            enabled,
+        }
     }
 
     /// Record a span for a specific service
@@ -82,6 +93,11 @@ impl TraceCollector {
     /// * `service_name` - Name of the service (e.g., "archgw(routing)", "archgw(llm)")
     /// * `span` - The span to record
     pub fn record_span(&self, service_name: impl Into<String>, span: Span) {
+        // Skip recording if tracing is disabled
+        if !self.enabled {
+            return;
+        }
+
         let service_name = service_name.into();
 
         // Use try_lock to avoid blocking in async contexts
@@ -103,6 +119,11 @@ impl TraceCollector {
     /// Flush all buffered spans to the OTEL collector
     /// Builds ResourceSpans for each service with spans
     pub async fn flush(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Skip flushing if tracing is disabled
+        if !self.enabled {
+            return Ok(());
+        }
+
         let mut spans_by_service = self.spans_by_service.lock().await;
 
         if spans_by_service.is_empty() {
@@ -225,10 +246,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_collector_basic() {
-        let collector = TraceCollector::new(
-            Duration::from_secs(60),
-            "http://test:4318/v1/traces".to_string(),
-        );
+        let collector = TraceCollector::new(Some(true));
 
         let span = SpanBuilder::new("test_operation")
             .with_trace_id("abc123")
@@ -242,10 +260,7 @@ mod tests {
     #[tokio::test]
     async fn test_collector_auto_flush() {
         // Since batch-triggered flush behavior was removed, record two spans and verify both are buffered
-        let collector = Arc::new(TraceCollector::new(
-            Duration::from_secs(60),
-            "http://test:4318/v1/traces".to_string(),
-        ));
+        let collector = Arc::new(TraceCollector::new(Some(true)));
 
         let span1 = SpanBuilder::new("test1").build();
         let span2 = SpanBuilder::new("test2").build();

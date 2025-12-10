@@ -66,12 +66,12 @@ impl TraceCollector {
         // Determine if tracing is enabled:
         // 1. Use explicit parameter if provided
         // 2. Otherwise check OTEL_TRACING_ENABLED env var
-        // 3. Default to true if neither is set
+        // 3. Default to false if neither is set (tracing opt-in, not opt-out)
         let enabled = enabled.unwrap_or_else(|| {
             std::env::var("OTEL_TRACING_ENABLED")
                 .ok()
                 .and_then(|s| s.parse().ok())
-                .unwrap_or(true)
+                .unwrap_or(false)
         });
 
         debug!(

@@ -51,7 +51,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: archgw(inbound)
+                      service_name: plano(inbound)
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
@@ -469,6 +469,7 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
+{% if "random_sampling" in arch_tracing and arch_tracing["random_sampling"] > 0 %}
     - name: otel_collector_proxy
       address:
         socket_address:
@@ -498,7 +499,7 @@ static_resources:
                         - match:
                             prefix: "/v1/traces"
                           route:
-                            cluster: otel_collector_http_proxy
+                            cluster: opentelemetry_collector_http
                             timeout: 5s
                             retry_policy:
                               retry_on: "5xx,connect-failure,refused-stream,reset"
@@ -510,6 +511,7 @@ static_resources:
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+{% endif %}
 
     - name: egress_traffic_llm
       address:
@@ -1041,39 +1043,6 @@ static_resources:
                       port_value: 12001
                   hostname: arch_listener_llm
 
-
-    # Cluster for OTEL HTTP proxy with retry/circuit breaking
-    # Always available even when tracing is not configured
-    - name: otel_collector_http_proxy
-      connect_timeout: 2s
-      type: STRICT_DNS
-      dns_lookup_family: V4_ONLY
-      lb_policy: ROUND_ROBIN
-      load_assignment:
-        cluster_name: otel_collector_http_proxy
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: host.docker.internal
-                      port_value: 4318
-      # Circuit breaker configuration to prevent overwhelming OTEL collector
-      circuit_breakers:
-        thresholds:
-          - priority: DEFAULT
-            max_connections: 100
-            max_pending_requests: 100
-            max_requests: 100
-            max_retries: 3
-      # Health checking and outlier detection
-      outlier_detection:
-        consecutive_5xx: 5
-        interval: 10s
-        base_ejection_time: 30s
-        max_ejection_percent: 50
-        enforcing_consecutive_5xx: 100
-
 {% if "random_sampling" in arch_tracing and arch_tracing["random_sampling"] > 0 %}
     - name: opentelemetry_collector
       type: STRICT_DNS
@@ -1107,4 +1076,19 @@ static_resources:
                 socket_address:
                   address: host.docker.internal
                   port_value: 4318
+          # Circuit breaker configuration to prevent overwhelming OTEL collector
+      circuit_breakers:
+        thresholds:
+          - priority: DEFAULT
+            max_connections: 100
+            max_pending_requests: 100
+            max_requests: 100
+            max_retries: 3
+      # Health checking and outlier detection
+      outlier_detection:
+        consecutive_5xx: 5
+        interval: 10s
+        base_ejection_time: 30s
+        max_ejection_percent: 50
+        enforcing_consecutive_5xx: 100
 {% endif %}

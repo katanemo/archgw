@@ -114,12 +114,6 @@ pub async fn llm_chat(
         full_qualified_llm_provider_url, model_name
     );
 
-    // Extract trace_parent for upstream request headers
-    let trace_parent = request_headers
-        .iter()
-        .find(|(ty, _)| ty.as_str() == "traceparent")
-        .map(|(_, value)| value.to_str().unwrap_or_default().to_string());
-
     request_headers.insert(
         ARCH_PROVIDER_HINT_HEADER,
         header::HeaderValue::from_str(&model_name).unwrap(),
@@ -129,13 +123,6 @@ pub async fn llm_chat(
         header::HeaderName::from_static(ARCH_IS_STREAMING_HEADER),
         header::HeaderValue::from_str(&is_streaming_request.to_string()).unwrap(),
     );
-
-    if let Some(trace_parent) = trace_parent {
-        request_headers.insert(
-            header::HeaderName::from_static("traceparent"),
-            header::HeaderValue::from_str(&trace_parent).unwrap(),
-        );
-    }
     // remove content-length header if it exists
     request_headers.remove(header::CONTENT_LENGTH);
 

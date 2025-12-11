@@ -1,1 +1,1 @@
-docker build  -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.2
+docker build  -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.22

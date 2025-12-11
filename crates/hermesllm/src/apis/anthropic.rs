@@ -537,6 +537,10 @@ impl ProviderRequest for MessagesRequest {
             false
         }
     }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
+    }
 }
 
 impl MessagesResponse {

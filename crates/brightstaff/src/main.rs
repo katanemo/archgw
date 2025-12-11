@@ -1,5 +1,5 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
-use brightstaff::handlers::router::chat;
+use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
@@ -130,7 +130,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, req.uri().path());
-                        chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
+                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
                             .with_context(parent_cx)
                             .await
                     }

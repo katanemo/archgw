@@ -45,6 +45,8 @@ pub trait ProviderRequest: Send + Sync {
 
     /// Remove a metadata key from the request and return true if the key was present
     fn remove_metadata_key(&mut self, key: &str) -> bool;
+
+    fn get_temperature(&self) -> Option<f32>;
 }
 
 impl ProviderRequest for ProviderRequestType {
@@ -135,6 +137,16 @@ impl ProviderRequest for ProviderRequestType {
             Self::BedrockConverse(r) => r.remove_metadata_key(key),
             Self::BedrockConverseStream(r) => r.remove_metadata_key(key),
             Self::ResponsesAPIRequest(r) => r.remove_metadata_key(key),
+        }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.get_temperature(),
+            Self::MessagesRequest(r) => r.get_temperature(),
+            Self::BedrockConverse(r) => r.get_temperature(),
+            Self::BedrockConverseStream(r) => r.get_temperature(),
+            Self::ResponsesAPIRequest(r) => r.get_temperature(),
         }
     }
 }

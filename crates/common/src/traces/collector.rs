@@ -52,13 +52,13 @@ impl TraceCollector {
     ///   - `None` - Check `OTEL_TRACING_ENABLED` env var (defaults to true if not set)
     ///
     /// Other parameters are read from environment variables:
-    /// - `TRACE_FLUSH_INTERVAL_SECS` - Flush interval in seconds (default: 1)
+    /// - `TRACE_FLUSH_INTERVAL_MS` - Flush interval in milliseconds (default: 1000)
     /// - `OTEL_COLLECTOR_URL` - OTEL collector endpoint (default: http://localhost:9903/v1/traces)
     pub fn new(enabled: Option<bool>) -> Self {
-        let flush_interval_secs = std::env::var("TRACE_FLUSH_INTERVAL_SECS")
+        let flush_interval_ms = std::env::var("TRACE_FLUSH_INTERVAL_MS")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(1);
+            .unwrap_or(1000);
 
         let otel_url = std::env::var("OTEL_COLLECTOR_URL")
             .unwrap_or_else(|_| "http://localhost:9903/v1/traces".to_string());
@@ -75,13 +75,13 @@ impl TraceCollector {
         });
 
         debug!(
-            "TraceCollector initialized: flush_interval={}s, url={}, enabled={}",
-            flush_interval_secs, otel_url, enabled
+            "TraceCollector initialized: flush_interval={}ms, url={}, enabled={}",
+            flush_interval_ms, otel_url, enabled
         );
 
         Self {
             spans_by_service: Arc::new(Mutex::new(HashMap::new())),
-            flush_interval: Duration::from_secs(flush_interval_secs),
+            flush_interval: Duration::from_millis(flush_interval_ms),
             otel_url,
             enabled,
         }

@@ -83,19 +83,19 @@ pub mod llm {
     pub const TOTAL_TOKENS: &str = "llm.usage.total_tokens";
 
     /// Temperature parameter used
-    pub const TEMPERATURE: &str = "llm.request.temperature";
+    pub const TEMPERATURE: &str = "llm.temperature";
 
     /// Max tokens parameter used
-    pub const MAX_TOKENS: &str = "llm.request.max_tokens";
+    pub const MAX_TOKENS: &str = "llm.max_tokens";
 
     /// Top-p parameter used
-    pub const TOP_P: &str = "llm.request.top_p";
+    pub const TOP_P: &str = "llm.top_p";
 
     /// List of tool names provided in the request
     pub const TOOLS: &str = "llm.tools";
 
     /// Preview of the user message (truncated)
-    pub const USER_MESSAGE_PREVIEW: &str = "llm.request.user_message_preview";
+    pub const USER_MESSAGE_PREVIEW: &str = "llm.user_message_preview";
 }
 
 // =============================================================================

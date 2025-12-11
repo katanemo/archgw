@@ -30,7 +30,7 @@ pub trait StreamProcessor: Send + 'static {
 }
 
 /// A processor that tracks streaming metrics and finalizes the span
-pub struct PassthroughProcessor {
+pub struct ObservableStreamProcessor {
     collector: Arc<TraceCollector>,
     service_name: String,
     span: Span,
@@ -40,7 +40,7 @@ pub struct PassthroughProcessor {
     time_to_first_token: Option<u128>,
 }
 
-impl PassthroughProcessor {
+impl ObservableStreamProcessor {
     /// Create a new passthrough processor
     ///
     /// # Arguments
@@ -66,7 +66,7 @@ impl PassthroughProcessor {
     }
 }
 
-impl StreamProcessor for PassthroughProcessor {
+impl StreamProcessor for ObservableStreamProcessor {
     fn process_chunk(&mut self, chunk: Bytes) -> Result<Option<Bytes>, String> {
         self.total_bytes += chunk.len();
         self.chunk_count += 1;

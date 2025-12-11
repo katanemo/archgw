@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
 use crate::router::llm_router::RouterService;
-use crate::handlers::utils::{create_streaming_response, PassthroughProcessor, truncate_message};
+use crate::handlers::utils::{create_streaming_response, ObservableStreamProcessor, truncate_message};
 use crate::handlers::router_chat::router_chat_get_upstream_model;
 use crate::tracing::operation_component;
 
@@ -24,7 +24,7 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
         .boxed()
 }
 
-pub async fn chat(
+pub async fn llm_chat(
     request: Request<hyper::body::Incoming>,
     router_service: Arc<RouterService>,
     full_qualified_llm_provider_url: String,
@@ -36,12 +36,19 @@ pub async fn chat(
     let request_path = request.uri().path().to_string();
     let request_headers = request.headers().clone();
 
-    // Extract traceparent header early (Envoy should have added this)
-    let traceparent = request_headers
+    // Extract or generate traceparent - this establishes the trace context for all spans
+    let traceparent: String = request_headers
         .get("traceparent")
         .and_then(|h| h.to_str().ok())
-        .unwrap_or("00-00000000000000000000000000000000-0000000000000000-01")
-        .to_string();
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            // No traceparent - this is a root span, generate a new trace ID
+            use uuid::Uuid;
+            let trace_id = Uuid::new_v4().to_string().replace("-", "");
+            let span_id = Uuid::new_v4().to_string().replace("-", "")[..16].to_string();
+            // Format: version-trace_id-parent_span_id-trace_flags
+            format!("00-{}-{}-01", trace_id, span_id)
+        });
 
     let mut request_headers = request_headers;
     let chat_request_bytes = request.collect().await?.to_bytes();
@@ -68,6 +75,7 @@ pub async fn chat(
     // Model alias resolution: update model field in client_request immediately
     // This ensures all downstream objects use the resolved model
     let model_from_request = client_request.model().to_string();
+    let temperature = client_request.get_temperature();
     let is_streaming_request = client_request.is_streaming();
     let resolved_model = resolve_model_alias(&model_from_request, &model_aliases);
 
@@ -177,11 +185,12 @@ pub async fn chat(
         request_start_system_time,
         tool_names,
         user_message_preview,
+        temperature,
         &llm_providers,
     ).await;
 
     // Use PassthroughProcessor to track streaming metrics and finalize the span
-    let processor = PassthroughProcessor::new(
+    let processor = ObservableStreamProcessor::new(
         trace_collector,
         operation_component::LLM,
         llm_span,
@@ -230,6 +239,7 @@ async fn build_llm_span(
     start_time: std::time::SystemTime,
     tool_names: Option<Vec<String>>,
     user_message_preview: Option<String>,
+    temperature: Option<f32>,
     llm_providers: &Arc<RwLock<Vec<LlmProvider>>>,
 ) -> common::traces::Span {
     use common::traces::{SpanBuilder, SpanKind, parse_traceparent};
@@ -274,6 +284,10 @@ async fn build_llm_span(
         .with_attribute(llm::IS_STREAMING, is_streaming.to_string());
 
     // Add optional attributes
+    if let Some(temp) = temperature {
+        span_builder = span_builder.with_attribute(llm::TEMPERATURE, temp.to_string());
+    }
+
     if let Some(tools) = tool_names {
         let formatted_tools = tools.iter()
             .map(|name| format!("{}(...)", name))

@@ -731,6 +731,10 @@ impl ProviderRequest for ChatCompletionsRequest {
             false
         }
     }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
+    }
 }
 
 /// Implementation of ProviderResponse for ChatCompletionsResponse

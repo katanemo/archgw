@@ -206,7 +206,7 @@ static_resources:
     - name: outbound_api_traffic
       address:
         socket_address:
-          address: 0.0.0.0
+          address: 127.0.0.1
           port_value: 11000
       traffic_direction: OUTBOUND
       filter_chains:
@@ -225,7 +225,7 @@ static_resources:
                         envoy_grpc:
                           cluster_name: opentelemetry_collector
                         timeout: 0.250s
-                      service_name: tool
+                      service_name: tools
                   random_sampling:
                     value: {{ arch_tracing.random_sampling }}
                 {% endif %}
@@ -473,7 +473,7 @@ static_resources:
     - name: otel_collector_proxy
       address:
         socket_address:
-          address: 0.0.0.0
+          address: 127.0.0.1
           port_value: 9903
       traffic_direction: OUTBOUND
       filter_chains:

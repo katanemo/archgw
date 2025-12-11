@@ -229,6 +229,10 @@ impl ProviderRequest for ConverseRequest {
             false
         }
     }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.inference_config.as_ref()?.temperature
+    }
 }
 
 // ============================================================================

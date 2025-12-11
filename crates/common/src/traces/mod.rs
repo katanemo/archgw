@@ -8,6 +8,9 @@ mod constants;
 #[cfg(feature = "trace-collection")]
 mod collector;
 
+#[cfg(all(test, feature = "trace-collection"))]
+mod tests;
+
 // Re-export original types
 pub use shapes::{
     Span, Event, Traceparent, TraceparentNewError,

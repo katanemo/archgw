@@ -33,4 +33,6 @@ trace-collection = ["tokio", "reqwest", "tracing"]
 [dev-dependencies]
 pretty_assertions = "1.4.1"
 serde_json = "1.0.64"
+serial_test = "3.2"
+axum = "0.7"
 tokio = { version = "1.44", features = ["sync", "time", "macros", "rt"] }

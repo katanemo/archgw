@@ -1094,6 +1094,10 @@ impl ProviderRequest for ResponsesAPIRequest {
             false
         }
     }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
+    }
 }
 
 // ============================================================================

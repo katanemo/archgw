@@ -9,15 +9,26 @@ use tracing::{debug, error, warn};
 /// Parse W3C traceparent header into trace_id and parent_span_id
 /// Format: "00-{trace_id}-{parent_span_id}-01"
 ///
-/// Returns (trace_id, parent_span_id) as strings
-pub fn parse_traceparent(traceparent: &str) -> (String, String) {
+/// Returns (trace_id, Option<parent_span_id>)
+/// - parent_span_id is None if it's all zeros (0000000000000000), indicating a root span
+pub fn parse_traceparent(traceparent: &str) -> (String, Option<String>) {
     let parts: Vec<&str> = traceparent.split('-').collect();
     if parts.len() == 4 {
-        (parts[1].to_string(), parts[2].to_string())
+        let trace_id = parts[1].to_string();
+        let parent_span_id = parts[2].to_string();
+
+        // If parent_span_id is all zeros, this is a root span with no parent
+        let parent = if parent_span_id == "0000000000000000" {
+            None
+        } else {
+            Some(parent_span_id)
+        };
+
+        (trace_id, parent)
     } else {
         warn!("Invalid traceparent format: {}", traceparent);
-        // Generate empty IDs if parsing fails
-        (String::new(), String::new())
+        // Return empty trace ID and None for parent if parsing fails
+        (String::new(), None)
     }
 }
 

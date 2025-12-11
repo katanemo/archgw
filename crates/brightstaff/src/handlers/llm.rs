@@ -42,12 +42,9 @@ pub async fn llm_chat(
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string())
         .unwrap_or_else(|| {
-            // No traceparent - this is a root span, generate a new trace ID
             use uuid::Uuid;
             let trace_id = Uuid::new_v4().to_string().replace("-", "");
-            let span_id = Uuid::new_v4().to_string().replace("-", "")[..16].to_string();
-            // Format: version-trace_id-parent_span_id-trace_flags
-            format!("00-{}-{}-01", trace_id, span_id)
+            format!("00-{}-0000000000000000-01", trace_id)
         });
 
     let mut request_headers = request_headers;
@@ -273,7 +270,6 @@ async fn build_llm_span(
 
     let mut span_builder = SpanBuilder::new(&operation_name)
         .with_trace_id(&trace_id)
-        .with_parent_span_id(&parent_span_id)
         .with_kind(SpanKind::Client)
         .with_start_time(start_time)
         .with_attribute(http::METHOD, "POST")
@@ -282,6 +278,11 @@ async fn build_llm_span(
         .with_attribute(http::UPSTREAM_TARGET, upstream_path)
         .with_attribute(llm::MODEL_NAME, resolved_model.to_string())
         .with_attribute(llm::IS_STREAMING, is_streaming.to_string());
+
+    // Only set parent span ID if it exists (not a root span)
+    if let Some(parent) = parent_span_id {
+        span_builder = span_builder.with_parent_span_id(&parent);
+    }
 
     // Add optional attributes
     if let Some(temp) = temperature {

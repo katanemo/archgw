@@ -219,13 +219,17 @@ async fn record_routing_span(
     // Build the routing span directly using constants
     let mut span_builder = SpanBuilder::new(&routing_operation_name)
         .with_trace_id(&trace_id)
-        .with_parent_span_id(&parent_span_id)
         .with_kind(SpanKind::Client)
         .with_start_time(start_system_time)
         .with_end_time(std::time::SystemTime::now())
         .with_attribute(http::METHOD, "POST")
         .with_attribute(http::TARGET, routing_api_path.to_string())
         .with_attribute(routing::ROUTE_DETERMINATION_MS, start_time.elapsed().as_millis().to_string());
+
+    // Only set parent span ID if it exists (not a root span)
+    if let Some(parent) = parent_span_id {
+        span_builder = span_builder.with_parent_span_id(&parent);
+    }
 
     // Add all custom attributes
     for (key, value) in attrs {

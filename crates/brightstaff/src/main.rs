@@ -62,6 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
     let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
+    let agent_filters = Arc::new(RwLock::new(arch_config.agent_filters.clone()));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
     let llm_provider_url =
         env::var("LLM_PROVIDER_ENDPOINT").unwrap_or_else(|_| "http://localhost:12001".to_string());
@@ -113,6 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let llm_providers = llm_providers.clone();
         let agents_list = agents_list.clone();
+        let agent_filters = agent_filters.clone();
         let listeners = listeners.clone();
         let trace_collector = trace_collector.clone();
         let service = service_fn(move |req| {
@@ -122,6 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let llm_providers = llm_providers.clone();
             let model_aliases = Arc::clone(&model_aliases);
             let agents_list = agents_list.clone();
+            let agent_filters = agent_filters.clone();
             let listeners = listeners.clone();
             let trace_collector = trace_collector.clone();
 

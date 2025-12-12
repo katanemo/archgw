@@ -23,6 +23,14 @@ pub struct Agent {
     pub id: String,
     pub kind: Option<String>,
     pub url: String,
+    pub tool: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentFilter {
+    pub id: String,
+    pub url: String,
+    pub tool: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +65,7 @@ pub struct Configuration {
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
+    pub agent_filters: Option<Vec<AgentFilter>>,
     pub listeners: Vec<Listener>,
 }
 

@@ -3,13 +3,17 @@ import Link from "next/link";
 import Image from "next/image";
 
 const footerLinks = {
-  company: [
-    { label: "Product", href: "/product" },
-    { label: "Use Cases", href: "/use-cases" },
+  product: [
+    { label: "Research", href: "/research" },
     { label: "Blog", href: "/blog" },
-    { label: "Plano LLMs", href: "/llms" },
+    { label: "Documentation", href: "https://docs.plano.katanemo.com", external: true },
+    { label: "Hugging Face", href: "https://huggingface.co/katanemo", external: true },
   ],
-  developerResources: [{ label: "Documentation", href: "/docs" }],
+  resources: [
+    { label: "GitHub", href: "https://github.com/katanemo/arch", external: true },
+    { label: "Discord", href: "https://discord.gg/pGZf2gcwEc", external: true },
+    { label: "Get Started", href: "https://docs.plano.katanemo.com/getting-started/installation", external: true },
+  ],
 };
 
 export function Footer() {
@@ -23,9 +27,10 @@ export function Footer() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
           {/* Left Column - Tagline and Copyright */}
           <div className="flex flex-col">
-            <p className="font-sans font-normal text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-7  mb-6 sm:mb-8">
-              Plano is the powerful, intelligent platform that empowers teams to
-              seamlessly build, automate, and scale agentic systems with ease.
+            <p className="font-sans font-normal text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-relaxed  mb-6 sm:mb-8">
+            Plano is a powerful agent delivery infrastructure platform that is framework-friendly, 
+            and empowers developers and teams to seamlessly build, deliver, and scale agentic 
+            applications.
             </p>
 
             {/* Copyright */}
@@ -38,16 +43,18 @@ export function Footer() {
 
           {/* Right Column - Navigation Links */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            {/* Company Links */}
+            {/* Product Links */}
             <div>
               <h3 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
-                Company
+                Product
               </h3>
               <nav className="space-y-3 sm:space-y-4">
-                {footerLinks.company.map((link) => (
+                {footerLinks.product.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
                     className="block font-sans font-normal text-sm sm:text-base lg:text-lg text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
                   >
                     {link.label}
@@ -56,16 +63,18 @@ export function Footer() {
               </nav>
             </div>
 
-            {/* Developer Resources */}
+            {/* Resources Links */}
             <div>
               <h3 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl text-black tracking-[-1.2px] sm:tracking-[-1.4px] lg:tracking-[-1.6px]! mb-4 sm:mb-6">
-                Developer Resources
+                Resources
               </h3>
               <nav className="space-y-3 sm:space-y-4">
-                {footerLinks.developerResources.map((link) => (
+                {footerLinks.resources.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
                     className="block font-sans font-normal text-sm sm:text-base lg:text-lg text-black tracking-[-0.8px] sm:tracking-[-0.9px] lg:tracking-[-1px]! hover:text-[var(--primary)] transition-colors"
                   >
                     {link.label}

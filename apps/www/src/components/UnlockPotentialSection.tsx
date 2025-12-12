@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@katanemo/ui";
+import Link from "next/link";
 
 interface UnlockPotentialSectionProps {
   variant?: "transparent" | "black";
@@ -31,8 +32,12 @@ export function UnlockPotentialSection({
           </h2>
 
           <div className="flex flex-col sm:flex-row gap-5">
-            <Button>Deploy today</Button>
-            <Button variant="secondaryDark">Documentation</Button>
+            <Button asChild>
+              <Link href="https://docs.plano.katanemo.com">Deploy today</Link>
+            </Button>
+            <Button variant="secondaryDark" asChild>
+              <Link href="https://docs.plano.katanemo.com">Documentation</Link>
+            </Button>
           </div>
         </div>
       </div>

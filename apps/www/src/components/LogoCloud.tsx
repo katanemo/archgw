@@ -26,7 +26,7 @@ const customerLogos = [
 
 export function LogoCloud() {
   return (
-    <section className="relative py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+    <section className="relative py-6 sm:py-8 px-4 sm:px-6 lg:px-8 bg-transparent">
       <div className="max-w-[81rem] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:flex lg:flex-row lg:justify-center lg:items-center gap-4 sm:gap-6 md:gap-8 lg:gap-0 place-items-center">
           {customerLogos.map((logo, index) => {

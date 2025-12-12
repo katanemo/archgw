@@ -7,6 +7,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Custom breakpoint for extra large screens */
+@theme {
+  --breakpoint-3xl: 1920px;
+}
+
 /* Font Face Declarations */
 @font-face {
   font-family: "IBM Plex Sans";

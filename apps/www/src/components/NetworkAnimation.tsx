@@ -1,203 +1,200 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useId } from "react";
 import { motion } from "framer-motion";
 
-interface Node {
-  id: string;
-  x: number;
-  y: number;
-  size: number;
-  delay: number;
-}
-
-interface Connection {
-  from: string;
-  to: string;
-}
-
-interface Particle {
-  id: string;
-  connectionIndex: number;
-  progress: number;
-}
-
-// 4 separate groups positioned to the right of the heading text, aligned with the text vertically
-const nodes: Node[] = [
-  // Group 1
-  { id: "1", x: 20, y: 35, size: 18, delay: 0 },
-  { id: "2", x: 70, y: 42, size: 12, delay: 0.8 },
-  { id: "3", x: 76, y: 38, size: 16, delay: 1.6 },
-
-  // // Group 2
-  // { id: "4", x: 80, y: 30, size: 18, delay: 0.4 },
-  // { id: "5", x: 87, y: 36, size: 12, delay: 1.2 },
-  // { id: "6", x: 92, y: 33, size: 16, delay: 2.0 },
-
-  // Group 3
-  { id: "7", x: 62, y: 48, size: 10, delay: 0.6 },
-  { id: "8", x: 65, y: 52, size: 18, delay: 1.4 },
-  { id: "9", x: 75, y: 48, size: 14, delay: 0.6 },
+// Define the grid of squares with their positions and colors
+const squares = [
+  // Column 1 (x=3)
+  { x: 3, y: 3, color: "#B0B7FF", col: 0, row: 0 },
+  { x: 3, y: 6, color: "#B0B7FF", col: 0, row: 1 },
+  { x: 3, y: 9, color: "#B0B7FF", col: 0, row: 2 },
+  { x: 3, y: 12, color: "#ABB2FA", col: 0, row: 3 },
+  { x: 3, y: 15, color: "#ABB2FA", col: 0, row: 4 },
+  { x: 3, y: 18, color: "#ABB2FA", col: 0, row: 5 },
+  { x: 3, y: 21, color: "#969FF4", col: 0, row: 6 },
+  
+  // Column 2 (x=6)
+  { x: 6, y: 3, color: "#B0B7FF", col: 1, row: 0 },
+  { x: 6, y: 6, color: "#B0B7FF", col: 1, row: 1 },
+  { x: 6, y: 9, color: "#ABB2FA", col: 1, row: 2 },
+  { x: 6, y: 12, color: "#ABB2FA", col: 1, row: 3 },
+  { x: 6, y: 15, color: "#ABB2FA", col: 1, row: 4 },
+  { x: 6, y: 18, color: "#969FF4", col: 1, row: 5 },
+  { x: 6, y: 21, color: "#969FF4", col: 1, row: 6 },
+  
+  // Column 3 (x=9)
+  { x: 9, y: 3, color: "#B0B7FF", col: 2, row: 0 },
+  { x: 9, y: 6, color: "#ABB2FA", col: 2, row: 1 },
+  { x: 9, y: 9, color: "#ABB2FA", col: 2, row: 2 },
+  { x: 9, y: 12, color: "#ABB2FA", col: 2, row: 3 },
+  { x: 9, y: 15, color: "#969FF4", col: 2, row: 4 },
+  { x: 9, y: 18, color: "#969FF4", col: 2, row: 5 },
+  { x: 9, y: 21, color: "#969FF4", col: 2, row: 6 },
+  
+  // Column 4 (x=12)
+  { x: 12, y: 3, color: "#ABB2FA", col: 3, row: 0 },
+  { x: 12, y: 6, color: "#ABB2FA", col: 3, row: 1 },
+  { x: 12, y: 9, color: "#ABB2FA", col: 3, row: 2 },
+  { x: 12, y: 12, color: "#969FF4", col: 3, row: 3 },
+  { x: 12, y: 15, color: "#969FF4", col: 3, row: 4 },
+  { x: 12, y: 18, color: "#969FF4", col: 3, row: 5 },
+  { x: 12, y: 21, color: "#969FF4", col: 3, row: 6 },
+  
+  // Column 5 (x=15)
+  { x: 15, y: 3, color: "#ABB2FA", col: 4, row: 0 },
+  { x: 15, y: 6, color: "#ABB2FA", col: 4, row: 1 },
+  { x: 15, y: 9, color: "#969FF4", col: 4, row: 2 },
+  { x: 15, y: 12, color: "#969FF4", col: 4, row: 3 },
+  { x: 15, y: 15, color: "#969FF4", col: 4, row: 4 },
+  { x: 15, y: 18, color: "#969FF4", col: 4, row: 5 },
+  { x: 15, y: 21, color: "#969FF4", col: 4, row: 6 },
+  
+  // Column 6 (x=18)
+  { x: 18, y: 3, color: "#ABB2FA", col: 5, row: 0 },
+  { x: 18, y: 6, color: "#969FF4", col: 5, row: 1 },
+  { x: 18, y: 9, color: "#969FF4", col: 5, row: 2 },
+  { x: 18, y: 12, color: "#969FF4", col: 5, row: 3 },
+  { x: 18, y: 15, color: "#969FF4", col: 5, row: 4 },
+  { x: 18, y: 18, color: "#969FF4", col: 5, row: 5 },
+  { x: 18, y: 21, color: "#969FF4", col: 5, row: 6 },
+  
+  // Column 7 (x=21)
+  { x: 21, y: 3, color: "#969FF4", col: 6, row: 0 },
+  { x: 21, y: 6, color: "#969FF4", col: 6, row: 1 },
+  { x: 21, y: 9, color: "#969FF4", col: 6, row: 2 },
+  { x: 21, y: 12, color: "#969FF4", col: 6, row: 3 },
+  { x: 21, y: 15, color: "#969FF4", col: 6, row: 4 },
+  { x: 21, y: 18, color: "#969FF4", col: 6, row: 5 },
+  { x: 21, y: 21, color: "#969FF4", col: 6, row: 6 },
 ];
 
-const connections: Connection[] = [
-  // Group 1 connections
-  { from: "1", to: "2" },
-  { from: "2", to: "3" },
+interface NetworkAnimationProps {
+  className?: string;
+}
 
-  // // Group 2 connections
-  // { from: "4", to: "5" },
-  // { from: "5", to: "6" },
+// Deterministic seeded random number generator for consistent SSR/client values
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
 
-  // Group 3 connections
-  { from: "7", to: "8" },
-  { from: "8", to: "9" },
-];
+// Round to fixed precision to avoid floating-point precision differences
+function roundToPrecision(value: number, precision: number = 10): number {
+  return Math.round(value * Math.pow(10, precision)) / Math.pow(10, precision);
+}
 
-export function NetworkAnimation() {
-  const [particles, setParticles] = useState<Particle[]>([]);
+// Generate deterministic random values based on index
+function getDeterministicValues(index: number) {
+  const seed1 = index * 0.1;
+  const seed2 = index * 0.2;
+  const seed3 = index * 0.3;
+  const seed4 = index * 0.4;
+  const seed5 = index * 0.5;
+  const seed6 = index * 0.6;
+  
+  return {
+    duration: roundToPrecision(3 + seededRandom(seed1) * 3, 10), // 3-6 seconds
+    peakOpacity: roundToPrecision(0.7 + seededRandom(seed2) * 0.3, 10),
+    baseOpacity: roundToPrecision(0.3 + seededRandom(seed3) * 0.2, 10),
+    midOpacity: roundToPrecision(0.5 + seededRandom(seed4) * 0.2, 10),
+    baseBrightness: roundToPrecision(0.85 + seededRandom(seed5) * 0.15, 10),
+    peakBrightness: roundToPrecision(1.0 + seededRandom(seed6) * 0.2, 10),
+  };
+}
 
-  // Create and animate particles along connections - much slower
-  useEffect(() => {
-    const createParticle = () => {
-      const connectionIndex = Math.floor(Math.random() * connections.length);
-      const particle: Particle = {
-        id: `particle-${Date.now()}-${Math.random()}`,
-        connectionIndex,
-        progress: 0,
-      };
-
-      setParticles((prev) => [...prev, particle]);
-
-      // Remove particle after animation completes
-      setTimeout(() => {
-        setParticles((prev) => prev.filter((p) => p.id !== particle.id));
-      }, 5000); // Slower duration
-    };
-
-    // Create particles at slower intervals
-    const interval = setInterval(createParticle, 2500);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Animate particles - slower movement
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setParticles((prev) =>
-        prev
-          .map((p) => ({ ...p, progress: p.progress + 0.008 })) // Much slower
-          .filter((p) => p.progress <= 1),
-      );
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, []);
-
+export function NetworkAnimation({ className }: NetworkAnimationProps) {
+  // Generate unique IDs for gradient and mask to avoid conflicts when multiple instances exist
+  const gradientId = useId().replace(/:/g, '-');
+  const maskId = useId().replace(/:/g, '-');
+  
   return (
-    <div className="absolute inset-0 pointer-events-none z-0 opacity-8 rotate-20 translate-x-40 -translate-y-40 scale-75 lg:scale-100 xl:scale-125 2xl:scale-150 [@media(min-width:1800px)]:scale-[1.60]">
-      <svg
-        className="absolute inset-0 w-full h-full rotate-10"
-        preserveAspectRatio="xMidYMid slice"
-        viewBox="790 -90 1020 840"
-        style={{ overflow: "visible" }}
+    <div className="absolute inset-0 pointer-events-none opacity-100">
+      <motion.div
+        className={`absolute 
+        top-[9%] right-[-3%] w-[380px] h-[380px] ${className || ""}`}
+        initial={{
+          rotate: 9, // Start at the same rotation as animation to prevent flicker
+        }}
+        animate={{
+          rotate: [9, 10, 9], // Slight breathing rotation
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
       >
-        <defs>
-          {/* Simple glow filter */}
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Render connections - simple lines with lower opacity */}
-        {connections.map((conn, index) => {
-          const fromNode = nodes.find((n) => n.id === conn.from);
-          const toNode = nodes.find((n) => n.id === conn.to);
-          if (!fromNode || !toNode) return null;
-
-          const x1 = (fromNode.x / 100) * 1920;
-          const y1 = (fromNode.y / 100) * 800;
-          const x2 = (toNode.x / 100) * 1920;
-          const y2 = (toNode.y / 100) * 800;
-
-          return (
-            <line
-              key={`line-${conn.from}-${conn.to}`}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke="#8b91e8"
-              strokeWidth="1.5"
-              opacity={1}
-            />
-          );
-        })}
-
-        {/* Render data particles with lower opacity */}
-        {particles.map((particle) => {
-          const conn = connections[particle.connectionIndex];
-          const fromNode = nodes.find((n) => n.id === conn.from);
-          const toNode = nodes.find((n) => n.id === conn.to);
-          if (!fromNode || !toNode) return null;
-
-          const x =
-            ((fromNode.x + (toNode.x - fromNode.x) * particle.progress) / 100) *
-            1920;
-          const y =
-            ((fromNode.y + (toNode.y - fromNode.y) * particle.progress) / 100) *
-            800;
-
-          return (
-            <motion.circle
-              key={particle.id}
-              cx={x}
-              cy={y}
-              r={4}
-              fill="#b9bfff"
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0.4, 0.4, 0],
-              }}
-              transition={{
-                duration: 5,
-                times: [0, 0.2, 0.8, 1],
-                ease: "linear",
-              }}
-            />
-          );
-        })}
-
-        {/* Render nodes with subtle floating animation */}
-        {nodes.map((node) => {
-          const size = node.size;
-          const baseX = (node.x / 100) * 1920;
-          const baseY = (node.y / 100) * 800;
-
-          return (
-            <motion.circle
-              key={node.id}
-              cx={baseX}
-              cy={baseY}
-              r={size}
-              fill="#8b91e8"
-              animate={{
-                cx: [baseX - 2, baseX + 2, baseX - 2],
-                cy: [baseY - 2, baseY + 2, baseY - 2],
-              }}
-              transition={{
-                duration: 10 + node.delay,
-                delay: node.delay,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          );
-        })}
-      </svg>
+        <svg
+          width="100%"
+          height="100%"
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            {/* Gradient mask: transparent at bottom, opaque at top */}
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="50%" stopColor="white" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+            <mask id={maskId}>
+              <rect width="26" height="26" fill={`url(#${gradientId})`} />
+            </mask>
+          </defs>
+          
+          <g mask={`url(#${maskId})`}>
+            {/* Outer border */}
+            <rect width="26" height="26" fill="#7780D9" />
+            
+            {/* Inner background */}
+            <rect x="2" y="2" width="22" height="22" fill="#B9BFFF" />
+          
+          {/* Animated squares with wave effect */}
+          {squares.map((square, index) => {
+            // Use deterministic values based on index for SSR/client consistency
+            const { duration, peakOpacity, baseOpacity, midOpacity, baseBrightness, peakBrightness } = 
+              getDeterministicValues(index);
+            
+            return (
+              <motion.path
+                key={`square-${index}`}
+                d={`M${square.x} ${square.y}H${square.x + 2}V${square.y + 2}H${square.x}V${square.y}Z`}
+                fill={square.color}
+                initial={{
+                  opacity: roundToPrecision(baseOpacity, 10),
+                  filter: `brightness(${roundToPrecision(baseBrightness, 10)})`,
+                }}
+                animate={{
+                  opacity: [
+                    roundToPrecision(baseOpacity, 10),
+                    roundToPrecision(midOpacity, 10),
+                    roundToPrecision(peakOpacity, 10),
+                    roundToPrecision(midOpacity, 10),
+                    roundToPrecision(baseOpacity, 10),
+                  ],
+                  filter: [
+                    `brightness(${roundToPrecision(baseBrightness, 10)})`,
+                    `brightness(${roundToPrecision((baseBrightness + peakBrightness) / 2, 10)})`,
+                    `brightness(${roundToPrecision(peakBrightness, 10)})`,
+                    `brightness(${roundToPrecision((baseBrightness + peakBrightness) / 2, 10)})`,
+                    `brightness(${roundToPrecision(baseBrightness, 10)})`,
+                  ],
+                }}
+                transition={{
+                  duration: roundToPrecision(duration, 10),
+                  delay: 0, // No delay - instant start
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  repeatDelay: 0, // No pause between cycles
+                }}
+              />
+            );
+          })}
+          </g>
+        </svg>
+      </motion.div>
     </div>
   );
 }

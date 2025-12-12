@@ -20,6 +20,7 @@ import {
   DialogClose,
 } from "@katanemo/ui";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface UseCase {
   id: number;
@@ -113,7 +114,9 @@ export function UseCasesSection() {
             <h2 className="font-sans font-normal text-2xl sm:text-3xl lg:text-4xl tracking-[-2px] sm:tracking-[-2.88px]! text-black leading-[1.03]">
               What's possible with Plano
             </h2>
-            <Button className="hidden lg:block">Start building</Button>
+            <Button asChild className="hidden lg:block">
+              <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
+            </Button>
           </div>
         </div>
 
@@ -152,7 +155,9 @@ export function UseCasesSection() {
 
         {/* Start building button - Mobile only, appears last */}
         <div className="lg:hidden mt-8">
-          <Button className="w-full">Start building</Button>
+          <Button asChild className="w-full">
+            <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
+          </Button>
         </div>
       </div>
 
@@ -278,7 +283,8 @@ export function UseCasesSection() {
                           <span>Ready to get started?</span>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1">
-                          <Button className="w-full sm:w-auto">
+                          <Button asChild className="w-full sm:w-auto">
+                            <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
                             Start building
                             <ArrowRightIcon className="w-4 h-4" />
                           </Button>

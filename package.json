@@ -15,11 +15,10 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.6.3"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "packageManager": "npm@10.0.0"
 }
-

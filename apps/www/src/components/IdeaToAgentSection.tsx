@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@katanemo/ui";
+import Link from "next/link";
 
 const carouselData = [
   {
@@ -12,6 +13,7 @@ const carouselData = [
     description:
       "Building AI agents is hard enough (iterate on prompts and evaluate LLMs, etc), the plumbing work shouldn't add to that complexity. Plano takes care of the critical plumbing work like routing and orchestration to agents that slows you down and locks you into rigid frameworks, freeing developers to innovate on what truly matters.",
     image: "/LaunchFaster.svg",
+    link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
   {
     id: 2,
@@ -20,6 +22,7 @@ const carouselData = [
     description:
       "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code.",
     image: "/BuildWithChoice.svg",
+    link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
   {
     id: 3,
@@ -28,6 +31,7 @@ const carouselData = [
     description:
       "Knowing when agents fail or delight users is a critical signal that feeds into a reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
     image: "/Telemetry.svg",
+    link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
   {
     id: 4,
@@ -36,6 +40,7 @@ const carouselData = [
     description:
       "Plano comes built-in with a state-of-the-art guardrail model you can use for things like jailbreak detection. But you can easily extend those capabilities via plano's agent filter chain to apply custom policy checks in a centralized way and keep users engaged on topics relevant to your requirements.",
     image: "/ShipConfidently.svg",
+    link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
   {
     id: 5,
@@ -44,6 +49,7 @@ const carouselData = [
     description:
       "Plano's sidecar deployment model avoids library-based abstractions - operating as a protocol-native data plane that integrates seamlessly with your existing agents via agentic APIs (like v1/responses). This decouples your core agent logic from plumbing concerns - run it alongside any framework without code changes, vendor lock-in, or performance overhead.",
     image: "/Contextual.svg",
+    link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
 ];
 
@@ -143,8 +149,8 @@ export function IdeaToAgentSection() {
                       </p>
                     </div>
 
-                    <Button className="mt-6 sm:mt-8 w-full sm:w-auto">
-                      Learn more
+                    <Button asChild className="mt-6 sm:mt-8 w-full sm:w-auto">
+                      <Link href={carouselData[currentSlide].link}>Learn more</Link>
                     </Button>
                   </div>
                 </div>

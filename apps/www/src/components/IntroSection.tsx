@@ -5,9 +5,9 @@ export function IntroSection() {
   return (
     <section className="relative bg-[#1a1a1a] text-white py-20 px-6 lg:px-[102px]">
       <div className="max-w-324 mx-auto">
-        <div className="flex flex-col lg:flex-row gap-12 items-center">
+        <div className="flex flex-col lg:flex-row gap-12">
           {/* Left Content */}
-          <div className="flex-1">
+          <div className="flex-1 mt-2">
             {/* Heading */}
             <p className="font-mono font-bold text-primary-light text-xl tracking-[1.92px]! mb-4 leading-[1.102]">
               WHY PLANO?

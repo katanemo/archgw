@@ -262,7 +262,7 @@ export function UseCasesSection() {
                         }}
                         className="mb-10"
                       >
-                        <DialogDescription className="font-mono text-[#494949] text-base lg:text-base xl:text-lg leading-relaxed tracking-tight max-w-none mb-0">
+                        <DialogDescription className="text-[#494949] text-base lg:text-base xl:text-lg leading-relaxed max-w-none mb-0">
                           {selectedUseCase.fullContent}
                         </DialogDescription>
                       </motion.div>
@@ -279,14 +279,15 @@ export function UseCasesSection() {
                         className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-8 border-t border-[rgba(171,178,250,0.2)]"
                       >
                         {/* "Ready to get started?" is now first in column on mobile */}
-                        <div className="flex items-center gap-2 text-sm font-mono text-[#494949] justify-center sm:justify-start order-0">
+                        <div className="flex items-center gap-2 text-sm  text-neutral-500 justify-center sm:justify-start order-0">
                           <span>Ready to get started?</span>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1">
                           <Button asChild className="w-full sm:w-auto">
-                            <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
-                            Start building
-                            <ArrowRightIcon className="w-4 h-4" />
+                            <Link href="https://docs.plano.katanemo.com/getting-started/installation" className="flex items-center gap-2">
+                              Start building
+                              <ArrowRightIcon className="w-4 h-4" />
+                            </Link>
                           </Button>
                         </div>
                       </motion.div>

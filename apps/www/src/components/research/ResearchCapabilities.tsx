@@ -46,7 +46,7 @@ export function ResearchCapabilities() {
           {/* PLANO-4B CAPABILITIES Label */}
           <div className="mb-2 sm:mb-1">
             <div className="font-mono font-bold text-[#9797ea] text-sm sm:text-base lg:text-xl tracking-[1.44px] sm:tracking-[1.92px]! leading-[1.502]">
-              PLANO-4B CAPABILITIES
+              PLANO-ORCHESTRATOR CAPABILITIES
             </div>
           </div>
 
@@ -55,10 +55,11 @@ export function ResearchCapabilities() {
             <span className="font-sans">Accurately route with confidence with no compromise</span>
           </h2>
 
-          <p className="font-mono text-white/90 w-[75%] text-sm sm:text-base tracking-[-0.8px] sm:tracking-[-1.2px]! leading-relaxed"> 
+          <p className="text-white/90 w-full sm:w-[75%] text-sm sm:text-base leading-relaxed"> 
           Designed for real-world deployments, it delivers strong performance across general 
           conversations, coding tasks, and long-context multi-turn conversations, while remaining 
           efficient enough for low-latency production environments.
+
           </p>
         </div>
 
@@ -94,7 +95,7 @@ export function ResearchCapabilities() {
                 </h3>
 
                 {/* Description */}
-                <p className="font-mono text-white/90 text-base tracking-[-0.8px]! leading-relaxed">
+                <p className="text-white/90 text-base leading-relaxed">
                   {capability.description}
                 </p>
               </div>
@@ -140,7 +141,7 @@ export function ResearchCapabilities() {
               </h3>
 
               {/* Description */}
-              <p className="font-mono text-white/90 text-base tracking-[-1.2px]! leading-relaxed">
+              <p className="text-white/90 text-base leading-relaxed">
                 {capability.description}
               </p>
             </div>

@@ -179,7 +179,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="top-0 left-0 right-0 z-50 bg-gradient-to-b from-transparent to-white/5 backdrop-blur border-b border-neutral-200/5">
+    <nav className="relative z-50 bg-gradient-to-b from-transparent to-white/5 backdrop-blur border-b border-neutral-200/5">
       <div className="max-w-[85rem] mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}

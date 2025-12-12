@@ -92,7 +92,7 @@ export default async function BlogPage() {
       {/* Featured Post */}
       {featuredPostWithDate && (
         <section className="">
-          <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-0">
+          <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12 lg:pb-0">
             <FeaturedBlogCard post={featuredPostWithDate} />
           </div>
         </section>
@@ -100,7 +100,7 @@ export default async function BlogPage() {
 
       {/* Recent Posts Section */}
       {recentPostsWithDates.length > 0 && (
-        <section className="border-b border-black/10 py-12 sm:py-16 lg:py-24">
+        <section className="border-b border-black/10 py-8 sm:py-12 lg:py-24">
           <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8">
             <BlogSectionHeader />
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">

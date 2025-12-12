@@ -84,7 +84,7 @@ export default async function BlogPostPage({
       {/* Featured Image - First */}
       {(post.mainImage || post.mainImageUrl) && (
         <div className="">
-          <div className="max-w-[89rem] mx-auto px-4 sm:px-6 lg:px- py-8 sm:py-12">
+          <div className="max-w-[89rem] mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 lg:pt-1 pb-8 sm:pb-12">
             <div className="relative aspect-[21/8] w-full overflow-hidden rounded-lg">
               {post.mainImage ? (
                 <Image
@@ -111,7 +111,7 @@ export default async function BlogPostPage({
       {/* Content Section */}
       <div className="max-w-[58rem] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back to Blog Button */}
-        <div className="pt-8 sm:pt-12 lg:pt-16 pb-6">
+        <div className="pt-4 sm:pt-6 lg:pt-8 pb-4 sm:pb-6">
           <Link
             href="/blog"
             className="inline-flex items-center gap-2 text-sm font-medium text-black/60 hover:text-black transition-colors"
@@ -134,7 +134,7 @@ export default async function BlogPostPage({
         </div>
 
         {/* Author and Date */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 pb-4 pt-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 pb-4">
           {post.author?.name && (
             <div className="flex items-center gap-3">
               {post.author.image ? (
@@ -176,7 +176,7 @@ export default async function BlogPostPage({
         </div>
 
         {/* Title */}
-        <div className="pb-10 sm:-ml-1.5">
+        <div className="pb-6 sm:pb-8 sm:-ml-1.5">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-medium leading-tight tracking-tighter text-black">
             <span className="font-sans">{post.title}</span>
           </h1>

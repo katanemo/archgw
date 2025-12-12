@@ -175,6 +175,7 @@
 /* Apply custom font to body by default */
 body {
   font-family: var(--font-sans);
+  letter-spacing: -0.04em;
 }
 
 .dark {

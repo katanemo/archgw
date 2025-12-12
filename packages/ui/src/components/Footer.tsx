@@ -27,7 +27,7 @@ export function Footer() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
           {/* Left Column - Tagline and Copyright */}
           <div className="flex flex-col">
-            <p className="font-sans font-normal text-lg sm:text-xl lg:text-2xl text-black tracking-[-1.2px] sm:tracking-[-1.5px] lg:tracking-[-1.7px]! leading-relaxed  mb-6 sm:mb-8">
+            <p className="ext-base sm:text-lg md:text-xl lg:text-[22px] font-sans font-normal tracking-[-1.0px] sm:tracking-[-1.22px]! text-black mb-6 sm:mb-8">
             Plano is a powerful agent delivery infrastructure platform that is framework-friendly, 
             and empowers developers and teams to seamlessly build, deliver, and scale agentic 
             applications.

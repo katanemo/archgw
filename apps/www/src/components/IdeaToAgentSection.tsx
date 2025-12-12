@@ -11,7 +11,7 @@ const carouselData = [
     category: "LAUNCH FASTER",
     title: "Focus on core objectives",
     description:
-      "Building AI agents is hard enough (iterate on prompts and evaluate LLMs, etc), the plumbing work shouldn't add to that complexity. Plano takes care of the critical plumbing work like routing and orchestration to agents that slows you down and locks you into rigid frameworks, freeing developers to innovate on what truly matters.",
+      "Building agents is hard enough. The plumbing work shouldn't be. Plano handles routing, observability, and policy hooks as a models-native sidecar—so you can focus on your agent's core product logic and ship to production faster.",
     image: "/LaunchFaster.svg",
     link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
@@ -20,7 +20,7 @@ const carouselData = [
     category: "BUILD WITH CHOICE",
     title: "Rapidly incorporate LLMs",
     description:
-      "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code.",
+      "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code. Use existing libraries and proxy traffic through Plano.",
     image: "/BuildWithChoice.svg",
     link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
@@ -29,7 +29,7 @@ const carouselData = [
     category: "RICH LEARNING SIGNALS",
     title: "Hyper-rich agent traces and logs",
     description:
-      "Knowing when agents fail or delight users is a critical signal that feeds into a reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
+      "Knowing when agents fail or delight users is a critical signal that feeds into the reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
     image: "/Telemetry.svg",
     link: "https://docs.plano.katanemo.com/getting-started/installation",
   },
@@ -143,7 +143,7 @@ export function IdeaToAgentSection() {
                     </h3>
 
                     {/* Description */}
-                    <div className="font-mono text-black text-sm sm:text-base lg:text-lg max-w-full lg:max-w-140 tracking-[-0.8px] sm:tracking-[-1.2px]!">
+                    <div className="text-black text-sm sm:text-base lg:text-lg max-w-full lg:max-w-140">
                       <p className="mb-0">
                         {carouselData[currentSlide].description}
                       </p>

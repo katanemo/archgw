@@ -14,9 +14,8 @@ export function ResearchCTA() {
         </div>
 
         {/* Description with CTA Buttons */}
-        <div className="max-w-2xl">
-          {/* text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.82px]! text-black max-w-70 sm:max-w-2xl mb-6 */}
-          <p className="leading-relaxed sm:text-lg md:text-xl lg:text-2xl font-sans font-normal tracking-[-1.0px] sm:tracking-[-1.22px]! text-white/90 mb-6">
+        <div className="max-w-5xl">
+          <p className="leading-relaxed sm:text-lg md:text-lg lg:text-[18px] font-sans font-normal text-white/90 mb-6">
           Plano-Orchestrator is a family of state-of-the-art routing and orchestration models 
           that decides which agent(s) or LLM(s) should handle each request, and in what sequence. 
           Built for multi-agent orchestration systems, Plano-Orchestrator excels at analyzing 

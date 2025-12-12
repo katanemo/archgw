@@ -18,7 +18,7 @@ export function ConditionalLayout({
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="pt-20">{children}</main>
+      <main className="pt-2 md:pt-10">{children}</main>
       <Footer />
     </div>
   );

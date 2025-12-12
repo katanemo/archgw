@@ -17,7 +17,7 @@ const researchItems: ResearchItem[] = [
       "Building an agent is easy — knowing what it does in production and how to improve it is very hard. Our research focuses on making agent behavior observable and governable: studying how agents respond to real and adversarial traffic, policy changes, and turning signals into learning loops that make agents safer and more effective over time.",
   },
   {
-    title: "Better Performance",
+    title: "Agentic Performance",
     description:
       "Better system performance comes from directing traffic to the right agents for each task or workflow. We build compact orchestration models that manage traffic between agents — ensuring clean handoffs, preserved context, and reliable multi-agent collaboration across distributed systems.",
   },
@@ -37,7 +37,7 @@ export function ResearchGrid() {
               </h3>
 
               {/* Description */}
-              <p className="font-mono text-black text-sm sm:text-base lg:text-lg leading-relaxed tracking-[-0.8px] sm:tracking-[-1.2px]!">
+              <p className="text-black text-sm sm:text-base lg:text-lg leading-relaxed">
                 {item.description}
               </p>
             </div>

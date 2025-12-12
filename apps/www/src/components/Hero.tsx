@@ -13,14 +13,14 @@ export function Hero() {
         <div className="lg:hidden absolute inset-0 pointer-events-none">
           <NetworkAnimation className="!w-[300px] !h-[300px] left-82! top-1! opacity-90! " />
         </div>
-        <div className="max-w-3xl mb-6 sm:mb-4 relative z-10">
+        <div className="max-w-3xl mb-3 sm:mb-4 relative z-10">
           {/* Version Badge */}
           <div className="mb-4 sm:mb-6">
             <div className="inline-flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 rounded-full bg-[rgba(185,191,255,0.4)] border border-[var(--secondary)] shadow backdrop-blur">
               <span className="text-xs sm:text-sm font-medium text-black/65">
                 v0.4
               </span>
-              <span className="text-xs sm:text-sm font-medium text-black hidden sm:inline">
+              <span className="text-xs sm:text-sm font-medium text-black ">
                 —
               </span>
               <span className="text-xs sm:text-sm font-[600] tracking-[-0.6px]! text-black leading-tight">
@@ -34,18 +34,19 @@ export function Hero() {
 
           {/* Main Heading */}
           <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-7xl font-normal leading-tight tracking-tighter text-black flex flex-col gap-0 sm:-space-y-2 lg:-space-y-3">
-            <span className="font-sans">Delivery infrastructure </span>
+            <span className="font-sans">Delivery Infrastructure </span>
             <span className="font-sans font-medium text-[var(--secondary)]">
-              for agentic apps
+              for Agentic Apps
             </span>
           </h1>
         </div>
 
         {/* Subheading with CTA Buttons */}
         <div className="max-w-7xl relative z-10">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-[400] tracking-[-1.2px] sm:tracking-[-1.82px]! text-black max-w-70 sm:max-w-2xl mb-6">
-          Build agents faster, and deliver them reliably to production -                         
-          by offloading the plumbing work in building agentic applications.
+          <p className="text-base sm:text-lg md:text-xl lg:text-[22px] font-sans font-[400] tracking-[-1.0px] sm:tracking-[-1.22px]! text-black max-w-76 sm:max-w-2xl mb-6">
+            Build agents faster, and deliver them reliably to production -                         
+            by offloading the critical plumbing work to Plano.
+
           </p>
 
           {/* CTA Buttons */}

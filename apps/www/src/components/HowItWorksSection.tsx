@@ -13,7 +13,7 @@ export function HowItWorksSection() {
             <h2 className="font-sans font-normal text-xl sm:text-2xl lg:text-3xl tracking-[-1.6px] sm:tracking-[-2px]! text-white leading-[1.03] mb-6 sm:mb-8">
               One configuration file to orchestrate
             </h2>
-            <div className="font-mono text-white w-100 sm:w-full text-sm sm:text-lg lg:text-lg tracking-[-0.8px] sm:tracking-[-1.2px]!">
+            <div className="text-white w-100 sm:w-full text-sm sm:text-lg lg:text-lg">
               <p className="mb-0">
                 Plano offers a delightful developer experience with a simple
                 configuration file that describes the types of prompts your

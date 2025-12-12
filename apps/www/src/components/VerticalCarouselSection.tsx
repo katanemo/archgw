@@ -9,41 +9,51 @@ const verticalCarouselData = [
   {
     id: 1,
     category: "INTRODUCTION",
-    title: "Simple to revolutionary",
-    description:
-      "Plano is an intelligent (edge and LLM) proxy server designed for agents - to help you focus on core business objectives. Arch handles critical but the pesky tasks related to the handling and processing of prompts, which includes detecting and rejecting jailbreak attempts, intelligent task routing for improved accuracy, mapping user requests into 'backend' functions, and managing the observability of prompts and LLM in a centralized way.",
+    title: "",
+    description: [
+      "Plano is a models-native data plane for AI agents - a framework-friendly, protocol-native fabric that lets you focus on what really matters: your agents' product logic.",
+      "Plano takes over the plumbing work that slows teams down when handling and processing prompts, including detecting and blocking jailbreaks, routing tasks to the right model or agent for better accuracy, applying context engineering hooks, and centralizing observability across agentic interactions.",
+    ],
     diagram: "/IntroDiagram.svg",
   },
   {
     id: 2,
     category: "OPEN SOURCE",
-    title: "Freedom to extend & deploy",
-    description:
-      "No lock-in. No black boxes. Just an open, intelligent (edge and LLM) proxy for building smarter, agentic AI applications. Created by contributors to Envoy Proxy, Arch brings enterprise-grade reliability to prompt orchestration, while giving you the flexibility to shape, extend, and integrate it into your AI workflows.",
+    title: "",
+    description: [
+      "No lock-in. No black boxes. Just an open, intelligent fabric for building more reliable agentic AI applications.",
+      "Built by engineers with roots in the Envoy ecosystem, Plano brings production-grade reliability to agent traffic and prompt orchestration—while staying fully extensible. Shape it, extend it, and integrate it into your existing workflows without being forced into a rigid framework or a single provider.",
+    ],
     diagram: "/OpenSource.svg",
   },
   {
     id: 3,
     category: "BUILT ON ENVOY",
-    title: "Production-proven infrastructure",
-    description:
-      "Plano takes a dependency on Envoy and is a self-contained process designed to run alongside your application servers. Plano extends Envoy's HTTP connection management subsystem, filtering, and telemetry capabilities exclusively for prompts and LLMs. Use Plano with any application language or framework, and use Plano with any LLM provider.",
+    title: "",
+    description: [
+      "Plano is built on Envoy and runs as a self-contained sidecar alongside your application servers. It extends Envoy's HTTP connection management, filtering, and telemetry specifically for prompt and LLM traffic—so you get production-grade routing, policy enforcement, and observability out of the box.",
+      "Use Plano with any application language or framework, and connect it to any LLM provider.",
+    ],
     diagram: "/BuiltOnEnvoy.svg",
   },
   {
     id: 4,
     category: "PURPOSE-BUILT",
-    title: "Task-optimized, efficient LLMs",
-    description:
-      "Unlike generic API gateways, Plano is purpose-built for AI agent workloads. Every feature is designed with prompt processing, model routing, and agent orchestration in mind, providing optimal performance for your AI applications.",
+    title: "",
+    description: [
+      "Unlike generic API gateways, Plano is purpose-built for agent workloads, where prompts are the unit of work.",
+      "Plano treats prompts as first-class traffic: it understands prompt/response flows, tool calls, model selection, and multi-agent handoffs. That means routing, policy enforcement, and observability are optimized for agent execution—not retrofitted from traditional API infrastructure—so your AI applications stay fast, reliable, and easy to evolve.",
+    ],
     diagram: "/PurposeBuilt.svg",
   },
   {
     id: 5,
-    category: "PROMPT ROUTING",
-    title: "Intelligent request handling",
-    description:
-      "Prompt Targets are a core concept in Plano, enabling developers to define how different types of user prompts should get processed and routed. Define prompt targets, so you can seperate business logic from the complexities of processing and handling of prompts, focusing on the quality of your application and a cleaner seperation of concerns in your codebase.",
+    category: "PROGRAMMABLE ARCHITECTURE",
+    title: "",
+    description: [
+      "As agent workloads move beyond prototypes, teams end up scattering critical logic across apps: compliance checks, context \"patches,\" provider-specific quirks, etc. That glue code gets duplicated across agents, is hard to audit, and slows iteration because every policy or workflow change requires touching application code and redeploying.",
+      "Plano keeps that logic in one place with a programmable Agent Filter Chain—hooks that can inspect, mutate, or terminate prompt traffic early, turning common steps (policy enforcement, jailbreak checks, context engineering, tool gating, routing hints) into reusable building blocks.",
+    ],
     diagram: "/PromptRouting.svg",
   },
 ];
@@ -153,7 +163,7 @@ export function VerticalCarouselSection() {
                     <div className="relative w-full max-w-full sm:max-w-md lg:max-w-[600px] aspect-4/3">
                       <Image
                         src={verticalCarouselData[activeSlide].diagram}
-                        alt={verticalCarouselData[activeSlide].title}
+                        alt={verticalCarouselData[activeSlide].category}
                         fill
                         className="object-contain object-top"
                         priority
@@ -169,10 +179,12 @@ export function VerticalCarouselSection() {
                     </h3> */}
 
                     {/* Description */}
-                    <div className="font-mono text-white text-sm sm:text-base lg:text-lg  tracking-[-0.8px] sm:tracking-[-1.2px]! max-w-full lg:max-w-md">
-                      <p className="mb-0">
-                        {verticalCarouselData[activeSlide].description}
-                      </p>
+                    <div className="text-white text-sm sm:text-base lg:text-lg max-w-full lg:max-w-md -mt-0.5">
+                      {verticalCarouselData[activeSlide].description.map((paragraph, index) => (
+                        <p key={index} className={index < verticalCarouselData[activeSlide].description.length - 1 ? "mb-4" : "mb-0"}>
+                          {paragraph}
+                        </p>
+                      ))}
                     </div>
                   </div>
                 </div>

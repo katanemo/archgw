@@ -5,10 +5,10 @@ import Link from "next/link";
 
 export function ResearchHero() {
   return (
-    <section className="relative pt-8 sm:pt-12 lg:pt-16 pb-12 sm:pb-16 lg:pb-20 px-4 sm:px-6 lg:px-[102px] overflow-hidden">
+    <section className="relative pt-8 sm:pt-12 lg:pt-1 pb-12 sm:pb-16 lg:pb-20 px-4 sm:px-6 lg:px-[102px] overflow-hidden">
       <div className="max-w-[81rem] mx-auto relative">
         <div className="hidden lg:block absolute inset-0 pointer-events-none">
-          <NetworkAnimation className="!w-[500px] !h-[500px] xl:!w-[600px] xl:!h-[600px] 2xl:!w-[570px] 2xl:!h-[570px]" />
+          <NetworkAnimation className="!w-[500px] !h-[500px] xl:!w-[600px] xl:!h-[600px] 2xl:!w-[570px] 2xl:!h-[540px] !top-[15%]" />
         </div>
         <div className="lg:hidden absolute inset-0 pointer-events-none">
           <NetworkAnimation className="!w-[300px] !h-[300px] left-77! -top-2! opacity-90! " />
@@ -24,10 +24,9 @@ export function ResearchHero() {
                 —
               </span>
               <span className="text-xs sm:text-sm font-[600] tracking-[-0.6px]! text-black leading-tight">
-                <span className="hidden sm:inline">
-                  Plano-4B - The state-of-the-art agent routing and orchestration LLM
+                <span className="">
+                  Plano Orchestrator models released
                 </span>
-                <span className="sm:hidden">Unified /v1/responses API</span>
               </span>
             </div>
           </div>
@@ -40,11 +39,10 @@ export function ResearchHero() {
 
         {/* Description */}
         <div className="max-w-70 sm:max-w-2xl relative z-10">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-normal tracking-[-1.0px] sm:tracking-[-1.22px]! text-black">
-          Our open source applied research focuses on how to deliver agents 
-          safely, efficiently, and with predictable real-world performance — 
-          critical for any AI application, but sits outside any product’s core 
-          business logic.
+          <p className="text-base sm:text-lg md:text-xl lg:text-[22px] font-sans font-normal tracking-[-1.0px] sm:tracking-[-1.22px]! text-black">
+          Our applied research focuses on how to deliver agents safely, efficiently, 
+          and with improved real-world performance — critical for any AI application, 
+          but work that sits outside of any agent's core product logic.
           </p>
         </div>
 

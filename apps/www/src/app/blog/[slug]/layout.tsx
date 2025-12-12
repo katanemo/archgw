@@ -49,7 +49,7 @@ export async function generateMetadata({
     // Get baseUrl - use NEXT_PUBLIC_APP_URL if set, otherwise construct from VERCEL_URL
     // Restrict to allowed hosts: localhost:3000, archgw-tau.vercel.app, or plano.katanemo.com
     let baseUrl = "http://localhost:3000";
-    
+
     if (process.env.NEXT_PUBLIC_APP_URL) {
       const url = process.env.NEXT_PUBLIC_APP_URL;
       if (
@@ -118,4 +118,3 @@ interface LayoutProps {
 export default async function Layout({ children, params }: LayoutProps) {
   return <>{children}</>;
 }
-

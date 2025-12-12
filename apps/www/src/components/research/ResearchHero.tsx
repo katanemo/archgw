@@ -24,9 +24,7 @@ export function ResearchHero() {
                 —
               </span>
               <span className="text-xs sm:text-sm font-[600] tracking-[-0.6px]! text-black leading-tight">
-                <span className="">
-                  Plano Orchestrator models released
-                </span>
+                <span className="">Plano Orchestrator models released</span>
               </span>
             </div>
           </div>
@@ -40,16 +38,19 @@ export function ResearchHero() {
         {/* Description */}
         <div className="max-w-70 sm:max-w-2xl relative z-10">
           <p className="text-base sm:text-lg md:text-xl lg:text-[22px] font-sans font-normal tracking-[-1.0px] sm:tracking-[-1.22px]! text-black">
-          Our applied research focuses on how to deliver agents safely, efficiently, 
-          and with improved real-world performance — critical for any AI application, 
-          but work that sits outside of any agent's core product logic.
+            Our applied research focuses on how to deliver agents safely,
+            efficiently, and with improved real-world performance — critical for
+            any AI application, but work that sits outside of any agent's core
+            product logic.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4 mt-6 sm:mt-8 relative z-10">
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="https://huggingface.co/katanemo">Available on Hugging Face</Link>
-            </Button>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="https://huggingface.co/katanemo">
+              Available on Hugging Face
+            </Link>
+          </Button>
         </div>
       </div>
     </section>

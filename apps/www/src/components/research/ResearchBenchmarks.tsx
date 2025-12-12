@@ -16,7 +16,9 @@ export function ResearchBenchmarks() {
 
           {/* Title */}
           <h2 className="text-4xl sm:text-4xl md:text-5xl lg:text-4xl font-medium leading-tight tracking-[-0.06em]! text-white">
-            <span className="font-sans">Production excellence, outperforming frontier LLMs</span>
+            <span className="font-sans">
+              Production excellence, outperforming frontier LLMs
+            </span>
           </h2>
         </div>
 

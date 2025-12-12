@@ -115,4 +115,3 @@ export function FeaturedBlogCard({ post }: FeaturedBlogCardProps) {
     </motion.div>
   );
 }
-

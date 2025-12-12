@@ -115,7 +115,9 @@ export function UseCasesSection() {
               What's possible with Plano
             </h2>
             <Button asChild className="hidden lg:block">
-              <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
+              <Link href="https://docs.plano.katanemo.com/getting-started/installation">
+                Start building
+              </Link>
             </Button>
           </div>
         </div>
@@ -156,7 +158,9 @@ export function UseCasesSection() {
         {/* Start building button - Mobile only, appears last */}
         <div className="lg:hidden mt-8">
           <Button asChild className="w-full">
-            <Link href="https://docs.plano.katanemo.com/getting-started/installation">Start building</Link>
+            <Link href="https://docs.plano.katanemo.com/getting-started/installation">
+              Start building
+            </Link>
           </Button>
         </div>
       </div>
@@ -284,7 +288,10 @@ export function UseCasesSection() {
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1">
                           <Button asChild className="w-full sm:w-auto">
-                            <Link href="https://docs.plano.katanemo.com/getting-started/installation" className="flex items-center gap-2">
+                            <Link
+                              href="https://docs.plano.katanemo.com/getting-started/installation"
+                              className="flex items-center gap-2"
+                            >
                               Start building
                               <ArrowRightIcon className="w-4 h-4" />
                             </Link>

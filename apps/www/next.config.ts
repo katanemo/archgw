@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
       "node_modules",
       "../../node_modules",
     ];
-    
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

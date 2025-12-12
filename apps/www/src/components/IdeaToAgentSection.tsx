@@ -150,7 +150,9 @@ export function IdeaToAgentSection() {
                     </div>
 
                     <Button asChild className="mt-6 sm:mt-8 w-full sm:w-auto">
-                      <Link href={carouselData[currentSlide].link}>Learn more</Link>
+                      <Link href={carouselData[currentSlide].link}>
+                        Learn more
+                      </Link>
                     </Button>
                   </div>
                 </div>

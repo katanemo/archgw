@@ -51,7 +51,7 @@ const verticalCarouselData = [
     category: "PROGRAMMABLE ARCHITECTURE",
     title: "",
     description: [
-      "As agent workloads move beyond prototypes, teams end up scattering critical logic across apps: compliance checks, context \"patches,\" provider-specific quirks, etc. That glue code gets duplicated across agents, is hard to audit, and slows iteration because every policy or workflow change requires touching application code and redeploying.",
+      'As agent workloads move beyond prototypes, teams end up scattering critical logic across apps: compliance checks, context "patches," provider-specific quirks, etc. That glue code gets duplicated across agents, is hard to audit, and slows iteration because every policy or workflow change requires touching application code and redeploying.',
       "Plano keeps that logic in one place with a programmable Agent Filter Chain—hooks that can inspect, mutate, or terminate prompt traffic early, turning common steps (policy enforcement, jailbreak checks, context engineering, tool gating, routing hints) into reusable building blocks.",
     ],
     diagram: "/PromptRouting.svg",
@@ -180,11 +180,23 @@ export function VerticalCarouselSection() {
 
                     {/* Description */}
                     <div className="text-white text-sm sm:text-base lg:text-lg max-w-full lg:max-w-md -mt-0.5">
-                      {verticalCarouselData[activeSlide].description.map((paragraph, index) => (
-                        <p key={index} className={index < verticalCarouselData[activeSlide].description.length - 1 ? "mb-4" : "mb-0"}>
-                          {paragraph}
-                        </p>
-                      ))}
+                      {verticalCarouselData[activeSlide].description.map(
+                        (paragraph, index) => (
+                          <p
+                            key={index}
+                            className={
+                              index <
+                              verticalCarouselData[activeSlide].description
+                                .length -
+                                1
+                                ? "mb-4"
+                                : "mb-0"
+                            }
+                          >
+                            {paragraph}
+                          </p>
+                        ),
+                      )}
                     </div>
                   </div>
                 </div>

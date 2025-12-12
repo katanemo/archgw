@@ -3,11 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Navbar, Footer } from "@katanemo/ui";
 
-export function ConditionalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStudio = pathname?.startsWith("/studio");
 
@@ -23,4 +19,3 @@ export function ConditionalLayout({
     </div>
   );
 }
-

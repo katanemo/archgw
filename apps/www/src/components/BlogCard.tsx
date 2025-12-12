@@ -85,4 +85,3 @@ export function BlogCard({ post, index = 0 }: BlogCardProps) {
     </motion.div>
   );
 }
-

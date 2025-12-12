@@ -11,22 +11,22 @@ const components = {
   types: {
     image: ({ value }: any) => {
       if (!value?.asset) return null;
-      
+
       const imageUrl = urlFor(value);
       const asset = value.asset;
-      
+
       // Get natural dimensions if available from metadata
       const dimensions = asset.metadata?.dimensions;
       const width = dimensions?.width || 1000;
       const height = dimensions?.height || 562;
       const aspectRatio = dimensions ? height / width : 0.5625; // Default to 16:9 if no dimensions
-      
+
       return (
         <div className="my-6 lg:my-8">
           <div className="max-w-3xl mx-auto">
             <div className="relative w-full overflow-hidden rounded-lg bg-black/5">
-              <div 
-                className="relative w-full" 
+              <div
+                className="relative w-full"
                 style={{ paddingBottom: `${aspectRatio * 100}%` }}
               >
                 <Image
@@ -39,7 +39,9 @@ const components = {
               </div>
             </div>
             {value.alt && (
-              <p className="mt-2 text-sm text-black/60 text-center">{value.alt}</p>
+              <p className="mt-2 text-sm text-black/60 text-center">
+                {value.alt}
+              </p>
             )}
           </div>
         </div>
@@ -91,12 +93,8 @@ const components = {
     ),
   },
   listItem: {
-    bullet: (props: any) => (
-      <li className="ml-4">{props.children}</li>
-    ),
-    number: (props: any) => (
-      <li className="ml-4">{props.children}</li>
-    ),
+    bullet: (props: any) => <li className="ml-4">{props.children}</li>,
+    number: (props: any) => <li className="ml-4">{props.children}</li>,
   },
   marks: {
     strong: ({ children }: { children: React.ReactNode }) => (
@@ -109,7 +107,11 @@ const components = {
       <a
         href={props.value?.href || "#"}
         target={props.value?.href?.startsWith("http") ? "_blank" : undefined}
-        rel={props.value?.href?.startsWith("http") ? "noopener noreferrer" : undefined}
+        rel={
+          props.value?.href?.startsWith("http")
+            ? "noopener noreferrer"
+            : undefined
+        }
         className="text-[var(--secondary)] hover:underline font-medium"
       >
         {props.children}
@@ -121,4 +123,3 @@ const components = {
 export function PortableText({ content }: PortableTextProps) {
   return <SanityPortableText value={content} components={components} />;
 }
-

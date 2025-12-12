@@ -1,7 +1,15 @@
 "use client";
 
 import React from "react";
-import { ResearchHero, ResearchGrid, ResearchTimeline, ResearchCTA, ResearchCapabilities, ResearchBenchmarks, ResearchFamily } from "@/components/research";
+import {
+  ResearchHero,
+  ResearchGrid,
+  ResearchTimeline,
+  ResearchCTA,
+  ResearchCapabilities,
+  ResearchBenchmarks,
+  ResearchFamily,
+} from "@/components/research";
 import { UnlockPotentialSection } from "@/components/UnlockPotentialSection";
 
 export default function ResearchPage() {

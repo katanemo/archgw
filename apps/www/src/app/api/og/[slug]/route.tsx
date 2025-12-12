@@ -8,7 +8,9 @@ export const runtime = "edge";
 function loadFont(fileName: string, baseUrl: string) {
   return fetch(new URL(`/fonts/${fileName}`, baseUrl)).then((res) => {
     if (!res.ok) {
-      throw new Error(`Failed to fetch font ${fileName}: ${res.status} ${res.statusText}`);
+      throw new Error(
+        `Failed to fetch font ${fileName}: ${res.status} ${res.statusText}`,
+      );
     }
     return res.arrayBuffer();
   });
@@ -63,16 +65,20 @@ export async function GET(
     // Load fonts with error handling
     let fontData;
     try {
-      const [ibmPlexSans, jetbrainsMonoRegular, jetbrainsMonoMedium, jetbrainsMonoBold] =
-        await Promise.all([
-          loadFont("IBMPlexSans-VariableFont_wdth,wght.otf", fontBaseUrl),
-          loadFont("JetBrainsMono-Regular.otf", fontBaseUrl),
-          loadFont("JetBrainsMono-Medium.otf", fontBaseUrl),
-          loadFont("jetbrains-mono-bold.otf", fontBaseUrl),
-        ]).catch((error: Error) => {
-          console.error("Error loading fonts:", error);
-          throw new Error(`Failed to load fonts: ${error.message}`);
-        });
+      const [
+        ibmPlexSans,
+        jetbrainsMonoRegular,
+        jetbrainsMonoMedium,
+        jetbrainsMonoBold,
+      ] = await Promise.all([
+        loadFont("IBMPlexSans-VariableFont_wdth,wght.otf", fontBaseUrl),
+        loadFont("JetBrainsMono-Regular.otf", fontBaseUrl),
+        loadFont("JetBrainsMono-Medium.otf", fontBaseUrl),
+        loadFont("jetbrains-mono-bold.otf", fontBaseUrl),
+      ]).catch((error: Error) => {
+        console.error("Error loading fonts:", error);
+        throw new Error(`Failed to load fonts: ${error.message}`);
+      });
 
       fontData = {
         ibmPlexSans,
@@ -81,7 +87,8 @@ export async function GET(
         jetbrainsMonoBold,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       console.error("Font loading error:", errorMessage);
       return new Response(
         JSON.stringify({
@@ -97,7 +104,9 @@ export async function GET(
     const post = await getBlogPost(slug);
 
     if (!post) {
-      return new Response(JSON.stringify({ error: "Post not found" }), { status: 404 });
+      return new Response(JSON.stringify({ error: "Post not found" }), {
+        status: 404,
+      });
     }
 
     // Get author image URL if available
@@ -114,8 +123,7 @@ export async function GET(
         : request.nextUrl.origin);
     const logoUrl = `${baseUrl}/Logomark.png`;
 
-  return new ImageResponse(
-    (
+    return new ImageResponse(
       <div
         style={{
           background: "linear-gradient(to top right, #ffffff, #dcdfff)",
@@ -259,53 +267,53 @@ export async function GET(
             )}
           </div>
         </div>
-      </div>
-    ),
-    {
-      width: 1200,
-      height: 630,
-      fonts: [
-        {
-          name: "IBM Plex Sans Regular",
-          data: fontData.ibmPlexSans,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "IBM Plex Sans Medium",
-          data: fontData.ibmPlexSans,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "IBM Plex Sans Bold",
-          data: fontData.ibmPlexSans,
-          style: "normal",
-          weight: 700,
-        },
-        {
-          name: "JetBrains Mono Regular",
-          data: fontData.jetbrainsMonoRegular,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "JetBrains Mono Medium",
-          data: fontData.jetbrainsMonoMedium,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "JetBrains Mono Bold",
-          data: fontData.jetbrainsMonoBold,
-          style: "normal",
-          weight: 600,
-        },
-      ],
-    },
-  );
+      </div>,
+      {
+        width: 1200,
+        height: 630,
+        fonts: [
+          {
+            name: "IBM Plex Sans Regular",
+            data: fontData.ibmPlexSans,
+            style: "normal",
+            weight: 400,
+          },
+          {
+            name: "IBM Plex Sans Medium",
+            data: fontData.ibmPlexSans,
+            style: "normal",
+            weight: 500,
+          },
+          {
+            name: "IBM Plex Sans Bold",
+            data: fontData.ibmPlexSans,
+            style: "normal",
+            weight: 700,
+          },
+          {
+            name: "JetBrains Mono Regular",
+            data: fontData.jetbrainsMonoRegular,
+            style: "normal",
+            weight: 400,
+          },
+          {
+            name: "JetBrains Mono Medium",
+            data: fontData.jetbrainsMonoMedium,
+            style: "normal",
+            weight: 500,
+          },
+          {
+            name: "JetBrains Mono Bold",
+            data: fontData.jetbrainsMonoBold,
+            style: "normal",
+            weight: 600,
+          },
+        ],
+      },
+    );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("Error generating image response:", error);
     return new Response(
       JSON.stringify({
@@ -316,4 +324,3 @@ export async function GET(
     );
   }
 }
-

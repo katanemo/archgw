@@ -44,9 +44,8 @@ export function Hero() {
         {/* Subheading with CTA Buttons */}
         <div className="max-w-7xl relative z-10">
           <p className="text-base sm:text-lg md:text-xl lg:text-[22px] font-sans font-[400] tracking-[-1.0px] sm:tracking-[-1.22px]! text-black max-w-76 sm:max-w-2xl mb-6">
-            Build agents faster, and deliver them reliably to production -                         
-            by offloading the critical plumbing work to Plano.
-
+            Build agents faster, and deliver them reliably to production - by
+            offloading the critical plumbing work to Plano.
           </p>
 
           {/* CTA Buttons */}

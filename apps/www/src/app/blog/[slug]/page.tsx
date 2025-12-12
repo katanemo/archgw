@@ -204,4 +204,3 @@ export default async function BlogPostPage({
     </article>
   );
 }
-

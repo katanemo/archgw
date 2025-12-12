@@ -34,17 +34,17 @@ export function LogoCloud() {
             const isTMobile = index === 1; // T-Mobile is before HP
             const isHP = index === 2; // HP is in center
             const isSanDisk = index === 3; // SanDisk is after HP
-            
+
             // Custom spacing for logos around HP on large screens
-            let spacingClass = 'lg:mx-6 xl:mx-8'; // Default spacing
+            let spacingClass = "lg:mx-6 xl:mx-8"; // Default spacing
             if (isTMobile) {
-              spacingClass = 'lg:mr-3 xl:mr-4 lg:ml-6 xl:ml-8'; // Smaller gap to HP
+              spacingClass = "lg:mr-3 xl:mr-4 lg:ml-6 xl:ml-8"; // Smaller gap to HP
             } else if (isHP) {
-              spacingClass = 'lg:mx-3 xl:mx-4'; // Smaller gaps on both sides
+              spacingClass = "lg:mx-3 xl:mx-4"; // Smaller gaps on both sides
             } else if (isSanDisk) {
-              spacingClass = 'lg:ml-3 xl:ml-4 lg:mr-6 xl:mr-8'; // Smaller gap from HP
+              spacingClass = "lg:ml-3 xl:ml-4 lg:mr-6 xl:mr-8"; // Smaller gap from HP
             }
-            
+
             return (
               <div
                 key={logo.name}

@@ -4,9 +4,9 @@ import { Analytics } from "@vercel/analytics/next";
 import { ConditionalLayout } from "@/components/ConditionalLayout";
 
 export const metadata: Metadata = {
-  title: "Plano - Delivery infrastructure for agentic apps",
+  title: "Plano - Delivery Infrastructure for Agentic Apps",
   description:
-    "Build agents faster, and deliver them reliably to prod by offloading plumbing work in AI",
+    "Build agents faster, and deliver them reliably to production - by offloading the critical plumbing work to Plano.",
 };
 
 export default function RootLayout({

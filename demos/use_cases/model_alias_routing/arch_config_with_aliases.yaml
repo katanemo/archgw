@@ -89,6 +89,3 @@ model_aliases:
   # Alias for grok testing
   arch.grok.v1:
     target: grok-4-0709
-
-tracing:
-  random_sampling: 100

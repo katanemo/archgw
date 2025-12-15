@@ -14,7 +14,7 @@ use crate::apis::openai::{
 };
 
 use crate::apis::openai_responses::{
-    ResponsesAPIRequest, InputContent, InputParam, MessageRole, Modality, ReasoningEffort, Tool as ResponsesTool, ToolChoice as ResponsesToolChoice
+    ResponsesAPIRequest, InputContent, InputItem, InputParam, MessageRole, Modality, ReasoningEffort, Tool as ResponsesTool, ToolChoice as ResponsesToolChoice
 };
 use crate::clients::TransformError;
 use crate::transforms::lib::ExtractText;
@@ -280,9 +280,11 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
                     });
                 }
 
-                // Convert each input message
-                for input_msg in items {
-                    let role = match input_msg.role {
+                // Convert each input item
+                for item in items {
+                    match item {
+                        InputItem::Message(input_msg) => {
+                            let role = match input_msg.role {
                                 MessageRole::User => Role::User,
                                 MessageRole::Assistant => Role::Assistant,
                                 MessageRole::System => Role::System,
@@ -354,6 +356,11 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
                                 tool_call_id: None,
                                 tool_calls: None,
                             });
+                        }
+                        // Skip non-message items (references, outputs) for now
+                        // These would need special handling in chat completions format
+                        _ => {}
+                    }
                 }
 
                 converted_messages

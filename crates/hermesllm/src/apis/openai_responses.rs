@@ -107,14 +107,35 @@ pub struct ResponsesAPIRequest {
     pub top_logprobs: Option<i32>,
 }
 
-/// Input parameter - can be a simple string or array of input messages
+/// Input parameter - can be a simple string or array of input items
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum InputParam {
     /// Simple text input
     Text(String),
-    /// Array of input messages
-    Items(Vec<InputMessage>),
+    /// Array of input items (messages, references, outputs, etc.)
+    Items(Vec<InputItem>),
+}
+
+/// Input item - can be a message, item reference, function call output, etc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InputItem {
+    /// Input message (role + content)
+    Message(InputMessage),
+    /// Item reference
+    ItemReference {
+        #[serde(rename = "type")]
+        item_type: String,
+        id: String,
+    },
+    /// Function call output
+    FunctionCallOutput {
+        #[serde(rename = "type")]
+        item_type: String,
+        call_id: String,
+        output: String,
+    },
 }
 
 /// Input message with role and content
@@ -993,8 +1014,8 @@ pub struct ListInputItemsRequest {
 pub struct ListInputItemsResponse {
     /// Object type - always "list"
     pub object: String,
-    /// Array of input messages
-    pub data: Vec<InputMessage>,
+    /// Array of input items
+    pub data: Vec<InputItem>,
     /// First ID in the list
     pub first_id: Option<String>,
     /// Last ID in the list
@@ -1024,8 +1045,10 @@ impl ProviderRequest for ResponsesAPIRequest {
         match &self.input {
             InputParam::Text(text) => text.clone(),
             InputParam::Items(items) => {
-                items.iter().fold(String::new(), |acc, msg| {
-                    let content_text = match &msg.content {
+                items.iter().fold(String::new(), |acc, item| {
+                    match item {
+                        InputItem::Message(msg) => {
+                            let content_text = match &msg.content {
                                 MessageContent::Text(text) => text.clone(),
                                 MessageContent::Items(content_items) => {
                                     content_items.iter().fold(String::new(), |acc, content| {
@@ -1039,6 +1062,10 @@ impl ProviderRequest for ResponsesAPIRequest {
                                 }
                             };
                             acc + " " + &content_text
+                        }
+                        // Skip non-message items (references, outputs, etc.)
+                        _ => acc,
+                    }
                 })
             }
         }
@@ -1048,10 +1075,11 @@ impl ProviderRequest for ResponsesAPIRequest {
         match &self.input {
             InputParam::Text(text) => Some(text.clone()),
             InputParam::Items(items) => {
-                items.iter().rev().find_map(|msg| {
-                    if matches!(msg.role, MessageRole::User) {
-                        // Extract text from content
-                        match &msg.content {
+                items.iter().rev().find_map(|item| {
+                    match item {
+                        InputItem::Message(msg) if matches!(msg.role, MessageRole::User) => {
+                            // Extract text from content
+                            match &msg.content {
                                 MessageContent::Text(text) => Some(text.clone()),
                                 MessageContent::Items(content_items) => {
                                     content_items.iter().find_map(|content| {
@@ -1062,8 +1090,9 @@ impl ProviderRequest for ResponsesAPIRequest {
                                     })
                                 }
                             }
-                    } else {
-                        None
+                        }
+                        // Skip non-message items
+                        _ => None,
                     }
                 })
             }

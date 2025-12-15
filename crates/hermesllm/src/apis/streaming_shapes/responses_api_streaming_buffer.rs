@@ -59,6 +59,11 @@ pub struct ResponsesAPIStreamBuffer {
     model: Option<String>,
     created_at: Option<i64>,
 
+    /// Full response metadata from upstream (tools, temperature, etc.)
+    /// This is extracted from the first upstream event and used to build
+    /// complete response.created and response.in_progress events
+    upstream_response_metadata: Option<ResponsesAPIResponse>,
+
     /// Lifecycle state flags
     created_emitted: bool,
     in_progress_emitted: bool,
@@ -88,6 +93,7 @@ impl ResponsesAPIStreamBuffer {
             response_id: None,
             model: None,
             created_at: None,
+            upstream_response_metadata: None,
             created_emitted: false,
             in_progress_emitted: false,
             output_items_added: HashMap::new(),
@@ -171,6 +177,15 @@ impl ResponsesAPIStreamBuffer {
 
     /// Build the base response object with current state
     fn build_response(&self, status: ResponseStatus) -> ResponsesAPIResponse {
+        // If we have upstream metadata, use it as a base and update status/output
+        if let Some(upstream) = &self.upstream_response_metadata {
+            let mut response = upstream.clone();
+            response.status = status;
+            // Don't update output here - will be set in finalize()
+            return response;
+        }
+
+        // Fallback: build a minimal response from local state
         ResponsesAPIResponse {
             id: self.response_id.clone().unwrap_or_default(),
             object: "response".to_string(),
@@ -293,24 +308,40 @@ impl ResponsesAPIStreamBuffer {
         // Build final response
         let mut output_items = Vec::new();
 
-        // Add tool calls to output
-        for (item_id, arguments) in &self.function_arguments {
-            let output_index = self.output_items_added.iter()
-                .find(|(_, id)| *id == item_id)
-                .map(|(idx, _)| *idx)
-                .unwrap_or(0);
+        // Build complete output array by iterating through all output indices in order
+        let max_output_index = self.output_items_added.keys().max().copied().unwrap_or(-1);
 
-            let (call_id, name) = self.tool_call_metadata.get(&output_index)
-                .cloned()
-                .unwrap_or_else(|| (format!("call_{}", uuid::Uuid::new_v4()), "unknown".to_string()));
+        for output_index in 0..=max_output_index {
+            if let Some(item_id) = self.output_items_added.get(&output_index) {
+                // Check if this is a function call
+                if let Some(arguments) = self.function_arguments.get(item_id) {
+                    let (call_id, name) = self.tool_call_metadata.get(&output_index)
+                        .cloned()
+                        .unwrap_or_else(|| (format!("call_{}", uuid::Uuid::new_v4()), "unknown".to_string()));
 
-            output_items.push(OutputItem::FunctionCall {
-                id: item_id.clone(),
-                status: OutputItemStatus::Completed,
-                call_id,
-                name: Some(name),
-                arguments: Some(arguments.clone()),
-            });
+                    output_items.push(OutputItem::FunctionCall {
+                        id: item_id.clone(),
+                        status: OutputItemStatus::Completed,
+                        call_id,
+                        name: Some(name),
+                        arguments: Some(arguments.clone()),
+                    });
+                }
+                // Check if this is a text message
+                else if let Some(text) = self.text_content.get(item_id) {
+                    use crate::apis::openai_responses::OutputContent;
+                    output_items.push(OutputItem::Message {
+                        id: item_id.clone(),
+                        status: OutputItemStatus::Completed,
+                        role: "assistant".to_string(),
+                        content: vec![OutputContent::OutputText {
+                            text: text.clone(),
+                            annotations: vec![],
+                            logprobs: None,
+                        }],
+                    });
+                }
+            }
         }
 
         let mut final_response = self.build_response(ResponseStatus::Completed);
@@ -364,6 +395,24 @@ impl SseStreamBufferTrait for ResponsesAPIStreamBuffer {
         };
 
         let mut events = Vec::new();
+
+        // Capture upstream metadata from ResponseCreated or ResponseInProgress if present
+        match stream_event {
+            ResponsesAPIStreamEvent::ResponseCreated { response, .. } |
+            ResponsesAPIStreamEvent::ResponseInProgress { response, .. } => {
+                if self.upstream_response_metadata.is_none() {
+                    // Store the full upstream response as our metadata template
+                    self.upstream_response_metadata = Some(response.clone());
+                    // Also extract basic fields
+                    self.response_id = Some(response.id.clone());
+                    self.model = Some(response.model.clone());
+                    self.created_at = Some(response.created_at);
+                }
+                // Don't emit these - we'll generate our own lifecycle events
+                return;
+            }
+            _ => {}
+        }
 
         // Emit lifecycle events if not yet emitted
         if !self.created_emitted {

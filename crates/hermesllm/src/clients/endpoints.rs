@@ -193,6 +193,40 @@ impl SupportedAPIsFromClient {
     }
 }
 
+
+impl SupportedUpstreamAPIs {
+    /// Create a SupportedUpstreamApi from an endpoint path
+    pub fn from_endpoint(endpoint: &str) -> Option<Self> {
+        if let Some(openai_api) = OpenAIApi::from_endpoint(endpoint) {
+            // Check if this is the Responses API endpoint
+            if openai_api == OpenAIApi::Responses {
+                return Some(SupportedUpstreamAPIs::OpenAIResponsesAPI(openai_api));
+            }
+            // Otherwise it's ChatCompletions
+            return Some(SupportedUpstreamAPIs::OpenAIChatCompletions(openai_api));
+        }
+
+        if let Some(anthropic_api) = AnthropicApi::from_endpoint(endpoint) {
+            return Some(SupportedUpstreamAPIs::AnthropicMessagesAPI(anthropic_api));
+        }
+
+        if let Some(bedrock_api) = AmazonBedrockApi::from_endpoint(endpoint) {
+            match bedrock_api {
+                AmazonBedrockApi::Converse => {
+                    return Some(SupportedUpstreamAPIs::AmazonBedrockConverse(bedrock_api))
+                }
+                AmazonBedrockApi::ConverseStream => {
+                    return Some(SupportedUpstreamAPIs::AmazonBedrockConverseStream(bedrock_api))
+                }
+            }
+        }
+
+        None
+    }
+
+}
+
+
 /// Get all supported endpoint paths
 pub fn supported_endpoints() -> Vec<&'static str> {
     let mut endpoints = Vec::new();

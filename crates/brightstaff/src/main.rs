@@ -3,6 +3,8 @@ use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
+use brightstaff::state::memory::MemoryConversationalStorage;
+use brightstaff::state::StateStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
@@ -101,6 +103,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let trace_collector = Arc::new(TraceCollector::new(tracing_enabled));
     let _flusher_handle = trace_collector.clone().start_background_flusher();
 
+    // Initialize conversation state storage for v1/responses
+    // TODO: Make this configurable (MEMORY vs SUPABASE) via arch_config.yaml
+    let state_storage: Arc<dyn StateStorage> = Arc::new(MemoryConversationalStorage::new());
+    info!("Initialized conversation state storage: Memory");
+
 
     loop {
         let (stream, _) = listener.accept().await?;
@@ -115,6 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let agents_list = agents_list.clone();
         let listeners = listeners.clone();
         let trace_collector = trace_collector.clone();
+        let state_storage = state_storage.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
             let parent_cx = extract_context_from_request(&req);
@@ -124,13 +132,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let agents_list = agents_list.clone();
             let listeners = listeners.clone();
             let trace_collector = trace_collector.clone();
+            let state_storage = state_storage.clone();
 
             async move {
                 match (req.method(), req.uri().path()) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, req.uri().path());
-                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
+                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector, state_storage)
                             .with_context(parent_cx)
                             .await
                     }

@@ -107,22 +107,14 @@ pub struct ResponsesAPIRequest {
     pub top_logprobs: Option<i32>,
 }
 
-/// Input parameter - can be a simple string or array of input items
+/// Input parameter - can be a simple string or array of input messages
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum InputParam {
     /// Simple text input
     Text(String),
-    /// Array of input items
-    Items(Vec<InputItem>),
-}
-
-/// Input item discriminated by type
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum InputItem {
-    /// Input message
-    Message(InputMessage),
+    /// Array of input messages
+    Items(Vec<InputMessage>),
 }
 
 /// Input message with role and content
@@ -130,8 +122,18 @@ pub enum InputItem {
 pub struct InputMessage {
     /// Message role
     pub role: MessageRole,
-    /// Message content
-    pub content: Vec<InputContent>,
+    /// Message content - can be a string or array of InputContent
+    pub content: MessageContent,
+}
+
+/// Message content - can be either a simple string or array of content items
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MessageContent {
+    /// Simple text content
+    Text(String),
+    /// Array of content items
+    Items(Vec<InputContent>),
 }
 
 /// Message roles
@@ -991,8 +993,8 @@ pub struct ListInputItemsRequest {
 pub struct ListInputItemsResponse {
     /// Object type - always "list"
     pub object: String,
-    /// Array of input items
-    pub data: Vec<InputItem>,
+    /// Array of input messages
+    pub data: Vec<InputMessage>,
     /// First ID in the list
     pub first_id: Option<String>,
     /// Last ID in the list
@@ -1022,20 +1024,21 @@ impl ProviderRequest for ResponsesAPIRequest {
         match &self.input {
             InputParam::Text(text) => text.clone(),
             InputParam::Items(items) => {
-                items.iter().fold(String::new(), |acc, item| {
-                    match item {
-                        InputItem::Message(msg) => {
-                            let content_text = msg.content.iter().fold(String::new(), |acc, content| {
-                                acc + " " + &match content {
-                                    InputContent::InputText { text } => text.clone(),
-                                    InputContent::InputImage { .. } => "[Image]".to_string(),
-                                    InputContent::InputFile { .. } => "[File]".to_string(),
-                                    InputContent::InputAudio { .. } => "[Audio]".to_string(),
+                items.iter().fold(String::new(), |acc, msg| {
+                    let content_text = match &msg.content {
+                                MessageContent::Text(text) => text.clone(),
+                                MessageContent::Items(content_items) => {
+                                    content_items.iter().fold(String::new(), |acc, content| {
+                                        acc + " " + &match content {
+                                            InputContent::InputText { text } => text.clone(),
+                                            InputContent::InputImage { .. } => "[Image]".to_string(),
+                                            InputContent::InputFile { .. } => "[File]".to_string(),
+                                            InputContent::InputAudio { .. } => "[Audio]".to_string(),
+                                        }
+                                    })
                                 }
-                            });
+                            };
                             acc + " " + &content_text
-                        }
-                    }
                 })
             }
         }
@@ -1045,18 +1048,22 @@ impl ProviderRequest for ResponsesAPIRequest {
         match &self.input {
             InputParam::Text(text) => Some(text.clone()),
             InputParam::Items(items) => {
-                items.iter().rev().find_map(|item| {
-                    match item {
-                        InputItem::Message(msg) if matches!(msg.role, MessageRole::User) => {
-                            // Extract text from the first text content
-                            msg.content.iter().find_map(|content| {
-                                match content {
-                                    InputContent::InputText { text } => Some(text.clone()),
-                                    _ => None,
+                items.iter().rev().find_map(|msg| {
+                    if matches!(msg.role, MessageRole::User) {
+                        // Extract text from content
+                        match &msg.content {
+                                MessageContent::Text(text) => Some(text.clone()),
+                                MessageContent::Items(content_items) => {
+                                    content_items.iter().find_map(|content| {
+                                        match content {
+                                            InputContent::InputText { text } => Some(text.clone()),
+                                            _ => None,
+                                        }
+                                    })
                                 }
-                            })
-                        }
-                        _ => None,
+                            }
+                    } else {
+                        None
                     }
                 })
             }

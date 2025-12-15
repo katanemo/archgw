@@ -628,3 +628,44 @@ def test_openai_responses_api_streaming_with_tools_upstream_anthropic():
     assert (
         full_text or tool_calls
     ), "Expected streamed text or tool call argument deltas from Responses tools stream"
+
+
+def test_openai_responses_api_mixed_content_types():
+    """Test Responses API with mixed content types (string and array) in input messages"""
+    base_url = LLM_GATEWAY_ENDPOINT.replace("/v1/chat/completions", "")
+    client = openai.OpenAI(api_key="test-key", base_url=f"{base_url}/v1")
+
+    # This test mimics the request that was failing:
+    # One message with string content, another with array content
+    resp = client.responses.create(
+        model="arch.title.v1",
+        input=[
+            {
+                "role": "developer",
+                "content": "Generate a very short chat title (2-5 words max) based on the user's message.\n"
+                "Rules:\n"
+                "- Maximum 30 characters\n"
+                "- No quotes, colons, hashtags, or markdown\n"
+                "- Just the topic/intent, not a full sentence\n"
+                '- If the message is a greeting like "hi" or "hello", respond with just "New conversation"\n'
+                '- Be concise: "Weather in NYC" not "User asking about the weather in New York City"',
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "What is the weather in Seattle"}
+                ],
+            },
+        ],
+    )
+
+    # Print the response
+    print(f"\n{'='*80}")
+    print(f"Model: {resp.model}")
+    print(f"Output: {resp.output_text}")
+    print(f"{'='*80}\n")
+
+    assert resp is not None
+    assert resp.id is not None
+    # Verify we got a reasonable title
+    assert len(resp.output_text) > 0

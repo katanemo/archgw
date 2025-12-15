@@ -93,7 +93,7 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
                 match decoder.read_to_end(&mut decompressed) {
                     Ok(_) => {
                         debug!(
-                            "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Successfully decompressed {} bytes to {} bytes",
+                            "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Successfully decompressed {} bytes to {} bytes",
                             self.request_id,
                             self.chunk_buffer.len(),
                             decompressed.len()
@@ -102,7 +102,7 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
                     }
                     Err(e) => {
                         warn!(
-                            "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Failed to decompress gzip buffer: {}",
+                            "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Failed to decompress gzip buffer: {}",
                             self.request_id,
                             e
                         );
@@ -112,7 +112,7 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
             }
             Some(encoding) => {
                 warn!(
-                    "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Unsupported Content-Encoding: {}. Only gzip is currently supported.",
+                    "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Unsupported Content-Encoding: {}. Only gzip is currently supported.",
                     self.request_id,
                     encoding
                 );
@@ -143,12 +143,11 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
                     if let Ok(stream_event) = serde_json::from_str::<ResponsesAPIStreamEvent>(data_str) {
                         // Check if this is a ResponseCompleted event
                         if let ResponsesAPIStreamEvent::ResponseCompleted { response, .. } = stream_event {
-                            debug!(
-                                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Captured streaming response.completed: response_id={}, output_items={}, output_json={}",
+                            info!(
+                                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured streaming response.completed: response_id={}, output_items={}",
                                 self.request_id,
                                 response.id,
-                                response.output.len(),
-                                serde_json::to_string(&response.output).unwrap_or_else(|_| "serialization_error".to_string())
+                                response.output.len()
                             );
                             self.response_id = Some(response.id.clone());
                             self.output_items = Some(response.output.clone());
@@ -176,7 +175,7 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
         match serde_json::from_slice::<hermesllm::apis::openai_responses::ResponsesAPIResponse>(&decompressed) {
             Ok(response) => {
                 info!(
-                    "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Captured non-streaming response: response_id={}, output_items={}",
+                    "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured non-streaming response: response_id={}, output_items={}",
                     self.request_id,
                     response.id,
                     response.output.len()
@@ -189,7 +188,7 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
                 let chunk_preview = String::from_utf8_lossy(&decompressed);
                 let preview_len = chunk_preview.len().min(200);
                 warn!(
-                    "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Failed to parse non-streaming ResponsesAPIResponse: {}. Decompressed preview (first {} bytes): {}",
+                    "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Failed to parse non-streaming ResponsesAPIResponse: {}. Decompressed preview (first {} bytes): {}",
                     self.request_id,
                     e,
                     preview_len,
@@ -223,7 +222,7 @@ impl<P: StreamProcessor> StreamProcessor for ResponsesStateProcessor<P> {
         // Skip storage for OpenAI upstream
         if self.is_openai_upstream {
             debug!(
-                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Skipping state storage for OpenAI upstream provider",
+                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Skipping state storage for OpenAI upstream provider",
                 self.request_id
             );
             return;
@@ -231,17 +230,11 @@ impl<P: StreamProcessor> StreamProcessor for ResponsesStateProcessor<P> {
 
         // Store state if we captured response_id and output
         if let (Some(response_id), Some(output_items)) = (&self.response_id, &self.output_items) {
-            debug!(
-                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Output items before conversion: {}",
-                self.request_id,
-                serde_json::to_string(&output_items).unwrap_or_else(|_| "serialization_error".to_string())
-            );
-
             // Convert output items to input items for next request
             let output_as_inputs = outputs_to_inputs(output_items);
 
             debug!(
-                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Converting outputs to inputs: output_items_count={}, converted_input_items_count={}",
+                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Converting outputs to inputs: output_items_count={}, converted_input_items_count={}",
                 self.request_id, output_items.len(), output_as_inputs.len()
             );
 
@@ -250,7 +243,7 @@ impl<P: StreamProcessor> StreamProcessor for ResponsesStateProcessor<P> {
             combined_input.extend(output_as_inputs);
 
             debug!(
-                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Storing state: original_input_count={}, combined_input_count={}, combined_json={}",
+                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Storing state: original_input_count={}, combined_input_count={}, combined_json={}",
                 self.request_id,
                 self.original_input.len(),
                 combined_input.len(),
@@ -272,18 +265,20 @@ impl<P: StreamProcessor> StreamProcessor for ResponsesStateProcessor<P> {
             let storage = self.storage.clone();
             let response_id_clone = response_id.clone();
             let request_id = self.request_id.clone();
+            let items_count = state.input_items.len();
             tokio::spawn(async move {
                 match storage.put(state).await {
                     Ok(()) => {
-                        debug!(
-                            "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Successfully stored conversation state for response_id: {}",
+                        info!(
+                            "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Successfully stored conversation state for response_id: {}, items_count={}",
                             request_id,
-                            response_id_clone
+                            response_id_clone,
+                            items_count
                         );
                     }
                     Err(e) => {
                         warn!(
-                            "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | Failed to store conversation state for response_id {}: {}",
+                            "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Failed to store conversation state for response_id {}: {}",
                             request_id,
                             response_id_clone,
                             e
@@ -293,7 +288,7 @@ impl<P: StreamProcessor> StreamProcessor for ResponsesStateProcessor<P> {
             });
         } else {
             warn!(
-                "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | STATE_PROCESSOR | No response_id captured from upstream response - cannot store conversation state. response_id present: {}, output present: {}",
+                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | No response_id captured from upstream response - cannot store conversation state. response_id present: {}, output present: {}",
                 self.request_id,
                 self.response_id.is_some(),
                 self.output_items.is_some()

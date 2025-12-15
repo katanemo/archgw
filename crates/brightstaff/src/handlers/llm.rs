@@ -12,7 +12,7 @@ use hyper::{Request, Response, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::router::llm_router::RouterService;
 use crate::handlers::utils::{create_streaming_response, ObservableStreamProcessor, truncate_message};
@@ -63,7 +63,7 @@ pub async fn llm_chat(
     let chat_request_bytes = request.collect().await?.to_bytes();
 
     debug!(
-        "[PLANO_REQ_ID:{}] | BRIGHTSTAFF | REQUEST BODY (raw utf8): {}",
+        "[PLANO_REQ_ID:{}] | REQUEST_BODY (UTF8): {}",
         request_id,
         String::from_utf8_lossy(&chat_request_bytes)
     );
@@ -74,8 +74,8 @@ pub async fn llm_chat(
     )) {
         Ok(request) => request,
         Err(err) => {
-            warn!("[PLANO_REQ_ID:{}] | BRIGHTSTAFF | Failed to parse request as ProviderRequestType: {}", request_id, err);
-            let err_msg = format!("[PLANO_REQ_ID:{}] | BRIGHTSTAFF | Failed to parse request: {}", request_id, err);
+            warn!("[PLANO_REQ_ID:{}] | FAILURE | Failed to parse request as ProviderRequestType: {}", request_id, err);
+            let err_msg = format!("[PLANO_REQ_ID:{}] | FAILURE | Failed to parse request: {}", request_id, err);
             let mut bad_request = Response::new(full(err_msg));
             *bad_request.status_mut() = StatusCode::BAD_REQUEST;
             return Ok(bad_request);
@@ -101,7 +101,7 @@ pub async fn llm_chat(
 
     client_request.set_model(resolved_model.clone());
     if client_request.remove_metadata_key("archgw_preference_config") {
-        debug!("[PLANO (BRIGHTSTAFF)] Removed archgw_preference_config from metadata");
+        debug!("[PLANO_REQ_ID:{}] Removed archgw_preference_config from metadata", request_id);
     }
 
     // === v1/responses state management: Determine upstream API and combine input if needed ===
@@ -140,14 +140,14 @@ pub async fn llm_chat(
                             // Update both the request and original_input_items
                             responses_req.input = InputParam::Items(combined_input.clone());
                             original_input_items = combined_input;
-                            debug!("[PLANO (BRIGHTSTAFF)] Updated request with conversation history ({} items)", original_input_items.len());
+                            info!("[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Updated request with conversation history ({} items)", request_id, original_input_items.len());
                         }
                         Err(StateStorageError::NotFound(_)) => {
                             // Return 409 Conflict when previous_response_id not found
-                            warn!("[PLANO (BRIGHTSTAFF)] Previous response_id not found: {}", prev_resp_id);
+                            warn!("[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Previous response_id not found: {}", request_id, prev_resp_id);
                             let err_msg = format!(
-                                "[PLANO (BRIGHTSTAFF)] Conversation state not found for previous_response_id: {}",
-                                prev_resp_id
+                                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Conversation state not found for previous_response_id: {}",
+                                request_id, prev_resp_id
                             );
                             let mut conflict_response = Response::new(full(err_msg));
                             *conflict_response.status_mut() = StatusCode::CONFLICT;
@@ -156,8 +156,8 @@ pub async fn llm_chat(
                         Err(e) => {
                             // Log warning but continue on other storage errors
                             warn!(
-                                "Failed to retrieve conversation state for {}: {}",
-                                prev_resp_id, e
+                                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Failed to retrieve conversation state for {}: {}",
+                                request_id, prev_resp_id, e
                             );
                             // Restore original_input_items since we passed ownership
                             original_input_items = extract_input_items(&responses_req.input);
@@ -165,7 +165,7 @@ pub async fn llm_chat(
                     }
                 }
             } else {
-                debug!("[PLANO (BRIGHTSTAFF)] Upstream supports ResponsesAPI natively, passing through without state management");
+                debug!("[PLANO_REQ_ID:{}] | BRIGHT_STAFF | Upstream supports ResponsesAPI natively.", request_id);
             }
         }
     }
@@ -195,8 +195,8 @@ pub async fn llm_chat(
     let model_name = routing_result.model_name;
 
     debug!(
-        "[PLANO ARCH_ROUTER] URL: {}, Resolved Model: {}",
-        full_qualified_llm_provider_url, model_name
+        "[PLANO_REQ_ID:{}] | ARCH_ROUTER URL | {}, Resolved Model: {}",
+        request_id, full_qualified_llm_provider_url, model_name
     );
 
     request_headers.insert(

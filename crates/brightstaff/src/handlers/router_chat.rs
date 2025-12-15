@@ -1,4 +1,5 @@
 use common::configuration::ModelUsagePreference;
+use common::consts::{REQUEST_ID_HEADER};
 use common::traces::{TraceCollector, SpanKind, SpanBuilder, parse_traceparent};
 use hermesllm::clients::endpoints::SupportedUpstreamAPIs;
 use hermesllm::{ProviderRequest, ProviderRequestType};
@@ -43,6 +44,10 @@ pub async fn router_chat_get_upstream_model(
 ) -> Result<RoutingResult, RoutingError> {
     // Clone metadata for routing before converting (which consumes client_request)
     let routing_metadata = client_request.metadata().clone();
+    let request_id = request_headers
+        .get(REQUEST_ID_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("unknown");
 
     // Convert to ChatCompletionsRequest for routing (regardless of input type)
     let chat_request = match ProviderRequestType::try_from((
@@ -73,7 +78,8 @@ pub async fn router_chat_get_upstream_model(
     };
 
     debug!(
-        "[ARCH_ROUTER REQ]: {}",
+        "[PLANO_REQ_ID: {}]: ROUTER_REQ: {}",
+        request_id,
         &serde_json::to_string(&chat_request).unwrap()
     );
 
@@ -114,13 +120,12 @@ pub async fn router_chat_get_upstream_model(
     };
 
     info!(
-        "request received, request type: chat_completion, usage preferences from request: {}, request path: {}, latest message: {}",
+        "[PLANO_REQ_ID: {}] | ROUTER_REQ | Usage preferences from request: {}, request_path: {}, latest message: {}",
+        request_id,
         usage_preferences.is_some(),
         request_path,
         latest_message_for_log
     );
-
-    debug!("usage preferences from request: {:?}", usage_preferences);
 
     // Capture start time for routing span
     let routing_start_time = std::time::Instant::now();
@@ -153,7 +158,8 @@ pub async fn router_chat_get_upstream_model(
             None => {
                 // No route determined, use default model from request
                 info!(
-                    "No route determined, using default model from request: {}",
+                    "[PLANO_REQ_ID: {}] | ROUTER_REQ | No route determined, using default model from request: {}",
+                    request_id,
                     chat_request.model
                 );
 

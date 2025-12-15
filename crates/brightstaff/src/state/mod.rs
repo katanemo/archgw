@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug};
 
 pub mod memory;
 pub mod response_state_processor;
@@ -139,19 +139,9 @@ pub async fn retrieve_and_combine_input(
     previous_response_id: &str,
     current_input: Vec<InputItem>,
 ) -> Result<Vec<InputItem>, StateStorageError> {
-    info!(
-        "Retrieving conversation state for previous_response_id: {}",
-        previous_response_id
-    );
 
     // First get the previous state
     let prev_state = storage.get(previous_response_id).await?;
     let combined_input = storage.merge(&prev_state, current_input);
-
-    debug!(
-        "Retrieved and merged conversation state: {} total input items",
-        combined_input.len()
-    );
-
     Ok(combined_input)
 }

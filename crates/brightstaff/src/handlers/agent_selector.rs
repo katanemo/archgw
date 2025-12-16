@@ -222,6 +222,7 @@ mod tests {
             kind: Some("test".to_string()),
             url: "http://localhost:8080".to_string(),
             tool: None,
+            transport: None,
         }
     }
 

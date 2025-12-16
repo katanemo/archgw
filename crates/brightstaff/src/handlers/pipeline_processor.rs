@@ -391,7 +391,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_agent_not_found_error() {
-        let processor = PipelineProcessor::default();
+        let mut processor = PipelineProcessor::default();
         let agent_map = HashMap::new();
         let request_headers = HeaderMap::new();
 
@@ -404,7 +404,7 @@ mod tests {
         let pipeline = create_test_pipeline(vec!["nonexistent-agent", "terminal-agent"]);
 
         let result = processor
-            .process_filter_chain(&initial_request, &pipeline, &agent_map, &request_headers)
+            .process_filter_chain(&initial_request.messages, &pipeline, &agent_map, &request_headers)
             .await;
 
         assert!(result.is_err());

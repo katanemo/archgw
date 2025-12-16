@@ -42,7 +42,7 @@ mod integration_tests {
         // Setup services
         let router_service = create_test_router_service();
         let agent_selector = AgentSelector::new(router_service);
-        let pipeline_processor = PipelineProcessor::default();
+        let mut pipeline_processor = PipelineProcessor::default();
 
         // Create test data
         let agents = vec![
@@ -50,11 +50,15 @@ mod integration_tests {
                 id: "filter-agent".to_string(),
                 kind: Some("filter".to_string()),
                 url: "http://localhost:8081".to_string(),
+                tool: None,
+                transport: None,
             },
             Agent {
                 id: "terminal-agent".to_string(),
                 kind: Some("terminal".to_string()),
                 url: "http://localhost:8082".to_string(),
+                tool: None,
+                transport: None,
             },
         ];
 
@@ -107,7 +111,7 @@ mod integration_tests {
 
         let headers = HeaderMap::new();
         let result = pipeline_processor
-            .process_filter_chain(&request, &test_pipeline, &agent_map, &headers)
+            .process_filter_chain(&request.messages, &test_pipeline, &agent_map, &headers)
             .await;
 
         println!("Pipeline processing result: {:?}", result);

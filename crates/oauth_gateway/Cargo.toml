@@ -1,0 +1,67 @@
+[package]
+name = "oauth_gateway"
+version = "0.1.0"
+edition = "2021"
+description = "OAuth authentication service for Claude Code and Gemini CLI integration with ArchGW"
+license = "Apache-2.0"
+
+[dependencies]
+# Web Framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["io-util"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP Client
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "native-tls", "native-tls-vendored"] }
+bytes = "1"
+pin-project = "1"
+
+# OAuth & Authentication
+oauth2 = "4"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+url = "2"
+
+# Logging & Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opentelemetry = "0.23"
+tracing-opentelemetry = "0.24"
+
+# Error Handling
+anyhow = "1"
+thiserror = "1"
+
+# Utilities
+dirs = "5"
+once_cell = "1"
+async-trait = "0.1"
+dashmap = "5"
+
+[dev-dependencies]
+tempfile = "3"
+tokio-test = "0.4"
+mockito = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+
+[profile.test]
+opt-level = 0

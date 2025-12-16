@@ -92,3 +92,13 @@ model_aliases:
 
 tracing:
   random_sampling: 100
+
+state_storage:
+  # Type: memory | postgres
+  type: postgres
+
+  # Connection string for postgres type
+  # Environment variables are supported using $VAR_NAME or ${VAR_NAME} syntax
+  # Variables MUST be set before running config validation/rendering
+  # Example with environment variable substitution:
+  connection_string: "postgresql://postgres.saueycoonskiktmozyvp:$DB_PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres"

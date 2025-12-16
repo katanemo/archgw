@@ -37,7 +37,7 @@ pub async fn llm_chat(
     model_aliases: Arc<Option<HashMap<String, ModelAlias>>>,
     llm_providers: Arc<RwLock<Vec<LlmProvider>>>,
     trace_collector: Arc<TraceCollector>,
-    state_storage: Arc<dyn StateStorage>,
+    state_storage: Option<Arc<dyn StateStorage>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
 
     let request_path = request.uri().path().to_string();
@@ -106,8 +106,9 @@ pub async fn llm_chat(
 
     // === v1/responses state management: Determine upstream API and combine input if needed ===
     // Do this BEFORE routing since routing consumes the request
+    // Only process state if state_storage is configured
     let mut should_manage_state = false;
-    if is_responses_api_client {
+    if is_responses_api_client && state_storage.is_some() {
         if let ProviderRequestType::ResponsesAPIRequest(ref mut responses_req) = client_request {
             // Extract original input once
             original_input_items = extract_input_items(&responses_req.input);
@@ -130,7 +131,7 @@ pub async fn llm_chat(
                 // Retrieve and combine conversation history if previous_response_id exists
                 if let Some(ref prev_resp_id) = responses_req.previous_response_id {
                     match retrieve_and_combine_input(
-                        state_storage.clone(),
+                        state_storage.as_ref().unwrap().clone(),
                         prev_resp_id,
                         original_input_items, // Pass ownership instead of cloning
                     )
@@ -267,8 +268,8 @@ pub async fn llm_chat(
     );
 
     // === v1/responses state management: Wrap with ResponsesStateProcessor ===
-    // Only wrap if we need to manage state (client is ResponsesAPI AND upstream is NOT ResponsesAPI)
-    let streaming_response = if should_manage_state && !original_input_items.is_empty() {
+    // Only wrap if we need to manage state (client is ResponsesAPI AND upstream is NOT ResponsesAPI AND state_storage is configured)
+    let streaming_response = if should_manage_state && !original_input_items.is_empty() && state_storage.is_some() {
         // Extract Content-Encoding header to handle decompression for state parsing
         let content_encoding = response_headers
             .get("content-encoding")
@@ -278,7 +279,7 @@ pub async fn llm_chat(
         // Wrap with state management processor to store state after response completes
         let state_processor = ResponsesStateProcessor::new(
             base_processor,
-            state_storage,
+            state_storage.unwrap(),
             original_input_items,
             resolved_model.clone(),
             model_name.clone(),

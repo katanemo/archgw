@@ -5,6 +5,7 @@ use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::state::StateStorage;
+use brightstaff::state::supabase::SupabaseConversationalStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
@@ -104,9 +105,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _flusher_handle = trace_collector.clone().start_background_flusher();
 
     // Initialize conversation state storage for v1/responses
-    // TODO: Make this configurable (MEMORY vs SUPABASE) via arch_config.yaml
-    let state_storage: Arc<dyn StateStorage> = Arc::new(MemoryConversationalStorage::new());
-    info!("Initialized conversation state storage: Memory");
+    // Configurable via arch_config.yaml state_storage section
+    // If not configured, state management is disabled
+    // Environment variables are substituted by envsubst before config is read
+    let state_storage: Option<Arc<dyn StateStorage>> = if let Some(storage_config) = &arch_config.state_storage_v1_responses {
+        let storage: Arc<dyn StateStorage> = match storage_config.storage_type {
+            common::configuration::StateStorageType::Memory => {
+                info!("Initialized conversation state storage: Memory");
+                Arc::new(MemoryConversationalStorage::new())
+            }
+            common::configuration::StateStorageType::Postgres => {
+                let connection_string = storage_config
+                    .connection_string
+                    .as_ref()
+                    .expect("connection_string is required for postgres state_storage");
+
+                debug!("Postgres connection string (full): {}", connection_string);
+                info!("Initializing conversation state storage: Postgres");
+                Arc::new(
+                    SupabaseConversationalStorage::new(connection_string.clone())
+                        .await
+                        .expect("Failed to initialize Postgres state storage"),
+                )
+            }
+        };
+        Some(storage)
+    } else {
+        info!("No state_storage configured - conversation state management disabled");
+        None
+    };
 
 
     loop {

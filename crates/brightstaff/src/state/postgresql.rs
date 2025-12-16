@@ -8,12 +8,12 @@ use tracing::{debug, info, warn};
 
 /// Supabase/PostgreSQL storage backend for conversation state
 #[derive(Clone)]
-pub struct SupabaseConversationalStorage {
+pub struct PostgreSQLConversationStorage {
     client: Arc<Client>,
     table_verified: Arc<OnceCell<()>>,
 }
 
-impl SupabaseConversationalStorage {
+impl PostgreSQLConversationStorage {
     /// Creates a new Supabase storage instance with the given connection string
     pub async fn new(connection_string: String) -> Result<Self, StateStorageError> {
         let (client, connection) = tokio_postgres::connect(&connection_string, NoTls)
@@ -76,7 +76,7 @@ impl SupabaseConversationalStorage {
 }
 
 #[async_trait]
-impl StateStorage for SupabaseConversationalStorage {
+impl StateStorage for PostgreSQLConversationStorage {
     async fn put(&self, state: OpenAIConversationState) -> Result<(), StateStorageError> {
         self.ensure_ready().await?;
 
@@ -251,9 +251,9 @@ mod tests {
     // Set TEST_DATABASE_URL environment variable to run integration tests
     // Example: TEST_DATABASE_URL=postgresql://user:pass@localhost/test_db
 
-    async fn get_test_storage() -> Option<SupabaseConversationalStorage> {
+    async fn get_test_storage() -> Option<PostgreSQLConversationStorage> {
         if let Ok(db_url) = std::env::var("TEST_DATABASE_URL") {
-            match SupabaseConversationalStorage::new(db_url).await {
+            match PostgreSQLConversationStorage::new(db_url).await {
                 Ok(storage) => Some(storage),
                 Err(e) => {
                     eprintln!("Failed to create test storage: {}", e);

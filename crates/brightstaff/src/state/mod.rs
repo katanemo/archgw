@@ -8,7 +8,7 @@ use tracing::{debug};
 
 pub mod memory;
 pub mod response_state_processor;
-pub mod supabase;
+pub mod postgresql;
 
 /// Represents the conversational state for a v1/responses request
 /// Contains the complete input/output history that can be restored

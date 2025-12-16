@@ -3,9 +3,9 @@ use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
-use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::state::StateStorage;
-use brightstaff::state::supabase::SupabaseConversationalStorage;
+use brightstaff::state::postgresql::PostgreSQLConversationStorage;
+use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::Configuration;
@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 debug!("Postgres connection string (full): {}", connection_string);
                 info!("Initializing conversation state storage: Postgres");
                 Arc::new(
-                    SupabaseConversationalStorage::new(connection_string.clone())
+                    PostgreSQLConversationStorage::new(connection_string.clone())
                         .await
                         .expect("Failed to initialize Postgres state storage"),
                 )

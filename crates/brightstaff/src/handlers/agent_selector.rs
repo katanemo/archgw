@@ -137,7 +137,6 @@ impl AgentSelector {
     }
 
     /// Convert agent descriptions to routing preferences
-    /// For agents with MCP URLs, fetches the tool description from the MCP server
     async fn convert_agent_description_to_routing_preferences(
         &self,
         agents: &[AgentFilterChain],

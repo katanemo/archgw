@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use common::configuration::{Agent, AgentFilterChain};
 use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
+use common::traces::{SpanBuilder, SpanKind};
 use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
 use hyper::header::HeaderMap;
+use opentelemetry::trace::TraceContextExt;
 use tracing::{debug, info, warn};
+use std::time::{Instant, SystemTime};
 
 use crate::handlers::jsonrpc::{JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 use uuid::Uuid;
@@ -77,6 +80,7 @@ impl PipelineProcessor {
         agent_filter_chain: &AgentFilterChain,
         agent_map: &HashMap<String, Agent>,
         request_headers: &HeaderMap,
+        trace_collector: Option<&std::sync::Arc<common::traces::TraceCollector>>,
     ) -> Result<Vec<Message>, PipelineError> {
         let mut chat_history_updated = chat_history.to_vec();
 
@@ -97,14 +101,58 @@ impl PipelineProcessor {
                 chat_history.len()
             );
 
+            let start_time = SystemTime::now();
+            let start_instant = Instant::now();
+            
+            // Extract trace context from OpenTelemetry
+            let current_cx = opentelemetry::Context::current();
+            let span_ref = current_cx.span();
+            let span_context = span_ref.span_context();
+            let trace_id = if span_context.is_valid() {
+                format!("{:032x}", span_context.trace_id())
+            } else {
+                String::new() // SpanBuilder will generate one
+            };
+            let parent_span_id = if span_context.is_valid() {
+                Some(format!("{:016x}", span_context.span_id()))
+            } else {
+                None
+            };
+            
             chat_history_updated = self
                 .execute_filter(&chat_history_updated, agent, request_headers)
                 .await?;
+            
+            let end_time = SystemTime::now();
+            let elapsed = start_instant.elapsed();
 
             info!(
-                "Received response: updated conversation length: {}",
-                chat_history.len()
+                "Filter '{}' completed in {:.2}ms, updated conversation length: {}",
+                agent_name,
+                elapsed.as_secs_f64() * 1000.0,
+                chat_history_updated.len()
             );
+            
+            // Build span with trace context
+            if let Some(collector) = trace_collector {
+                let mut span_builder = SpanBuilder::new(format!("filter_execution: {}", agent_name))
+                    .with_kind(SpanKind::Internal)
+                    .with_start_time(start_time)
+                    .with_end_time(end_time)
+                    .with_attribute("filter_name", agent_name.to_string())
+                    .with_attribute("tool_name", tool_name.to_string())
+                    .with_attribute("duration_ms", format!("{:.2}", elapsed.as_secs_f64() * 1000.0));
+                
+                if !trace_id.is_empty() {
+                    span_builder = span_builder.with_trace_id(trace_id);
+                }
+                if let Some(parent_id) = parent_span_id {
+                    span_builder = span_builder.with_parent_span_id(parent_id);
+                }
+                
+                let span = span_builder.build();
+                collector.record_span("brightstaff", span);
+            }
         }
 
         Ok(chat_history_updated)
@@ -483,6 +531,7 @@ mod tests {
                 &pipeline,
                 &agent_map,
                 &request_headers,
+                None,
             )
             .await;
 

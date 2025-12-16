@@ -33,8 +33,9 @@ pub async fn agent_chat(
     _: String,
     agents_list: Arc<tokio::sync::RwLock<Option<Vec<common::configuration::Agent>>>>,
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
+    trace_collector: Arc<common::traces::TraceCollector>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
-    match handle_agent_chat(request, router_service, agents_list, listeners).await {
+    match handle_agent_chat(request, router_service, agents_list, listeners, trace_collector).await {
         Ok(response) => Ok(response),
         Err(err) => {
             // Check if this is a client error from the pipeline that should be cascaded
@@ -109,6 +110,7 @@ async fn handle_agent_chat(
     router_service: Arc<RouterService>,
     agents_list: Arc<tokio::sync::RwLock<Option<Vec<common::configuration::Agent>>>>,
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
+    trace_collector: Arc<common::traces::TraceCollector>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, AgentFilterChainError> {
     // Initialize services
     let agent_selector = AgentSelector::new(router_service);
@@ -181,6 +183,7 @@ async fn handle_agent_chat(
             &selected_agent,
             &agent_map,
             &request_headers,
+            Some(&trace_collector),
         )
         .await?;
 

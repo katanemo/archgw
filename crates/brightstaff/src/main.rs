@@ -153,6 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             fully_qualified_url,
                             agents_list,
                             listeners,
+                            trace_collector,
                         )
                         .with_context(parent_cx)
                         .await

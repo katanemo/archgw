@@ -69,7 +69,6 @@ impl AgentSelector {
         messages: &[Message],
         listener: &Listener,
         trace_parent: Option<String>,
-        agent_map: &HashMap<String, Agent>,
     ) -> Result<AgentFilterChain, AgentSelectionError> {
         let agents = listener
             .agents
@@ -83,7 +82,7 @@ impl AgentSelector {
         }
 
         let usage_preferences = self
-            .convert_agent_description_to_routing_preferences(agents, agent_map)
+            .convert_agent_description_to_routing_preferences(agents)
             .await;
         debug!(
             "Agents usage preferences for agent routing str: {}",
@@ -142,40 +141,15 @@ impl AgentSelector {
     async fn convert_agent_description_to_routing_preferences(
         &self,
         agents: &[AgentFilterChain],
-        agent_map: &HashMap<String, Agent>,
     ) -> Vec<ModelUsagePreference> {
         let mut preferences = Vec::new();
 
         for agent_chain in agents {
-            // Get the actual agent from the agent_map
-            let agent = agent_map.get(&agent_chain.id);
-
-            // Determine the description to use
-            let description = if let Some(agent) = agent {
-                // Check if this is an MCP agent (URL starts with mcp://)
-                if agent.url.starts_with("mcp://") {
-                    debug!(
-                        "Agent {} is an MCP agent, fetching tool description from: {}",
-                        agent.id, agent.url
-                    );
-
-                    //TODO: fetch description from mcp server
-
-                    "MCP tool description placeholder from config".to_string()
-                } else {
-                    // Not an MCP agent, use description from config
-                    agent_chain.description.clone().unwrap_or_default()
-                }
-            } else {
-                // Agent not found in map, use description from config
-                agent_chain.description.clone().unwrap_or_default()
-            };
-
             preferences.push(ModelUsagePreference {
                 model: agent_chain.id.clone(),
                 routing_preferences: vec![RoutingPreference {
                     name: agent_chain.id.clone(),
-                    description,
+                    description: agent_chain.description.clone().unwrap_or_default(),
                 }],
             });
         }
@@ -288,14 +262,8 @@ mod tests {
             create_test_agent("agent2", "Second agent description", false),
         ];
 
-        let agent_structs = vec![
-            create_test_agent_struct("agent1"),
-            create_test_agent_struct("agent2"),
-        ];
-        let agent_map = selector.create_agent_map(&agent_structs);
-
         let preferences = selector
-            .convert_agent_description_to_routing_preferences(&agents, &agent_map)
+            .convert_agent_description_to_routing_preferences(&agents)
             .await;
 
         assert_eq!(preferences.len(), 2);

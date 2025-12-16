@@ -18,7 +18,7 @@ Each agent runs as an independent MCP server and exposes tools that can be calle
 - **Description**: Rewrites user queries using LLM for better retrieval
 - **Port**: 10500
 
-### Context Builder Agent  
+### Context Builder Agent
 - **Tool**: `chat_completions`
 - **Description**: Augments queries with relevant context from knowledge base
 - **Port**: 10501
@@ -76,7 +76,7 @@ agent_filters:
   - id: query_rewriter
     url: mcp://host.docker.internal:10500
     tool: rewrite_query_with_archgw  # MCP tool name
-    
+
   - id: context_builder
     url: mcp://host.docker.internal:10501
     tool: chat_completions

@@ -170,7 +170,6 @@ async fn handle_agent_chat(
             &chat_completions_request.messages,
             &listener,
             trace_parent,
-            &agent_map,
         )
         .await?;
 

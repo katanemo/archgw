@@ -103,7 +103,7 @@ impl PipelineProcessor {
 
             let start_time = SystemTime::now();
             let start_instant = Instant::now();
-            
+
             // Extract trace context from OpenTelemetry
             let current_cx = opentelemetry::Context::current();
             let span_ref = current_cx.span();
@@ -118,11 +118,11 @@ impl PipelineProcessor {
             } else {
                 None
             };
-            
+
             chat_history_updated = self
                 .execute_filter(&chat_history_updated, agent, request_headers)
                 .await?;
-            
+
             let end_time = SystemTime::now();
             let elapsed = start_instant.elapsed();
 
@@ -132,7 +132,7 @@ impl PipelineProcessor {
                 elapsed.as_secs_f64() * 1000.0,
                 chat_history_updated.len()
             );
-            
+
             // Build span with trace context
             if let Some(collector) = trace_collector {
                 let mut span_builder = SpanBuilder::new(format!("filter_execution: {}", agent_name))
@@ -142,14 +142,14 @@ impl PipelineProcessor {
                     .with_attribute("filter_name", agent_name.to_string())
                     .with_attribute("tool_name", tool_name.to_string())
                     .with_attribute("duration_ms", format!("{:.2}", elapsed.as_secs_f64() * 1000.0));
-                
+
                 if !trace_id.is_empty() {
                     span_builder = span_builder.with_trace_id(trace_id);
                 }
                 if let Some(parent_id) = parent_span_id {
                     span_builder = span_builder.with_parent_span_id(parent_id);
                 }
-                
+
                 let span = span_builder.build();
                 collector.record_span("brightstaff", span);
             }
@@ -167,7 +167,7 @@ impl PipelineProcessor {
     ) -> Result<HeaderMap, PipelineError> {
         let mut headers = request_headers.clone();
         headers.remove(hyper::header::CONTENT_LENGTH);
-        
+
         headers.insert(
             ARCH_UPSTREAM_HOST_HEADER,
             hyper::header::HeaderValue::from_str(agent_id)
@@ -249,7 +249,7 @@ impl PipelineProcessor {
         agent_id: &str,
     ) -> Result<reqwest::Response, PipelineError> {
         let request_body = serde_json::to_string(json_rpc_request)?;
-        
+
         debug!("Sending MCP request to agent {}: {}", agent_id, request_body);
 
         let response = self
@@ -420,7 +420,7 @@ impl PipelineProcessor {
         debug!("Sending initialized notification for agent {}", agent_id);
 
         let headers = self.build_mcp_headers(&HeaderMap::new(), agent_id, Some(session_id))?;
-        
+
         let response = self
             .client
             .post(format!("{}/mcp", self.url))

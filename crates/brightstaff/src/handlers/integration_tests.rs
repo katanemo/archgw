@@ -111,7 +111,13 @@ mod integration_tests {
 
         let headers = HeaderMap::new();
         let result = pipeline_processor
-            .process_filter_chain(&request.messages, &test_pipeline, &agent_map, &headers)
+            .process_filter_chain(
+                &request.messages,
+                &test_pipeline,
+                &agent_map,
+                &headers,
+                None,
+            )
             .await;
 
         println!("Pipeline processing result: {:?}", result);

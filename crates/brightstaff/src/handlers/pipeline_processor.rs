@@ -537,17 +537,13 @@ mod tests {
         let agent_map = HashMap::new();
         let request_headers = HeaderMap::new();
 
-        let initial_request = ChatCompletionsRequest {
-            messages: vec![create_test_message(Role::User, "Hello")],
-            model: "test-model".to_string(),
-            ..Default::default()
-        };
+        let messages = vec![create_test_message(Role::User, "Hello")];
 
         let pipeline = create_test_pipeline(vec!["nonexistent-agent", "terminal-agent"]);
 
         let result = processor
             .process_filter_chain(
-                &initial_request.messages,
+                &messages,
                 &pipeline,
                 &agent_map,
                 &request_headers,

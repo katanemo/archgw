@@ -1,15 +1,12 @@
 import json
-from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, Request
 from openai import AsyncOpenAI
 import os
 import logging
 import csv
 from pathlib import Path
-import uvicorn
 
-from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
+from .api import ChatMessage
 from . import mcp
 from fastmcp.server.dependencies import get_http_headers
 
@@ -183,25 +180,16 @@ async def augment_query_with_context(
     return updated_messages
 
 
-class Response(BaseModel):
-    query: str
-    metadata: dict
-
-
-# FastAPI app for REST server
-app = FastAPI(title="RAG Content Builder Agent", version="1.0.0")
+# Load knowledge base on module import
+load_knowledge_base()
 
 
 @mcp.tool()
-@app.post("/v1/chat/completions")
 async def context_builder(messages: List[ChatMessage]) -> List[ChatMessage]:
-    """chat completions endpoint that augments user queries with relevant context from the knowledge base."""
-    import time
-    import uuid
-
+    """MCP tool that augments user queries with relevant context from the knowledge base."""
     logger.info(f"Received chat completion request with {len(messages)} messages")
 
-    # Get traceparent header from HTTP request using FastMCP's dependency function
+    # Get traceparent header from MCP request
     headers = get_http_headers()
     traceparent_header = headers.get("traceparent")
 
@@ -215,45 +203,3 @@ async def context_builder(messages: List[ChatMessage]) -> List[ChatMessage]:
 
     # Return as dict to minimize text serialization
     return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
-
-
-def main():
-    """Main function to initialize the knowledge base and start the server."""
-    load_knowledge_base()
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-if __name__ == "__main__":
-    main()
-
-
-def start_server(host: str = "localhost", port: int = 8000):
-    """Start the REST server."""
-    load_knowledge_base()
-    # Rename the uvicorn.error logger
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        log_config={
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "default": {
-                    "format": "%(asctime)s - [CONTEXT_BUILDER]    - %(levelname)s - %(message)s",
-                },
-            },
-            "handlers": {
-                "default": {
-                    "formatter": "default",
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://sys.stdout",
-                },
-            },
-            "root": {
-                "level": "INFO",
-                "handlers": ["default"],
-            },
-        },
-    )

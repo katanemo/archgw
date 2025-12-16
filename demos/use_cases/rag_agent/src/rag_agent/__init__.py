@@ -33,7 +33,7 @@ mcp = None
 )
 @click.option("--rest-port", "rest_port", default=8000, help="Port for REST server")
 def main(host, port, agent, transport, agent_name, rest_server, rest_port):
-    """Start a RAG agent as an MCP server."""
+    """Start a RAG agent as an MCP server or REST server."""
 
     # Map friendly names to agent modules
     agent_map = {
@@ -45,29 +45,38 @@ def main(host, port, agent, transport, agent_name, rest_server, rest_port):
         ),
     }
 
-    module_name, default_name = agent_map[agent]
-    mcp_name = agent_name or default_name
-
-    global mcp
-    mcp = FastMCP(mcp_name, host=host, port=port)
-
     if agent not in agent_map:
         print(f"Error: Unknown agent '{agent}'")
         print(f"Available agents: {', '.join(agent_map.keys())}")
         return
 
+    module_name, default_name = agent_map[agent]
+    mcp_name = agent_name or default_name
+
     if rest_server:
+        # Only response_generator supports REST server mode
+        if agent != "response_generator":
+            print(f"Error: Agent '{agent}' does not support REST server mode.")
+            print(f"REST server is only supported for: response_generator")
+            print(f"Remove --rest-server flag to start {agent} as an MCP server.")
+            return
+
         print(f"Starting REST server on {host}:{rest_port} for agent: {agent}")
+        from rag_agent.rag_agent import start_server
 
-        if agent == "response_generator":
-            from rag_agent.rag_agent import start_server
-
-            start_server(host=host, port=rest_port)
-            return
-        else:
-            print("Please specify an agent to start with --agent option.")
-            return
+        start_server(host=host, port=rest_port)
+        return
     else:
+        # Only query_rewriter and context_builder support MCP
+        if agent not in ["query_rewriter", "context_builder"]:
+            print(f"Error: Agent '{agent}' does not support MCP mode.")
+            print(f"MCP is only supported for: query_rewriter, context_builder")
+            print(f"Use --rest-server flag to start {agent} as a REST server.")
+            return
+
+        global mcp
+        mcp = FastMCP(mcp_name, host=host, port=port)
+
         print(f"Starting MCP server: {mcp_name}")
         print(f"  Agent: {agent}")
         print(f"  Transport: {transport}")

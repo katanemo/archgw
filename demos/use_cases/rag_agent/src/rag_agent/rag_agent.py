@@ -15,9 +15,6 @@ from .api import (
     ChatCompletionStreamResponse,
 )
 
-from . import mcp
-from fastmcp.server.dependencies import get_http_headers
-
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -63,15 +60,14 @@ def prepare_response_messages(request_body: ChatCompletionRequest):
 
 
 @app.post("/v1/chat/completions")
-async def chat_completion_http(request_body: ChatCompletionRequest):
+async def chat_completion_http(request: Request, request_body: ChatCompletionRequest):
     """HTTP endpoint for chat completions with streaming support."""
     logger.info(
         f"Received chat completion request with {len(request_body.messages)} messages"
     )
 
-    # Get traceparent header from HTTP request using FastMCP's dependency function
-    headers = get_http_headers()
-    traceparent_header = headers.get("traceparent")
+    # Get traceparent header from HTTP request
+    traceparent_header = request.headers.get("traceparent")
 
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
@@ -89,23 +85,6 @@ async def chat_completion_http(request_body: ChatCompletionRequest):
         )
     else:
         return await non_streaming_chat_completions(request_body, traceparent_header)
-
-
-@mcp.tool(name="invoke")
-async def chat_completion(request_body: ChatCompletionRequest):
-    """Chat completions endpoint that generates a coherent response based on all context.
-
-    For MCP calls, streaming is collected and returned as a complete response.
-    """
-    logger.info(
-        f"[MCP] Received chat completion request with {len(request_body.messages)} messages"
-    )
-
-    # For MCP, always use non-streaming to return a complete response
-    response = await non_streaming_chat_completions(
-        request_body, traceparent_header=None
-    )
-    return response
 
 
 async def stream_chat_completions(

@@ -1,19 +1,13 @@
 import asyncio
 import json
-from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, Request
 from openai import AsyncOpenAI
 import os
 import logging
-import uvicorn
 
-from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
+from .api import ChatMessage
 from . import mcp
 from fastmcp.server.dependencies import get_http_headers
-
-from fastmcp.dependencies import CurrentContext
-from fastmcp.server.context import Context
 
 # Set up logging
 logging.basicConfig(
@@ -85,15 +79,6 @@ async def rewrite_query_with_archgw(
     return ""
 
 
-class Response(BaseModel):
-    query: str
-    metadata: dict
-
-
-# FastAPI app for REST server
-app = FastAPI(title="RAG Agent Query Parser", version="1.0.0")
-
-
 @mcp.tool()
 async def query_rewriter(messages: List[ChatMessage]) -> List[ChatMessage]:
     """Chat completions endpoint that rewrites the last user query using archgw.
@@ -132,43 +117,3 @@ async def query_rewriter(messages: List[ChatMessage]) -> List[ChatMessage]:
 
     # Return as dict to minimize text serialization
     return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
-
-
-def parse_query(query):
-    """Parse the user query and returns metadata extracted from query."""
-    return Response(query=query, metadata={"is_valid": True})
-
-
-def start_server(host: str = "localhost", port: int = 8000):
-    """Start the REST server."""
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        log_config={
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "default": {
-                    "format": "%(asctime)s - [QUERY_REWRITER]     - %(levelname)s - %(message)s",
-                },
-            },
-            "handlers": {
-                "default": {
-                    "formatter": "default",
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://sys.stdout",
-                },
-            },
-            "root": {
-                "level": "INFO",
-                "handlers": ["default"],
-            },
-        },
-    )

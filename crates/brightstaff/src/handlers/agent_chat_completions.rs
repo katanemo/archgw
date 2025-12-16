@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use hermesllm::apis::openai::ChatCompletionsRequest;
+use hermesllm::apis::OpenAIMessage;
+use hermesllm::clients::SupportedAPIsFromClient;
+use hermesllm::ProviderRequestType;
 use http_body_util::combinators::BoxBody;
 use http_body_util::BodyExt;
 use hyper::{Request, Response};
+use serde::ser::Error as SerError;
 use tracing::{debug, info, warn};
 
 use super::agent_selector::{AgentSelectionError, AgentSelector};
@@ -35,7 +38,15 @@ pub async fn agent_chat(
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
     trace_collector: Arc<common::traces::TraceCollector>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
-    match handle_agent_chat(request, router_service, agents_list, listeners, trace_collector).await {
+    match handle_agent_chat(
+        request,
+        router_service,
+        agents_list,
+        listeners,
+        trace_collector,
+    )
+    .await
+    {
         Ok(response) => Ok(response),
         Err(err) => {
             // Check if this is a client error from the pipeline that should be cascaded
@@ -134,6 +145,13 @@ async fn handle_agent_chat(
     info!("Handling request for listener: {}", listener.name);
 
     // Parse request body
+    let request_path = request
+        .uri()
+        .path()
+        .to_string()
+        .strip_prefix("/agents")
+        .unwrap()
+        .to_string();
     let request_headers = request.headers().clone();
     let chat_request_bytes = request.collect().await?.to_bytes();
 
@@ -142,14 +160,35 @@ async fn handle_agent_chat(
         String::from_utf8_lossy(&chat_request_bytes)
     );
 
-    let chat_completions_request: ChatCompletionsRequest =
-        serde_json::from_slice(&chat_request_bytes).map_err(|err| {
-            warn!(
-                "Failed to parse request body as ChatCompletionsRequest: {}",
-                err
-            );
-            AgentFilterChainError::RequestParsing(err)
+    // Determine the API type from the endpoint
+    let api_type =
+        SupportedAPIsFromClient::from_endpoint(request_path.as_str()).ok_or_else(|| {
+            let err_msg = format!("Unsupported endpoint: {}", request_path);
+            warn!("{}", err_msg);
+            AgentFilterChainError::RequestParsing(serde_json::Error::custom(err_msg))
         })?;
+
+    let client_request = match ProviderRequestType::try_from((&chat_request_bytes[..], &api_type)) {
+        Ok(request) => request,
+        Err(err) => {
+            warn!("Failed to parse request as ProviderRequestType: {}", err);
+            let err_msg = format!("Failed to parse request: {}", err);
+            return Err(AgentFilterChainError::RequestParsing(
+                serde_json::Error::custom(err_msg),
+            ));
+        }
+    };
+
+    let message: Vec<OpenAIMessage> = client_request.get_message_history();
+
+    // let chat_completions_request: ChatCompletionsRequest =
+    //     serde_json::from_slice(&chat_request_bytes).map_err(|err| {
+    //         warn!(
+    //             "Failed to parse request body as ChatCompletionsRequest: {}",
+    //             err
+    //         );
+    //         AgentFilterChainError::RequestParsing(err)
+    //     })?;
 
     // Extract trace parent for routing
     let trace_parent = request_headers
@@ -166,11 +205,7 @@ async fn handle_agent_chat(
 
     // Select appropriate agent using arch router llm model
     let selected_agent = agent_selector
-        .select_agent(
-            &chat_completions_request.messages,
-            &listener,
-            trace_parent,
-        )
+        .select_agent(&message, &listener, trace_parent)
         .await?;
 
     debug!("Processing agent pipeline: {}", selected_agent.id);
@@ -178,7 +213,7 @@ async fn handle_agent_chat(
     // Process the filter chain
     let chat_history = pipeline_processor
         .process_filter_chain(
-            &chat_completions_request.messages,
+            &message,
             &selected_agent,
             &agent_map,
             &request_headers,
@@ -196,7 +231,7 @@ async fn handle_agent_chat(
     let llm_response = pipeline_processor
         .invoke_terminal_agent(
             &chat_history,
-            &chat_completions_request,
+            client_request,
             terminal_agent,
             &request_headers,
         )

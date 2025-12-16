@@ -1,7 +1,7 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
+use brightstaff::handlers::function_calling::function_calling_chat_handler;
 use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
-use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
@@ -105,12 +105,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Tracing configuration found in arch_config.yaml");
         Some(true)
     } else {
-        info!("No tracing configuration in arch_config.yaml, will check OTEL_TRACING_ENABLED env var");
+        info!(
+            "No tracing configuration in arch_config.yaml, will check OTEL_TRACING_ENABLED env var"
+        );
         None
     };
     let trace_collector = Arc::new(TraceCollector::new(tracing_enabled));
     let _flusher_handle = trace_collector.clone().start_background_flusher();
-
 
     loop {
         let (stream, _) = listener.accept().await?;
@@ -118,7 +119,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
-        let model_aliases: Arc<Option<std::collections::HashMap<String, common::configuration::ModelAlias>>> = Arc::clone(&model_aliases);
+        let model_aliases: Arc<
+            Option<std::collections::HashMap<String, common::configuration::ModelAlias>>,
+        > = Arc::clone(&model_aliases);
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
@@ -136,23 +139,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let trace_collector = trace_collector.clone();
 
             async move {
-                match (req.method(), req.uri().path()) {
-                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
-                        let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, req.uri().path());
-                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
-                            .with_context(parent_cx)
-                            .await
-                    }
-                    (&Method::POST, "/agents/v1/chat/completions") => {
-                        let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, req.uri().path());
-                        agent_chat(
+                let path = req.uri().path();
+
+                // Check if path starts with /agents
+                if path.starts_with("/agents") {
+                    // Check if it matches one of the agent API paths
+                    let stripped_path = path.strip_prefix("/agents").unwrap();
+                    if matches!(
+                        stripped_path,
+                        CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH
+                    ) {
+                        let fully_qualified_url = format!("{}{}", llm_provider_url, stripped_path);
+                        return agent_chat(
                             req,
                             router_service,
                             fully_qualified_url,
                             agents_list,
                             listeners,
+                            trace_collector,
+                        )
+                        .with_context(parent_cx)
+                        .await;
+                    }
+                }
+
+                match (req.method(), path) {
+                    (
+                        &Method::POST,
+                        CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH,
+                    ) => {
+                        let fully_qualified_url =
+                            format!("{}{}", llm_provider_url, req.uri().path());
+                        llm_chat(
+                            req,
+                            router_service,
+                            fully_qualified_url,
+                            model_aliases,
+                            llm_providers,
                             trace_collector,
                         )
                         .with_context(parent_cx)

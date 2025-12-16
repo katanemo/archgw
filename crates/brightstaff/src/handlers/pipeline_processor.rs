@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use common::configuration::{Agent, AgentFilterChain};
 use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
 use common::traces::{SpanBuilder, SpanKind};
-use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
+use hermesllm::{ProviderRequest, ProviderRequestType};
+use hermesllm::apis::openai::{Message};
 use hyper::header::HeaderMap;
 use opentelemetry::trace::TraceContextExt;
 use tracing::{debug, info, warn};
@@ -468,14 +469,15 @@ impl PipelineProcessor {
     pub async fn invoke_terminal_agent(
         &self,
         messages: &[Message],
-        original_request: &ChatCompletionsRequest,
+        mut original_request: ProviderRequestType,
         terminal_agent: &Agent,
         request_headers: &HeaderMap,
     ) -> Result<reqwest::Response, PipelineError> {
-        let mut request = original_request.clone();
-        request.messages = messages.to_vec();
+        // let mut request = original_request.clone();
+        original_request.set_messages(messages);
 
-        let request_body = serde_json::to_string(&request)?;
+        let request_body = ProviderRequestType::to_bytes(&original_request).unwrap();
+        // let request_body = serde_json::to_string(&request)?;
         debug!("Sending request to terminal agent {}", terminal_agent.id);
 
         let mut agent_headers = request_headers.clone();

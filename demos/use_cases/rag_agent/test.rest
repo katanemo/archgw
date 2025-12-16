@@ -49,7 +49,7 @@ Content-Type: application/json
       "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
     }
   ],
-  "stream": false
+  "stream": true
 }
 
 ### send request to context builder agent

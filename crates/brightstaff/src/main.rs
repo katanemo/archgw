@@ -5,7 +5,7 @@ use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
-use common::configuration::Configuration;
+use common::configuration::{Agent, Configuration};
 use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
@@ -63,9 +63,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let arch_config = Arc::new(config);
 
+    // combine agents and agent_filters into a single list of agents
+    let all_agents: Vec<Agent> = arch_config
+        .agents
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .chain(arch_config.agent_filters.as_deref().unwrap_or_default())
+        .cloned()
+        .collect();
+
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
-    let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
-    let agent_filters = Arc::new(RwLock::new(arch_config.agent_filters.clone()));
+    let agents_list = Arc::new(RwLock::new(Some(all_agents)));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
 
     debug!(
@@ -112,7 +121,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let llm_providers = llm_providers.clone();
         let agents_list = agents_list.clone();
-        let agent_filters = agent_filters.clone();
         let listeners = listeners.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
@@ -121,7 +129,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let llm_providers = llm_providers.clone();
             let model_aliases = Arc::clone(&model_aliases);
             let agents_list = agents_list.clone();
-            let agent_filters = agent_filters.clone();
             let listeners = listeners.clone();
 
             async move {

@@ -8,7 +8,6 @@ use hermesllm::apis::openai::Message;
 use tracing::{debug, warn};
 
 use crate::router::llm_router::RouterService;
-use crate::utils::mcp_client::McpClient;
 
 /// Errors that can occur during agent selection
 #[derive(Debug, thiserror::Error)]
@@ -28,14 +27,12 @@ pub enum AgentSelectionError {
 /// Service for selecting agents based on routing preferences and listener configuration
 pub struct AgentSelector {
     router_service: Arc<RouterService>,
-    mcp_client: McpClient,
 }
 
 impl AgentSelector {
     pub fn new(router_service: Arc<RouterService>) -> Self {
         Self {
             router_service,
-            mcp_client: McpClient::new(),
         }
     }
 
@@ -152,7 +149,7 @@ impl AgentSelector {
         for agent_chain in agents {
             // Get the actual agent from the agent_map
             let agent = agent_map.get(&agent_chain.id);
-            
+
             // Determine the description to use
             let description = if let Some(agent) = agent {
                 // Check if this is an MCP agent (URL starts with mcp://)
@@ -161,36 +158,10 @@ impl AgentSelector {
                         "Agent {} is an MCP agent, fetching tool description from: {}",
                         agent.id, agent.url
                     );
-                    
-                    // Fetch description from MCP endpoint
-                    match self
-                        .mcp_client
-                        .fetch_tool_description(&agent.url, agent.tool.as_deref())
-                        .await
-                    {
-                        Ok(mcp_description) => {
-                            if !mcp_description.is_empty() {
-                                debug!(
-                                    "Fetched MCP description for agent {}: {}",
-                                    agent.id, mcp_description
-                                );
-                                mcp_description
-                            } else {
-                                warn!(
-                                    "MCP tool description is empty for agent {}, using config description",
-                                    agent.id
-                                );
-                                agent_chain.description.clone().unwrap_or_default()
-                            }
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to fetch MCP description for agent {}: {}, using config description",
-                                agent.id, e
-                            );
-                            agent_chain.description.clone().unwrap_or_default()
-                        }
-                    }
+
+                    //TODO: fetch description from mcp server
+
+                    "MCP tool description placeholder from config".to_string()
                 } else {
                     // Not an MCP agent, use description from config
                     agent_chain.description.clone().unwrap_or_default()

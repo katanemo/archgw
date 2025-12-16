@@ -4,7 +4,10 @@ use common::configuration::{Agent, AgentFilterChain};
 use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
 use hermesllm::apis::openai::{ChatCompletionsRequest, Message};
 use hyper::header::HeaderMap;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
+
+use crate::handlers::jsonrpc::{JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use uuid::Uuid;
 
 /// Errors that can occur during pipeline processing
 #[derive(Debug, thiserror::Error)]
@@ -25,13 +28,17 @@ pub enum PipelineError {
 pub struct PipelineProcessor {
     client: reqwest::Client,
     url: String,
+    agent_id_session_map: HashMap<String, String>,
 }
+
+const ENVOY_API_ROUTER_ADDRESS: &str = "http://localhost:11000";
 
 impl Default for PipelineProcessor {
     fn default() -> Self {
         Self {
             client: reqwest::Client::new(),
-            url: "http://localhost:11000/v1/chat/completions".to_string(),
+            url: ENVOY_API_ROUTER_ADDRESS.to_string(),
+            agent_id_session_map: HashMap::new(),
         }
     }
 }
@@ -41,18 +48,20 @@ impl PipelineProcessor {
         Self {
             client: reqwest::Client::new(),
             url,
+            agent_id_session_map: HashMap::new(),
         }
     }
 
     /// Process the filter chain of agents (all except the terminal agent)
     pub async fn process_filter_chain(
-        &self,
-        initial_request: &ChatCompletionsRequest,
+        &mut self,
+        chat_history: &[Message],
         agent_filter_chain: &AgentFilterChain,
         agent_map: &HashMap<String, Agent>,
         request_headers: &HeaderMap,
     ) -> Result<Vec<Message>, PipelineError> {
-        let mut chat_completions_history = initial_request.messages.clone();
+
+        let mut chat_history_updated = chat_history.to_vec();
 
         for agent_name in &agent_filter_chain.filter_chain {
             debug!("Processing filter agent: {}", agent_name);
@@ -61,47 +70,83 @@ impl PipelineProcessor {
                 .get(agent_name)
                 .ok_or_else(|| PipelineError::AgentNotFound(agent_name.clone()))?;
 
-            debug!("Agent details: {:?}", agent);
+            let tool_name = agent.tool.as_deref().unwrap_or(&agent.id);
 
-            let response_content = self
-                .send_agent_filter_chain_request(
-                    &chat_completions_history,
-                    initial_request,
+            info!("executing filter: {}/{}, url: {}, conversation length: {}", agent_name, tool_name, agent.url, chat_history.len());
+
+            chat_history_updated = self
+                .execute_filter(
+                    &chat_history_updated,
                     agent,
                     request_headers,
                 )
                 .await?;
 
-            debug!("Received response from filter agent {}", agent_name);
-
-            // Parse the response content as new message history
-            chat_completions_history =
-                serde_json::from_str(&response_content).inspect_err(|err| {
-                    warn!(
-                        "Failed to parse response from agent {}, err: {}, response: {}",
-                        agent_name, err, response_content
-                    )
-                })?;
+            info!("Received response: updated conversation length: {}", chat_history.len());
         }
 
-        Ok(chat_completions_history)
+        Ok(chat_history_updated)
     }
 
     /// Send request to a specific agent and return the response content
-    async fn send_agent_filter_chain_request(
-        &self,
+    async fn execute_filter(
+        &mut self,
         messages: &[Message],
-        original_request: &ChatCompletionsRequest,
         agent: &Agent,
         request_headers: &HeaderMap,
-    ) -> Result<String, PipelineError> {
-        let mut request = original_request.clone();
-        request.messages = messages.to_vec();
+    ) -> Result<Vec<Message>, PipelineError> {
 
-        let request_body = serde_json::to_string(&request)?;
-        debug!("Sending request to agent {}", agent.id);
+        let mcp_session_id = if let Some(session_id) = self.agent_id_session_map.get(&agent.id) {
+            session_id.clone()
+        } else {
+            let session_id = self.get_new_session_id(&agent.id).await;
+            self.agent_id_session_map
+                .insert(agent.id.clone(), session_id.clone());
+            session_id
+        };
+
+        // let mut request = original_request.clone();
+        // request.messages = messages.to_vec();
+
+        let tool_name = agent.tool.as_deref().unwrap_or(&agent.id);
+
+        let arguments = serde_json::json!({
+            "messages": messages
+        });
+
+        let params = serde_json::json!({
+            "name": tool_name,
+            "arguments": arguments
+        });
+
+        let json_rpc_request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: JsonRpcId::String(Uuid::new_v4().to_string()),
+            method: "tools/call".to_string(),
+            params: Some(serde_json::from_value(params)?),
+        };
+
+        let request_body = serde_json::to_string(&json_rpc_request)?;
+        info!("Sending request to agent {}", agent.id);
+        info!("Request body: {}", request_body);
+
+        // Pretty print for debugging
+        let pretty_body = serde_json::to_string_pretty(&json_rpc_request)?;
+        info!("Request body (pretty):\n{}", pretty_body);
 
         let mut agent_headers = request_headers.clone();
+        info!("Using MCP session ID {} for agent {}", mcp_session_id, agent.id);
+
+        // Log all headers being sent
+        info!("Headers being sent:");
+        for (key, value) in agent_headers.iter() {
+            info!("  {}: {:?}", key, value);
+        }
+
+        agent_headers.insert(
+            "mcp-session-id",
+            hyper::header::HeaderValue::from_str(&mcp_session_id).unwrap(),
+        );
         agent_headers.remove(hyper::header::CONTENT_LENGTH);
         agent_headers.insert(
             ARCH_UPSTREAM_HOST_HEADER,
@@ -114,9 +159,24 @@ impl PipelineProcessor {
             hyper::header::HeaderValue::from_str("3").unwrap(),
         );
 
+        agent_headers.insert(
+            "Accept",
+            hyper::header::HeaderValue::from_static("application/json, text/event-stream"),
+        );
+
+        agent_headers.insert(
+            "Content-Type",
+            hyper::header::HeaderValue::from_static("application/json"),
+        );
+
+        info!("Final headers being sent:");
+        for (key, value) in agent_headers.iter() {
+            info!("  {}: {:?}", key, value);
+        }
+
         let response = self
             .client
-            .post(&self.url)
+            .post(format!("{}/mcp", self.url))
             .headers(agent_headers)
             .body(request_body)
             .send()
@@ -124,24 +184,149 @@ impl PipelineProcessor {
 
         let response_bytes = response.bytes().await?;
 
-        // Parse the response as JSON to extract the content
-        let response_json: serde_json::Value = serde_json::from_slice(&response_bytes)?;
+        info!(
+            "response bytes in str: {}",
+            String::from_utf8_lossy(&response_bytes)
+        );
 
-        let content = response_json
-            .get("choices")
-            .and_then(|choices| choices.as_array())
-            .and_then(|choices| choices.first())
-            .and_then(|choice| choice.get("message"))
-            .and_then(|message| message.get("content"))
-            .and_then(|content| content.as_str())
+        let response_str = String::from_utf8_lossy(&response_bytes);
+        let lines: Vec<&str> = response_str.lines().collect();
+
+        // Validate SSE format: first line should be "event: message"
+        if lines.is_empty() || lines[0] != "event: message" {
+            warn!("Invalid SSE response format from agent {}: expected 'event: message' as first line, got: {:?}", agent.id, lines.first());
+            return Err(PipelineError::NoContentInResponse(format!(
+                "Invalid SSE response format from agent {}: expected 'event: message' as first line",
+                agent.id
+            )));
+        }
+
+        // Find the data line
+        let data_lines: Vec<&str> = lines
+            .iter()
+            .filter(|line| line.starts_with("data: "))
+            .copied()
+            .collect();
+
+        if data_lines.len() != 1 {
+            warn!(
+                "Expected exactly one 'data:' line from agent {}, found {}",
+                agent.id,
+                data_lines.len()
+            );
+            return Err(PipelineError::NoContentInResponse(format!(
+                "Expected exactly one 'data:' line from agent {}, found {}",
+                agent.id,
+                data_lines.len()
+            )));
+        }
+
+        let data_chunk = &data_lines[0][6..]; // Skip "data: " prefix
+
+        let response: JsonRpcResponse = serde_json::from_str(data_chunk)?;
+        let response_result = response
+            .result
+            .ok_or_else(|| PipelineError::NoChoicesInResponse(agent.id.clone()))?;
+
+        let response_json = response_result
+            .get("structuredContent")
+            .ok_or_else(|| PipelineError::NoChoicesInResponse(agent.id.clone()))?;
+        // Parse the response as JSON to extract the content
+        // let response_json: serde_json::Value = serde_json::from_slice(&response_bytes)?;
+
+        let messages: Vec<Message> = response_json
+            .get("result")
+            .and_then(|v| v.as_array())
             .ok_or_else(|| PipelineError::NoContentInResponse(agent.id.clone()))?
+            .iter()
+            .map(|msg_value| serde_json::from_value(msg_value.clone()))
+            .collect::<Result<Vec<Message>, _>>()
+            .map_err(PipelineError::ParseError)?;
+
+        Ok(messages)
+    }
+
+    async fn get_new_session_id(&self, agent_id: &str) -> String {
+        let initialize_request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: JsonRpcId::Number(1),
+            method: "initialize".to_string(),
+            params: Some({
+                let mut params = HashMap::new();
+                params.insert(
+                    "protocolVersion".to_string(),
+                    serde_json::Value::String("2024-11-05".to_string()),
+                );
+                params.insert("capabilities".to_string(), serde_json::json!({}));
+                params.insert(
+                    "clientInfo".to_string(),
+                    serde_json::json!({
+                        "name": "brightstaff",
+                        "version": "1.0.0"
+                    }),
+                );
+                params
+            }),
+        };
+
+        let request_body = serde_json::to_string(&initialize_request).unwrap();
+
+        info!("Initializing MCP session for agent {}", agent_id);
+        info!("Initialize request body: {}", request_body);
+
+        let response = self
+            .client
+            .post(format!("{}/mcp", self.url))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json, text/event-stream")
+            .header(ARCH_UPSTREAM_HOST_HEADER, agent_id)
+            .body(request_body)
+            .send()
+            .await
+            .expect("Failed to initialize MCP session");
+
+        info!("Initialize response status: {}", response.status());
+        info!("Initialize response headers: {:?}", response.headers());
+
+        let session_id = response
+            .headers()
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok())
+            .expect("No mcp-session-id in response")
             .to_string();
 
-        Ok(content)
+        info!("Created new MCP session for agent {}: {}", agent_id, session_id);
+
+        // Send initialized notification (without id field per JSON-RPC 2.0 spec)
+        let initialized_notification = JsonRpcNotification {
+            jsonrpc: "2.0".to_string(),
+            method: "notifications/initialized".to_string(),
+            params: None,
+        };
+
+        let notification_body = serde_json::to_string(&initialized_notification).unwrap();
+
+        info!("Sending initialized notification: {}", notification_body);
+
+        let notif_response = self
+            .client
+            .post(format!("{}/mcp", self.url))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json, text/event-stream")
+            .header("mcp-session-id", &session_id)
+            .header(ARCH_UPSTREAM_HOST_HEADER, agent_id)
+            .body(notification_body)
+            .send()
+            .await
+            .expect("Failed to send initialized notification");
+
+        info!("Initialized notification response status: {}", notif_response.status());
+
+        session_id
     }
 
     /// Send request to terminal agent and return the raw response for streaming
-    pub async fn invoke_upstream_agent(
+    pub async fn invoke_terminal_agent(
         &self,
         messages: &[Message],
         original_request: &ChatCompletionsRequest,
@@ -169,7 +354,7 @@ impl PipelineProcessor {
 
         let response = self
             .client
-            .post(&self.url)
+            .post(format!("{}/v1/chat/completions", self.url))
             .headers(agent_headers)
             .body(request_body)
             .send()

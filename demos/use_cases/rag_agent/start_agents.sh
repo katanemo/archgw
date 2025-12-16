@@ -21,16 +21,25 @@ cleanup() {
 
 trap cleanup EXIT
 
-log "Starting query_parser agent on port 10500..."
-uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10500 --agent query_parser &
+# log "Starting input guards filter on port 10500..."
+# uv run python -m rag_agent --host 0.0.0.0 --port 10500 --agent input_guards &
+# WAIT_FOR_PIDS+=($!)
+
+
+log "Starting query_parser agent on port 10501..."
+uv run python -m rag_agent --host 0.0.0.0 --port 10501 --agent query_rewriter &
 WAIT_FOR_PIDS+=($!)
 
-log "Starting context_builder agent on port 10501..."
-uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10501 --agent context_builder &
+log "Starting context_builder agent on port 10502..."
+uv run python -m rag_agent --host 0.0.0.0 --port 10502 --agent context_builder &
 WAIT_FOR_PIDS+=($!)
 
-log "Starting response_generator agent on port 10502..."
-uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10502 --agent response_generator &
+# log "Starting response_generator agent on port 10400..."
+# uv run python -m rag_agent --host 0.0.0.0 --port 10400 --agent response_generator &
+# WAIT_FOR_PIDS+=($!)
+
+log "Starting response_generator agent on port 10505..."
+uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10505 --agent response_generator &
 WAIT_FOR_PIDS+=($!)
 
 for PID in "${WAIT_FOR_PIDS[@]}"; do

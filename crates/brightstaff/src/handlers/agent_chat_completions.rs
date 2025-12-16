@@ -81,7 +81,7 @@ async fn handle_agent_chat(
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, AgentFilterChainError> {
     // Initialize services
     let agent_selector = AgentSelector::new(router_service);
-    let pipeline_processor = PipelineProcessor::default();
+    let mut pipeline_processor = PipelineProcessor::default();
     let response_handler = ResponseHandler::new();
 
     // Extract listener name from headers
@@ -144,9 +144,9 @@ async fn handle_agent_chat(
     debug!("Processing agent pipeline: {}", selected_agent.id);
 
     // Process the filter chain
-    let processed_messages = pipeline_processor
+    let chat_history = pipeline_processor
         .process_filter_chain(
-            &chat_completions_request,
+            &chat_completions_request.messages,
             &selected_agent,
             &agent_map,
             &request_headers,
@@ -161,8 +161,8 @@ async fn handle_agent_chat(
     debug!("Terminal agent details: {:?}", terminal_agent);
 
     let llm_response = pipeline_processor
-        .invoke_upstream_agent(
-            &processed_messages,
+        .invoke_terminal_agent(
+            &chat_history,
             &chat_completions_request,
             terminal_agent,
             &request_headers,

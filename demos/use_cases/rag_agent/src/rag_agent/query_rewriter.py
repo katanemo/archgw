@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -10,6 +11,9 @@ import uvicorn
 from .api import ChatMessage, ChatCompletionRequest, ChatCompletionResponse
 from . import mcp
 from fastmcp.server.dependencies import get_http_headers
+
+from fastmcp.dependencies import CurrentContext
+from fastmcp.server.context import Context
 
 # Set up logging
 logging.basicConfig(
@@ -29,10 +33,11 @@ archgw_client = AsyncOpenAI(
     api_key="EMPTY",  # archgw doesn't require a real API key
 )
 
+
 async def rewrite_query_with_archgw(
     messages: List[ChatMessage], traceparent_header: str
 ) -> str:
-    """ Rewrite the user query using LLM for better retrieval. """
+    """Rewrite the user query using LLM for better retrieval."""
     system_prompt = """You are a query rewriter that improves user queries for better retrieval.
 
     Given a conversation history, rewrite the last user message to be more specific and context-aware.
@@ -89,33 +94,31 @@ class Response(BaseModel):
 app = FastAPI(title="RAG Agent Query Parser", version="1.0.0")
 
 
-@app.post("/v1/chat/completions")
 @mcp.tool()
-async def query_rewriter(request_body: ChatCompletionRequest):
-    """Chat completions endpoint that rewrites the last user query using archgw."""
+async def query_rewriter(messages: List[ChatMessage]) -> List[ChatMessage]:
+    """Chat completions endpoint that rewrites the last user query using archgw.
+
+    Returns a dict with a 'messages' key containing the updated message list.
+    """
     import time
     import uuid
 
-    logger.info(
-        f"Received chat completion request with {len(request_body.messages)} messages"
-    )
+    logger.info(f"Received chat completion request with {len(messages)} messages")
 
     # Get traceparent header from HTTP request using FastMCP's dependency function
     headers = get_http_headers()
     traceparent_header = headers.get("traceparent")
-    
+
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
     else:
         logger.info("No traceparent header found")
 
     # Call archgw to rewrite the last user query
-    rewritten_query = await rewrite_query_with_archgw(
-        request_body.messages, traceparent_header
-    )
+    rewritten_query = await rewrite_query_with_archgw(messages, traceparent_header)
 
     # Create updated messages with the rewritten query
-    updated_messages = request_body.messages.copy()
+    updated_messages = messages.copy()
 
     # Find and update the last user message with the rewritten query
     for i in range(len(updated_messages) - 1, -1, -1):
@@ -127,28 +130,8 @@ async def query_rewriter(request_body: ChatCompletionRequest):
             )
             break
 
-    messages_history_json = json.dumps([msg.dict() for msg in updated_messages])
-
-    response = ChatCompletionResponse(
-        id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
-        created=int(time.time()),
-        model=request_body.model,
-        choices=[
-            {
-                "index": 0,
-                "message": {"role": "user", "content": messages_history_json},
-                "finish_reason": "stop",
-            }
-        ],
-        usage={
-            "prompt_tokens": sum(len(msg.content.split()) for msg in updated_messages),
-            "completion_tokens": len("Updated query for better retrieval.".split()),
-            "total_tokens": sum(len(msg.content.split()) for msg in updated_messages)
-            + len("Updated query for better retrieval.".split()),
-        },
-    )
-
-    return response
+    # Return as dict to minimize text serialization
+    return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
 
 
 @app.get("/health")

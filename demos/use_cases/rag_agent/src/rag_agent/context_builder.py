@@ -191,54 +191,30 @@ class Response(BaseModel):
 # FastAPI app for REST server
 app = FastAPI(title="RAG Content Builder Agent", version="1.0.0")
 
+
 @mcp.tool()
 @app.post("/v1/chat/completions")
-async def context_builder(
-    request_body: ChatCompletionRequest
-) -> ChatCompletionResponse:
-    """ chat completions endpoint that augments user queries with relevant context from the knowledge base."""
+async def context_builder(messages: List[ChatMessage]) -> List[ChatMessage]:
+    """chat completions endpoint that augments user queries with relevant context from the knowledge base."""
     import time
     import uuid
 
-    logger.info(
-        f"Received chat completion request with {len(request_body.messages)} messages"
-    )
+    logger.info(f"Received chat completion request with {len(messages)} messages")
 
     # Get traceparent header from HTTP request using FastMCP's dependency function
     headers = get_http_headers()
     traceparent_header = headers.get("traceparent")
-    
+
     if traceparent_header:
         logger.info(f"Received traceparent header: {traceparent_header}")
     else:
         logger.info("No traceparent header found")
 
     # Augment the user query with relevant context
-    updated_messages = await augment_query_with_context(
-        request_body.messages, traceparent_header
-    )
-    messages_history_json = json.dumps([msg.dict() for msg in updated_messages])
+    updated_messages = await augment_query_with_context(messages, traceparent_header)
 
-    response = ChatCompletionResponse(
-        id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
-        created=int(time.time()),
-        model=request_body.model,
-        choices=[
-            {
-                "index": 0,
-                "message": {"role": "user", "content": messages_history_json},
-                "finish_reason": "stop",
-            }
-        ],
-        usage={
-            "prompt_tokens": sum(len(msg.content.split()) for msg in updated_messages),
-            "completion_tokens": len("Context added to user query.".split()),
-            "total_tokens": sum(len(msg.content.split()) for msg in updated_messages)
-            + len("Context added to user query.".split()),
-        },
-    )
-
-    return response
+    # Return as dict to minimize text serialization
+    return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
 
 
 def main():

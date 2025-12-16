@@ -1,6 +1,6 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
 use brightstaff::handlers::llm::llm_chat;
-use brightstaff::handlers::models::list_models;
+use brightstaff::handlers::models::{list_models, get_model, list_available_models, initialize_default_models};
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
@@ -88,6 +88,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let model_aliases = Arc::new(arch_config.model_aliases.clone());
 
+    // Initialize model registry with default models
+    initialize_default_models().await;
+
     // Initialize trace collector and start background flusher
     // Tracing is enabled if the tracing config is present in arch_config.yaml
     // Pass Some(true/false) to override, or None to use env var OTEL_TRACING_ENABLED
@@ -157,6 +160,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     }
                     (&Method::GET, "/v1/models" | "/agents/v1/models") => {
                         Ok(list_models(llm_providers).await)
+                    }
+                    (&Method::GET, "/v1/models/available") => {
+                        Ok(list_available_models().await)
+                    }
+                    (&Method::GET, path) if path.starts_with("/v1/models/") && path.len() > 11 => {
+                        let model_id = &path[11..];
+                        Ok(get_model(model_id).await)
                     }
                     // hack for now to get openw-web-ui to work
                     (&Method::OPTIONS, "/v1/models" | "/agents/v1/models") => {

@@ -48,14 +48,14 @@ mod integration_tests {
         let agents = vec![
             Agent {
                 id: "filter-agent".to_string(),
-                kind: Some("filter".to_string()),
+                agent_type: Some("filter".to_string()),
                 url: "http://localhost:8081".to_string(),
                 tool: None,
                 transport: None,
             },
             Agent {
                 id: "terminal-agent".to_string(),
-                kind: Some("terminal".to_string()),
+                agent_type: Some("terminal".to_string()),
                 url: "http://localhost:8082".to_string(),
                 tool: None,
                 transport: None,

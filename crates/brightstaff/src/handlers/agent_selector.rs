@@ -219,7 +219,7 @@ mod tests {
     fn create_test_agent_struct(name: &str) -> Agent {
         Agent {
             id: name.to_string(),
-            kind: Some("test".to_string()),
+            agent_type: Some("test".to_string()),
             url: "http://localhost:8080".to_string(),
             tool: None,
             transport: None,

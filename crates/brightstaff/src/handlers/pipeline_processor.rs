@@ -577,7 +577,7 @@ mod tests {
             transport: None,
             tool: None,
             url: server_url,
-            kind: None,
+            agent_type: None,
         };
 
         let messages = vec![create_test_message(Role::User, "Hello")];
@@ -616,7 +616,7 @@ mod tests {
             transport: None,
             tool: None,
             url: server_url,
-            kind: None,
+            agent_type: None,
         };
 
         let messages = vec![create_test_message(Role::User, "Ping")];
@@ -668,7 +668,7 @@ mod tests {
             transport: None,
             tool: None,
             url: server_url,
-            kind: None,
+            agent_type: None,
         };
 
         let messages = vec![create_test_message(Role::User, "Hi")];

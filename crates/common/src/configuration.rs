@@ -24,7 +24,8 @@ pub struct Agent {
     pub transport: Option<String>,
     pub tool: Option<String>,
     pub url: String,
-    pub kind: Option<String>,
+    #[serde(rename = "type")]
+    pub agent_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

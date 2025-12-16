@@ -9,14 +9,11 @@ agents:
 agent_filters:
   - id: query_rewriter
     url: http://host.docker.internal:10501
-    # kind: mcp
+    # type: mcp
     # transport: streamable-http
     # tool: query_rewriter
   - id: context_builder
     url: http://host.docker.internal:10502
-    # kind: mcp
-    # transport: streamable-http
-    # tool: context_builder
 
 model_providers:
   - model: openai/gpt-4o-mini

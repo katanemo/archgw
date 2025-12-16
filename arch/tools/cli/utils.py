@@ -57,6 +57,10 @@ def convert_legacy_listeners(
         "timeout": "30s",
     }
 
+    # Handle None case
+    if listeners is None:
+        return [llm_gateway_listener], llm_gateway_listener, prompt_gateway_listener
+
     if isinstance(listeners, dict):
         # legacy listeners
         # check if type is array or object

@@ -94,21 +94,16 @@ def test_validate_and_render_happy_path_agent_config(monkeypatch):
 version: v0.3.0
 
 agents:
-  - name: query_rewriter
-    kind: openai
-    endpoint: http://localhost:10500
-  - name: context_builder
-    kind: openai
-    endpoint: http://localhost:10501
-  - name: response_generator
-    kind: openai
-    endpoint: http://localhost:10502
-  - name: research_agent
-    kind: openai
-    endpoint: http://localhost:10500
-  - name: input_guard_rails
-    kind: openai
-    endpoint: http://localhost:10503
+  - id: query_rewriter
+    url: http://localhost:10500
+  - id: context_builder
+    url: http://localhost:10501
+  - id: response_generator
+    url: http://localhost:10502
+  - id: research_agent
+    url: http://localhost:10500
+  - id: input_guard_rails
+    url: http://localhost:10503
 
 listeners:
   - name: tmobile
@@ -156,7 +151,7 @@ listeners:
         mock.mock_open().return_value,  # ARCH_CONFIG_FILE_RENDERED (write)
     ]
     with mock.patch("builtins.open", m_open):
-        with mock.patch("config_generator.Environment"):
+        with mock.patch("cli.config_generator.Environment"):
             validate_and_render_schema()
 
 

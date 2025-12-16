@@ -25,8 +25,8 @@ pub enum ModelRegistryError {
     #[error("Invalid model metadata: {0}")]
     InvalidMetadata(String),
 
-    #[error("Model discovery timeout")]
-    DiscoveryTimeout,
+    #[error("Model discovery timeout for {0}")]
+    DiscoveryTimeout(String),
 
     #[error("Quota exceeded for client: {0}")]
     QuotaExceeded(String),

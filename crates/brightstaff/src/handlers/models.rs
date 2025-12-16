@@ -4,7 +4,12 @@ use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{Response, StatusCode};
 use serde_json;
 use std::sync::Arc;
-use model_registry::{get_global_registry, definitions};
+use model_registry::{
+    get_global_registry, definitions, DiscoveryManager, OpenAIDiscovery,
+    AnthropicDiscovery, GeminiDiscovery, GroqDiscovery, MistralDiscovery,
+    CachedDiscovery
+};
+use std::env;
 
 pub async fn list_models(
     _llm_providers: Arc<tokio::sync::RwLock<Vec<LlmProvider>>>,
@@ -160,6 +165,63 @@ pub async fn initialize_default_models() {
     let default_models = definitions::get_all_default_models();
     if let Err(e) = registry_guard.register_models(default_models) {
         eprintln!("Failed to register default models: {:?}", e);
+    }
+}
+
+pub async fn discover_and_register_models() {
+    let mut discovery_manager = DiscoveryManager::new();
+
+    // Add OpenAI discovery if API key is available
+    if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+        let openai_discovery = Box::new(
+            CachedDiscovery::new(
+                Box::new(OpenAIDiscovery::new(api_key)),
+                300, // 5-minute cache TTL
+            )
+        );
+        discovery_manager.add_discovery("openai".to_string(), openai_discovery);
+    }
+
+    // Add Gemini discovery if API key is available
+    if let Ok(api_key) = env::var("GEMINI_API_KEY") {
+        let gemini_discovery = Box::new(
+            CachedDiscovery::new(
+                Box::new(GeminiDiscovery::new(api_key)),
+                300, // 5-minute cache TTL
+            )
+        );
+        discovery_manager.add_discovery("gemini".to_string(), gemini_discovery);
+    }
+
+    // Add static providers (don't require API keys)
+    discovery_manager.add_discovery(
+        "anthropic".to_string(),
+        Box::new(AnthropicDiscovery),
+    );
+    discovery_manager.add_discovery(
+        "groq".to_string(),
+        Box::new(GroqDiscovery),
+    );
+    discovery_manager.add_discovery(
+        "mistral".to_string(),
+        Box::new(MistralDiscovery),
+    );
+
+    // Discover all models from providers
+    match discovery_manager.discover_all().await {
+        Ok(models) => {
+            tracing::info!("Discovered {} models from providers", models.len());
+
+            let registry = get_global_registry();
+            let registry_guard = registry.write();
+
+            if let Err(e) = registry_guard.register_models(models) {
+                tracing::warn!("Failed to register discovered models: {:?}", e);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Provider discovery failed: {:?}", e);
+        }
     }
 }
 

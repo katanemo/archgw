@@ -3,11 +3,13 @@ pub mod model_info;
 pub mod registry;
 pub mod fallback;
 pub mod definitions;
+pub mod discovery;
 
 pub use error::{ModelRegistryError, Result};
 pub use model_info::ModelInfo;
 pub use registry::ModelRegistry;
 pub use fallback::FallbackStrategy;
+pub use discovery::{ModelDiscovery, OpenAIDiscovery, AnthropicDiscovery, GeminiDiscovery, GroqDiscovery, MistralDiscovery, DiscoveryManager, CachedDiscovery};
 
 use std::sync::{Arc, OnceLock};
 use parking_lot::RwLock;

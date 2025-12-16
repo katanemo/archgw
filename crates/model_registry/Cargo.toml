@@ -14,6 +14,7 @@ reqwest = { version = "0.11", features = ["json"] }
 anyhow = "1"
 parking_lot = "0.12"
 uuid = { version = "1", features = ["v4", "serde"] }
+async-trait = "0.1"
 
 common = { path = "../common" }
 hermesllm = { path = "../hermesllm" }

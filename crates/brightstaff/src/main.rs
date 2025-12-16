@@ -1,6 +1,6 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
 use brightstaff::handlers::llm::llm_chat;
-use brightstaff::handlers::models::{list_models, get_model, list_available_models, initialize_default_models};
+use brightstaff::handlers::models::{list_models, get_model, list_available_models, initialize_default_models, discover_and_register_models};
 use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::utils::tracing::init_tracer;
@@ -90,6 +90,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Initialize model registry with default models
     initialize_default_models().await;
+
+    // Attempt to discover models from providers (OpenAI, Gemini, etc.)
+    discover_and_register_models().await;
 
     // Initialize trace collector and start background flusher
     // Tracing is enabled if the tracing config is present in arch_config.yaml

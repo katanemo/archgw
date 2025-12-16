@@ -9,7 +9,7 @@ Accept: application/json, text/event-stream
 POST http://localhost:10501/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
-mcp-session-id: e4ec1ae904e14e06b7d194da10e5f74c
+mcp-session-id: 35d455dc07b8400887f86668590f12bb
 
 {
   "jsonrpc": "2.0",
@@ -70,7 +70,7 @@ accept: application/json, text/event-stream
 
 POST http://localhost:10501/mcp
 content-type: application/json
-mcp-session-id: 60be9fb816304cb6b9ecdb91d89cd91f
+mcp-session-id: 35d455dc07b8400887f86668590f12bb
 accept: application/json, text/event-stream
 
 {

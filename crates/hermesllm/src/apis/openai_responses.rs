@@ -113,16 +113,29 @@ pub struct ResponsesAPIRequest {
 pub enum InputParam {
     /// Simple text input
     Text(String),
-    /// Array of input items
+    /// Array of input items (messages, references, outputs, etc.)
     Items(Vec<InputItem>),
 }
 
-/// Input item discriminated by type
+/// Input item - can be a message, item reference, function call output, etc.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum InputItem {
-    /// Input message
+    /// Input message (role + content)
     Message(InputMessage),
+    /// Item reference
+    ItemReference {
+        #[serde(rename = "type")]
+        item_type: String,
+        id: String,
+    },
+    /// Function call output
+    FunctionCallOutput {
+        #[serde(rename = "type")]
+        item_type: String,
+        call_id: String,
+        output: String,
+    },
 }
 
 /// Input message with role and content
@@ -130,8 +143,18 @@ pub enum InputItem {
 pub struct InputMessage {
     /// Message role
     pub role: MessageRole,
-    /// Message content
-    pub content: Vec<InputContent>,
+    /// Message content - can be a string or array of InputContent
+    pub content: MessageContent,
+}
+
+/// Message content - can be either a simple string or array of content items
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MessageContent {
+    /// Simple text content
+    Text(String),
+    /// Array of content items
+    Items(Vec<InputContent>),
 }
 
 /// Message roles
@@ -1025,16 +1048,23 @@ impl ProviderRequest for ResponsesAPIRequest {
                 items.iter().fold(String::new(), |acc, item| {
                     match item {
                         InputItem::Message(msg) => {
-                            let content_text = msg.content.iter().fold(String::new(), |acc, content| {
-                                acc + " " + &match content {
-                                    InputContent::InputText { text } => text.clone(),
-                                    InputContent::InputImage { .. } => "[Image]".to_string(),
-                                    InputContent::InputFile { .. } => "[File]".to_string(),
-                                    InputContent::InputAudio { .. } => "[Audio]".to_string(),
+                            let content_text = match &msg.content {
+                                MessageContent::Text(text) => text.clone(),
+                                MessageContent::Items(content_items) => {
+                                    content_items.iter().fold(String::new(), |acc, content| {
+                                        acc + " " + &match content {
+                                            InputContent::InputText { text } => text.clone(),
+                                            InputContent::InputImage { .. } => "[Image]".to_string(),
+                                            InputContent::InputFile { .. } => "[File]".to_string(),
+                                            InputContent::InputAudio { .. } => "[Audio]".to_string(),
+                                        }
+                                    })
                                 }
-                            });
+                            };
                             acc + " " + &content_text
                         }
+                        // Skip non-message items (references, outputs, etc.)
+                        _ => acc,
                     }
                 })
             }
@@ -1048,14 +1078,20 @@ impl ProviderRequest for ResponsesAPIRequest {
                 items.iter().rev().find_map(|item| {
                     match item {
                         InputItem::Message(msg) if matches!(msg.role, MessageRole::User) => {
-                            // Extract text from the first text content
-                            msg.content.iter().find_map(|content| {
-                                match content {
-                                    InputContent::InputText { text } => Some(text.clone()),
-                                    _ => None,
+                            // Extract text from content
+                            match &msg.content {
+                                MessageContent::Text(text) => Some(text.clone()),
+                                MessageContent::Items(content_items) => {
+                                    content_items.iter().find_map(|content| {
+                                        match content {
+                                            InputContent::InputText { text } => Some(text.clone()),
+                                            _ => None,
+                                        }
+                                    })
                                 }
-                            })
+                            }
                         }
+                        // Skip non-message items
                         _ => None,
                     }
                 })

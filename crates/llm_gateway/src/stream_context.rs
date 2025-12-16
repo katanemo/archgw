@@ -4,10 +4,8 @@ use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
-use std::collections::VecDeque;
 use std::num::NonZero;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::metrics::Metrics;
@@ -20,7 +18,6 @@ use common::errors::ServerError;
 use common::llm_providers::LlmProviders;
 use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
-use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
 use hermesllm::apis::streaming_shapes::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
 use hermesllm::apis::streaming_shapes::sse::{
@@ -51,7 +48,6 @@ pub struct StreamContext {
     ttft_time: Option<u128>,
     traceparent: Option<String>,
     request_body_sent_time: Option<u128>,
-    traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
     user_message: Option<String>,
     upstream_status_code: Option<StatusCode>,
@@ -65,7 +61,6 @@ impl StreamContext {
     pub fn new(
         metrics: Rc<Metrics>,
         llm_providers: Rc<LlmProviders>,
-        traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
         overrides: Rc<Option<Overrides>>,
     ) -> Self {
         StreamContext {
@@ -83,7 +78,6 @@ impl StreamContext {
             ttft_duration: None,
             traceparent: None,
             ttft_time: None,
-            traces_queue,
             request_body_sent_time: None,
             user_message: None,
             upstream_status_code: None,
@@ -333,68 +327,6 @@ impl StreamContext {
         self.metrics
             .output_sequence_length
             .record(self.response_tokens as u64);
-
-        if let Some(traceparent) = self.traceparent.as_ref() {
-            let current_time_ns = current_time_ns();
-
-            match Traceparent::try_from(traceparent.to_string()) {
-                Err(e) => {
-                    warn!("traceparent header is invalid: {}", e);
-                }
-                Ok(traceparent) => {
-                    let service_name = match &self.resolved_api {
-                        Some(api) => {
-                            let api_display = api.to_string();
-                            format!("archgw.{}", api_display)
-                        }
-                        None => "archgw".to_string(),
-                    };
-
-                    let mut trace_data =
-                        common::tracing::TraceData::new_with_service_name(service_name);
-                    let mut llm_span = Span::new(
-                        self.llm_provider().name.to_string(),
-                        Some(traceparent.trace_id),
-                        Some(traceparent.parent_id),
-                        self.request_body_sent_time.unwrap(),
-                        current_time_ns,
-                    );
-                    llm_span
-                        .add_attribute("model".to_string(), self.llm_provider().name.to_string());
-
-                    if let Some(user_message) = &self.user_message {
-                        llm_span.add_attribute("message".to_string(), user_message.clone());
-                    }
-
-                    // Add HTTP attributes
-                    if let Some(method) = &self.http_method {
-                        llm_span.add_attribute("http.method".to_string(), method.clone());
-                    }
-                    if let Some(protocol) = &self.http_protocol {
-                        llm_span.add_attribute("http.protocol".to_string(), protocol.clone());
-                    }
-                    if let Some(status_code) = &self.upstream_status_code {
-                        llm_span.add_attribute(
-                            "http.status_code".to_string(),
-                            status_code.as_u16().to_string(),
-                        );
-                    }
-
-                    // Add request ID attribute
-                    llm_span
-                        .add_attribute("http.request_id".to_string(), self.request_identifier());
-
-                    if self.ttft_time.is_some() {
-                        llm_span.add_event(Event::new(
-                            "time_to_first_token".to_string(),
-                            self.ttft_time.unwrap(),
-                        ));
-                    }
-                    trace_data.add_span(llm_span);
-                    self.traces_queue.lock().unwrap().push_back(trace_data);
-                }
-            };
-        }
     }
 
     fn read_raw_response_body(&mut self, body_size: usize) -> Result<Vec<u8>, Action> {

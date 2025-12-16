@@ -1,6 +1,7 @@
 pub mod agent_chat_completions;
 pub mod agent_selector;
-pub mod router;
+pub mod llm;
+pub mod router_chat;
 pub mod models;
 pub mod function_calling;
 pub mod pipeline_processor;

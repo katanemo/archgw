@@ -22,6 +22,18 @@ pub enum PipelineError {
     NoChoicesInResponse(String),
     #[error("No content in response from agent '{0}'")]
     NoContentInResponse(String),
+    #[error("Client error from agent '{agent}' (HTTP {status}): {body}")]
+    ClientError {
+        agent: String,
+        status: u16,
+        body: String,
+    },
+    #[error("Server error from agent '{agent}' (HTTP {status}): {body}")]
+    ServerError {
+        agent: String,
+        status: u16,
+        body: String,
+    },
 }
 
 /// Service for processing agent pipelines
@@ -182,55 +194,31 @@ impl PipelineProcessor {
             .send()
             .await?;
 
+        let status = response.status();
         let response_bytes = response.bytes().await?;
 
-        info!(
-            "response bytes in str: {}",
-            String::from_utf8_lossy(&response_bytes)
-        );
+        // Check for HTTP errors and handle them appropriately
+        if !status.is_success() {
+            let error_body = String::from_utf8_lossy(&response_bytes).to_string();
 
-        let response_str = String::from_utf8_lossy(&response_bytes);
-        let lines: Vec<&str> = response_str.lines().collect();
-
-        // Validate SSE format: first line should be "event: message"
-        if lines.is_empty() || lines[0] != "event: message" {
-            warn!("Invalid SSE response format from agent {}: expected 'event: message' as first line, got: {:?}", agent.id, lines.first());
-            return Err(PipelineError::NoContentInResponse(format!(
-                "Invalid SSE response format from agent {}: expected 'event: message' as first line",
-                agent.id
-            )));
+            if status.is_client_error() {
+                // 4xx errors - cascade back to developer
+                return Err(PipelineError::ClientError {
+                    agent: agent.id.clone(),
+                    status: status.as_u16(),
+                    body: error_body,
+                });
+            } else if status.is_server_error() {
+                // 5xx errors - server/agent error
+                return Err(PipelineError::ServerError {
+                    agent: agent.id.clone(),
+                    status: status.as_u16(),
+                    body: error_body,
+                });
+            }
         }
 
-        // Find the data line
-        let data_lines: Vec<&str> = lines
-            .iter()
-            .filter(|line| line.starts_with("data: "))
-            .copied()
-            .collect();
 
-        if data_lines.len() != 1 {
-            warn!(
-                "Expected exactly one 'data:' line from agent {}, found {}",
-                agent.id,
-                data_lines.len()
-            );
-            return Err(PipelineError::NoContentInResponse(format!(
-                "Expected exactly one 'data:' line from agent {}, found {}",
-                agent.id,
-                data_lines.len()
-            )));
-        }
-
-        let data_chunk = &data_lines[0][6..]; // Skip "data: " prefix
-
-        let response: JsonRpcResponse = serde_json::from_str(data_chunk)?;
-        let response_result = response
-            .result
-            .ok_or_else(|| PipelineError::NoChoicesInResponse(agent.id.clone()))?;
-
-        let response_json = response_result
-            .get("structuredContent")
-            .ok_or_else(|| PipelineError::NoChoicesInResponse(agent.id.clone()))?;
         // Parse the response as JSON to extract the content
         // let response_json: serde_json::Value = serde_json::from_slice(&response_bytes)?;
 

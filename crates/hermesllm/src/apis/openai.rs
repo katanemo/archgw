@@ -687,6 +687,32 @@ impl ProviderRequest for ChatCompletionsRequest {
         })
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        // First check the 'tools' field (current API)
+        if let Some(tools) = &self.tools {
+            let names: Vec<String> = tools
+                .iter()
+                .map(|tool| tool.function.name.clone())
+                .collect();
+            if !names.is_empty() {
+                return Some(names);
+            }
+        }
+
+        // Fallback to 'functions' field (deprecated but still supported)
+        if let Some(functions) = &self.functions {
+            let names: Vec<String> = functions
+                .iter()
+                .map(|func| func.function.name.clone())
+                .collect();
+            if !names.is_empty() {
+                return Some(names);
+            }
+        }
+
+        None
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize OpenAI request: {}", e),
@@ -704,6 +730,10 @@ impl ProviderRequest for ChatCompletionsRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
     }
 }
 

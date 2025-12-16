@@ -37,7 +37,38 @@ pub async fn agent_chat(
     match handle_agent_chat(request, router_service, agents_list, listeners).await {
         Ok(response) => Ok(response),
         Err(err) => {
-            // Print detailed error information with full error chain
+            // Check if this is a client error from the pipeline that should be cascaded
+            if let AgentFilterChainError::Pipeline(PipelineError::ClientError {
+                agent,
+                status,
+                body,
+            }) = &err
+            {
+                warn!(
+                    "Client error from agent '{}' (HTTP {}): {}",
+                    agent, status, body
+                );
+
+                // Create error response with the original status code and body
+                let error_json = serde_json::json!({
+                    "error": "ClientError",
+                    "agent": agent,
+                    "status": status,
+                    "agent_response": body
+                });
+
+                let json_string = error_json.to_string();
+                let mut response = Response::new(ResponseHandler::create_full_body(json_string));
+                *response.status_mut() = hyper::StatusCode::from_u16(*status)
+                    .unwrap_or(hyper::StatusCode::INTERNAL_SERVER_ERROR);
+                response.headers_mut().insert(
+                    hyper::header::CONTENT_TYPE,
+                    "application/json".parse().unwrap(),
+                );
+                return Ok(response);
+            }
+
+            // Print detailed error information with full error chain for other errors
             let mut error_chain = Vec::new();
             let mut current_error: &dyn std::error::Error = &err;
 

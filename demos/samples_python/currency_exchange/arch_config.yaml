@@ -8,8 +8,15 @@ listeners:
     timeout: 30s
 
 llm_providers:
-  - access_key: $OPENAI_API_KEY
-    model: openai/gpt-4o
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code understanding
+        description: understand and explain existing code snippets, functions, or libraries
 
 endpoints:
   frankfurther_api:

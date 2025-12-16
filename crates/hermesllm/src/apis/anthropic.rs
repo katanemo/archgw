@@ -513,6 +513,12 @@ impl ProviderRequest for MessagesRequest {
         None
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        self.tools.as_ref().map(|tools| {
+            tools.iter().map(|tool| tool.name.clone()).collect()
+        })
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize MessagesRequest: {}", e),
@@ -530,6 +536,10 @@ impl ProviderRequest for MessagesRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
     }
 }
 

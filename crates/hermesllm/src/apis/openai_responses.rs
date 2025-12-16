@@ -1063,6 +1063,19 @@ impl ProviderRequest for ResponsesAPIRequest {
         }
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        self.tools.as_ref().map(|tools| {
+            tools
+                .iter()
+                .filter_map(|tool| match tool {
+                    Tool::Function { name, .. } => Some(name.clone()),
+                    // Other tool types don't have user-defined names
+                    _ => None,
+                })
+                .collect()
+        })
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize Responses API request: {}", e),
@@ -1080,6 +1093,10 @@ impl ProviderRequest for ResponsesAPIRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
     }
 }
 

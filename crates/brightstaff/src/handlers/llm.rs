@@ -99,6 +99,9 @@ pub async fn llm_chat(
     let user_message_preview = client_request.get_recent_user_message()
         .map(|msg| truncate_message(&msg, 50));
 
+    // Extract messages for signal analysis (clone before moving client_request)
+    let messages_for_signals = extract_messages_for_signals(&client_request);
+
     client_request.set_model(resolved_model.clone());
     if client_request.remove_metadata_key("archgw_preference_config") {
         debug!("[PLANO_REQ_ID:{}] Removed archgw_preference_config from metadata", request_id);
@@ -260,12 +263,17 @@ pub async fn llm_chat(
     ).await;
 
     // Create base processor for metrics and tracing
-    let base_processor = ObservableStreamProcessor::new(
+    let mut base_processor = ObservableStreamProcessor::new(
         trace_collector,
         operation_component::LLM,
         llm_span,
         request_start_time,
     );
+
+    // Add messages for signal analysis if available
+    if let Some(messages) = messages_for_signals {
+        base_processor = base_processor.with_messages(messages);
+    }
 
     // === v1/responses state management: Wrap with ResponsesStateProcessor ===
     // Only wrap if we need to manage state (client is ResponsesAPI AND upstream is NOT ResponsesAPI AND state_storage is configured)
@@ -444,19 +452,20 @@ async fn get_provider_info(
         let provider_id = provider.provider_interface.to_provider_id();
         let prefix = provider.base_url_path_prefix.clone();
         return (provider_id, prefix);
-    }
-
-    let default_provider = providers_lock.iter().find(|p| {
-        p.default.unwrap_or(false)
-    });
-
-    if let Some(provider) = default_provider {
-        let provider_id = provider.provider_interface.to_provider_id();
-        let prefix = provider.base_url_path_prefix.clone();
-        (provider_id, prefix)
     } else {
         // Last resort: use OpenAI as hardcoded fallback
         warn!("No default provider found, falling back to OpenAI");
         (hermesllm::ProviderId::OpenAI, None)
+    }
+}
+
+/// Extract messages from ProviderRequestType for signal analysis
+/// Returns None for non-ChatCompletions requests
+fn extract_messages_for_signals(request: &ProviderRequestType) -> Option<Vec<hermesllm::apis::openai::Message>> {
+    match request {
+        ProviderRequestType::ChatCompletionsRequest(chat_req) => {
+            Some(chat_req.messages.clone())
+        }
+        _ => None,
     }
 }

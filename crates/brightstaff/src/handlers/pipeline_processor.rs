@@ -79,19 +79,19 @@ impl PipelineProcessor {
         let current_cx = opentelemetry::Context::current();
         let span_ref = current_cx.span();
         let span_context = span_ref.span_context();
-        
+
         let trace_id = if span_context.is_valid() {
             format!("{:032x}", span_context.trace_id())
         } else {
             String::new() // SpanBuilder will generate one
         };
-        
+
         let parent_span_id = if span_context.is_valid() {
             Some(format!("{:016x}", span_context.span_id()))
         } else {
             None
         };
-        
+
         (trace_id, parent_span_id)
     }
 
@@ -106,7 +106,7 @@ impl PipelineProcessor {
         elapsed: std::time::Duration,
     ) {
         let (trace_id, parent_span_id) = self.extract_trace_context();
-        
+
         let mut span_builder = SpanBuilder::new(format!("filter_execution: {}", agent_name))
             .with_kind(SpanKind::Internal)
             .with_start_time(start_time)
@@ -138,7 +138,7 @@ impl PipelineProcessor {
         additional_attrs: Option<HashMap<&str, String>>,
     ) {
         let (trace_id, parent_span_id) = self.extract_trace_context();
-        
+
         let mut span_builder = SpanBuilder::new(format!("mcp_{}", operation))
             .with_kind(SpanKind::Client)
             .with_start_time(start_time)
@@ -402,7 +402,7 @@ impl PipelineProcessor {
             attrs.insert("mcp.tool_name", tool_name.to_string());
             attrs.insert("mcp.session_id", mcp_session_id.clone());
             attrs.insert("http.status_code", http_status.as_u16().to_string());
-            
+
             self.record_mcp_span(
                 collector,
                 "tool_call",
@@ -541,7 +541,7 @@ impl PipelineProcessor {
             attrs.insert("mcp.method", "notifications/initialized".to_string());
             attrs.insert("mcp.session_id", session_id.to_string());
             attrs.insert("http.status_code", response.status().as_u16().to_string());
-            
+
             self.record_mcp_span(
                 collector,
                 "notification",
@@ -595,7 +595,7 @@ impl PipelineProcessor {
             attrs.insert("mcp.method", "initialize".to_string());
             attrs.insert("mcp.session_id", session_id.clone());
             attrs.insert("mcp.protocol_version", "2024-11-05".to_string());
-            
+
             self.record_mcp_span(
                 collector,
                 "session_init",

@@ -16,7 +16,7 @@ use hermesllm::apis::openai::{Message, Role};
 // ============================================================================
 
 /// Flag emoji for marking spans/operations worth investigating
-pub const FLAG_MARKER: &str = "\u{2691}";
+pub const FLAG_MARKER: &str = "\u{1F6A9}";
 
 // ============================================================================
 // Normalized Message Processing
@@ -152,7 +152,7 @@ pub enum InteractionQuality {
     /// Poor interaction with concerning signals
     Poor,
     /// Critical interaction with severe negative signals
-    Critical,
+    Severe,
 }
 
 /// Container for all computed signals for a conversation
@@ -382,6 +382,12 @@ impl SignalAnalyzer {
         }
     }
 
+    /// Check if a pattern is long enough to warrant fuzzy matching
+    /// Short patterns (< 3 words) should use exact matching only to avoid false positives
+    fn should_use_fuzzy_matching(pattern: &str) -> bool {
+        pattern.split_whitespace().count() >= 3
+    }
+
     /// Create a new signal analyzer with default settings
     pub fn new() -> Self {
         Self {
@@ -571,7 +577,7 @@ impl SignalAnalyzer {
                     repair_phrases.push(format!("Turn {}: '{}'", i + 1, pattern));
                     found_in_turn = true;
                     break;
-                } else if norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
+                } else if Self::should_use_fuzzy_matching(pattern) && norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
                     repair_count += 1;
                     repair_phrases.push(format!("Turn {}: '{}' (fuzzy)", i + 1, pattern));
                     found_in_turn = true;
@@ -754,7 +760,7 @@ impl SignalAnalyzer {
                         snippet: pattern.to_string(),
                     });
                     break;
-                } else if norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
+                } else if Self::should_use_fuzzy_matching(pattern) && norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
                     indicators.push(FrustrationIndicator {
                         indicator_type: FrustrationType::DirectComplaint,
                         message_index: *i,
@@ -1056,7 +1062,7 @@ impl SignalAnalyzer {
                     });
                     found_in_turn = true;
                     break;
-                } else if norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
+                } else if Self::should_use_fuzzy_matching(pattern) && norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
                     indicators.push(PositiveIndicator {
                         indicator_type: PositiveType::Gratitude,
                         message_index: *i,
@@ -1243,7 +1249,7 @@ impl SignalAnalyzer {
                         escalation_type: EscalationType::HumanAgent,
                     });
                     break;
-                } else if norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
+                } else if Self::should_use_fuzzy_matching(pattern) && norm_msg.fuzzy_contains_phrase(pattern, self.fuzzy_threshold) {
                     requests.push(EscalationRequest {
                         message_index: *i,
                         snippet: format!("{} (fuzzy)", pattern),
@@ -1343,7 +1349,7 @@ impl SignalAnalyzer {
             || repetition.severity >= 3
             || turn_count.is_excessive
         {
-            return InteractionQuality::Critical;
+            return InteractionQuality::Severe;
         }
 
         // Calculate quality score
@@ -1379,7 +1385,7 @@ impl SignalAnalyzer {
         } else if score >= 25.0 {
             InteractionQuality::Poor
         } else {
-            InteractionQuality::Critical
+            InteractionQuality::Severe
         }
     }
 
@@ -1661,7 +1667,7 @@ mod tests {
         let report = analyzer.analyze(&messages);
         assert!(matches!(
             report.overall_quality,
-            InteractionQuality::Poor | InteractionQuality::Critical
+            InteractionQuality::Poor | InteractionQuality::Severe
         ));
         assert!(report.frustration.has_frustration);
         assert!(report.escalation.escalation_requested);
@@ -1847,5 +1853,191 @@ mod tests {
         let signal = analyzer.analyze_follow_up(&normalized_messages);
         // Should not detect as rephrase since only stopwords overlap
         assert_eq!(signal.repair_count, 0, "Messages with only stopword overlap should not be rephrases");
+    }
+
+    #[test]
+    fn test_frustrated_user_with_legitimate_repair() {
+        let start = Instant::now();
+        let analyzer = SignalAnalyzer::new();
+
+        use hermesllm::apis::openai::{ToolCall, FunctionCall};
+
+        // Helper to create a message with tool calls
+        let create_assistant_with_tools = |content: &str, tool_id: &str, tool_name: &str, args: &str| -> Message {
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text(content.to_string()),
+                name: None,
+                tool_calls: Some(vec![ToolCall {
+                    id: tool_id.to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: tool_name.to_string(),
+                        arguments: args.to_string(),
+                    },
+                }]),
+                tool_call_id: None,
+            }
+        };
+
+        // Helper to create a tool response message
+        let create_tool_message = |tool_call_id: &str, content: &str| -> Message {
+            Message {
+                role: Role::Tool,
+                content: MessageContent::Text(content.to_string()),
+                name: None,
+                tool_calls: None,
+                tool_call_id: Some(tool_call_id.to_string()),
+            }
+        };
+
+        // Scenario: User DOES mention New York in first message, making "I already told you" legitimate
+        let messages = vec![
+            create_message(Role::User, "I need to book a flight from New York to Paris for December 20th"),
+            create_assistant_with_tools(
+                "I'll help you search for flights to Paris.",
+                "call_123",
+                "search_flights",
+                r#"{"origin": "NYC", "destination": "Paris", "date": "2025-12-20"}"#
+            ),
+            create_tool_message("call_123", r#"{"flights": []}"#),
+            create_message(Role::Assistant, "I couldn't find any flights. Could you provide your departure city?"),
+            create_message(Role::User, "I already told you, from New York!"),
+            create_assistant_with_tools(
+                "Let me try again.",
+                "call_456",
+                "search_flights",
+                r#"{"origin": "New York", "destination": "Paris", "date": "2025-12-20"}"#
+            ),
+            create_tool_message("call_456", r#"{"flights": []}"#),
+            create_message(Role::Assistant, "I'm still not finding results. Let me check the system."),
+            create_message(Role::User, "THIS IS RIDICULOUS!!! The tool doesn't work at all. Why do you keep calling it?"),
+            create_message(Role::Assistant, "I sincerely apologize for the frustration with the search tool."),
+            create_message(Role::User, "Forget it. I need to speak to a human agent. This is a waste of time."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // Tool messages should be filtered out, so we should only analyze text messages
+        // That's 4 user messages + 5 assistant text messages = 9 turns
+        assert_eq!(report.turn_count.total_turns, 9, "Should count 9 text messages (tool messages filtered out)");
+        assert!(report.turn_count.is_concerning, "Should flag concerning turn count");
+
+        // Should detect frustration (all caps, complaints)
+        assert!(report.frustration.has_frustration, "Should detect frustration");
+        assert!(report.frustration.frustration_count >= 2, "Should detect multiple frustration indicators");
+        assert!(report.frustration.severity >= 2, "Should have moderate or higher frustration severity");
+
+        // Should detect escalation request
+        assert!(report.escalation.escalation_requested, "Should detect escalation to human agent");
+        assert!(report.escalation.escalation_count >= 1, "Should detect at least one escalation");
+
+        // Overall quality should be Poor or Severe
+        assert!(
+            matches!(
+                report.overall_quality,
+                InteractionQuality::Poor | InteractionQuality::Severe
+            ),
+            "Quality should be Poor or Severe, got {:?}",
+            report.overall_quality
+        );
+
+        println!("test_frustrated_user_with_legitimate_repair took: {:?}", start.elapsed());
+    }
+
+    #[test]
+    fn test_frustrated_user_false_claim() {
+        let start = Instant::now();
+        let analyzer = SignalAnalyzer::new();
+
+        use hermesllm::apis::openai::{ToolCall, FunctionCall};
+
+        // Helper to create a message with tool calls
+        let create_assistant_with_tools = |content: &str, tool_id: &str, tool_name: &str, args: &str| -> Message {
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text(content.to_string()),
+                name: None,
+                tool_calls: Some(vec![ToolCall {
+                    id: tool_id.to_string(),
+                    call_type: "function".to_string(),
+                    function: FunctionCall {
+                        name: tool_name.to_string(),
+                        arguments: args.to_string(),
+                    },
+                }]),
+                tool_call_id: None,
+            }
+        };
+
+        // Helper to create a tool response message
+        let create_tool_message = |tool_call_id: &str, content: &str| -> Message {
+            Message {
+                role: Role::Tool,
+                content: MessageContent::Text(content.to_string()),
+                name: None,
+                tool_calls: None,
+                tool_call_id: Some(tool_call_id.to_string()),
+            }
+        };
+
+        // Scenario: User NEVER mentions New York in first message but claims "I already told you"
+        // This represents realistic frustrated user behavior - exaggeration/misremembering
+        let messages = vec![
+            create_message(Role::User, "I need to book a flight to Paris for December 20th"),
+            create_assistant_with_tools(
+                "I'll help you search for flights to Paris.",
+                "call_123",
+                "search_flights",
+                r#"{"destination": "Paris", "date": "2025-12-20"}"#
+            ),
+            create_tool_message("call_123", r#"{"error": "origin required"}"#),
+            create_message(Role::Assistant, "I couldn't find any flights. Could you provide your departure city?"),
+            create_message(Role::User, "I already told you, from New York!"),  // False claim - never mentioned it
+            create_assistant_with_tools(
+                "Let me try again.",
+                "call_456",
+                "search_flights",
+                r#"{"origin": "New York", "destination": "Paris", "date": "2025-12-20"}"#
+            ),
+            create_tool_message("call_456", r#"{"flights": []}"#),
+            create_message(Role::Assistant, "I'm still not finding results. Let me check the system."),
+            create_message(Role::User, "THIS IS RIDICULOUS!!! The tool doesn't work at all. Why do you keep calling it?"),
+            create_message(Role::Assistant, "I sincerely apologize for the frustration with the search tool."),
+            create_message(Role::User, "Forget it. I need to speak to a human agent. This is a waste of time."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // Tool messages should be filtered out, so we should only analyze text messages
+        // That's 4 user messages + 5 assistant text messages = 9 turns
+        assert_eq!(report.turn_count.total_turns, 9, "Should count 9 text messages (tool messages filtered out)");
+        assert!(report.turn_count.is_concerning, "Should flag concerning turn count");
+
+        // Should detect frustration (all caps, complaints, false claims)
+        assert!(report.frustration.has_frustration, "Should detect frustration");
+        assert!(report.frustration.frustration_count >= 2, "Should detect multiple frustration indicators");
+        assert!(report.frustration.severity >= 2, "Should have moderate or higher frustration severity");
+
+        // Should detect escalation request
+        assert!(report.escalation.escalation_requested, "Should detect escalation to human agent");
+        assert!(report.escalation.escalation_count >= 1, "Should detect at least one escalation");
+
+        // Note: May detect false positive "positive feedback" due to fuzzy matching
+        // e.g., "I already told YOU" matches "you rock", "THIS is RIDICULOUS" matches "this helps"
+        // However, the overall quality should still be Poor/Severe due to frustration+escalation
+
+        // Overall quality should be Poor or Severe (frustration + escalation indicates poor interaction)
+        assert!(
+            matches!(
+                report.overall_quality,
+                InteractionQuality::Poor | InteractionQuality::Severe
+            ),
+            "Quality should be Poor or Severe for frustrated user with false claims, got {:?}",
+            report.overall_quality
+        );
+
+        println!("test_frustrated_user_false_claim took: {:?}", start.elapsed());
+        println!("Full signal analysis completed in {:?}", start.elapsed());
     }
 }

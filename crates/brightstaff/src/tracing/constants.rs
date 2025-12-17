@@ -203,6 +203,7 @@ pub mod operation_component {
 pub struct OperationNameBuilder {
     method: Option<String>,
     path: Option<String>,
+    operation: Option<String>,
     target: Option<String>,
 }
 
@@ -212,6 +213,7 @@ impl OperationNameBuilder {
         Self {
             method: None,
             path: None,
+            operation: None,
             target: None,
         }
     }
@@ -234,6 +236,15 @@ impl OperationNameBuilder {
         self
     }
 
+    /// Set the operation type (optional, for MCP operations)
+    ///
+    /// # Arguments
+    /// * `operation` - Operation type (e.g., "tool_call", "session_init", "notification")
+    pub fn with_operation(mut self, operation: impl Into<String>) -> Self {
+        self.operation = Some(operation.into());
+        self
+    }
+
     /// Set the target (model name, agent name, or filter name)
     ///
     /// # Arguments
@@ -246,7 +257,8 @@ impl OperationNameBuilder {
     /// Build the operation name string
     ///
     /// # Format
-    /// - With all components: `{method} {path} {target}`
+    /// - With all components: `{method} {path} ({operation}) {target}`
+    /// - Without operation: `{method} {path} {target}`
     /// - Without target: `{method} {path}`
     /// - Without path: `{method}`
     /// - Empty: returns empty string
@@ -258,7 +270,11 @@ impl OperationNameBuilder {
         }
 
         if let Some(path) = self.path {
-            parts.push(path);
+            if let Some(operation) = self.operation {
+                parts.push(format!("{} ({})", path, operation));
+            } else {
+                parts.push(path);
+            }
         }
 
         if let Some(target) = self.target {

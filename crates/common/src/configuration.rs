@@ -60,7 +60,7 @@ pub struct Configuration {
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
-    pub agent_filters: Option<Vec<Agent>>,
+    pub filters: Option<Vec<Agent>>,
     pub listeners: Vec<Listener>,
 }
 

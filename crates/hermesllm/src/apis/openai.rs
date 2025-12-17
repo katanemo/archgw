@@ -735,6 +735,14 @@ impl ProviderRequest for ChatCompletionsRequest {
     fn get_temperature(&self) -> Option<f32> {
         self.temperature
     }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        self.messages.clone()
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        self.messages = messages.to_vec();
+    }
 }
 
 /// Implementation of ProviderResponse for ChatCompletionsResponse

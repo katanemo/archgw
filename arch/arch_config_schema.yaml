@@ -23,7 +23,7 @@ properties:
       required:
         - id
         - url
-  agent_filters:
+  filters:
     type: array
     items:
       type: object

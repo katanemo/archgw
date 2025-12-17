@@ -4,7 +4,7 @@ agents:
   - id: rag_agent
     url: http://host.docker.internal:10505
 
-agent_filters:
+filters:
   - id: query_rewriter
     url: http://host.docker.internal:10501
     # type: mcp # default is mcp

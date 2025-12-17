@@ -101,8 +101,8 @@ def validate_and_render_schema():
 
     # Process agents section and convert to endpoints
     agents = config_yaml.get("agents", [])
-    agent_filters = config_yaml.get("agent_filters", [])
-    agents_combined = agents + agent_filters
+    filters = config_yaml.get("filters", [])
+    agents_combined = agents + filters
     agent_id_keys = set()
 
     for agent in agents_combined:

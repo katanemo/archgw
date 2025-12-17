@@ -47,360 +47,26 @@ pub trait ProviderRequest: Send + Sync {
     fn remove_metadata_key(&mut self, key: &str) -> bool;
 
     fn get_temperature(&self) -> Option<f32>;
+
+    /// Get message history as OpenAI Message format
+    /// This is useful for processing chat history across different provider formats
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message>;
+
+    /// Set message history from OpenAI Message format
+    /// This converts OpenAI messages to the appropriate format for each provider type
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]);
 }
 
 impl ProviderRequestType {
-    /// Get message history as OpenAI Message format
-    /// This is useful for processing chat history across different provider formats
-    pub fn get_message_history(&self) -> Vec<crate::apis::openai::Message> {
-        use crate::apis::openai::{Message, MessageContent, Role};
-
-        match self {
-            Self::ChatCompletionsRequest(r) => r.messages.clone(),
-            Self::MessagesRequest(r) => {
-                // Convert Anthropic messages to OpenAI format
-                let mut openai_messages = Vec::new();
-
-                // Add system prompt as system message if present
-                if let Some(system) = &r.system {
-                    openai_messages.push(system.clone().into());
-                }
-
-                // Convert each Anthropic message to OpenAI format
-                for msg in &r.messages {
-                    if let Ok(converted_msgs) = TryInto::<Vec<Message>>::try_into(msg.clone()) {
-                        openai_messages.extend(converted_msgs);
-                    }
-                }
-
-                openai_messages
-            }
-            Self::BedrockConverse(r) => {
-                // Convert Bedrock messages to OpenAI format
-                let mut openai_messages = Vec::new();
-
-                // Add system messages if present
-                if let Some(system) = &r.system {
-                    for sys_block in system {
-                        match sys_block {
-                            crate::apis::amazon_bedrock::SystemContentBlock::Text { text } => {
-                                openai_messages.push(Message {
-                                    role: Role::System,
-                                    content: MessageContent::Text(text.clone()),
-                                    name: None,
-                                    tool_calls: None,
-                                    tool_call_id: None,
-                                });
-                            }
-                            _ => {} // Skip other system content types
-                        }
-                    }
-                }
-
-                // Convert conversation messages
-                if let Some(messages) = &r.messages {
-                    for msg in messages {
-                        let role = match msg.role {
-                            crate::apis::amazon_bedrock::ConversationRole::User => Role::User,
-                            crate::apis::amazon_bedrock::ConversationRole::Assistant => Role::Assistant,
-                        };
-
-                        // Extract text from content blocks
-                        let content = msg.content.iter()
-                            .filter_map(|block| {
-                                if let crate::apis::amazon_bedrock::ContentBlock::Text { text } = block {
-                                    Some(text.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        openai_messages.push(Message {
-                            role,
-                            content: MessageContent::Text(content),
-                            name: None,
-                            tool_calls: None,
-                            tool_call_id: None,
-                        });
-                    }
-                }
-
-                openai_messages
-            }
-            Self::BedrockConverseStream(r) => {
-                // Same as BedrockConverse
-                let mut openai_messages = Vec::new();
-
-                if let Some(system) = &r.system {
-                    for sys_block in system {
-                        match sys_block {
-                            crate::apis::amazon_bedrock::SystemContentBlock::Text { text } => {
-                                openai_messages.push(Message {
-                                    role: Role::System,
-                                    content: MessageContent::Text(text.clone()),
-                                    name: None,
-                                    tool_calls: None,
-                                    tool_call_id: None,
-                                });
-                            }
-                            _ => {} // Skip other system content types
-                        }
-                    }
-                }
-
-                if let Some(messages) = &r.messages {
-                    for msg in messages {
-                        let role = match msg.role {
-                            crate::apis::amazon_bedrock::ConversationRole::User => Role::User,
-                            crate::apis::amazon_bedrock::ConversationRole::Assistant => Role::Assistant,
-                        };
-
-                        let content = msg.content.iter()
-                            .filter_map(|block| {
-                                if let crate::apis::amazon_bedrock::ContentBlock::Text { text } = block {
-                                    Some(text.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        openai_messages.push(Message {
-                            role,
-                            content: MessageContent::Text(content),
-                            name: None,
-                            tool_calls: None,
-                            tool_call_id: None,
-                        });
-                    }
-                }
-
-                openai_messages
-            }
-            Self::ResponsesAPIRequest(r) => {
-                // Convert ResponsesAPIRequest input to a user message
-                let mut openai_messages = Vec::new();
-
-                // Add instructions as system message if present
-                if let Some(instructions) = &r.instructions {
-                    openai_messages.push(Message {
-                        role: Role::System,
-                        content: MessageContent::Text(instructions.clone()),
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    });
-                }
-
-                // Convert input to messages
-                use crate::apis::openai_responses::{InputParam, InputItem};
-                match &r.input {
-                    InputParam::Text(text) => {
-                        openai_messages.push(Message {
-                            role: Role::User,
-                            content: MessageContent::Text(text.clone()),
-                            name: None,
-                            tool_calls: None,
-                            tool_call_id: None,
-                        });
-                    }
-                    InputParam::Items(items) => {
-                        for item in items {
-                            match item {
-                                InputItem::Message(msg) => {
-                                    // Convert message role
-                                    let role = match msg.role {
-                                        crate::apis::openai_responses::MessageRole::User => Role::User,
-                                        crate::apis::openai_responses::MessageRole::Assistant => Role::Assistant,
-                                        crate::apis::openai_responses::MessageRole::System => Role::System,
-                                        crate::apis::openai_responses::MessageRole::Developer => Role::System, // Map developer to system
-                                    };
-
-                                    // Extract text from message content
-                                    let content = match &msg.content {
-                                        crate::apis::openai_responses::MessageContent::Text(text) => text.clone(),
-                                        crate::apis::openai_responses::MessageContent::Items(items) => {
-                                            items.iter()
-                                                .filter_map(|c| {
-                                                    if let crate::apis::openai_responses::InputContent::InputText { text } = c {
-                                                        Some(text.clone())
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                                .collect::<Vec<_>>()
-                                                .join("\n")
-                                        }
-                                    };
-
-                                    openai_messages.push(Message {
-                                        role,
-                                        content: MessageContent::Text(content),
-                                        name: None,
-                                        tool_calls: None,
-                                        tool_call_id: None,
-                                    });
-                                }
-                                // Skip other input item types for now
-                                InputItem::ItemReference { .. } | InputItem::FunctionCallOutput { .. } => {
-                                    // These are not yet supported in agent framework
-                                }
-                            }
-                        }
-                    }
-                }
-
-                openai_messages
-            }
-        }
-    }
-
     /// Set message history from OpenAI Message format
     /// This converts OpenAI messages to the appropriate format for each provider type
     pub fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
         match self {
-            Self::ChatCompletionsRequest(r) => {
-                r.messages = messages.to_vec();
-            }
-            Self::MessagesRequest(r) => {
-                // Convert OpenAI messages to Anthropic format
-                // Separate system messages from regular messages
-                let mut system_messages = Vec::new();
-                let mut regular_messages = Vec::new();
-
-                for msg in messages {
-                    if msg.role == crate::apis::openai::Role::System {
-                        system_messages.push(msg.clone());
-                    } else {
-                        regular_messages.push(msg.clone());
-                    }
-                }
-
-                // Set system prompt if there are system messages
-                if !system_messages.is_empty() {
-                    // Combine all system messages into one
-                    let system_text = system_messages.iter()
-                        .filter_map(|msg| {
-                            if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
-                                Some(text.as_str())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-
-                    r.system = Some(crate::apis::anthropic::MessagesSystemPrompt::Single(system_text));
-                }
-
-                // Convert regular messages
-                r.messages = regular_messages.iter()
-                    .filter_map(|msg| {
-                        msg.clone().try_into().ok()
-                    })
-                    .collect();
-            }
-            Self::BedrockConverse(r) | Self::BedrockConverseStream(r) => {
-                // Convert OpenAI messages to Bedrock format
-                use crate::apis::amazon_bedrock::{ContentBlock, ConversationRole, SystemContentBlock};
-
-                let mut system_blocks = Vec::new();
-                let mut bedrock_messages = Vec::new();
-
-                for msg in messages {
-                    match msg.role {
-                        crate::apis::openai::Role::System => {
-                            if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
-                                system_blocks.push(SystemContentBlock::Text { text: text.clone() });
-                            }
-                        }
-                        crate::apis::openai::Role::User | crate::apis::openai::Role::Assistant => {
-                            let role = match msg.role {
-                                crate::apis::openai::Role::User => ConversationRole::User,
-                                crate::apis::openai::Role::Assistant => ConversationRole::Assistant,
-                                _ => continue,
-                            };
-
-                            let content = if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
-                                vec![ContentBlock::Text { text: text.clone() }]
-                            } else {
-                                vec![]
-                            };
-
-                            bedrock_messages.push(crate::apis::amazon_bedrock::Message {
-                                role,
-                                content,
-                            });
-                        }
-                        _ => {}
-                    }
-                }
-
-                if !system_blocks.is_empty() {
-                    r.system = Some(system_blocks);
-                }
-                r.messages = Some(bedrock_messages);
-            }
-            Self::ResponsesAPIRequest(r) => {
-                // For ResponsesAPI, we need to convert messages back to input format
-                // Extract system messages as instructions
-                let system_text = messages.iter()
-                    .filter(|msg| msg.role == crate::apis::openai::Role::System)
-                    .filter_map(|msg| {
-                        if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
-                            Some(text.as_str())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                if !system_text.is_empty() {
-                    r.instructions = Some(system_text);
-                }
-
-                // Convert user/assistant messages to InputParam
-                // For simplicity, we'll use the last user message as the input
-                // or combine all non-system messages
-                let input_messages: Vec<_> = messages.iter()
-                    .filter(|msg| msg.role != crate::apis::openai::Role::System)
-                    .collect();
-
-                if !input_messages.is_empty() {
-                    // If there's only one message, use Text format
-                    if input_messages.len() == 1 {
-                        if let crate::apis::openai::MessageContent::Text(text) = &input_messages[0].content {
-                            r.input = crate::apis::openai_responses::InputParam::Text(text.clone());
-                        }
-                    } else {
-                        // Multiple messages - combine them as text for now
-                        // A more sophisticated approach would use InputParam::Items
-                        let combined_text = input_messages.iter()
-                            .filter_map(|msg| {
-                                if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
-                                    Some(format!("{}: {}",
-                                        match msg.role {
-                                            crate::apis::openai::Role::User => "User",
-                                            crate::apis::openai::Role::Assistant => "Assistant",
-                                            _ => "Unknown",
-                                        },
-                                        text
-                                    ))
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        r.input = crate::apis::openai_responses::InputParam::Text(combined_text);
-                    }
-                }
-            }
+            Self::ChatCompletionsRequest(r) => r.set_messages(messages),
+            Self::MessagesRequest(r) => r.set_messages(messages),
+            Self::BedrockConverse(r) => r.set_messages(messages),
+            Self::BedrockConverseStream(r) => r.set_messages(messages),
+            Self::ResponsesAPIRequest(r) => r.set_messages(messages),
         }
     }
 }
@@ -503,6 +169,26 @@ impl ProviderRequest for ProviderRequestType {
             Self::BedrockConverse(r) => r.get_temperature(),
             Self::BedrockConverseStream(r) => r.get_temperature(),
             Self::ResponsesAPIRequest(r) => r.get_temperature(),
+        }
+    }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.get_messages(),
+            Self::MessagesRequest(r) => r.get_messages(),
+            Self::BedrockConverse(r) => r.get_messages(),
+            Self::BedrockConverseStream(r) => r.get_messages(),
+            Self::ResponsesAPIRequest(r) => r.get_messages(),
+        }
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.set_messages(messages),
+            Self::MessagesRequest(r) => r.set_messages(messages),
+            Self::BedrockConverse(r) => r.set_messages(messages),
+            Self::BedrockConverseStream(r) => r.set_messages(messages),
+            Self::ResponsesAPIRequest(r) => r.set_messages(messages),
         }
     }
 }
@@ -1317,7 +1003,7 @@ mod tests {
         };
 
         let provider_req = ProviderRequestType::ChatCompletionsRequest(chat_req);
-        let messages = provider_req.get_message_history();
+        let messages = provider_req.get_messages();
 
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[0].role, Role::System);
@@ -1356,7 +1042,7 @@ mod tests {
         };
 
         let provider_req = ProviderRequestType::MessagesRequest(anthropic_req);
-        let messages = provider_req.get_message_history();
+        let messages = provider_req.get_messages();
 
         // Should have system message + user message
         assert_eq!(messages.len(), 2);
@@ -1404,7 +1090,7 @@ mod tests {
         };
 
         let provider_req = ProviderRequestType::ResponsesAPIRequest(responses_req);
-        let messages = provider_req.get_message_history();
+        let messages = provider_req.get_messages();
 
         // Should have system message (instructions) + user message (input)
         assert_eq!(messages.len(), 2);

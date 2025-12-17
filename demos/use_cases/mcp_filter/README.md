@@ -58,7 +58,7 @@ curl -X POST http://localhost:8001/v1/chat/completions \
 The `arch_config.yaml` defines how agents are connected:
 
 ```yaml
-agent_filters:
+filters:
   - id: query_rewriter
     url: mcp://host.docker.internal:10500
     tool: rewrite_query_with_archgw  # MCP tool name

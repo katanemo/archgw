@@ -60,18 +60,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let arch_config = Arc::new(config);
 
-    // combine agents and agent_filters into a single list of agents
+    // combine agents and filters into a single list of agents
     let all_agents: Vec<Agent> = arch_config
         .agents
         .as_deref()
         .unwrap_or_default()
         .iter()
-        .chain(arch_config.agent_filters.as_deref().unwrap_or_default())
+        .chain(arch_config.filters.as_deref().unwrap_or_default())
         .cloned()
         .collect();
 
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
-    let agents_list = Arc::new(RwLock::new(Some(all_agents)));
+    let combined_agents_filters_list = Arc::new(RwLock::new(Some(all_agents)));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
     let llm_provider_url =
         env::var("LLM_PROVIDER_ENDPOINT").unwrap_or_else(|_| "http://localhost:12001".to_string());
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
-        let agents_list = agents_list.clone();
+        let agents_list = combined_agents_filters_list.clone();
         let listeners = listeners.clone();
         let trace_collector = trace_collector.clone();
         let service = service_fn(move |req| {

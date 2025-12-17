@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common::configuration::{Agent, AgentFilterChain};
-use common::consts::{ARCH_UPSTREAM_HOST_HEADER, ENVOY_RETRY_HEADER};
+use common::consts::{ARCH_UPSTREAM_HOST_HEADER, BRIGHT_STAFF_SERVICE_NAME, ENVOY_RETRY_HEADER};
 use common::traces::{SpanBuilder, SpanKind};
 use hermesllm::{ProviderRequest, ProviderRequestType};
 use hermesllm::apis::openai::{Message};
@@ -10,7 +10,10 @@ use opentelemetry::trace::TraceContextExt;
 use tracing::{debug, info, warn};
 use std::time::{Instant, SystemTime};
 
-use crate::handlers::jsonrpc::{JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use crate::tracing::operation_component::{self};
+use crate::tracing::{OperationNameBuilder, http};
+
+use crate::handlers::jsonrpc::{JSON_RPC_VERSION, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, MCP_INITIALIZE, MCP_INITIALIZE_NOTIFICATION, TOOL_CALL_METHOD};
 use uuid::Uuid;
 
 /// Errors that can occur during pipeline processing
@@ -107,12 +110,22 @@ impl PipelineProcessor {
     ) {
         let (trace_id, parent_span_id) = self.extract_trace_context();
 
-        let mut span_builder = SpanBuilder::new(format!("filter_execution: {}", agent_name))
-            .with_kind(SpanKind::Internal)
+        // Build operation name: POST /agents/* {filter_name}
+        // Using generic path since we don't have access to specific endpoint here
+        let operation_name = OperationNameBuilder::new()
+            .with_method("POST")
+            .with_path("/agents/*")
+            .with_target(agent_name)
+            .build();
+
+        let mut span_builder = SpanBuilder::new(&operation_name)
+            .with_kind(SpanKind::Client)
             .with_start_time(start_time)
             .with_end_time(end_time)
-            .with_attribute("filter_name", agent_name.to_string())
-            .with_attribute("tool_name", tool_name.to_string())
+            .with_attribute(http::METHOD, "POST")
+            .with_attribute(http::TARGET, "/agents/*")
+            .with_attribute("filter.name", agent_name.to_string())
+            .with_attribute("filter.tool_name", tool_name.to_string())
             .with_attribute("duration_ms", format!("{:.2}", elapsed.as_secs_f64() * 1000.0));
 
         if !trace_id.is_empty() {
@@ -123,7 +136,8 @@ impl PipelineProcessor {
         }
 
         let span = span_builder.build();
-        collector.record_span("brightstaff", span);
+        // Use plano(filter) as service name for filter execution spans
+        collector.record_span(operation_component::AGENT_FILTER, span);
     }
 
     /// Record a span for MCP protocol interactions
@@ -139,10 +153,20 @@ impl PipelineProcessor {
     ) {
         let (trace_id, parent_span_id) = self.extract_trace_context();
 
-        let mut span_builder = SpanBuilder::new(format!("mcp_{}", operation))
+        // Build operation name: POST /mcp {agent_id}
+        let operation_name = OperationNameBuilder::new()
+            .with_method("POST")
+            .with_path("/mcp")
+            .with_operation(operation)
+            .with_target(agent_id)
+            .build();
+
+        let mut span_builder = SpanBuilder::new(&operation_name)
             .with_kind(SpanKind::Client)
             .with_start_time(start_time)
             .with_end_time(end_time)
+            .with_attribute(http::METHOD, "POST")
+            .with_attribute(http::TARGET, &format!("/mcp ({})", operation.to_string()))
             .with_attribute("mcp.operation", operation.to_string())
             .with_attribute("mcp.agent_id", agent_id.to_string())
             .with_attribute("duration_ms", format!("{:.2}", elapsed.as_secs_f64() * 1000.0));
@@ -161,7 +185,8 @@ impl PipelineProcessor {
         }
 
         let span = span_builder.build();
-        collector.record_span("brightstaff", span);
+        // MCP spans also use plano(filter) service name as they are part of filter operations
+        collector.record_span(operation_component::AGENT_FILTER, span);
     }
 
     /// Process the filter chain of agents (all except the terminal agent)
@@ -336,20 +361,21 @@ impl PipelineProcessor {
         tool_name: &str,
         messages: &[Message],
     ) -> Result<JsonRpcRequest, PipelineError> {
-        let arguments = serde_json::json!({
-            "messages": messages
-        });
+        let mut arguments = HashMap::new();
+        arguments.insert(
+            "messages".to_string(),
+            serde_json::to_value(messages)?,
+        );
 
-        let params = serde_json::json!({
-            "name": tool_name,
-            "arguments": arguments
-        });
+        let mut params = HashMap::new();
+        params.insert("name".to_string(), serde_json::to_value(tool_name)?);
+        params.insert("arguments".to_string(), serde_json::to_value(arguments)?);
 
         Ok(JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JSON_RPC_VERSION.to_string(),
             id: JsonRpcId::String(Uuid::new_v4().to_string()),
-            method: "tools/call".to_string(),
-            params: Some(serde_json::from_value(params)?),
+            method: TOOL_CALL_METHOD.to_string(),
+            params: Some(params),
         })
     }
 
@@ -479,9 +505,9 @@ impl PipelineProcessor {
     /// Build an initialize JSON-RPC request
     fn build_initialize_request(&self) -> JsonRpcRequest {
         JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: JsonRpcId::Number(1),
-            method: "initialize".to_string(),
+            jsonrpc: JSON_RPC_VERSION.to_string(),
+            id: JsonRpcId::String(Uuid::new_v4().to_string()),
+            method: MCP_INITIALIZE.to_string(),
             params: Some({
                 let mut params = HashMap::new();
                 params.insert(
@@ -492,7 +518,7 @@ impl PipelineProcessor {
                 params.insert(
                     "clientInfo".to_string(),
                     serde_json::json!({
-                        "name": "brightstaff",
+                        "name": BRIGHT_STAFF_SERVICE_NAME,
                         "version": "1.0.0"
                     }),
                 );
@@ -509,8 +535,8 @@ impl PipelineProcessor {
         trace_collector: Option<&std::sync::Arc<common::traces::TraceCollector>>,
     ) -> Result<(), PipelineError> {
         let initialized_notification = JsonRpcNotification {
-            jsonrpc: "2.0".to_string(),
-            method: "notifications/initialized".to_string(),
+            jsonrpc: JSON_RPC_VERSION.to_string(),
+            method: MCP_INITIALIZE_NOTIFICATION.to_string(),
             params: None,
         };
 
@@ -616,7 +642,7 @@ impl PipelineProcessor {
     }
 
     /// Send request to terminal agent and return the raw response for streaming
-    pub async fn invoke_terminal_agent(
+    pub async fn invoke_agent(
         &self,
         messages: &[Message],
         mut original_request: ProviderRequestType,
@@ -786,7 +812,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_filter_mcp_error_flag() {
         let rpc_body = serde_json::json!({
-            "jsonrpc": "2.0",
+            "jsonrpc": JSON_RPC_VERSION,
             "id": "1",
             "result": {
                 "isError": true,

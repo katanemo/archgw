@@ -81,6 +81,9 @@ pub async fn llm_chat(
     let user_message_preview = client_request.get_recent_user_message()
         .map(|msg| truncate_message(&msg, 50));
 
+    // Extract messages for signal analysis (clone before moving client_request)
+    let messages_for_signals = extract_messages_for_signals(&client_request);
+
     client_request.set_model(resolved_model.clone());
     if client_request.remove_metadata_key("archgw_preference_config") {
         debug!("Removed archgw_preference_config from metadata");
@@ -174,12 +177,17 @@ pub async fn llm_chat(
     ).await;
 
     // Use PassthroughProcessor to track streaming metrics and finalize the span
-    let processor = ObservableStreamProcessor::new(
+    let mut processor = ObservableStreamProcessor::new(
         trace_collector,
         operation_component::LLM,
         llm_span,
         request_start_time,
     );
+
+    // Add messages for signal analysis if available
+    if let Some(messages) = messages_for_signals {
+        processor = processor.with_messages(messages);
+    }
 
     let streaming_response = create_streaming_response(byte_stream, processor, 16);
 
@@ -342,4 +350,15 @@ async fn get_upstream_path(
         is_streaming,
         base_url_path_prefix.as_deref(),
     )
+}
+
+/// Extract messages from ProviderRequestType for signal analysis
+/// Returns None for non-ChatCompletions requests
+fn extract_messages_for_signals(request: &ProviderRequestType) -> Option<Vec<hermesllm::apis::openai::Message>> {
+    match request {
+        ProviderRequestType::ChatCompletionsRequest(chat_req) => {
+            Some(chat_req.messages.clone())
+        }
+        _ => None,
+    }
 }

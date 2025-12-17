@@ -10,8 +10,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 use tracing::warn;
 
-// Import tracing constants
+// Import tracing constants and signals
 use crate::tracing::{llm, error};
+use crate::signals::signals::{SignalAnalyzer, InteractionQuality, FLAG_MARKER};
+use hermesllm::apis::openai::Message;
 
 /// Trait for processing streaming chunks
 /// Implementors can inject custom logic during streaming (e.g., hallucination detection, logging)
@@ -38,6 +40,7 @@ pub struct ObservableStreamProcessor {
     chunk_count: usize,
     start_time: Instant,
     time_to_first_token: Option<u128>,
+    messages: Option<Vec<Message>>,
 }
 
 impl ObservableStreamProcessor {
@@ -62,7 +65,14 @@ impl ObservableStreamProcessor {
             chunk_count: 0,
             start_time,
             time_to_first_token: None,
+            messages: None,
         }
+    }
+
+    /// Set the conversation messages for signal analysis
+    pub fn with_messages(mut self, messages: Vec<Message>) -> Self {
+        self.messages = Some(messages);
+        self
     }
 }
 
@@ -133,6 +143,77 @@ impl StreamProcessor for ObservableStreamProcessor {
                 if let Some(ref mut events) = self.span.events {
                     events.push(event);
                 }
+            }
+        }
+
+        // Analyze signals if messages are available and add to span attributes
+        if let Some(ref messages) = self.messages {
+            let analyzer = SignalAnalyzer::new();
+            let report = analyzer.analyze(messages);
+
+            // Add overall quality
+            self.span.attributes.push(Attribute {
+                key: "signals.quality".to_string(),
+                value: AttributeValue {
+                    string_value: Some(format!("{:?}", report.overall_quality)),
+                },
+            });
+
+            // Add flag marker to operation name if any concerning signal is detected
+            let should_flag = report.frustration.has_frustration
+                || report.repetition.has_looping
+                || report.escalation.escalation_requested
+                || matches!(
+                    report.overall_quality,
+                    InteractionQuality::Poor | InteractionQuality::Critical
+                );
+
+            if should_flag {
+                // Prepend flag marker to the operation name
+                self.span.name = format!("{} {}", self.span.name, FLAG_MARKER);
+            }
+
+            // Add key signal metrics
+            if report.frustration.has_frustration {
+                self.span.attributes.push(Attribute {
+                    key: "signals.frustration.count".to_string(),
+                    value: AttributeValue {
+                        string_value: Some(report.frustration.frustration_count.to_string()),
+                    },
+                });
+                self.span.attributes.push(Attribute {
+                    key: "signals.frustration.severity".to_string(),
+                    value: AttributeValue {
+                        string_value: Some(report.frustration.severity.to_string()),
+                    },
+                });
+            }
+
+            if report.repetition.has_looping {
+                self.span.attributes.push(Attribute {
+                    key: "signals.repetition.count".to_string(),
+                    value: AttributeValue {
+                        string_value: Some(report.repetition.repetition_count.to_string()),
+                    },
+                });
+            }
+
+            if report.escalation.escalation_requested {
+                self.span.attributes.push(Attribute {
+                    key: "signals.escalation.requested".to_string(),
+                    value: AttributeValue {
+                        string_value: Some("true".to_string()),
+                    },
+                });
+            }
+
+            if report.positive_feedback.has_positive_feedback {
+                self.span.attributes.push(Attribute {
+                    key: "signals.positive_feedback.count".to_string(),
+                    value: AttributeValue {
+                        string_value: Some(report.positive_feedback.positive_count.to_string()),
+                    },
+                });
             }
         }
 

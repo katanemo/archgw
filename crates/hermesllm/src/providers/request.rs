@@ -220,16 +220,21 @@ impl ProviderRequestType {
                                     };
 
                                     // Extract text from message content
-                                    let content = msg.content.iter()
-                                        .filter_map(|c| {
-                                            if let crate::apis::openai_responses::InputContent::InputText { text } = c {
-                                                Some(text.clone())
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()
-                                        .join("\n");
+                                    let content = match &msg.content {
+                                        crate::apis::openai_responses::MessageContent::Text(text) => text.clone(),
+                                        crate::apis::openai_responses::MessageContent::Items(items) => {
+                                            items.iter()
+                                                .filter_map(|c| {
+                                                    if let crate::apis::openai_responses::InputContent::InputText { text } = c {
+                                                        Some(text.clone())
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<Vec<_>>()
+                                                .join("\n")
+                                        }
+                                    };
 
                                     openai_messages.push(Message {
                                         role,
@@ -238,6 +243,10 @@ impl ProviderRequestType {
                                         tool_calls: None,
                                         tool_call_id: None,
                                     });
+                                }
+                                // Skip other input item types for now
+                                InputItem::ItemReference { .. } | InputItem::FunctionCallOutput { .. } => {
+                                    // These are not yet supported in agent framework
                                 }
                             }
                         }

@@ -165,7 +165,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 || report.escalation.escalation_requested
                 || matches!(
                     report.overall_quality,
-                    InteractionQuality::Poor | InteractionQuality::Critical
+                    InteractionQuality::Poor | InteractionQuality::Severe
                 );
 
             if should_flag {

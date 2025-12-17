@@ -148,6 +148,24 @@ def get_llm_provider_access_keys(arch_config_file):
             if access_key is not None:
                 access_key_list.append(access_key)
 
+    # Extract environment variables from state_storage.connection_string
+    state_storage = arch_config_yaml.get("state_storage_v1_responses")
+    if state_storage:
+        connection_string = state_storage.get("connection_string")
+        if connection_string and isinstance(connection_string, str):
+            # Extract all $VAR and ${VAR} patterns from connection string
+            import re
+
+            # Match both $VAR and ${VAR} patterns
+            pattern = r"\$\{?([A-Z_][A-Z0-9_]*)\}?"
+            matches = re.findall(pattern, connection_string)
+            for var in matches:
+                access_key_list.append(f"${var}")
+        else:
+            raise ValueError(
+                "Invalid connection string received in state_storage_v1_responses"
+            )
+
     return access_key_list
 
 

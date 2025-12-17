@@ -42,6 +42,20 @@ pub struct Listener {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateStorageConfig {
+    #[serde(rename = "type")]
+    pub storage_type: StateStorageType,
+    pub connection_string: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StateStorageType {
+    Memory,
+    Postgres,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
@@ -58,6 +72,7 @@ pub struct Configuration {
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
     pub listeners: Vec<Listener>,
+    pub state_storage: Option<StateStorageConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

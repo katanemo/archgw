@@ -58,11 +58,11 @@ impl TryFrom<MessagesStreamEvent> for ChatCompletionsStreamResponse {
                 None,
             )),
 
-            MessagesStreamEvent::ContentBlockStart { content_block, .. } => {
-                convert_content_block_start(content_block)
+            MessagesStreamEvent::ContentBlockStart { content_block, index } => {
+                convert_content_block_start(content_block, index)
             }
 
-            MessagesStreamEvent::ContentBlockDelta { delta, .. } => convert_content_delta(delta),
+            MessagesStreamEvent::ContentBlockDelta { delta, index } => convert_content_delta(delta, index),
 
             MessagesStreamEvent::ContentBlockStop { .. } => Ok(create_empty_openai_chunk()),
 
@@ -272,6 +272,7 @@ impl TryFrom<ConverseStreamEvent> for ChatCompletionsStreamResponse {
 /// Convert content block start to OpenAI chunk
 fn convert_content_block_start(
     content_block: MessagesContentBlock,
+    index: u32,
 ) -> Result<ChatCompletionsStreamResponse, TransformError> {
     match content_block {
         MessagesContentBlock::Text { .. } => {
@@ -291,7 +292,7 @@ fn convert_content_block_start(
                     refusal: None,
                     function_call: None,
                     tool_calls: Some(vec![ToolCallDelta {
-                        index: 0,
+                        index,
                         id: Some(id),
                         call_type: Some("function".to_string()),
                         function: Some(FunctionCallDelta {
@@ -313,6 +314,7 @@ fn convert_content_block_start(
 /// Convert content delta to OpenAI chunk
 fn convert_content_delta(
     delta: MessagesContentDelta,
+    index: u32,
 ) -> Result<ChatCompletionsStreamResponse, TransformError> {
     match delta {
         MessagesContentDelta::TextDelta { text } => Ok(create_openai_chunk(
@@ -350,7 +352,7 @@ fn convert_content_delta(
                 refusal: None,
                 function_call: None,
                 tool_calls: Some(vec![ToolCallDelta {
-                    index: 0,
+                    index,
                     id: None,
                     call_type: None,
                     function: Some(FunctionCallDelta {

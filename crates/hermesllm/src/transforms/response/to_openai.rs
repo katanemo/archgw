@@ -80,8 +80,19 @@ impl TryFrom<ChatCompletionsResponse> for ResponsesAPIResponse {
             // Only add the message item if there's actual content (text, audio, or refusal)
             // Don't add empty message items when there are only tool calls
             if !content.is_empty() {
+                // Generate message ID: strip common prefixes to avoid double-prefixing
+                let message_id = if resp.id.starts_with("msg_") {
+                    resp.id.clone()
+                } else if resp.id.starts_with("resp_") {
+                    format!("msg_{}", &resp.id[5..]) // Strip "resp_" prefix
+                } else if resp.id.starts_with("chatcmpl-") {
+                    format!("msg_{}", &resp.id[9..]) // Strip "chatcmpl-" prefix
+                } else {
+                    format!("msg_{}", resp.id)
+                };
+
                 items.push(OutputItem::Message {
-                    id: format!("msg_{}", resp.id),
+                    id: message_id,
                     status: OutputItemStatus::Completed,
                     role: match choice.message.role {
                         Role::User => "user".to_string(),
@@ -151,7 +162,12 @@ impl TryFrom<ChatCompletionsResponse> for ResponsesAPIResponse {
         };
 
         Ok(ResponsesAPIResponse {
-            id: resp.id,
+            // Generate proper resp_ prefixed ID if not already present
+            id: if resp.id.starts_with("resp_") {
+                resp.id
+            } else {
+                format!("resp_{}", uuid::Uuid::new_v4().to_string().replace("-", ""))
+            },
             object: "response".to_string(),
             created_at: resp.created as i64,
             status,
@@ -942,7 +958,7 @@ mod tests {
         use crate::apis::openai_responses::{OutputContent, OutputItem, ResponsesAPIResponse};
 
         let chat_response = ChatCompletionsResponse {
-            id: "chatcmpl-123".to_string(),
+            id: "resp_6de5512800cf4375a329a473a4f02879".to_string(),
             object: Some("chat.completion".to_string()),
             created: 1677652288,
             model: "gpt-4".to_string(),
@@ -974,7 +990,9 @@ mod tests {
 
         let responses_api: ResponsesAPIResponse = chat_response.try_into().unwrap();
 
-        assert_eq!(responses_api.id, "chatcmpl-123");
+        // Response ID should be generated with resp_ prefix
+        assert!(responses_api.id.starts_with("resp_"), "Response ID should start with 'resp_'");
+        assert_eq!(responses_api.id.len(), 37, "Response ID should be resp_ + 32 char UUID");
         assert_eq!(responses_api.object, "response");
         assert_eq!(responses_api.model, "gpt-4");
 

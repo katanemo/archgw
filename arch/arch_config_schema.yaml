@@ -331,6 +331,31 @@ properties:
       model:
         type: string
       additionalProperties: false
+  state_storage:
+    type: object
+    properties:
+      type:
+        type: string
+        enum:
+          - memory
+          - postgres
+      connection_string:
+        type: string
+        description: Required when type is postgres. Supports environment variable substitution using $VAR or ${VAR} syntax.
+    additionalProperties: false
+    required:
+      - type
+    # Note: connection_string is conditionally required based on type
+    # If type is 'postgres', connection_string must be provided
+    # If type is 'memory', connection_string is not needed
+    allOf:
+      - if:
+          properties:
+            type:
+              const: postgres
+        then:
+          required:
+            - connection_string
   prompt_guards:
     type: object
     properties:

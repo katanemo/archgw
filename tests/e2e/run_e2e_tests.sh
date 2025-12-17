@@ -69,6 +69,14 @@ log running e2e tests for openai responses api client
 log ========================================
 poetry run pytest test_openai_responses_api_client.py
 
+log startup arch gateway with state storage for openai responses api client demo
+archgw down
+archgw up arch_config_memory_state_v1_responses.yaml
+
+log running e2e tests for openai responses api client
+log ========================================
+poetry run pytest test_openai_responses_api_client_with_state.py
+
 log shutting down the weather_forecast demo
 log =======================================
 cd ../../demos/samples_python/weather_forecast

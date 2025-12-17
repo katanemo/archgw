@@ -4,7 +4,7 @@ RUN rustup -v target add wasm32-wasip1
 WORKDIR /arch
 COPY crates .
 RUN cargo build --release --target wasm32-wasip1 -p prompt_gateway -p llm_gateway
-RUN cargo build --release -p brightstaff
+RUN cargo build --release -p brightstaff -p oauth_gateway
 
 FROM docker.io/envoyproxy/envoy:v1.34-latest AS envoy
 
@@ -27,6 +27,7 @@ RUN set -eux; \
 COPY --from=builder /arch/target/wasm32-wasip1/release/prompt_gateway.wasm /etc/envoy/proxy-wasm-plugins/prompt_gateway.wasm
 COPY --from=builder /arch/target/wasm32-wasip1/release/llm_gateway.wasm /etc/envoy/proxy-wasm-plugins/llm_gateway.wasm
 COPY --from=builder /arch/target/release/brightstaff /app/brightstaff
+COPY --from=builder /arch/target/release/oauth_gateway /app/oauth_gateway
 COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /app
@@ -41,6 +42,6 @@ RUN pip install requests
 RUN mkdir -p /var/log/supervisor && touch /var/log/envoy.log /var/log/supervisor/supervisord.log
 
 RUN mkdir -p /var/log && \
-    touch /var/log/access_ingress.log /var/log/access_ingress_prompt.log /var/log/access_internal.log /var/log/access_llm.log
+    touch /var/log/access_ingress.log /var/log/access_ingress_prompt.log /var/log/access_internal.log /var/log/access_llm.log /var/log/oauth_gateway.log
 
 ENTRYPOINT ["sh","-c", "/usr/bin/supervisord"]

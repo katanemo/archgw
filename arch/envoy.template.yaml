@@ -73,6 +73,14 @@ static_resources:
                       domains:
                         - "*"
                       routes:
+                        # OAuth Gateway routes
+                        - match:
+                            prefix: "/auth/"
+                          route:
+                            auto_host_rewrite: true
+                            cluster: oauth_gateway_local
+                            timeout: 30s
+                        # Default route to prompt gateway
                         - match:
                             prefix: "/"
                           route:
@@ -623,6 +631,21 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
+
+    - name: oauth_gateway_local
+      connect_timeout: 1s
+      type: STATIC
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: oauth_gateway_local
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 54545
 
     - name: arch
       connect_timeout: 5s

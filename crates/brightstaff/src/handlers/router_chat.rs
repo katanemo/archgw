@@ -9,6 +9,7 @@ use tracing::{debug, info, warn};
 
 use crate::router::llm_router::RouterService;
 use crate::tracing::{OperationNameBuilder, operation_component, http, routing};
+use crate::handlers::model_routing::{resolve_model_with_fallback, log_routing_decision};
 
 pub struct RoutingResult {
     pub model_name: String
@@ -133,7 +134,22 @@ pub async fn router_chat_get_upstream_model(
 
     match routing_result {
         Ok(route) => match route {
-            Some((_, model_name)) => {
+            Some((_, mut model_name)) => {
+                // Extract request ID from traceparent for correlation
+                let request_id = traceparent.split('-').nth(1).unwrap_or("unknown");
+
+                // Check model availability and apply fallback if needed
+                if let Some(resolved_model) = resolve_model_with_fallback(&model_name, None, request_id) {
+                    let fallback_used = resolved_model != model_name;
+                    log_routing_decision(request_id, &model_name, &resolved_model, fallback_used);
+                    model_name = resolved_model;
+                } else {
+                    warn!(
+                        "[REQ_ID:{}] Failed to resolve model '{}' and no fallback available, proceeding anyway",
+                        request_id, model_name
+                    );
+                }
+
                 // Record successful routing span
                 let mut attrs: HashMap<String, String> = HashMap::new();
                 attrs.insert("route.selected_model".to_string(), model_name.clone());
@@ -157,7 +173,16 @@ pub async fn router_chat_get_upstream_model(
                     chat_request.model
                 );
 
-                let default_model = chat_request.model.clone();
+                let request_id = traceparent.split('-').nth(1).unwrap_or("unknown");
+                let mut default_model = chat_request.model.clone();
+
+                // Check availability of default model
+                if let Some(resolved_model) = resolve_model_with_fallback(&default_model, None, request_id) {
+                    let fallback_used = resolved_model != default_model;
+                    log_routing_decision(request_id, &default_model, &resolved_model, fallback_used);
+                    default_model = resolved_model;
+                }
+
                 let mut attrs = HashMap::new();
                 attrs.insert("route.selected_model".to_string(), default_model.clone());
                 record_routing_span(

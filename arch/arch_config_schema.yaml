@@ -331,7 +331,7 @@ properties:
       model:
         type: string
       additionalProperties: false
-  state_storage_v1_responses:
+  state_storage:
     type: object
     properties:
       type:

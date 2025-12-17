@@ -5,12 +5,12 @@
 //! for maintaining conversation history in the v1/responses API.
 
 use crate::apis::openai_responses::{
-    InputContent, InputItem, InputMessage, MessageRole, OutputContent, OutputItem,
+    InputContent, InputItem, InputMessage, MessageContent, MessageRole, OutputContent, OutputItem,
 };
 
 /// Converts an OutputItem from a response into an InputItem for the next request
 /// This is used to build conversation history from previous responses
-pub fn output_item_to_input_item(output: &OutputItem) -> Option<InputItem> {
+pub fn convert_responses_output_to_input_items(output: &OutputItem) -> Option<InputItem> {
     match output {
         // Convert output messages to input messages
         OutputItem::Message {
@@ -47,7 +47,7 @@ pub fn output_item_to_input_item(output: &OutputItem) -> Option<InputItem> {
 
             Some(InputItem::Message(InputMessage {
                 role: message_role,
-                content: input_content,
+                content: MessageContent::Items(input_content),
             }))
         }
         // For function calls, we'll create an assistant message with the tool call info
@@ -63,9 +63,9 @@ pub fn output_item_to_input_item(output: &OutputItem) -> Option<InputItem> {
 
             Some(InputItem::Message(InputMessage {
                 role: MessageRole::Assistant,
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: tool_call_text,
-                }],
+                }]),
             }))
         }
         // Skip other output types (tool outputs, etc.) as they don't convert to input
@@ -77,7 +77,7 @@ pub fn output_item_to_input_item(output: &OutputItem) -> Option<InputItem> {
 pub fn outputs_to_inputs(outputs: &[OutputItem]) -> Vec<InputItem> {
     outputs
         .iter()
-        .filter_map(output_item_to_input_item)
+        .filter_map(convert_responses_output_to_input_items)
         .collect()
 }
 
@@ -99,17 +99,23 @@ mod tests {
             }],
         };
 
-        let input = output_item_to_input_item(&output).unwrap();
+        let input = convert_responses_output_to_input_items(&output).unwrap();
 
         match input {
             InputItem::Message(msg) => {
                 assert!(matches!(msg.role, MessageRole::Assistant));
-                assert_eq!(msg.content.len(), 1);
-                match &msg.content[0] {
-                    InputContent::InputText { text } => assert_eq!(text, "Hello!"),
-                    _ => panic!("Expected InputText"),
+                match &msg.content {
+                    MessageContent::Items(items) => {
+                        assert_eq!(items.len(), 1);
+                        match &items[0] {
+                            InputContent::InputText { text } => assert_eq!(text, "Hello!"),
+                            _ => panic!("Expected InputText"),
+                        }
+                    }
+                    _ => panic!("Expected MessageContent::Items"),
                 }
             }
+            _ => panic!("Expected Message variant"),
         }
     }
 
@@ -123,18 +129,24 @@ mod tests {
             arguments: Some(r#"{"location":"SF"}"#.to_string()),
         };
 
-        let input = output_item_to_input_item(&output).unwrap();
+        let input = convert_responses_output_to_input_items(&output).unwrap();
 
         match input {
             InputItem::Message(msg) => {
                 assert!(matches!(msg.role, MessageRole::Assistant));
-                match &msg.content[0] {
-                    InputContent::InputText { text } => {
-                        assert!(text.contains("get_weather"));
+                match &msg.content {
+                    MessageContent::Items(items) => {
+                        match &items[0] {
+                            InputContent::InputText { text } => {
+                                assert!(text.contains("get_weather"));
+                            }
+                            _ => panic!("Expected InputText"),
+                        }
                     }
-                    _ => panic!("Expected InputText"),
+                    _ => panic!("Expected MessageContent::Items"),
                 }
             }
+            _ => panic!("Expected Message variant"),
         }
     }
 

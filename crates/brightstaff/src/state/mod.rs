@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use hermesllm::apis::openai_responses::{InputItem, InputMessage, InputContent, MessageRole, InputParam};
+use hermesllm::apis::openai_responses::{InputItem, InputMessage, InputContent, MessageContent, MessageRole, InputParam};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -123,9 +123,9 @@ pub fn extract_input_items(input: &InputParam) -> Vec<InputItem> {
         InputParam::Text(text) => {
             vec![InputItem::Message(InputMessage {
                 role: MessageRole::User,
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: text.clone(),
-                }],
+                }]),
             })]
         }
         InputParam::Items(items) => items.clone(),

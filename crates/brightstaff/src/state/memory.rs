@@ -47,14 +47,14 @@ impl StateStorage for MemoryConversationalStorage {
         match storage.get(response_id) {
             Some(state) => {
                 debug!(
-                    "[PLANO | BRIGHTSTAFF | MEMORY_STORAGE] RESP_ID:{} | Retrieved conversation state: input_items={}",
+                    "[PLANO | MEMORY_STORAGE | RESP_ID:{} | Retrieved conversation state: input_items={}",
                     response_id, state.input_items.len()
                 );
                 Ok(state.clone())
             }
             None => {
                 warn!(
-                    "[PLANO | BRIGHTSTAFF | MEMORY_STORAGE] RESP_ID:{} | Conversation state not found",
+                    "[PLANO_RESP_ID:{} | MEMORY_STORAGE | Conversation state not found",
                     response_id
                 );
                 Err(StateStorageError::NotFound(response_id.to_string()))
@@ -85,16 +85,16 @@ impl StateStorage for MemoryConversationalStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hermesllm::apis::openai_responses::{InputItem, InputMessage, MessageRole, InputContent};
+    use hermesllm::apis::openai_responses::{InputItem, InputMessage, MessageRole, InputContent, MessageContent};
 
     fn create_test_state(response_id: &str, num_messages: usize) -> OpenAIConversationState {
         let mut input_items = Vec::new();
         for i in 0..num_messages {
             input_items.push(InputItem::Message(InputMessage {
                 role: if i % 2 == 0 { MessageRole::User } else { MessageRole::Assistant },
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: format!("Message {}", i),
-                }],
+                }]),
             }));
         }
 
@@ -222,9 +222,9 @@ mod tests {
         // Create current input with 1 message
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "New message".to_string(),
-            }],
+            }]),
         })];
 
         // Merge
@@ -244,24 +244,30 @@ mod tests {
         // Current input has message 2
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "Message 2".to_string(),
-            }],
+            }]),
         })];
 
         let merged = storage.merge(&prev_state, current_input);
 
         // Verify order: prev messages first, then current
-        let InputItem::Message(msg) = &merged[0];
-        match &msg.content[0] {
-            InputContent::InputText { text } => assert_eq!(text, "Message 0"),
-            _ => panic!("Expected InputText"),
+        let InputItem::Message(msg) = &merged[0] else { panic!("Expected Message") };
+        match &msg.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert_eq!(text, "Message 0"),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
 
-        let InputItem::Message(msg) = &merged[2];
-        match &msg.content[0] {
-            InputContent::InputText { text } => assert_eq!(text, "Message 2"),
-            _ => panic!("Expected InputText"),
+        let InputItem::Message(msg) = &merged[2] else { panic!("Expected Message") };
+        match &msg.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert_eq!(text, "Message 2"),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
     }
 
@@ -290,9 +296,9 @@ mod tests {
 
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "Only message".to_string(),
-            }],
+            }]),
         })];
 
         let merged = storage.merge(&prev_state, current_input);
@@ -377,16 +383,16 @@ mod tests {
                 // Original user message
                 InputItem::Message(InputMessage {
                     role: MessageRole::User,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "What's the weather in San Francisco?".to_string(),
-                    }],
+                    }]),
                 }),
                 // Assistant's function call (converted from OutputItem::FunctionCall)
                 InputItem::Message(InputMessage {
                     role: MessageRole::Assistant,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "Called function: get_weather with arguments: {\"location\":\"San Francisco, CA\"}".to_string(),
-                    }],
+                    }]),
                 }),
             ],
             created_at: 1234567890,
@@ -397,9 +403,9 @@ mod tests {
         // Step 2: Current request includes function call output
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "Function result: {\"temperature\": 72, \"condition\": \"sunny\"}".to_string(),
-            }],
+            }]),
         })];
 
         // Step 3: Merge should combine all conversation history
@@ -409,32 +415,41 @@ mod tests {
         assert_eq!(merged.len(), 3);
 
         // Verify the order and content
-        let InputItem::Message(msg1) = &merged[0];
+        let InputItem::Message(msg1) = &merged[0] else { panic!("Expected Message") };
         assert!(matches!(msg1.role, MessageRole::User));
-        match &msg1.content[0] {
-            InputContent::InputText { text } => {
-                assert!(text.contains("weather in San Francisco"));
-            }
-            _ => panic!("Expected InputText"),
+        match &msg1.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => {
+                    assert!(text.contains("weather in San Francisco"));
+                }
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
 
-        let InputItem::Message(msg2) = &merged[1];
+        let InputItem::Message(msg2) = &merged[1] else { panic!("Expected Message") };
         assert!(matches!(msg2.role, MessageRole::Assistant));
-        match &msg2.content[0] {
-            InputContent::InputText { text } => {
-                assert!(text.contains("get_weather"));
-            }
-            _ => panic!("Expected InputText"),
+        match &msg2.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => {
+                    assert!(text.contains("get_weather"));
+                }
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
 
-        let InputItem::Message(msg3) = &merged[2];
+        let InputItem::Message(msg3) = &merged[2] else { panic!("Expected Message") };
         assert!(matches!(msg3.role, MessageRole::User));
-        match &msg3.content[0] {
-            InputContent::InputText { text } => {
-                assert!(text.contains("Function result"));
-                assert!(text.contains("temperature"));
-            }
-            _ => panic!("Expected InputText"),
+        match &msg3.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => {
+                    assert!(text.contains("Function result"));
+                    assert!(text.contains("temperature"));
+                }
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
     }
 
@@ -449,21 +464,21 @@ mod tests {
             input_items: vec![
                 InputItem::Message(InputMessage {
                     role: MessageRole::User,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "What's the weather and time in SF?".to_string(),
-                    }],
+                    }]),
                 }),
                 InputItem::Message(InputMessage {
                     role: MessageRole::Assistant,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "Called function: get_weather with arguments: {\"location\":\"SF\"}".to_string(),
-                    }],
+                    }]),
                 }),
                 InputItem::Message(InputMessage {
                     role: MessageRole::Assistant,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "Called function: get_time with arguments: {\"timezone\":\"America/Los_Angeles\"}".to_string(),
-                    }],
+                    }]),
                 }),
             ],
             created_at: 1234567890,
@@ -475,15 +490,15 @@ mod tests {
         let current_input = vec![
             InputItem::Message(InputMessage {
                 role: MessageRole::User,
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: "Weather result: {\"temp\": 68}".to_string(),
-                }],
+                }]),
             }),
             InputItem::Message(InputMessage {
                 role: MessageRole::User,
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: "Time result: {\"time\": \"14:30\"}".to_string(),
-                }],
+                }]),
             }),
         ];
 
@@ -493,22 +508,28 @@ mod tests {
         assert_eq!(merged.len(), 5);
 
         // Verify first item is original user message
-        let InputItem::Message(first) = &merged[0];
+        let InputItem::Message(first) = &merged[0] else { panic!("Expected Message") };
         assert!(matches!(first.role, MessageRole::User));
 
         // Verify last two are function outputs
-        let InputItem::Message(second_last) = &merged[3];
+        let InputItem::Message(second_last) = &merged[3] else { panic!("Expected Message") };
         assert!(matches!(second_last.role, MessageRole::User));
-        match &second_last.content[0] {
-            InputContent::InputText { text } => assert!(text.contains("Weather result")),
-            _ => panic!("Expected InputText"),
+        match &second_last.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert!(text.contains("Weather result")),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
 
-        let InputItem::Message(last) = &merged[4];
+        let InputItem::Message(last) = &merged[4] else { panic!("Expected Message") };
         assert!(matches!(last.role, MessageRole::User));
-        match &last.content[0] {
-            InputContent::InputText { text } => assert!(text.contains("Time result")),
-            _ => panic!("Expected InputText"),
+        match &last.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert!(text.contains("Time result")),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
     }
 
@@ -524,30 +545,30 @@ mod tests {
                 // Turn 1: User asks about weather
                 InputItem::Message(InputMessage {
                     role: MessageRole::User,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "What's the weather?".to_string(),
-                    }],
+                    }]),
                 }),
                 // Turn 1: Assistant calls get_weather
                 InputItem::Message(InputMessage {
                     role: MessageRole::Assistant,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "Called function: get_weather".to_string(),
-                    }],
+                    }]),
                 }),
                 // Turn 2: User provides function output
                 InputItem::Message(InputMessage {
                     role: MessageRole::User,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "Weather: sunny, 72°F".to_string(),
-                    }],
+                    }]),
                 }),
                 // Turn 2: Assistant responds with text
                 InputItem::Message(InputMessage {
                     role: MessageRole::Assistant,
-                    content: vec![InputContent::InputText {
+                    content: MessageContent::Items(vec![InputContent::InputText {
                         text: "It's sunny and 72°F in San Francisco today!".to_string(),
-                    }],
+                    }]),
                 }),
             ],
             created_at: 1234567890,
@@ -558,9 +579,9 @@ mod tests {
         // Turn 3: User asks follow-up question
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "Should I bring an umbrella?".to_string(),
-            }],
+            }]),
         })];
 
         let merged = storage.merge(&prev_state, current_input);
@@ -569,16 +590,22 @@ mod tests {
         assert_eq!(merged.len(), 5);
 
         // Verify the entire conversation flow is preserved
-        let InputItem::Message(first) = &merged[0];
-        match &first.content[0] {
-            InputContent::InputText { text } => assert!(text.contains("What's the weather")),
-            _ => panic!("Expected InputText"),
+        let InputItem::Message(first) = &merged[0] else { panic!("Expected Message") };
+        match &first.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert!(text.contains("What's the weather")),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
 
-        let InputItem::Message(last) = &merged[4];
-        match &last.content[0] {
-            InputContent::InputText { text } => assert!(text.contains("umbrella")),
-            _ => panic!("Expected InputText"),
+        let InputItem::Message(last) = &merged[4] else { panic!("Expected Message") };
+        match &last.content {
+            MessageContent::Items(items) => match &items[0] {
+                InputContent::InputText { text } => assert!(text.contains("umbrella")),
+                _ => panic!("Expected InputText"),
+            },
+            _ => panic!("Expected MessageContent::Items"),
         }
     }
 }

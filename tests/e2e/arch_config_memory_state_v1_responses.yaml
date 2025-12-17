@@ -20,6 +20,6 @@ llm_providers:
 
 # State storage configuration for v1/responses API
 # Manages conversation state for multi-turn conversations
-state_storage_v1_responses:
+state_storage:
   # Type: memory | postgres
   type: memory

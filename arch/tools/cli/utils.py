@@ -161,6 +161,10 @@ def get_llm_provider_access_keys(arch_config_file):
             matches = re.findall(pattern, connection_string)
             for var in matches:
                 access_key_list.append(f"${var}")
+        else:
+            raise ValueError(
+                "Invalid connection string received in state_storage_v1_responses"
+            )
 
     return access_key_list
 

@@ -230,16 +230,16 @@ Run that SQL file against your database before using this storage backend.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hermesllm::apis::openai_responses::{InputContent, InputItem, InputMessage, MessageRole};
+    use hermesllm::apis::openai_responses::{InputContent, InputItem, InputMessage, MessageContent, MessageRole};
 
     fn create_test_state(response_id: &str) -> OpenAIConversationState {
         OpenAIConversationState {
             response_id: response_id.to_string(),
             input_items: vec![InputItem::Message(InputMessage {
                 role: MessageRole::User,
-                content: vec![InputContent::InputText {
+                content: MessageContent::Items(vec![InputContent::InputText {
                     text: "Test message".to_string(),
-                }],
+                }]),
             })],
             created_at: 1234567890,
             model: "gpt-4".to_string(),
@@ -298,9 +298,9 @@ mod tests {
         state2.model = "gpt-4-turbo".to_string();
         state2.input_items.push(InputItem::Message(InputMessage {
             role: MessageRole::Assistant,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "Response".to_string(),
-            }],
+            }]),
         }));
         storage.put(state2).await.unwrap();
 
@@ -384,9 +384,9 @@ mod tests {
         let prev_state = create_test_state("test_resp_005");
         let current_input = vec![InputItem::Message(InputMessage {
             role: MessageRole::User,
-            content: vec![InputContent::InputText {
+            content: MessageContent::Items(vec![InputContent::InputText {
                 text: "New message".to_string(),
-            }],
+            }]),
         })];
 
         let merged = storage.merge(&prev_state, current_input);

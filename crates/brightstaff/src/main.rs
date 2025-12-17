@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Configurable via arch_config.yaml state_storage section
     // If not configured, state management is disabled
     // Environment variables are substituted by envsubst before config is read
-    let state_storage: Option<Arc<dyn StateStorage>> = if let Some(storage_config) = &arch_config.state_storage_v1_responses {
+    let state_storage: Option<Arc<dyn StateStorage>> = if let Some(storage_config) = &arch_config.state_storage {
         let storage: Arc<dyn StateStorage> = match storage_config.storage_type {
             common::configuration::StateStorageType::Memory => {
                 info!("Initialized conversation state storage: Memory");

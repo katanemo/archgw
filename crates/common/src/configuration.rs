@@ -72,7 +72,7 @@ pub struct Configuration {
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
     pub listeners: Vec<Listener>,
-    pub state_storage_v1_responses: Option<StateStorageConfig>,
+    pub state_storage: Option<StateStorageConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

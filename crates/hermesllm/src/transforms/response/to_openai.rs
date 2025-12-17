@@ -80,9 +80,13 @@ impl TryFrom<ChatCompletionsResponse> for ResponsesAPIResponse {
             // Only add the message item if there's actual content (text, audio, or refusal)
             // Don't add empty message items when there are only tool calls
             if !content.is_empty() {
-                // Avoid double-prefixing: if ID already starts with "msg_", use as-is
+                // Generate message ID: strip common prefixes to avoid double-prefixing
                 let message_id = if resp.id.starts_with("msg_") {
                     resp.id.clone()
+                } else if resp.id.starts_with("resp_") {
+                    format!("msg_{}", &resp.id[5..]) // Strip "resp_" prefix
+                } else if resp.id.starts_with("chatcmpl-") {
+                    format!("msg_{}", &resp.id[9..]) // Strip "chatcmpl-" prefix
                 } else {
                     format!("msg_{}", resp.id)
                 };

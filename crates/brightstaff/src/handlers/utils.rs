@@ -11,7 +11,7 @@ use tokio_stream::StreamExt;
 use tracing::warn;
 
 // Import tracing constants and signals
-use crate::tracing::{llm, error};
+use crate::tracing::{llm, error, signals as signal_constants};
 use crate::signals::signals::{SignalAnalyzer, InteractionQuality, FLAG_MARKER};
 use hermesllm::apis::openai::Message;
 
@@ -153,11 +153,28 @@ impl StreamProcessor for ObservableStreamProcessor {
 
             // Add overall quality
             self.span.attributes.push(Attribute {
-                key: "signals.quality".to_string(),
+                key: signal_constants::QUALITY.to_string(),
                 value: AttributeValue {
                     string_value: Some(format!("{:?}", report.overall_quality)),
                 },
             });
+
+            // Add repair/follow-up metrics if concerning
+            if report.follow_up.is_concerning || report.follow_up.repair_count > 0 {
+                self.span.attributes.push(Attribute {
+                    key: signal_constants::REPAIR_COUNT.to_string(),
+                    value: AttributeValue {
+                        string_value: Some(report.follow_up.repair_count.to_string()),
+                    },
+                });
+
+                self.span.attributes.push(Attribute {
+                    key: signal_constants::REPAIR_RATIO.to_string(),
+                    value: AttributeValue {
+                        string_value: Some(format!("{:.3}", report.follow_up.repair_ratio)),
+                    },
+                });
+            }
 
             // Add flag marker to operation name if any concerning signal is detected
             let should_flag = report.frustration.has_frustration
@@ -176,13 +193,13 @@ impl StreamProcessor for ObservableStreamProcessor {
             // Add key signal metrics
             if report.frustration.has_frustration {
                 self.span.attributes.push(Attribute {
-                    key: "signals.frustration.count".to_string(),
+                    key: signal_constants::FRUSTRATION_COUNT.to_string(),
                     value: AttributeValue {
                         string_value: Some(report.frustration.frustration_count.to_string()),
                     },
                 });
                 self.span.attributes.push(Attribute {
-                    key: "signals.frustration.severity".to_string(),
+                    key: signal_constants::FRUSTRATION_SEVERITY.to_string(),
                     value: AttributeValue {
                         string_value: Some(report.frustration.severity.to_string()),
                     },
@@ -191,7 +208,7 @@ impl StreamProcessor for ObservableStreamProcessor {
 
             if report.repetition.has_looping {
                 self.span.attributes.push(Attribute {
-                    key: "signals.repetition.count".to_string(),
+                    key: signal_constants::REPETITION_COUNT.to_string(),
                     value: AttributeValue {
                         string_value: Some(report.repetition.repetition_count.to_string()),
                     },
@@ -200,7 +217,7 @@ impl StreamProcessor for ObservableStreamProcessor {
 
             if report.escalation.escalation_requested {
                 self.span.attributes.push(Attribute {
-                    key: "signals.escalation.requested".to_string(),
+                    key: signal_constants::ESCALATION_REQUESTED.to_string(),
                     value: AttributeValue {
                         string_value: Some("true".to_string()),
                     },
@@ -209,7 +226,7 @@ impl StreamProcessor for ObservableStreamProcessor {
 
             if report.positive_feedback.has_positive_feedback {
                 self.span.attributes.push(Attribute {
-                    key: "signals.positive_feedback.count".to_string(),
+                    key: signal_constants::POSITIVE_FEEDBACK_COUNT.to_string(),
                     value: AttributeValue {
                         string_value: Some(report.positive_feedback.positive_count.to_string()),
                     },

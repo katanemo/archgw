@@ -51,10 +51,14 @@ export function Hero() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4">
             <Button asChild className="w-full sm:w-auto">
-              <Link href="/get-started">Get started</Link>
+              <Link href="https://docs.planoai.dev/getting-started" target="_blank" rel="noopener noreferrer">
+                Get started
+              </Link>
             </Button>
             <Button variant="secondary" asChild className="w-full sm:w-auto">
-              <Link href="/docs">Documentation</Link>
+              <Link href="https://docs.planoai.dev" target="_blank" rel="noopener noreferrer">
+                Documentation
+              </Link>
             </Button>
           </div>
         </div>

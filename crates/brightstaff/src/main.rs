@@ -176,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let state_storage = state_storage.clone();
 
             async move {
-
+                let path = req.uri().path();
                 // Check if path starts with /agents
                 if path.starts_with("/agents") {
                     // Check if it matches one of the agent API paths
@@ -198,11 +198,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         .await;
                     }
                 }
-                match (req.method(), req.uri().path()) {
+                match (req.method(), path) {
                     (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
                         let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, req.uri().path());
-                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector)
+                            format!("{}{}", llm_provider_url, path);
+                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector, state_storage)
                             .with_context(parent_cx)
                             .await
                     }

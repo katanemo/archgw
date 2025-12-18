@@ -13,7 +13,7 @@ const carouselData = [
     description:
       "Building agents is hard enough. The plumbing work shouldn't be. Plano handles routing, observability, and policy hooks as a models-native sidecar—so you can focus on your agent's core product logic and ship to production faster.",
     image: "/LaunchFaster.svg",
-    link: "https://docs.planoai.dev/get_started/installation",
+    link: "https://docs.planoai.dev/get_started/quickstart",
   },
   {
     id: 2,
@@ -22,7 +22,7 @@ const carouselData = [
     description:
       "Build with multiple LLMs or model versions with a single unified API. Plano centralizes access controls, offers resiliency for traffic to 100+ LLMs -- all without you having to write a single line of code. Use existing libraries and proxy traffic through Plano.",
     image: "/BuildWithChoice.svg",
-    link: "https://docs.planoai.dev/get_started/installation",
+    link: "https://docs.planoai.dev/concepts/llm_providers/llm_providers",
   },
   {
     id: 3,
@@ -31,7 +31,7 @@ const carouselData = [
     description:
       "Knowing when agents fail or delight users is a critical signal that feeds into the reinforcement learning and optimization cycle. Plano makes this trivial by sampling hyper-rich information traces from live production agentic interactions so that you can improve agent performance faster.",
     image: "/Telemetry.svg",
-    link: "https://docs.planoai.dev/get_started/installation",
+    link: "https://docs.planoai.dev/guides/observability/observability.html",
   },
   {
     id: 4,
@@ -40,7 +40,7 @@ const carouselData = [
     description:
       "Plano comes built-in with a state-of-the-art guardrail model you can use for things like jailbreak detection. But you can easily extend those capabilities via plano's agent filter chain to apply custom policy checks in a centralized way and keep users engaged on topics relevant to your requirements.",
     image: "/ShipConfidently.svg",
-    link: "https://docs.planoai.dev/get_started/installation",
+    link: "https://docs.planoai.dev/guides/prompt_guard.html",
   },
   {
     id: 5,
@@ -49,7 +49,7 @@ const carouselData = [
     description:
       "Plano's sidecar deployment model avoids library-based abstractions - operating as a protocol-native data plane that integrates seamlessly with your existing agents via agentic APIs (like v1/responses). This decouples your core agent logic from plumbing concerns - run it alongside any framework without code changes, vendor lock-in, or performance overhead.",
     image: "/Contextual.svg",
-    link: "https://docs.planoai.dev/get_started/installation",
+    link: "https://docs.planoai.dev/concepts/tech_overview/tech_overview.html",
   },
 ];
 

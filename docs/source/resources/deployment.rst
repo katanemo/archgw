@@ -25,7 +25,7 @@ Create a ``docker-compose.yml`` file with the following configuration:
    # docker-compose.yml
    services:
      archgw:
-       image: katanemo/archgw:0.3.18
+       image: katanemo/archgw:0.3.22
        container_name: archgw
        ports:
          - "10000:10000" # ingress (client -> arch)
@@ -35,7 +35,6 @@ Create a ``docker-compose.yml`` file with the following configuration:
        environment:
          - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
          - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?error}
-         - MODEL_SERVER_PORT=51000
 
 Starting the Stack
 ~~~~~~~~~~~~~~~~~~

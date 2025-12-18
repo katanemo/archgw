@@ -264,13 +264,6 @@ impl StreamContext {
             .tool_calls
             .clone_into(&mut self.tool_calls);
 
-        if self.tool_calls.as_ref().unwrap().len() > 1 {
-            warn!(
-                "multiple tool calls not supported yet, tool_calls count found: {}",
-                self.tool_calls.as_ref().unwrap().len()
-            );
-        }
-
         if self.tool_calls.is_none() || self.tool_calls.as_ref().unwrap().is_empty() {
             // This means that Arch FC did not have enough information to resolve the function call
             // Arch FC probably responded with a message asking for more information.
@@ -311,6 +304,14 @@ impl StreamContext {
                 StatusCode::OK.as_u16().into(),
                 vec![],
                 Some(direct_response_str.as_bytes()),
+            );
+        }
+
+        // At this point, we know tool_calls is not None and not empty
+        if self.tool_calls.as_ref().unwrap().len() > 1 {
+            warn!(
+                "multiple tool calls not supported yet, tool_calls count found: {}",
+                self.tool_calls.as_ref().unwrap().len()
             );
         }
 
@@ -371,7 +372,26 @@ impl StreamContext {
 
         let tools_call_name = self.tool_calls.as_ref().unwrap()[0].function.name.clone();
         let prompt_target = self.prompt_targets.get(&tools_call_name).unwrap().clone();
-        let tool_params = &self.tool_calls.as_ref().unwrap()[0].function.arguments;
+        let tool_params_str = &self.tool_calls.as_ref().unwrap()[0].function.arguments;
+
+        // Parse arguments JSON string into HashMap
+        // Note: convert from serde_json::Value to serde_yaml::Value for compatibility
+        let tool_params: Option<HashMap<String, serde_yaml::Value>> = match serde_json::from_str::<HashMap<String, serde_json::Value>>(tool_params_str) {
+            Ok(json_params) => {
+                let yaml_params: HashMap<String, serde_yaml::Value> = json_params
+                    .into_iter()
+                    .filter_map(|(k, v)| {
+                        serde_yaml::to_value(&v).ok().map(|yaml_v| (k, yaml_v))
+                    })
+                    .collect();
+                Some(yaml_params)
+            },
+            Err(e) => {
+                warn!("Failed to parse tool call arguments: {}", e);
+                None
+            }
+        };
+
         let endpoint_details = prompt_target.endpoint.as_ref().unwrap();
         let endpoint_path: String = endpoint_details
             .path
@@ -384,7 +404,7 @@ impl StreamContext {
 
         let (path, api_call_body) = match compute_request_path_body(
             &endpoint_path,
-            tool_params,
+            &tool_params,
             &prompt_target_params,
             &http_method,
         ) {
@@ -870,7 +890,7 @@ mod test {
                         id: "1".to_string(),
                         function: common::api::open_ai::FunctionCallDetail {
                             name: "test".to_string(),
-                            arguments: None,
+                            arguments: "{}".to_string(),
                         },
                         tool_type: common::api::open_ai::ToolType::Function,
                     }]),

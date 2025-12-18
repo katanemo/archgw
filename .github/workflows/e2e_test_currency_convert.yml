@@ -24,7 +24,7 @@ jobs:
 
       - name: build arch docker image
         run: |
-          docker build  -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.18
+          docker build  -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.22
 
       - name: install poetry
         run: |
@@ -40,11 +40,10 @@ jobs:
           curl --location --remote-name https://github.com/Orange-OpenSource/hurl/releases/download/4.0.0/hurl_4.0.0_amd64.deb
           sudo dpkg -i hurl_4.0.0_amd64.deb
 
-      - name: install model server, arch gateway and test dependencies
+      - name: install arch gateway and test dependencies
         run: |
           source venv/bin/activate
-          cd model_server/ && echo "installing model server" && poetry install
-          cd ../arch/tools && echo "installing archgw cli" && poetry install
+          cd arch/tools && echo "installing archgw cli" && poetry install
           cd ../../demos/shared/test_runner && echo "installing test dependencies" && poetry install
 
       - name: run demo tests

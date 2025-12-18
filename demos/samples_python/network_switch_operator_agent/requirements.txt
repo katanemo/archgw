@@ -4,6 +4,7 @@ pydantic
 typing
 pandas
 gradio==5.3.0
+huggingface_hub<1.0.0
 async_timeout==4.0.3
 loguru==0.7.2
 asyncio==3.4.3

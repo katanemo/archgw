@@ -6,7 +6,9 @@
 pub mod id;
 pub mod request;
 pub mod response;
+pub mod streaming_response;
 
 pub use id::ProviderId;
 pub use request::{ProviderRequest, ProviderRequestError, ProviderRequestType};
-pub use response::{ProviderResponse, ProviderResponseType, ProviderStreamResponse, TokenUsage};
+pub use response::{ProviderResponse, ProviderResponseType, TokenUsage};
+pub use streaming_response::{ProviderStreamResponse, ProviderStreamResponseType};

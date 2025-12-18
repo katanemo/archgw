@@ -4,7 +4,6 @@ use crate::{
 };
 use core::{panic, str};
 use serde::{ser::SerializeMap, Deserialize, Serialize};
-use serde_yaml::Value;
 use std::{
     collections::{HashMap, VecDeque},
     fmt::Display,
@@ -265,7 +264,7 @@ pub struct ToolCall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCallDetail {
     pub name: String,
-    pub arguments: Option<HashMap<String, Value>>,
+    pub arguments: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

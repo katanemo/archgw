@@ -13,10 +13,10 @@ SUPPORTED_PROVIDERS_WITH_BASE_URL = [
     "ollama",
     "qwen",
     "amazon_bedrock",
+    "arch",
 ]
 
 SUPPORTED_PROVIDERS_WITHOUT_BASE_URL = [
-    "arch",
     "deepseek",
     "groq",
     "mistral",
@@ -101,8 +101,17 @@ def validate_and_render_schema():
 
     # Process agents section and convert to endpoints
     agents = config_yaml.get("agents", [])
-    for agent in agents:
+    filters = config_yaml.get("filters", [])
+    agents_combined = agents + filters
+    agent_id_keys = set()
+
+    for agent in agents_combined:
         agent_id = agent.get("id")
+        if agent_id in agent_id_keys:
+            raise Exception(
+                f"Duplicate agent id {agent_id}, please provide unique id for each agent"
+            )
+        agent_id_keys.add(agent_id)
         agent_endpoint = agent.get("url")
 
         if agent_id and agent_endpoint:
@@ -303,6 +312,16 @@ def validate_and_render_schema():
                     "model": config_yaml.get("routing", {}).get("model", "Arch-Router"),
                 }
             )
+
+    # Always add arch-function model provider if not already defined
+    if "arch-function" not in model_provider_name_set:
+        updated_model_providers.append(
+            {
+                "name": "arch-function",
+                "provider_interface": "arch",
+                "model": "Arch-Function",
+            }
+        )
 
     config_yaml["model_providers"] = deepcopy(updated_model_providers)
 

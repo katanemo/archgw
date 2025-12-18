@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::ProviderStreamResponse;
+use crate::providers::streaming_response::ProviderStreamResponse;
 
 // ============================================================================
 // AMAZON BEDROCK CONVERSE API ENUMERATION
@@ -200,6 +200,17 @@ impl ProviderRequest for ConverseRequest {
             })
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        self.tool_config.as_ref()?.tools.as_ref().map(|tools| {
+            tools
+                .iter()
+                .filter_map(|tool| match tool {
+                    Tool::ToolSpec { tool_spec } => Some(tool_spec.name.clone()),
+                })
+                .collect()
+        })
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize Bedrock request: {}", e),
@@ -217,6 +228,108 @@ impl ProviderRequest for ConverseRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.inference_config.as_ref()?.temperature
+    }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        use crate::apis::openai::{Message, MessageContent, Role};
+
+        let mut openai_messages = Vec::new();
+
+        // Add system messages if present
+        if let Some(system) = &self.system {
+            for sys_block in system {
+                match sys_block {
+                    SystemContentBlock::Text { text } => {
+                        openai_messages.push(Message {
+                            role: Role::System,
+                            content: MessageContent::Text(text.clone()),
+                            name: None,
+                            tool_calls: None,
+                            tool_call_id: None,
+                        });
+                    }
+                    _ => {} // Skip other system content types
+                }
+            }
+        }
+
+        // Convert conversation messages
+        if let Some(messages) = &self.messages {
+            for msg in messages {
+                let role = match msg.role {
+                    ConversationRole::User => Role::User,
+                    ConversationRole::Assistant => Role::Assistant,
+                };
+
+                // Extract text from content blocks
+                let content = msg.content.iter()
+                    .filter_map(|block| {
+                        if let ContentBlock::Text { text } = block {
+                            Some(text.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                openai_messages.push(Message {
+                    role,
+                    content: MessageContent::Text(content),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                });
+            }
+        }
+
+        openai_messages
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        // Convert OpenAI messages to Bedrock format
+        use crate::apis::amazon_bedrock::{ContentBlock, ConversationRole, SystemContentBlock};
+
+        let mut system_blocks = Vec::new();
+        let mut bedrock_messages = Vec::new();
+
+        for msg in messages {
+            match msg.role {
+                crate::apis::openai::Role::System => {
+                    if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
+                        system_blocks.push(SystemContentBlock::Text { text: text.clone() });
+                    }
+                }
+                crate::apis::openai::Role::User | crate::apis::openai::Role::Assistant => {
+                    let role = match msg.role {
+                        crate::apis::openai::Role::User => ConversationRole::User,
+                        crate::apis::openai::Role::Assistant => ConversationRole::Assistant,
+                        _ => continue,
+                    };
+
+                    let content = if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
+                        vec![ContentBlock::Text { text: text.clone() }]
+                    } else {
+                        vec![]
+                    };
+
+                    bedrock_messages.push(crate::apis::amazon_bedrock::Message {
+                        role,
+                        content,
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        if !system_blocks.is_empty() {
+            self.system = Some(system_blocks);
+        }
+        self.messages = Some(bedrock_messages);
     }
 }
 

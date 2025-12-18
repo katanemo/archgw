@@ -21,8 +21,11 @@ pub struct ModelAlias {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: String,
-    pub kind: Option<String>,
+    pub transport: Option<String>,
+    pub tool: Option<String>,
     pub url: String,
+    #[serde(rename = "type")]
+    pub agent_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +45,20 @@ pub struct Listener {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateStorageConfig {
+    #[serde(rename = "type")]
+    pub storage_type: StateStorageType,
+    pub connection_string: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StateStorageType {
+    Memory,
+    Postgres,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Configuration {
     pub version: String,
     pub endpoints: Option<HashMap<String, Endpoint>>,
@@ -57,7 +74,9 @@ pub struct Configuration {
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
+    pub filters: Option<Vec<Agent>>,
     pub listeners: Vec<Listener>,
+    pub state_storage: Option<StateStorageConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -250,6 +269,39 @@ pub struct ModelUsagePreference {
 pub struct RoutingPreference {
     pub name: String,
     pub description: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AgentUsagePreference {
+    pub model: String,
+    pub orchestration_preferences: Vec<OrchestrationPreference>,
+}
+
+/// OrchestrationPreference with custom serialization to always include default parameters.
+/// The parameters field is always serialized as:
+/// {"type": "object", "properties": {}, "required": []}
+#[derive(Debug, Clone, Deserialize)]
+pub struct OrchestrationPreference {
+    pub name: String,
+    pub description: String,
+}
+
+impl serde::Serialize for OrchestrationPreference {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("OrchestrationPreference", 3)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("description", &self.description)?;
+        state.serialize_field("parameters", &serde_json::json!({
+            "type": "object",
+            "properties": {},
+            "required": []
+        }))?;
+        state.end()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

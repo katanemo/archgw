@@ -7,9 +7,10 @@ use thiserror::Error;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse, TokenUsage};
+use crate::providers::response::{ProviderResponse, TokenUsage};
+use crate::providers::streaming_response::ProviderStreamResponse;
 use crate::transforms::lib::ExtractText;
-use crate::CHAT_COMPLETIONS_PATH;
+use crate::{CHAT_COMPLETIONS_PATH, OPENAI_RESPONSES_API_PATH};
 
 // ============================================================================
 // OPENAI API ENUMERATION
@@ -19,6 +20,7 @@ use crate::CHAT_COMPLETIONS_PATH;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OpenAIApi {
     ChatCompletions,
+    Responses,
     // Future APIs can be added here:
     // Embeddings,
     // FineTuning,
@@ -29,12 +31,14 @@ impl ApiDefinition for OpenAIApi {
     fn endpoint(&self) -> &'static str {
         match self {
             OpenAIApi::ChatCompletions => CHAT_COMPLETIONS_PATH,
+            OpenAIApi::Responses => OPENAI_RESPONSES_API_PATH,
         }
     }
 
     fn from_endpoint(endpoint: &str) -> Option<Self> {
         match endpoint {
             CHAT_COMPLETIONS_PATH => Some(OpenAIApi::ChatCompletions),
+            OPENAI_RESPONSES_API_PATH => Some(OpenAIApi::Responses),
             _ => None,
         }
     }
@@ -42,23 +46,26 @@ impl ApiDefinition for OpenAIApi {
     fn supports_streaming(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn supports_tools(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn supports_vision(&self) -> bool {
         match self {
             OpenAIApi::ChatCompletions => true,
+            OpenAIApi::Responses => true,
         }
     }
 
     fn all_variants() -> Vec<Self> {
-        vec![OpenAIApi::ChatCompletions]
+        vec![OpenAIApi::ChatCompletions, OpenAIApi::Responses]
     }
 }
 
@@ -101,6 +108,12 @@ pub struct ChatCompletionsRequest {
     pub top_logprobs: Option<u32>,
     pub user: Option<String>,
     // pub web_search: Option<bool>, // GOOD FIRST ISSUE: Future support for web search
+
+    // VLLM-specific parameters (used by Arch-Function)
+    pub top_k: Option<u32>,
+    pub stop_token_ids: Option<Vec<u32>>,
+    pub continue_final_message: Option<bool>,
+    pub add_generation_prompt: Option<bool>,
 }
 
 impl ChatCompletionsRequest {
@@ -385,6 +398,8 @@ pub struct ChatCompletionsResponse {
     pub usage: Usage,
     pub system_fingerprint: Option<String>,
     pub service_tier: Option<String>,
+    // This isn't a standard OpenAI field, but we include it for extensibility
+    pub metadata: Option<HashMap<String, Value>>,
 }
 
 impl Default for ChatCompletionsResponse {
@@ -398,6 +413,7 @@ impl Default for ChatCompletionsResponse {
             usage: Usage::default(),
             system_fingerprint: None,
             service_tier: None,
+            metadata: None,
         }
     }
 }
@@ -671,6 +687,32 @@ impl ProviderRequest for ChatCompletionsRequest {
         })
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        // First check the 'tools' field (current API)
+        if let Some(tools) = &self.tools {
+            let names: Vec<String> = tools
+                .iter()
+                .map(|tool| tool.function.name.clone())
+                .collect();
+            if !names.is_empty() {
+                return Some(names);
+            }
+        }
+
+        // Fallback to 'functions' field (deprecated but still supported)
+        if let Some(functions) = &self.functions {
+            let names: Vec<String> = functions
+                .iter()
+                .map(|func| func.function.name.clone())
+                .collect();
+            if !names.is_empty() {
+                return Some(names);
+            }
+        }
+
+        None
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(&self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize OpenAI request: {}", e),
@@ -688,6 +730,18 @@ impl ProviderRequest for ChatCompletionsRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
+    }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        self.messages.clone()
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        self.messages = messages.to_vec();
     }
 }
 
@@ -1068,8 +1122,9 @@ mod tests {
 
         // Test all_variants
         let all_variants = OpenAIApi::all_variants();
-        assert_eq!(all_variants.len(), 1);
-        assert_eq!(all_variants[0], OpenAIApi::ChatCompletions);
+        assert_eq!(all_variants.len(), 2);
+        assert!(all_variants.contains(&OpenAIApi::ChatCompletions));
+        assert!(all_variants.contains(&OpenAIApi::Responses));
     }
 
     #[test]

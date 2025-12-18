@@ -1,4 +1,4 @@
-@model_server_endpoint = http://localhost:51000
+@model_server_endpoint = http://localhost:12000
 @archfc_endpoint = https://archfc.katanemo.dev
 
 ### talk to function calling endpoint

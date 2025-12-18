@@ -6,7 +6,8 @@ use std::collections::HashMap;
 
 use super::ApiDefinition;
 use crate::providers::request::{ProviderRequest, ProviderRequestError};
-use crate::providers::response::{ProviderResponse, ProviderStreamResponse};
+use crate::providers::response::ProviderResponse;
+use crate::providers::streaming_response::ProviderStreamResponse;
 use crate::transforms::lib::ExtractText;
 use crate::MESSAGES_PATH;
 
@@ -397,6 +398,8 @@ pub enum MessagesContentDelta {
     InputJsonDelta { partial_json: String },
     #[serde(rename = "thinking_delta")]
     ThinkingDelta { thinking: String },
+    #[serde(rename = "signature_delta")]
+    SignatureDelta { signature: String },
 }
 
 #[skip_serializing_none]
@@ -512,6 +515,12 @@ impl ProviderRequest for MessagesRequest {
         None
     }
 
+    fn get_tool_names(&self) -> Option<Vec<String>> {
+        self.tools.as_ref().map(|tools| {
+            tools.iter().map(|tool| tool.name.clone()).collect()
+        })
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>, ProviderRequestError> {
         serde_json::to_vec(self).map_err(|e| ProviderRequestError {
             message: format!("Failed to serialize MessagesRequest: {}", e),
@@ -529,6 +538,69 @@ impl ProviderRequest for MessagesRequest {
         } else {
             false
         }
+    }
+
+    fn get_temperature(&self) -> Option<f32> {
+        self.temperature
+    }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        use crate::apis::openai::Message;
+
+        let mut openai_messages = Vec::new();
+
+        // Add system prompt as system message if present
+        if let Some(system) = &self.system {
+            openai_messages.push(system.clone().into());
+        }
+
+        // Convert each Anthropic message to OpenAI format
+        for msg in &self.messages {
+            if let Ok(converted_msgs) = TryInto::<Vec<Message>>::try_into(msg.clone()) {
+                openai_messages.extend(converted_msgs);
+            }
+        }
+
+        openai_messages
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        // Convert OpenAI messages to Anthropic format
+        // Separate system messages from regular messages
+        let mut system_messages = Vec::new();
+        let mut regular_messages = Vec::new();
+
+        for msg in messages {
+            if msg.role == crate::apis::openai::Role::System {
+                system_messages.push(msg.clone());
+            } else {
+                regular_messages.push(msg.clone());
+            }
+        }
+
+        // Set system prompt if there are system messages
+        if !system_messages.is_empty() {
+            // Combine all system messages into one
+            let system_text = system_messages.iter()
+                .filter_map(|msg| {
+                    if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
+                        Some(text.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            self.system = Some(crate::apis::anthropic::MessagesSystemPrompt::Single(system_text));
+        }
+
+        // Convert regular messages
+        self.messages = regular_messages.iter()
+            .filter_map(|msg| {
+                msg.clone().try_into().ok()
+            })
+            .collect();
     }
 }
 

@@ -13,20 +13,12 @@
       "path": "arch/tools"
     },
     {
-      "name": "model_server",
-      "path": "model_server"
-    },
-    {
       "name": "tests_e2e",
       "path": "tests/e2e"
     },
     {
       "name": "tests_archgw",
       "path": "tests/archgw"
-    },
-    {
-      "name": "tests_modelserver",
-      "path": "tests/modelserver"
     },
     {
       "name": "chatbot_ui",
@@ -42,6 +34,7 @@
       "editor.defaultFormatter": "ms-python.black-formatter",
       "editor.formatOnSave": true
     },
+    "rust-analyzer.cargo.features": ["trace-collection"]
   },
   "extensions": {
     "recommendations": [

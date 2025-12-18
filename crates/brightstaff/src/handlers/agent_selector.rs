@@ -20,6 +20,8 @@ pub enum AgentSelectionError {
     RoutingError(String),
     #[error("Default agent not found for listener: {0}")]
     DefaultAgentNotFound(String),
+    #[error("MCP client error: {0}")]
+    McpError(String),
 }
 
 /// Service for selecting agents based on routing preferences and listener configuration
@@ -29,7 +31,9 @@ pub struct AgentSelector {
 
 impl AgentSelector {
     pub fn new(router_service: Arc<RouterService>) -> Self {
-        Self { router_service }
+        Self {
+            router_service,
+        }
     }
 
     /// Find listener by name from the request headers
@@ -77,7 +81,9 @@ impl AgentSelector {
             return Ok(agents[0].clone());
         }
 
-        let usage_preferences = self.convert_agent_description_to_routing_preferences(agents);
+        let usage_preferences = self
+            .convert_agent_description_to_routing_preferences(agents)
+            .await;
         debug!(
             "Agents usage preferences for agent routing str: {}",
             serde_json::to_string(&usage_preferences).unwrap_or_default()
@@ -131,20 +137,23 @@ impl AgentSelector {
     }
 
     /// Convert agent descriptions to routing preferences
-    fn convert_agent_description_to_routing_preferences(
+    async fn convert_agent_description_to_routing_preferences(
         &self,
         agents: &[AgentFilterChain],
     ) -> Vec<ModelUsagePreference> {
-        agents
-            .iter()
-            .map(|agent| ModelUsagePreference {
-                model: agent.id.clone(),
+        let mut preferences = Vec::new();
+
+        for agent_chain in agents {
+            preferences.push(ModelUsagePreference {
+                model: agent_chain.id.clone(),
                 routing_preferences: vec![RoutingPreference {
-                    name: agent.id.clone(),
-                    description: agent.description.as_ref().unwrap_or(&String::new()).clone(),
+                    name: agent_chain.id.clone(),
+                    description: agent_chain.description.clone().unwrap_or_default(),
                 }],
-            })
-            .collect()
+            });
+        }
+
+        preferences
     }
 }
 
@@ -183,8 +192,10 @@ mod tests {
     fn create_test_agent_struct(name: &str) -> Agent {
         Agent {
             id: name.to_string(),
-            kind: Some("test".to_string()),
+            agent_type: Some("test".to_string()),
             url: "http://localhost:8080".to_string(),
+            tool: None,
+            transport: None,
         }
     }
 
@@ -240,8 +251,8 @@ mod tests {
         assert!(agent_map.contains_key("agent2"));
     }
 
-    #[test]
-    fn test_convert_agent_description_to_routing_preferences() {
+    #[tokio::test]
+    async fn test_convert_agent_description_to_routing_preferences() {
         let router_service = create_test_router_service();
         let selector = AgentSelector::new(router_service);
 
@@ -250,7 +261,9 @@ mod tests {
             create_test_agent("agent2", "Second agent description", false),
         ];
 
-        let preferences = selector.convert_agent_description_to_routing_preferences(&agents);
+        let preferences = selector
+            .convert_agent_description_to_routing_preferences(&agents)
+            .await;
 
         assert_eq!(preferences.len(), 2);
         assert_eq!(preferences[0].model, "agent1");

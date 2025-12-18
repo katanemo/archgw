@@ -4,10 +4,8 @@ use log::{debug, info, warn};
 use proxy_wasm::hostcalls::get_current_time;
 use proxy_wasm::traits::*;
 use proxy_wasm::types::*;
-use std::collections::VecDeque;
 use std::num::NonZero;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::metrics::Metrics;
@@ -20,13 +18,13 @@ use common::errors::ServerError;
 use common::llm_providers::LlmProviders;
 use common::ratelimit::Header;
 use common::stats::{IncrementingMetric, RecordingMetric};
-use common::tracing::{Event, Span, TraceData, Traceparent};
 use common::{ratelimit, routing, tokenizer};
-use hermesllm::apis::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
-use hermesllm::apis::anthropic::{MessagesContentBlock, MessagesStreamEvent};
-use hermesllm::apis::sse::{SseEvent, SseStreamIter};
-use hermesllm::clients::endpoints::SupportedAPIs;
+use hermesllm::apis::streaming_shapes::amazon_bedrock_binary_frame::BedrockBinaryFrameDecoder;
+use hermesllm::apis::streaming_shapes::sse::{SseEvent, SseStreamBuffer, SseStreamBufferTrait};
+use hermesllm::apis::streaming_shapes::sse_chunk_processor::SseChunkProcessor;
+use hermesllm::clients::endpoints::SupportedAPIsFromClient;
 use hermesllm::providers::response::ProviderResponse;
+use hermesllm::providers::streaming_response::ProviderStreamResponse;
 use hermesllm::{
     DecodedFrame, ProviderId, ProviderRequest, ProviderRequestType, ProviderResponseType,
     ProviderStreamResponseType,
@@ -38,7 +36,7 @@ pub struct StreamContext {
     streaming_response: bool,
     response_tokens: usize,
     /// The API that is requested by the client (before compatibility mapping)
-    client_api: Option<SupportedAPIs>,
+    client_api: Option<SupportedAPIsFromClient>,
     /// The API that should be used for the upstream provider (after compatibility mapping)
     resolved_api: Option<SupportedUpstreamAPIs>,
     llm_providers: Rc<LlmProviders>,
@@ -49,20 +47,20 @@ pub struct StreamContext {
     ttft_time: Option<u128>,
     traceparent: Option<String>,
     request_body_sent_time: Option<u128>,
-    traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
     overrides: Rc<Option<Overrides>>,
     user_message: Option<String>,
     upstream_status_code: Option<StatusCode>,
     binary_frame_decoder: Option<BedrockBinaryFrameDecoder<bytes::BytesMut>>,
     http_method: Option<String>,
     http_protocol: Option<String>,
+    sse_buffer: Option<SseStreamBuffer>,
+    sse_chunk_processor: Option<SseChunkProcessor>,
 }
 
 impl StreamContext {
     pub fn new(
         metrics: Rc<Metrics>,
         llm_providers: Rc<LlmProviders>,
-        traces_queue: Arc<Mutex<VecDeque<TraceData>>>,
         overrides: Rc<Option<Overrides>>,
     ) -> Self {
         StreamContext {
@@ -80,13 +78,14 @@ impl StreamContext {
             ttft_duration: None,
             traceparent: None,
             ttft_time: None,
-            traces_queue,
             request_body_sent_time: None,
             user_message: None,
             upstream_status_code: None,
             binary_frame_decoder: None,
             http_method: None,
             http_protocol: None,
+            sse_buffer: None,
+            sse_chunk_processor: None,
         }
     }
 
@@ -140,7 +139,7 @@ impl StreamContext {
         ));
 
         info!(
-            "[ARCHGW_REQ_ID:{}] PROVIDER_SELECTION: Hint='{}' -> Selected='{}'",
+            "[PLANO_REQ_ID:{}] PROVIDER_SELECTION: Hint='{}' -> Selected='{}'",
             self.request_identifier(),
             self.get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
                 .unwrap_or("none".to_string()),
@@ -172,7 +171,8 @@ impl StreamContext {
             Some(
                 SupportedUpstreamAPIs::OpenAIChatCompletions(_)
                 | SupportedUpstreamAPIs::AmazonBedrockConverse(_)
-                | SupportedUpstreamAPIs::AmazonBedrockConverseStream(_),
+                | SupportedUpstreamAPIs::AmazonBedrockConverseStream(_)
+                | SupportedUpstreamAPIs::OpenAIResponsesAPI(_),
             )
             | None => {
                 // OpenAI and default: use Authorization Bearer token
@@ -224,7 +224,7 @@ impl StreamContext {
         let token_count = tokenizer::token_count(model, json_string).unwrap_or(0);
 
         debug!(
-            "[ARCHGW_REQ_ID:{}] TOKEN_COUNT: model='{}' input_tokens={}",
+            "[PLANO_REQ_ID:{}] TOKEN_COUNT: model='{}' input_tokens={}",
             self.request_identifier(),
             model,
             token_count
@@ -238,7 +238,7 @@ impl StreamContext {
         // Check if rate limiting needs to be applied.
         if let Some(selector) = self.ratelimit_selector.take() {
             info!(
-                "[ARCHGW_REQ_ID:{}] RATELIMIT_CHECK: model='{}' selector='{}:{}'",
+                "[PLANO_REQ_ID:{}] RATELIMIT_CHECK: model='{}' selector='{}:{}'",
                 self.request_identifier(),
                 model,
                 selector.key,
@@ -251,7 +251,7 @@ impl StreamContext {
             )?;
         } else {
             debug!(
-                "[ARCHGW_REQ_ID:{}] RATELIMIT_SKIP: model='{}' (no selector)",
+                "[PLANO_REQ_ID:{}] RATELIMIT_SKIP: model='{}' (no selector)",
                 self.request_identifier(),
                 model
             );
@@ -270,7 +270,7 @@ impl StreamContext {
                 Ok(duration) => {
                     let duration_ms = duration.as_millis();
                     info!(
-                        "[ARCHGW_REQ_ID:{}] TIME_TO_FIRST_TOKEN: {}ms",
+                        "[PLANO_REQ_ID:{}] TIME_TO_FIRST_TOKEN: {}ms",
                         self.request_identifier(),
                         duration_ms
                     );
@@ -279,7 +279,7 @@ impl StreamContext {
                 }
                 Err(e) => {
                     warn!(
-                        "[ARCHGW_REQ_ID:{}] TIME_MEASUREMENT_ERROR: {:?}",
+                        "[PLANO_REQ_ID:{}] TIME_MEASUREMENT_ERROR: {:?}",
                         self.request_identifier(),
                         e
                     );
@@ -295,7 +295,7 @@ impl StreamContext {
                 // Convert the duration to milliseconds
                 let duration_ms = duration.as_millis();
                 info!(
-                    "[ARCHGW_REQ_ID:{}] REQUEST_COMPLETE: latency={}ms tokens={}",
+                    "[PLANO_REQ_ID:{}] REQUEST_COMPLETE: latency={}ms tokens={}",
                     self.request_identifier(),
                     duration_ms,
                     self.response_tokens
@@ -311,7 +311,7 @@ impl StreamContext {
                     self.metrics.time_per_output_token.record(tpot);
 
                     info!(
-                        "[ARCHGW_REQ_ID:{}] TOKEN_THROUGHPUT: time_per_token={}ms tokens_per_second={}",
+                        "[PLANO_REQ_ID:{}] TOKEN_THROUGHPUT: time_per_token={}ms tokens_per_second={}",
                         self.request_identifier(),
                         tpot,
                         1000 / tpot
@@ -328,75 +328,13 @@ impl StreamContext {
         self.metrics
             .output_sequence_length
             .record(self.response_tokens as u64);
-
-        if let Some(traceparent) = self.traceparent.as_ref() {
-            let current_time_ns = current_time_ns();
-
-            match Traceparent::try_from(traceparent.to_string()) {
-                Err(e) => {
-                    warn!("traceparent header is invalid: {}", e);
-                }
-                Ok(traceparent) => {
-                    let service_name = match &self.resolved_api {
-                        Some(api) => {
-                            let api_display = api.to_string();
-                            format!("archgw.{}", api_display)
-                        }
-                        None => "archgw".to_string(),
-                    };
-
-                    let mut trace_data =
-                        common::tracing::TraceData::new_with_service_name(service_name);
-                    let mut llm_span = Span::new(
-                        self.llm_provider().name.to_string(),
-                        Some(traceparent.trace_id),
-                        Some(traceparent.parent_id),
-                        self.request_body_sent_time.unwrap(),
-                        current_time_ns,
-                    );
-                    llm_span
-                        .add_attribute("model".to_string(), self.llm_provider().name.to_string());
-
-                    if let Some(user_message) = &self.user_message {
-                        llm_span.add_attribute("message".to_string(), user_message.clone());
-                    }
-
-                    // Add HTTP attributes
-                    if let Some(method) = &self.http_method {
-                        llm_span.add_attribute("http.method".to_string(), method.clone());
-                    }
-                    if let Some(protocol) = &self.http_protocol {
-                        llm_span.add_attribute("http.protocol".to_string(), protocol.clone());
-                    }
-                    if let Some(status_code) = &self.upstream_status_code {
-                        llm_span.add_attribute(
-                            "http.status_code".to_string(),
-                            status_code.as_u16().to_string(),
-                        );
-                    }
-
-                    // Add request ID attribute
-                    llm_span
-                        .add_attribute("http.request_id".to_string(), self.request_identifier());
-
-                    if self.ttft_time.is_some() {
-                        llm_span.add_event(Event::new(
-                            "time_to_first_token".to_string(),
-                            self.ttft_time.unwrap(),
-                        ));
-                    }
-                    trace_data.add_span(llm_span);
-                    self.traces_queue.lock().unwrap().push_back(trace_data);
-                }
-            };
-        }
     }
 
     fn read_raw_response_body(&mut self, body_size: usize) -> Result<Vec<u8>, Action> {
         if self.streaming_response {
             let chunk_size = body_size;
             debug!(
-                "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_CHUNK: streaming=true chunk_size={}",
+                "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_CHUNK: streaming=true chunk_size={}",
                 self.request_identifier(),
                 chunk_size
             );
@@ -404,7 +342,7 @@ impl StreamContext {
                 Some(chunk) => chunk,
                 None => {
                     warn!(
-                        "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: empty chunk, size={}",
+                        "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: empty chunk, size={}",
                         self.request_identifier(),
                         chunk_size
                     );
@@ -414,7 +352,7 @@ impl StreamContext {
 
             if streaming_chunk.len() != chunk_size {
                 warn!(
-                    "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_MISMATCH: expected={} actual={}",
+                    "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_MISMATCH: expected={} actual={}",
                     self.request_identifier(),
                     chunk_size,
                     streaming_chunk.len()
@@ -426,7 +364,7 @@ impl StreamContext {
                 return Err(Action::Continue);
             }
             debug!(
-                "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_COMPLETE: streaming=false body_size={}",
+                "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_COMPLETE: streaming=false body_size={}",
                 self.request_identifier(),
                 body_size
             );
@@ -446,7 +384,7 @@ impl StreamContext {
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
         debug!(
-            "[ARCHGW_REQ_ID:{}] STREAMING_PROCESS: client={:?} provider_id={:?} chunk_size={}",
+            "[PLANO_REQ_ID:{}] STREAMING_PROCESS: client={:?} provider_id={:?} chunk_size={}",
             self.request_identifier(),
             self.client_api,
             provider_id,
@@ -466,30 +404,59 @@ impl StreamContext {
                     return self.handle_bedrock_binary_stream(body, &client_api, &upstream_api);
                 }
 
-                // Parse body into SSE iterator using TryFrom
-                let sse_iter: SseStreamIter<std::vec::IntoIter<String>> =
-                    match SseStreamIter::try_from(body) {
-                        Ok(iter) => iter,
+                // Initialize SSE chunk processor if not present
+                if self.sse_chunk_processor.is_none() {
+                    self.sse_chunk_processor = Some(SseChunkProcessor::new());
+                }
+
+                // Initialize SSE buffer if not present
+                if self.sse_buffer.is_none() {
+                    self.sse_buffer = match SseStreamBuffer::try_from((&client_api, &upstream_api))
+                    {
+                        Ok(buffer) => Some(buffer),
                         Err(e) => {
-                            warn!("Failed to parse body into SSE iterator: {}", e);
+                            warn!("Failed to create SSE buffer: {}", e);
                             return Err(Action::Continue);
                         }
                     };
+                }
 
-                let mut response_buffer = Vec::new();
+                // Process chunk through SSE processor (handles incomplete events)
+                let transformed_events = match self.sse_chunk_processor.as_mut() {
+                    Some(processor) => {
+                        let result = processor.process_chunk(body, &client_api, &upstream_api);
+                        let has_buffered = processor.has_buffered_data();
+                        let buffered_size = processor.buffered_size();
 
-                // Process each SSE event
-                for sse_event in sse_iter {
-                    // Transform event if upstream API != client API
-                    let transformed_event: SseEvent =
-                        match SseEvent::try_from((sse_event, &client_api, &upstream_api)) {
-                            Ok(event) => event,
+                        match result {
+                            Ok(events) => {
+                                if has_buffered {
+                                    debug!(
+                                        "[PLANO_REQ_ID:{}] SSE_INCOMPLETE_BUFFERED: {} bytes buffered for next chunk",
+                                        self.request_identifier(),
+                                        buffered_size
+                                    );
+                                }
+                                events
+                            }
                             Err(e) => {
-                                warn!("Failed to transform SSE event: {}", e);
+                                warn!(
+                                    "[PLANO_REQ_ID:{}] SSE_CHUNK_PROCESS_ERROR: {}",
+                                    self.request_identifier(),
+                                    e
+                                );
                                 return Err(Action::Continue);
                             }
-                        };
+                        }
+                    }
+                    None => {
+                        warn!("SSE chunk processor unexpectedly missing");
+                        return Err(Action::Continue);
+                    }
+                };
 
+                // Process each successfully transformed SSE event
+                for transformed_event in transformed_events {
                     // Extract ProviderStreamResponse for processing (token counting, etc.)
                     if !transformed_event.is_done() && !transformed_event.is_event_only() {
                         match transformed_event.provider_response() {
@@ -498,7 +465,7 @@ impl StreamContext {
 
                                 if provider_response.is_final() {
                                     debug!(
-                                        "[ARCHGW_REQ_ID:{}] STREAMING_FINAL_CHUNK: total_tokens={}",
+                                        "[PLANO_REQ_ID:{}] STREAMING_FINAL_CHUNK: total_tokens={}",
                                         self.request_identifier(),
                                         self.response_tokens
                                     );
@@ -508,7 +475,7 @@ impl StreamContext {
                                     let estimated_tokens = content.len() / 4;
                                     self.response_tokens += estimated_tokens.max(1);
                                     debug!(
-                                        "[ARCHGW_REQ_ID:{}] STREAMING_TOKEN_UPDATE: delta_chars={} estimated_tokens={} total_tokens={}",
+                                        "[PLANO_REQ_ID:{}] STREAMING_TOKEN_UPDATE: delta_chars={} estimated_tokens={} total_tokens={}",
                                         self.request_identifier(),
                                         content.len(),
                                         estimated_tokens.max(1),
@@ -518,7 +485,7 @@ impl StreamContext {
                             }
                             Err(e) => {
                                 warn!(
-                                    "[ARCHGW_REQ_ID:{}] STREAMING_CHUNK_ERROR: {}",
+                                    "[PLANO_REQ_ID:{}] STREAMING_CHUNK_ERROR: {}",
                                     self.request_identifier(),
                                     e
                                 );
@@ -527,12 +494,32 @@ impl StreamContext {
                         }
                     }
 
-                    // Add transformed event to response buffer
-                    let bytes: Vec<u8> = transformed_event.into();
-                    response_buffer.extend_from_slice(&bytes);
+                    // Add transformed event to buffer (buffer may inject lifecycle events)
+                    if let Some(buffer) = self.sse_buffer.as_mut() {
+                        buffer.add_transformed_event(transformed_event);
+                    }
                 }
 
-                Ok(response_buffer)
+                // Get accumulated bytes from buffer and return
+                match self.sse_buffer.as_mut() {
+                    Some(buffer) => {
+                        let bytes = buffer.into_bytes();
+                        if !bytes.is_empty() {
+                            let content = String::from_utf8_lossy(&bytes);
+                            debug!(
+                                "[PLANO_REQ_ID:{}] UPSTREAM_TRANSFORMED_CLIENT_RESPONSE: size={} content={}",
+                                self.request_identifier(),
+                                bytes.len(),
+                                content
+                            );
+                        }
+                        Ok(bytes)
+                    }
+                    None => {
+                        warn!("SSE buffer unexpectedly missing after initialization");
+                        Err(Action::Continue)
+                    }
+                }
             }
             None => {
                 warn!("Missing client_api for non-streaming response");
@@ -544,7 +531,7 @@ impl StreamContext {
     fn handle_bedrock_binary_stream(
         &mut self,
         body: &[u8],
-        client_api: &SupportedAPIs,
+        client_api: &SupportedAPIsFromClient,
         upstream_api: &SupportedUpstreamAPIs,
     ) -> Result<Vec<u8>, Action> {
         // Initialize decoder if not present
@@ -552,87 +539,61 @@ impl StreamContext {
             self.binary_frame_decoder = Some(BedrockBinaryFrameDecoder::from_bytes(&[]));
         }
 
-        // Add incoming bytes to buffer
+        // Initialize SSE buffer if not present
+        if self.sse_buffer.is_none() {
+            self.sse_buffer = match SseStreamBuffer::try_from((client_api, upstream_api)) {
+                Ok(buffer) => Some(buffer),
+                Err(e) => {
+                    warn!(
+                        "[PLANO_REQ_ID:{}] BEDROCK_BUFFER_INIT_ERROR: {}",
+                        self.request_identifier(),
+                        e
+                    );
+                    return Err(Action::Continue);
+                }
+            };
+        }
+
+        // Add incoming bytes to decoder buffer
         let decoder = self.binary_frame_decoder.as_mut().unwrap();
         decoder.buffer_mut().extend_from_slice(body);
 
-        let mut response_buffer = Vec::new();
+        // Process all complete frames
         loop {
             let decoded_frame = self.binary_frame_decoder.as_mut().unwrap().decode_frame();
             match decoded_frame {
                 Some(DecodedFrame::Complete(ref frame_ref)) => {
                     let frame = DecodedFrame::Complete(frame_ref.clone());
+
+                    // Convert frame to provider response type
                     match ProviderStreamResponseType::try_from((&frame, client_api, upstream_api)) {
                         Ok(provider_response) => {
                             self.record_ttft_if_needed();
 
-                            // Handle ContentBlockStart and ContentBlockDelta events
-                            match &provider_response {
-                                ProviderStreamResponseType::MessagesStreamEvent(evt) => {
-                                    match evt {
-                                        MessagesStreamEvent::ContentBlockStart {
-                                            index, ..
-                                        } => {
-                                            // Mark that we've seen ContentBlockStart for this index
-                                            self.binary_frame_decoder
-                                                .as_mut()
-                                                .unwrap()
-                                                .set_content_block_start_sent(*index as i32);
-                                            debug!(
-                                                "[ARCHGW_REQ_ID:{}] BEDROCK_CONTENT_BLOCK_START_TRACKED: index={}",
-                                                self.request_identifier(),
-                                                *index
-                                            );
-                                        }
-                                        MessagesStreamEvent::ContentBlockDelta {
-                                            index, ..
-                                        } => {
-                                            // Check if ContentBlockStart was sent for this index
-                                            let needs_start = !self
-                                                .binary_frame_decoder
-                                                .as_ref()
-                                                .unwrap()
-                                                .has_content_block_start_been_sent(*index as i32);
-
-                                            if needs_start {
-                                                // Emit empty ContentBlockStart before delta
-                                                let content_block_start =
-                                                    MessagesStreamEvent::ContentBlockStart {
-                                                        index: *index,
-                                                        content_block: MessagesContentBlock::Text {
-                                                            text: String::new(),
-                                                            cache_control: None,
-                                                        },
-                                                    };
-                                                let start_sse: String = content_block_start.into();
-                                                response_buffer
-                                                    .extend_from_slice(start_sse.as_bytes());
-
-                                                // Mark that we've now sent it
-                                                self.binary_frame_decoder
-                                                    .as_mut()
-                                                    .unwrap()
-                                                    .set_content_block_start_sent(*index as i32);
-
-                                                debug!(
-                                                    "[ARCHGW_REQ_ID:{}] BEDROCK_INJECTED_CONTENT_BLOCK_START: index={}",
-                                                    self.request_identifier(),
-                                                    *index
-                                                );
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                _ => {}
+                            // Track token usage
+                            if let Some(content) = provider_response.content_delta() {
+                                let estimated_tokens = content.len() / 4;
+                                self.response_tokens += estimated_tokens.max(1);
+                                debug!(
+                                    "[PLANO_REQ_ID:{}] BEDROCK_TOKEN_UPDATE: delta_chars={} estimated_tokens={} total_tokens={}",
+                                    self.request_identifier(),
+                                    content.len(),
+                                    estimated_tokens.max(1),
+                                    self.response_tokens
+                                );
                             }
 
-                            let sse_string: String = provider_response.into();
-                            response_buffer.extend_from_slice(sse_string.as_bytes());
+                            // Create SseEvent from provider response
+                            let event = SseEvent::from_provider_response(provider_response);
+
+                            // Add to buffer (buffer handles all shim logic including ContentBlockStart injection)
+                            if let Some(buffer) = self.sse_buffer.as_mut() {
+                                buffer.add_transformed_event(event);
+                            }
                         }
                         Err(e) => {
                             warn!(
-                                "[ARCHGW_REQ_ID:{}] BEDROCK_FRAME_CONVERSION_ERROR: {}",
+                                "[PLANO_REQ_ID:{}] BEDROCK_FRAME_CONVERSION_ERROR: {}",
                                 self.request_identifier(),
                                 e
                             );
@@ -642,7 +603,7 @@ impl StreamContext {
                 Some(DecodedFrame::Incomplete) => {
                     // Incomplete frame - buffer retains partial data, wait for more bytes
                     debug!(
-                        "[ARCHGW_REQ_ID:{}] BEDROCK_INCOMPLETE_FRAME: waiting for more data",
+                        "[PLANO_REQ_ID:{}] BEDROCK_INCOMPLETE_FRAME: waiting for more data",
                         self.request_identifier()
                     );
                     break;
@@ -650,7 +611,7 @@ impl StreamContext {
                 None => {
                     // Decode error
                     warn!(
-                        "[ARCHGW_REQ_ID:{}] BEDROCK_DECODE_ERROR",
+                        "[PLANO_REQ_ID:{}] BEDROCK_DECODE_ERROR",
                         self.request_identifier()
                     );
                     return Err(Action::Continue);
@@ -658,8 +619,29 @@ impl StreamContext {
             }
         }
 
-        // Return accumulated complete frames (may be empty if all frames incomplete)
-        Ok(response_buffer)
+        // Get accumulated bytes from buffer and return
+        match self.sse_buffer.as_mut() {
+            Some(buffer) => {
+                let bytes = buffer.into_bytes();
+                if !bytes.is_empty() {
+                    let content = String::from_utf8_lossy(&bytes);
+                    debug!(
+                        "[PLANO_REQ_ID:{}] UPSTREAM_TRANSFORMED_CLIENT_RESPONSE: size={} content={}",
+                        self.request_identifier(),
+                        bytes.len(),
+                        content
+                    );
+                }
+                Ok(bytes)
+            }
+            None => {
+                warn!(
+                    "[PLANO_REQ_ID:{}] BEDROCK_BUFFER_MISSING",
+                    self.request_identifier()
+                );
+                Err(Action::Continue)
+            }
+        }
     }
 
     fn handle_non_streaming_response(
@@ -668,7 +650,7 @@ impl StreamContext {
         provider_id: ProviderId,
     ) -> Result<Vec<u8>, Action> {
         debug!(
-            "[ARCHGW_REQ_ID:{}] NON_STREAMING_PROCESS: provider_id={:?} body_size={}",
+            "[PLANO_REQ_ID:{}] NON_STREAMING_PROCESS: provider_id={:?} body_size={}",
             self.request_identifier(),
             provider_id,
             body.len()
@@ -680,7 +662,7 @@ impl StreamContext {
                     Ok(response) => response,
                     Err(e) => {
                         warn!(
-                            "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_PARSE_ERROR: {} | body: {}",
+                            "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_PARSE_ERROR: {} | body: {}",
                             self.request_identifier(),
                             e,
                             String::from_utf8_lossy(body)
@@ -695,7 +677,7 @@ impl StreamContext {
             }
             None => {
                 warn!(
-                    "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: missing client_api",
+                    "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_ERROR: missing client_api",
                     self.request_identifier()
                 );
                 return Err(Action::Continue);
@@ -707,7 +689,7 @@ impl StreamContext {
             response.extract_usage_counts()
         {
             debug!(
-                "[ARCHGW_REQ_ID:{}] RESPONSE_USAGE: prompt_tokens={} completion_tokens={} total_tokens={}",
+                "[PLANO_REQ_ID:{}] RESPONSE_USAGE: prompt_tokens={} completion_tokens={} total_tokens={}",
                 self.request_identifier(),
                 prompt_tokens,
                 completion_tokens,
@@ -716,7 +698,7 @@ impl StreamContext {
             self.response_tokens = completion_tokens;
         } else {
             warn!(
-                "[ARCHGW_REQ_ID:{}] RESPONSE_USAGE: no usage information found",
+                "[PLANO_REQ_ID:{}] RESPONSE_USAGE: no usage information found",
                 self.request_identifier()
             );
         }
@@ -724,7 +706,7 @@ impl StreamContext {
         match serde_json::to_vec(&response) {
             Ok(bytes) => {
                 debug!(
-                    "[ARCHGW_REQ_ID:{}] CLIENT_RESPONSE_PAYLOAD: {}",
+                    "[PLANO_REQ_ID:{}] CLIENT_RESPONSE_PAYLOAD: {}",
                     self.request_identifier(),
                     String::from_utf8_lossy(&bytes)
                 );
@@ -782,13 +764,14 @@ impl HttpContext for StreamContext {
             self.select_llm_provider();
 
             // Check if this is a supported API endpoint
-            if SupportedAPIs::from_endpoint(&request_path).is_none() {
+            if SupportedAPIsFromClient::from_endpoint(&request_path).is_none() {
                 self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
                 return Action::Continue;
             }
 
             // Get the SupportedApi for routing decisions
-            let supported_api: Option<SupportedAPIs> = SupportedAPIs::from_endpoint(&request_path);
+            let supported_api: Option<SupportedAPIsFromClient> =
+                SupportedAPIsFromClient::from_endpoint(&request_path);
             self.client_api = supported_api;
 
             // Debug: log provider, client API, resolved API, and request path
@@ -800,7 +783,7 @@ impl HttpContext for StreamContext {
                     Some(provider_id.compatible_api_for_client(api, self.streaming_response));
 
                 debug!(
-                    "[ARCHGW_REQ_ID:{}] ROUTING_INFO: provider='{}' client_api={:?} resolved_api={:?} request_path='{}'",
+                    "[PLANO_REQ_ID:{}] ROUTING_INFO: provider='{}' client_api={:?} resolved_api={:?} request_path='{}'",
                     self.request_identifier(),
                     provider.to_provider_id(),
                     api,
@@ -853,7 +836,7 @@ impl HttpContext for StreamContext {
 
     fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {
         debug!(
-            "[ARCHGW_REQ_ID:{}] REQUEST_BODY_CHUNK: bytes={} end_stream={}",
+            "[PLANO_REQ_ID:{}] REQUEST_BODY_CHUNK: bytes={} end_stream={}",
             self.request_identifier(),
             body_size,
             end_of_stream
@@ -892,14 +875,14 @@ impl HttpContext for StreamContext {
         let mut deserialized_client_request: ProviderRequestType = match self.client_api.as_ref() {
             Some(the_client_api) => {
                 info!(
-                    "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_RECEIVED: api={:?} body_size={}",
+                    "[PLANO_REQ_ID:{}] CLIENT_REQUEST_RECEIVED: api={:?} body_size={}",
                     self.request_identifier(),
                     the_client_api,
                     body_bytes.len()
                 );
 
                 debug!(
-                    "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_PAYLOAD: {}",
+                    "[PLANO_REQ_ID:{}] CLIENT_REQUEST_PAYLOAD: {}",
                     self.request_identifier(),
                     String::from_utf8_lossy(&body_bytes)
                 );
@@ -908,7 +891,7 @@ impl HttpContext for StreamContext {
                     Ok(deserialized) => deserialized,
                     Err(e) => {
                         warn!(
-                            "[ARCHGW_REQ_ID:{}] CLIENT_REQUEST_PARSE_ERROR: {} | body: {}",
+                            "[PLANO_REQ_ID:{}] CLIENT_REQUEST_PARSE_ERROR: {} | body: {}",
                             self.request_identifier(),
                             e,
                             String::from_utf8_lossy(&body_bytes)
@@ -951,7 +934,7 @@ impl HttpContext for StreamContext {
                     "agent_orchestrator".to_string()
                 } else {
                     warn!(
-                        "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION_ERROR: no model specified | req_model='{}' provider='{}' config_model={:?}",
+                        "[PLANO_REQ_ID:{}] MODEL_RESOLUTION_ERROR: no model specified | req_model='{}' provider='{}' config_model={:?}",
                         self.request_identifier(),
                         model_requested,
                         self.llm_provider().name,
@@ -980,7 +963,7 @@ impl HttpContext for StreamContext {
         self.user_message = deserialized_client_request.get_recent_user_message();
 
         info!(
-            "[ARCHGW_REQ_ID:{}] MODEL_RESOLUTION: req_model='{}' -> resolved_model='{}' provider='{}' streaming={}",
+            "[PLANO_REQ_ID:{}] MODEL_RESOLUTION: req_model='{}' -> resolved_model='{}' provider='{}' streaming={}",
             self.request_identifier(),
             model_requested,
             resolved_model,
@@ -1011,14 +994,14 @@ impl HttpContext for StreamContext {
             match self.resolved_api.as_ref() {
                 Some(upstream) => {
                     info!(
-                    "[ARCHGW_REQ_ID:{}] UPSTREAM_TRANSFORM: client_api={:?} -> upstream_api={:?}",
+                    "[PLANO_REQ_ID:{}] UPSTREAM_TRANSFORM: client_api={:?} -> upstream_api={:?}",
                     self.request_identifier(), self.client_api, upstream
                 );
 
                     match ProviderRequestType::try_from((deserialized_client_request, upstream)) {
                         Ok(request) => {
                             debug!(
-                                "[ARCHGW_REQ_ID:{}] UPSTREAM_REQUEST_PAYLOAD: {}",
+                                "[PLANO_REQ_ID:{}] UPSTREAM_REQUEST_PAYLOAD: {}",
                                 self.request_identifier(),
                                 String::from_utf8_lossy(&request.to_bytes().unwrap_or_default())
                             );
@@ -1069,7 +1052,7 @@ impl HttpContext for StreamContext {
                 self.upstream_status_code = StatusCode::from_u16(status_code).ok();
 
                 debug!(
-                    "[ARCHGW_REQ_ID:{}] UPSTREAM_RESPONSE_STATUS: {}",
+                    "[PLANO_REQ_ID:{}] UPSTREAM_RESPONSE_STATUS: {}",
                     self.request_identifier(),
                     status_code
                 );
@@ -1096,7 +1079,7 @@ impl HttpContext for StreamContext {
         let current_time = get_current_time().unwrap();
         if end_of_stream && body_size == 0 {
             debug!(
-                "[ARCHGW_REQ_ID:{}] RESPONSE_BODY_COMPLETE: total_bytes={}",
+                "[PLANO_REQ_ID:{}] RESPONSE_BODY_COMPLETE: total_bytes={}",
                 self.request_identifier(),
                 body_size
             );
@@ -1108,7 +1091,7 @@ impl HttpContext for StreamContext {
         if let Some(status_code) = &self.upstream_status_code {
             if status_code.is_client_error() || status_code.is_server_error() {
                 info!(
-                    "[ARCHGW_REQ_ID:{}] UPSTREAM_ERROR_RESPONSE: status={} body_size={}",
+                    "[PLANO_REQ_ID:{}] UPSTREAM_ERROR_RESPONSE: status={} body_size={}",
                     self.request_identifier(),
                     status_code.as_u16(),
                     body_size
@@ -1118,7 +1101,7 @@ impl HttpContext for StreamContext {
                 if body_size > 0 {
                     if let Ok(body) = self.read_raw_response_body(body_size) {
                         debug!(
-                            "[ARCHGW_REQ_ID:{}] UPSTREAM_ERROR_BODY: {}",
+                            "[PLANO_REQ_ID:{}] UPSTREAM_ERROR_BODY: {}",
                             self.request_identifier(),
                             String::from_utf8_lossy(&body)
                         );
@@ -1131,15 +1114,16 @@ impl HttpContext for StreamContext {
         }
 
         match self.client_api {
-            Some(SupportedAPIs::OpenAIChatCompletions(_)) => {}
-            Some(SupportedAPIs::AnthropicMessagesAPI(_)) => {}
+            Some(SupportedAPIsFromClient::OpenAIChatCompletions(_)) => {}
+            Some(SupportedAPIsFromClient::AnthropicMessagesAPI(_)) => {}
+            Some(SupportedAPIsFromClient::OpenAIResponsesAPI(_)) => {}
             _ => {
                 let api_info = match &self.client_api {
                     Some(api) => format!("{}", api),
                     None => "None".to_string(),
                 };
                 info!(
-                    "[ARCHGW_REQ_ID:{}], UNSUPPORTED API: {}",
+                    "[PLANO_REQ_ID:{}], UNSUPPORTED API: {}",
                     self.request_identifier(),
                     api_info
                 );
@@ -1153,7 +1137,7 @@ impl HttpContext for StreamContext {
         };
 
         debug!(
-            "[ARCHGW_REQ_ID:{}] UPSTREAM_RAW_RESPONSE: body_size={} content={}",
+            "[PLANO_REQ_ID:{}] UPSTREAM_RAW_RESPONSE: body_size={} content={}",
             self.request_identifier(),
             body.len(),
             String::from_utf8_lossy(&body)

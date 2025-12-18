@@ -267,6 +267,39 @@ pub struct RoutingPreference {
     pub description: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AgentUsagePreference {
+    pub model: String,
+    pub orchestration_preferences: Vec<OrchestrationPreference>,
+}
+
+/// OrchestrationPreference with custom serialization to always include default parameters.
+/// The parameters field is always serialized as:
+/// {"type": "object", "properties": {}, "required": []}
+#[derive(Debug, Clone, Deserialize)]
+pub struct OrchestrationPreference {
+    pub name: String,
+    pub description: String,
+}
+
+impl serde::Serialize for OrchestrationPreference {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("OrchestrationPreference", 3)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("description", &self.description)?;
+        state.serialize_field("parameters", &serde_json::json!({
+            "type": "object",
+            "properties": {},
+            "required": []
+        }))?;
+        state.end()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 //TODO: use enum for model, but if there is a new model, we need to update the code
 pub struct LlmProvider {

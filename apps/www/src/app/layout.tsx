@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "@katanemo/shared-styles/globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ConditionalLayout } from "@/components/ConditionalLayout";
@@ -17,6 +18,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        {/* Google tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-6J5LQH3Q9G"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-6J5LQH3Q9G');
+          `}
+        </Script>
         <ConditionalLayout>{children}</ConditionalLayout>
         <Analytics />
       </body>

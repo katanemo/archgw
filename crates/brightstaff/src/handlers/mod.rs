@@ -7,6 +7,7 @@ pub mod function_calling;
 pub mod pipeline_processor;
 pub mod response_handler;
 pub mod utils;
+pub mod jsonrpc;
 
 #[cfg(test)]
 mod integration_tests;

@@ -101,8 +101,17 @@ def validate_and_render_schema():
 
     # Process agents section and convert to endpoints
     agents = config_yaml.get("agents", [])
-    for agent in agents:
+    filters = config_yaml.get("filters", [])
+    agents_combined = agents + filters
+    agent_id_keys = set()
+
+    for agent in agents_combined:
         agent_id = agent.get("id")
+        if agent_id in agent_id_keys:
+            raise Exception(
+                f"Duplicate agent id {agent_id}, please provide unique id for each agent"
+            )
+        agent_id_keys.add(agent_id)
         agent_endpoint = agent.get("url")
 
         if agent_id and agent_endpoint:

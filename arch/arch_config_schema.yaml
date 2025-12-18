@@ -14,6 +14,38 @@ properties:
     type: array
     items:
       type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+      additionalProperties: false
+      required:
+        - id
+        - url
+  filters:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        type:
+          type: string
+          enum:
+            - mcp
+        transport:
+          type: string
+          enum:
+            - streamable-http
+        tool:
+          type: string
+      additionalProperties: false
+      required:
+        - id
+        - url
   listeners:
     oneOf:
       - type: array

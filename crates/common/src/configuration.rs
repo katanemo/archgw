@@ -21,8 +21,11 @@ pub struct ModelAlias {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: String,
-    pub kind: Option<String>,
+    pub transport: Option<String>,
+    pub tool: Option<String>,
     pub url: String,
+    #[serde(rename = "type")]
+    pub agent_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +74,7 @@ pub struct Configuration {
     pub mode: Option<GatewayMode>,
     pub routing: Option<Routing>,
     pub agents: Option<Vec<Agent>>,
+    pub filters: Option<Vec<Agent>>,
     pub listeners: Vec<Listener>,
     pub state_storage: Option<StateStorageConfig>,
 }

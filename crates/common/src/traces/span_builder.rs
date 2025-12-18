@@ -37,6 +37,7 @@ pub struct SpanBuilder {
     end_time: Option<SystemTime>,
     kind: SpanKind,
     attributes: HashMap<String, String>,
+    span_id: Option<String>,
 }
 
 impl SpanBuilder {
@@ -53,12 +54,18 @@ impl SpanBuilder {
             end_time: None,
             kind: SpanKind::Internal,
             attributes: HashMap::new(),
+            span_id: None,
         }
     }
 
     /// Set the trace ID (extracted from traceparent or OpenTelemetry context)
     pub fn with_trace_id(mut self, trace_id: impl Into<String>) -> Self {
         self.trace_id = Some(trace_id.into());
+        self
+    }
+
+    pub fn with_span_id(mut self, span_id: impl Into<String>) -> Self {
+        self.span_id = Some(span_id.into());
         self
     }
 
@@ -125,7 +132,7 @@ impl SpanBuilder {
         // Build span directly without going through Span::new()
         Span {
             trace_id,
-            span_id: generate_random_span_id(),
+            span_id: self.span_id.unwrap_or_else(|| generate_random_span_id()),
             parent_span_id: self.parent_span_id,
             name: self.name,
             start_time_unix_nano: format!("{}", start_nanos),
@@ -145,7 +152,7 @@ fn system_time_to_nanos(time: SystemTime) -> u128 {
 }
 
 /// Generate a random span ID (16 hex characters = 8 bytes)
-fn generate_random_span_id() -> String {
+pub fn generate_random_span_id() -> String {
     use rand::RngCore;
     let mut rng = rand::thread_rng();
     let mut random_bytes = [0u8; 8];

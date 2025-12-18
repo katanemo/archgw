@@ -18,7 +18,7 @@ pub use shapes::{
 };
 
 // Re-export new utilities
-pub use span_builder::{SpanBuilder, SpanKind};
+pub use span_builder::{SpanBuilder, SpanKind, generate_random_span_id};
 pub use resource_span_builder::ResourceSpanBuilder;
 pub use constants::*;
 

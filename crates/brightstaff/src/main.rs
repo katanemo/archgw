@@ -1,14 +1,14 @@
 use brightstaff::handlers::agent_chat_completions::agent_chat;
+use brightstaff::handlers::function_calling::function_calling_chat_handler;
 use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
-use brightstaff::handlers::function_calling::{function_calling_chat_handler};
 use brightstaff::router::llm_router::RouterService;
 use brightstaff::state::StateStorage;
 use brightstaff::state::postgresql::PostgreSQLConversationStorage;
 use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
-use common::configuration::Configuration;
+use common::configuration::{Agent, Configuration};
 use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
 use common::traces::TraceCollector;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
@@ -63,8 +63,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let arch_config = Arc::new(config);
 
+    // combine agents and filters into a single list of agents
+    let all_agents: Vec<Agent> = arch_config
+        .agents
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .chain(arch_config.filters.as_deref().unwrap_or_default())
+        .cloned()
+        .collect();
+
     let llm_providers = Arc::new(RwLock::new(arch_config.model_providers.clone()));
-    let agents_list = Arc::new(RwLock::new(arch_config.agents.clone()));
+    let combined_agents_filters_list = Arc::new(RwLock::new(Some(all_agents)));
     let listeners = Arc::new(RwLock::new(arch_config.listeners.clone()));
     let llm_provider_url =
         env::var("LLM_PROVIDER_ENDPOINT").unwrap_or_else(|_| "http://localhost:12001".to_string());
@@ -98,7 +108,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Tracing configuration found in arch_config.yaml");
         Some(true)
     } else {
-        info!("No tracing configuration in arch_config.yaml, will check OTEL_TRACING_ENABLED env var");
+        info!(
+            "No tracing configuration in arch_config.yaml, will check OTEL_TRACING_ENABLED env var"
+        );
         None
     };
     let trace_collector = Arc::new(TraceCollector::new(tracing_enabled));
@@ -142,11 +154,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
-        let model_aliases: Arc<Option<std::collections::HashMap<String, common::configuration::ModelAlias>>> = Arc::clone(&model_aliases);
+        let model_aliases: Arc<
+            Option<std::collections::HashMap<String, common::configuration::ModelAlias>>,
+        > = Arc::clone(&model_aliases);
         let llm_provider_url = llm_provider_url.clone();
 
         let llm_providers = llm_providers.clone();
-        let agents_list = agents_list.clone();
+        let agents_list = combined_agents_filters_list.clone();
         let listeners = listeners.clone();
         let trace_collector = trace_collector.clone();
         let state_storage = state_storage.clone();
@@ -162,28 +176,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let state_storage = state_storage.clone();
 
             async move {
-                match (req.method(), req.uri().path()) {
-                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
-                        let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, req.uri().path());
-                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector, state_storage)
-                            .with_context(parent_cx)
-                            .await
-                    }
-                    (&Method::POST, "/agents/v1/chat/completions") => {
-                        let fully_qualified_url =
-                            format!("{}{}", llm_provider_url, req.uri().path());
-                        agent_chat(
+                let path = req.uri().path();
+                // Check if path starts with /agents
+                if path.starts_with("/agents") {
+                    // Check if it matches one of the agent API paths
+                    let stripped_path = path.strip_prefix("/agents").unwrap();
+                    if matches!(
+                        stripped_path,
+                        CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH
+                    ) {
+                        let fully_qualified_url = format!("{}{}", llm_provider_url, stripped_path);
+                        return agent_chat(
                             req,
                             router_service,
                             fully_qualified_url,
                             agents_list,
                             listeners,
+                            trace_collector,
                         )
                         .with_context(parent_cx)
-                        .await
+                        .await;
                     }
-
+                }
+                match (req.method(), path) {
+                    (&Method::POST, CHAT_COMPLETIONS_PATH | MESSAGES_PATH | OPENAI_RESPONSES_API_PATH) => {
+                        let fully_qualified_url =
+                            format!("{}{}", llm_provider_url, path);
+                        llm_chat(req, router_service, fully_qualified_url, model_aliases, llm_providers, trace_collector, state_storage)
+                            .with_context(parent_cx)
+                            .await
+                    }
                     (&Method::POST, "/function_calling") => {
                         let fully_qualified_url =
                             format!("{}{}", llm_provider_url, "/v1/chat/completions");

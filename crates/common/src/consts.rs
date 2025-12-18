@@ -32,3 +32,4 @@ pub const OTEL_COLLECTOR_HTTP: &str = "opentelemetry_collector_http";
 pub const OTEL_POST_PATH: &str = "/v1/traces";
 pub const LLM_ROUTE_HEADER: &str = "x-arch-llm-route";
 pub const ENVOY_RETRY_HEADER: &str = "x-envoy-max-retries";
+pub const BRIGHT_STAFF_SERVICE_NAME : &str = "brightstaff";

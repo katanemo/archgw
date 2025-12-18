@@ -1134,6 +1134,140 @@ impl ProviderRequest for ResponsesAPIRequest {
     fn get_temperature(&self) -> Option<f32> {
         self.temperature
     }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        use crate::apis::openai::{Message, MessageContent, Role};
+
+        let mut openai_messages = Vec::new();
+
+        // Add instructions as system message if present
+        if let Some(instructions) = &self.instructions {
+            openai_messages.push(Message {
+                role: Role::System,
+                content: MessageContent::Text(instructions.clone()),
+                name: None,
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+
+        // Convert input to messages
+        match &self.input {
+            InputParam::Text(text) => {
+                openai_messages.push(Message {
+                    role: Role::User,
+                    content: MessageContent::Text(text.clone()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                });
+            }
+            InputParam::Items(items) => {
+                for item in items {
+                    match item {
+                        InputItem::Message(msg) => {
+                            // Convert message role
+                            let role = match msg.role {
+                                MessageRole::User => Role::User,
+                                MessageRole::Assistant => Role::Assistant,
+                                MessageRole::System => Role::System,
+                                MessageRole::Developer => Role::System, // Map developer to system
+                            };
+
+                            // Extract text from message content
+                            let content = match &msg.content {
+                                crate::apis::openai_responses::MessageContent::Text(text) => text.clone(),
+                                crate::apis::openai_responses::MessageContent::Items(items) => {
+                                    items.iter()
+                                        .filter_map(|c| {
+                                            if let InputContent::InputText { text } = c {
+                                                Some(text.clone())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()
+                                        .join("\n")
+                                }
+                            };
+
+                            openai_messages.push(Message {
+                                role,
+                                content: MessageContent::Text(content),
+                                name: None,
+                                tool_calls: None,
+                                tool_call_id: None,
+                            });
+                        }
+                        // Skip other input item types for now
+                        InputItem::ItemReference { .. } | InputItem::FunctionCallOutput { .. } => {
+                            // These are not yet supported in agent framework
+                        }
+                    }
+                }
+            }
+        }
+
+        openai_messages
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        // For ResponsesAPI, we need to convert messages back to input format
+        // Extract system messages as instructions
+        let system_text = messages.iter()
+            .filter(|msg| msg.role == crate::apis::openai::Role::System)
+            .filter_map(|msg| {
+                if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
+                    Some(text.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if !system_text.is_empty() {
+            self.instructions = Some(system_text);
+        }
+
+        // Convert user/assistant messages to InputParam
+        // For simplicity, we'll use the last user message as the input
+        // or combine all non-system messages
+        let input_messages: Vec<_> = messages.iter()
+            .filter(|msg| msg.role != crate::apis::openai::Role::System)
+            .collect();
+
+        if !input_messages.is_empty() {
+            // If there's only one message, use Text format
+            if input_messages.len() == 1 {
+                if let crate::apis::openai::MessageContent::Text(text) = &input_messages[0].content {
+                    self.input = crate::apis::openai_responses::InputParam::Text(text.clone());
+                }
+            } else {
+                // Multiple messages - combine them as text for now
+                // A more sophisticated approach would use InputParam::Items
+                let combined_text = input_messages.iter()
+                    .filter_map(|msg| {
+                        if let crate::apis::openai::MessageContent::Text(text) = &msg.content {
+                            Some(format!("{}: {}",
+                                match msg.role {
+                                    crate::apis::openai::Role::User => "User",
+                                    crate::apis::openai::Role::Assistant => "Assistant",
+                                    _ => "Unknown",
+                                },
+                                text
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                self.input = crate::apis::openai_responses::InputParam::Text(combined_text);
+            }
+        }
+    }
 }
 
 // ============================================================================

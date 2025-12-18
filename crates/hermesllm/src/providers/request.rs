@@ -47,6 +47,28 @@ pub trait ProviderRequest: Send + Sync {
     fn remove_metadata_key(&mut self, key: &str) -> bool;
 
     fn get_temperature(&self) -> Option<f32>;
+
+    /// Get message history as OpenAI Message format
+    /// This is useful for processing chat history across different provider formats
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message>;
+
+    /// Set message history from OpenAI Message format
+    /// This converts OpenAI messages to the appropriate format for each provider type
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]);
+}
+
+impl ProviderRequestType {
+    /// Set message history from OpenAI Message format
+    /// This converts OpenAI messages to the appropriate format for each provider type
+    pub fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.set_messages(messages),
+            Self::MessagesRequest(r) => r.set_messages(messages),
+            Self::BedrockConverse(r) => r.set_messages(messages),
+            Self::BedrockConverseStream(r) => r.set_messages(messages),
+            Self::ResponsesAPIRequest(r) => r.set_messages(messages),
+        }
+    }
 }
 
 impl ProviderRequest for ProviderRequestType {
@@ -147,6 +169,26 @@ impl ProviderRequest for ProviderRequestType {
             Self::BedrockConverse(r) => r.get_temperature(),
             Self::BedrockConverseStream(r) => r.get_temperature(),
             Self::ResponsesAPIRequest(r) => r.get_temperature(),
+        }
+    }
+
+    fn get_messages(&self) -> Vec<crate::apis::openai::Message> {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.get_messages(),
+            Self::MessagesRequest(r) => r.get_messages(),
+            Self::BedrockConverse(r) => r.get_messages(),
+            Self::BedrockConverseStream(r) => r.get_messages(),
+            Self::ResponsesAPIRequest(r) => r.get_messages(),
+        }
+    }
+
+    fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
+        match self {
+            Self::ChatCompletionsRequest(r) => r.set_messages(messages),
+            Self::MessagesRequest(r) => r.set_messages(messages),
+            Self::BedrockConverse(r) => r.set_messages(messages),
+            Self::BedrockConverseStream(r) => r.set_messages(messages),
+            Self::ResponsesAPIRequest(r) => r.set_messages(messages),
         }
     }
 }
@@ -933,5 +975,132 @@ mod tests {
         assert!(err
             .message
             .contains("OpenAI ChatCompletions, Anthropic Messages, and OpenAI Responses"));
+    }
+
+    #[test]
+    fn test_get_message_history_chat_completions() {
+        use crate::apis::openai::{Message, MessageContent, Role};
+
+        let chat_req = ChatCompletionsRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![
+                Message {
+                    role: Role::System,
+                    content: MessageContent::Text("You are helpful".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                Message {
+                    role: Role::User,
+                    content: MessageContent::Text("Hello!".to_string()),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let provider_req = ProviderRequestType::ChatCompletionsRequest(chat_req);
+        let messages = provider_req.get_messages();
+
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].role, Role::System);
+        assert_eq!(messages[1].role, Role::User);
+    }
+
+    #[test]
+    fn test_get_message_history_anthropic_messages() {
+        use crate::apis::anthropic::{
+            MessagesMessage, MessagesMessageContent, MessagesRequest, MessagesRole,
+            MessagesSystemPrompt,
+        };
+
+        let anthropic_req = MessagesRequest {
+            model: "claude-3-sonnet".to_string(),
+            messages: vec![MessagesMessage {
+                role: MessagesRole::User,
+                content: MessagesMessageContent::Single("Hello!".to_string()),
+            }],
+            system: Some(MessagesSystemPrompt::Single(
+                "You are helpful".to_string(),
+            )),
+            max_tokens: 100,
+            container: None,
+            mcp_servers: None,
+            metadata: None,
+            service_tier: None,
+            thinking: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stream: None,
+            stop_sequences: None,
+            tools: None,
+            tool_choice: None,
+        };
+
+        let provider_req = ProviderRequestType::MessagesRequest(anthropic_req);
+        let messages = provider_req.get_messages();
+
+        // Should have system message + user message
+        assert_eq!(messages.len(), 2);
+        assert_eq!(
+            messages[0].role,
+            crate::apis::openai::Role::System
+        );
+        assert_eq!(
+            messages[1].role,
+            crate::apis::openai::Role::User
+        );
+    }
+
+    #[test]
+    fn test_get_message_history_responses_api() {
+        use crate::apis::openai_responses::{InputParam, ResponsesAPIRequest};
+
+        let responses_req = ResponsesAPIRequest {
+            model: "gpt-4o".to_string(),
+            input: InputParam::Text("Hello, world!".to_string()),
+            instructions: Some("Be helpful".to_string()),
+            temperature: None,
+            max_output_tokens: None,
+            stream: None,
+            metadata: None,
+            tools: None,
+            tool_choice: None,
+            parallel_tool_calls: None,
+            modalities: None,
+            user: None,
+            store: None,
+            reasoning_effort: None,
+            include: None,
+            audio: None,
+            text: None,
+            service_tier: None,
+            top_p: None,
+            top_logprobs: None,
+            stream_options: None,
+            truncation: None,
+            conversation: None,
+            previous_response_id: None,
+            max_tool_calls: None,
+            background: None,
+        };
+
+        let provider_req = ProviderRequestType::ResponsesAPIRequest(responses_req);
+        let messages = provider_req.get_messages();
+
+        // Should have system message (instructions) + user message (input)
+        assert_eq!(messages.len(), 2);
+        assert_eq!(
+            messages[0].role,
+            crate::apis::openai::Role::System
+        );
+        assert_eq!(
+            messages[1].role,
+            crate::apis::openai::Role::User
+        );
     }
 }

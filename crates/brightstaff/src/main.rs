@@ -10,7 +10,7 @@ use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::{Agent, Configuration};
-use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
+use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH, PLANO_ORCHESTRATOR_MODEL_NAME};
 use common::traces::TraceCollector;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
@@ -101,9 +101,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ));
 
     let orchestrator_service: Arc<OrchestratorService> = Arc::new(OrchestratorService::new(
-        arch_config.model_providers.clone(),
         llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
-        "Plano-Orchestrator".to_string(),
+        PLANO_ORCHESTRATOR_MODEL_NAME.to_string(),
         routing_llm_provider,
     ));
 

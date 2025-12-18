@@ -186,15 +186,6 @@ async fn handle_agent_chat(
 
     let message: Vec<OpenAIMessage> = client_request.get_messages();
 
-    // let chat_completions_request: ChatCompletionsRequest =
-    //     serde_json::from_slice(&chat_request_bytes).map_err(|err| {
-    //         warn!(
-    //             "Failed to parse request body as ChatCompletionsRequest: {}",
-    //             err
-    //         );
-    //         AgentFilterChainError::RequestParsing(err)
-    //     })?;
-
     // Extract trace parent for routing
     let trace_parent = request_headers
         .iter()
@@ -263,7 +254,7 @@ async fn handle_agent_chat(
 
     for (agent_index, selected_agent) in selected_agents.iter().enumerate() {
         let is_last_agent = agent_index == agent_count - 1;
-        
+
         debug!(
             "Processing agent {}/{}: {}",
             agent_index + 1,
@@ -351,7 +342,7 @@ async fn handle_agent_chat(
         // For intermediate agents, collect the full response and pass to next agent
         debug!("Collecting response from intermediate agent: {}", agent_name);
         let response_text = response_handler.collect_full_response(llm_response).await?;
-        
+
         // Create a new message with the agent's response as assistant message
         // and add it to the conversation history
         current_messages.push(OpenAIMessage {

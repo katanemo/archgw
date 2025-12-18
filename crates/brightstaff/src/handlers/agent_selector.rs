@@ -176,7 +176,6 @@ mod tests {
 
     fn create_test_orchestrator_service() -> Arc<OrchestratorService> {
         Arc::new(OrchestratorService::new(
-            vec![], // empty providers for testing
             "http://localhost:8080".to_string(),
             "test-model".to_string(),
             "test-provider".to_string(),

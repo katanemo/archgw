@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use common::{
-    configuration::{LlmProvider, AgentUsagePreference, OrchestrationPreference},
+    configuration::{AgentUsagePreference, OrchestrationPreference},
     consts::ARCH_PROVIDER_HINT_HEADER,
 };
 use hermesllm::apis::openai::{ChatCompletionsResponse, Message};
@@ -36,7 +36,6 @@ pub type Result<T> = std::result::Result<T, OrchestrationError>;
 
 impl OrchestratorService {
     pub fn new(
-        _providers: Vec<LlmProvider>,
         orchestrator_url: String,
         orchestration_model_name: String,
         orchestration_provider_name: String,

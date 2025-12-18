@@ -157,7 +157,7 @@ pub mod operation_component {
     pub const HANDOFF: &str = "plano(handoff)";
 
     /// Agent filter execution
-    pub const AGENT_FILTER: &str = "plano(agent filter)";
+    pub const AGENT_FILTER: &str = "plano(filter)";
 
     /// Agent execution
     pub const AGENT: &str = "plano(agent)";

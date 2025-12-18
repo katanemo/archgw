@@ -3,7 +3,7 @@ use std::time::{Instant, SystemTime};
 
 use bytes::Bytes;
 use common::consts::TRACE_PARENT_HEADER;
-use common::traces::{SpanBuilder, SpanKind, parse_traceparent};
+use common::traces::{SpanBuilder, SpanKind, parse_traceparent, generate_random_span_id};
 use hermesllm::apis::OpenAIMessage;
 use hermesllm::clients::SupportedAPIsFromClient;
 use hermesllm::providers::request::ProviderRequest;
@@ -208,6 +208,13 @@ async fn handle_agent_chat(
         agent_selector.create_agent_map(agents)
     };
 
+    // Parse trace parent to get trace_id and parent_span_id
+    let (trace_id, parent_span_id) = if let Some(ref tp) = trace_parent {
+        parse_traceparent(tp)
+    } else {
+        (String::new(), None)
+    };
+
     // Select appropriate agent using arch router llm model
     let selected_agent = agent_selector
         .select_agent(&message, &listener, trace_parent.clone())
@@ -218,6 +225,14 @@ async fn handle_agent_chat(
     // Record the start time for agent span
     let agent_start_time = SystemTime::now();
     let agent_start_instant = Instant::now();
+    // let (span_id, trace_id) = trace_collector.start_span(
+    //     trace_parent.clone(),
+    //     operation_component::AGENT,
+    //     &format!("/agents{}", request_path),
+    //     &selected_agent.id,
+    // );
+
+    let span_id = generate_random_span_id();
 
     // Process the filter chain
     let chat_history = pipeline_processor
@@ -227,6 +242,8 @@ async fn handle_agent_chat(
             &agent_map,
             &request_headers,
             Some(&trace_collector),
+            trace_id.clone(),
+            span_id.clone(),
         )
         .await?;
 
@@ -243,6 +260,8 @@ async fn handle_agent_chat(
             client_request,
             terminal_agent,
             &request_headers,
+            trace_id.clone(),
+            span_id.clone(),
         )
         .await?;
 
@@ -260,14 +279,8 @@ async fn handle_agent_chat(
         .with_target(&terminal_agent_name)
         .build();
 
-    // Parse trace parent to get trace_id and parent_span_id
-    let (trace_id, parent_span_id) = if let Some(ref tp) = trace_parent {
-        parse_traceparent(tp)
-    } else {
-        (String::new(), None)
-    };
-
     let mut span_builder = SpanBuilder::new(&operation_name)
+        .with_span_id(span_id)
         .with_kind(SpanKind::Internal)
         .with_start_time(agent_start_time)
         .with_end_time(agent_end_time)

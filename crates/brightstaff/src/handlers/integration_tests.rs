@@ -117,6 +117,8 @@ mod integration_tests {
                 &agent_map,
                 &headers,
                 None,
+                String::new(),
+                String::new(),
             )
             .await;
 

@@ -6,13 +6,13 @@ const footerLinks = {
   product: [
     { label: "Research", href: "/research" },
     { label: "Blog", href: "/blog" },
-    { label: "Documentation", href: "https://docs.plano.katanemo.com", external: true },
+    { label: "Documentation", href: "https://docs.planoai.dev", external: true },
     { label: "Hugging Face", href: "https://huggingface.co/katanemo", external: true },
   ],
   resources: [
     { label: "GitHub", href: "https://github.com/katanemo/arch", external: true },
     { label: "Discord", href: "https://discord.gg/pGZf2gcwEc", external: true },
-    { label: "Get Started", href: "https://docs.plano.katanemo.com/getting-started/installation", external: true },
+    { label: "Get Started", href: "https://docs.planoai.dev/getting-started/installation", external: true },
   ],
 };
 

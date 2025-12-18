@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Menu } from "lucide-react";
 
 const navItems = [
-  { href: "https://docs.plano.katanemo.com/getting-started/installation", label: "start locally" },
-  { href: "https://docs.plano.katanemo.com", label: "docs" },
+  { href: "https://docs.planoai.dev/getting-started/installation", label: "start locally" },
+  { href: "https://docs.planoai.dev", label: "docs" },
   { href: "/research", label: "research" },
   { href: "/blog", label: "blog" },
 ];

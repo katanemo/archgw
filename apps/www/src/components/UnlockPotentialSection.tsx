@@ -33,10 +33,10 @@ export function UnlockPotentialSection({
 
           <div className="flex flex-col sm:flex-row gap-5">
             <Button asChild>
-              <Link href="https://docs.plano.katanemo.com">Deploy today</Link>
+              <Link href="https://docs.planoai.dev">Deploy today</Link>
             </Button>
             <Button variant="secondaryDark" asChild>
-              <Link href="https://docs.plano.katanemo.com">Documentation</Link>
+              <Link href="https://docs.planoai.dev">Documentation</Link>
             </Button>
           </div>
         </div>

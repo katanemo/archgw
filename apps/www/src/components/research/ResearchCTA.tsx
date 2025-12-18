@@ -34,7 +34,7 @@ export function ResearchCTA() {
               </Link>
             </Button>
             <Button variant="secondary" asChild className="w-full sm:w-auto">
-              <Link href="https://docs.plano.katanemo.com">
+              <Link href="https://docs.planoai.dev">
                 Get Started with Plano
               </Link>
             </Button>

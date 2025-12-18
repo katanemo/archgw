@@ -1,0 +1,17 @@
+{
+  "name": "@katanemo/shared-styles",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./globals.css",
+  "exports": {
+    "./globals.css": "./globals.css"
+  },
+  "files": [
+    "globals.css"
+  ],
+  "scripts": {
+    "build": "echo 'Skipping build'",
+    "lint": "biome check",
+    "typecheck": "tsc --noEmit"
+  }
+}

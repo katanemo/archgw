@@ -198,7 +198,15 @@ impl fmt::Display for SseEvent {
 // Into implementation to convert SseEvent to bytes for response buffer
 impl Into<Vec<u8>> for SseEvent {
     fn into(self) -> Vec<u8> {
-        format!("{}\n\n", self.sse_transformed_lines).into_bytes()
+        // For generated events (like ResponsesAPI), sse_transformed_lines already includes trailing \n\n
+        // For parsed events (like passthrough), we need to add the \n\n separator
+        if self.sse_transformed_lines.ends_with("\n\n") {
+            // Already properly formatted with trailing newlines
+            self.sse_transformed_lines.into_bytes()
+        } else {
+            // Add SSE event separator
+            format!("{}\n\n", self.sse_transformed_lines).into_bytes()
+        }
     }
 }
 

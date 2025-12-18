@@ -189,7 +189,10 @@ impl TryFrom<ChatCompletionsResponse> for ResponsesAPIResponse {
             top_p: 1.0,
             metadata: resp.metadata.unwrap_or_default(),
             truncation: None,
-            reasoning: None,
+            reasoning: Some(crate::apis::openai_responses::Reasoning {
+                effort: None,
+                summary: None,
+            }),
             store: None,
             text: None,
             audio: None,

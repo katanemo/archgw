@@ -10,7 +10,6 @@ services:
     volumes:
       - ../../demos/samples_python/weather_forecast/arch_config.yaml:/app/arch_config.yaml
       - /etc/ssl/cert.pem:/etc/ssl/cert.pem
-      - ~/archgw_logs:/var/log/
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:

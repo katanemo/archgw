@@ -64,7 +64,7 @@ mod integration_tests {
 
         let agent_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
-            filter_chain: vec!["filter-agent".to_string(), "terminal-agent".to_string()],
+            filter_chain: Some(vec!["filter-agent".to_string(), "terminal-agent".to_string()]),
             description: Some("Test pipeline".to_string()),
             default: Some(true),
         };
@@ -104,7 +104,7 @@ mod integration_tests {
         // Create a pipeline with empty filter chain to avoid network calls
         let test_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
-            filter_chain: vec![], // Empty filter chain - no network calls needed
+            filter_chain: Some(vec![]), // Empty filter chain - no network calls needed
             description: None,
             default: None,
         };
@@ -143,7 +143,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_error_handling_flow() {
-        let router_service = create_test_router_service();
+        let router_service = create_test_orchestrator_service();
         let agent_selector = AgentSelector::new(router_service);
 
         // Test listener not found

@@ -216,9 +216,44 @@ async fn handle_agent_chat(
     };
 
     // Select appropriate agents using arch orchestrator llm model
+    let selection_span_id = generate_random_span_id();
+    let selection_start_time = SystemTime::now();
+    let selection_start_instant = Instant::now();
+
     let selected_agents = agent_selector
         .select_agents(&message, &listener, trace_parent.clone())
         .await?;
+
+    // Record agent selection span
+    let selection_end_time = SystemTime::now();
+    let selection_elapsed = selection_start_instant.elapsed();
+    let selection_operation_name = OperationNameBuilder::new()
+        .with_method("POST")
+        .with_path("/agents/select")
+        .with_target(&listener.name)
+        .build();
+
+    let mut selection_span_builder = SpanBuilder::new(&selection_operation_name)
+        .with_span_id(selection_span_id)
+        .with_kind(SpanKind::Internal)
+        .with_start_time(selection_start_time)
+        .with_end_time(selection_end_time)
+        .with_attribute(http::METHOD, "POST")
+        .with_attribute(http::TARGET, "/agents/select")
+        .with_attribute("selection.listener", listener.name.clone())
+        .with_attribute("selection.agent_count", selected_agents.len().to_string())
+        .with_attribute("selection.agents", selected_agents.iter().map(|a| a.id.as_str()).collect::<Vec<_>>().join(","))
+        .with_attribute("duration_ms", format!("{:.2}", selection_elapsed.as_secs_f64() * 1000.0));
+
+    if !trace_id.is_empty() {
+        selection_span_builder = selection_span_builder.with_trace_id(trace_id.clone());
+    }
+    if let Some(parent_id) = parent_span_id.clone() {
+        selection_span_builder = selection_span_builder.with_parent_span_id(parent_id);
+    }
+
+    let selection_span = selection_span_builder.build();
+    trace_collector.record_span(operation_component::ORCHESTRATOR, selection_span);
 
     info!("Selected {} agent(s) for execution", selected_agents.len());
 
@@ -241,6 +276,9 @@ async fn handle_agent_chat(
         let agent_start_instant = Instant::now();
         let span_id = generate_random_span_id();
 
+        // Get agent name
+        let agent_name = selected_agent.id.clone();
+
         // Process the filter chain
         let chat_history = pipeline_processor
             .process_filter_chain(
@@ -255,7 +293,6 @@ async fn handle_agent_chat(
             .await?;
 
         // Get agent details and invoke
-        let agent_name = selected_agent.id.clone();
         let agent = agent_map.get(&agent_name).unwrap();
 
         debug!("Invoking agent: {}", agent_name);

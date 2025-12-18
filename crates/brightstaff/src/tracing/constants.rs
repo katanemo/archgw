@@ -150,8 +150,11 @@ pub mod operation_component {
     /// Inbound request handling
     pub const INBOUND: &str = "plano(inbound)";
 
-    /// Routing decision phase
+    /// Orchestrator for llm route selection
     pub const ROUTING: &str = "plano(routing)";
+
+    /// Orchestrator for agent selection
+    pub const ORCHESTRATOR: &str = "plano(orchestrator)";
 
     /// Handoff to upstream service
     pub const HANDOFF: &str = "plano(handoff)";

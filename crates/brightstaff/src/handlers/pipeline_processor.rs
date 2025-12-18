@@ -740,7 +740,7 @@ mod tests {
     fn create_test_pipeline(agents: Vec<&str>) -> AgentFilterChain {
         AgentFilterChain {
             id: "test-agent".to_string(),
-            filter_chain: agents.iter().map(|s| s.to_string()).collect(),
+            filter_chain: Some(agents.iter().map(|s| s.to_string()).collect()),
             description: None,
             default: None,
         }

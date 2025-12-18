@@ -6,11 +6,11 @@ use hyper::header::HeaderMap;
 use crate::handlers::agent_selector::{AgentSelectionError, AgentSelector};
 use crate::handlers::pipeline_processor::PipelineProcessor;
 use crate::handlers::response_handler::ResponseHandler;
-use crate::router::llm_router::RouterService;
+use crate::router::plano_orchestrator::OrchestratorService;
 
 /// Integration test that demonstrates the modular agent chat flow
 /// This test shows how the three main components work together:
-/// 1. AgentSelector - selects the appropriate agent based on routing
+/// 1. AgentSelector - selects the appropriate agents based on orchestration
 /// 2. PipelineProcessor - executes the agent pipeline
 /// 3. ResponseHandler - handles response streaming
 #[cfg(test)]
@@ -18,8 +18,8 @@ mod integration_tests {
     use super::*;
     use common::configuration::{Agent, AgentFilterChain, Listener};
 
-    fn create_test_router_service() -> Arc<RouterService> {
-        Arc::new(RouterService::new(
+    fn create_test_orchestrator_service() -> Arc<OrchestratorService> {
+        Arc::new(OrchestratorService::new(
             vec![], // empty providers for testing
             "http://localhost:8080".to_string(),
             "test-model".to_string(),
@@ -40,8 +40,8 @@ mod integration_tests {
     #[tokio::test]
     async fn test_modular_agent_chat_flow() {
         // Setup services
-        let router_service = create_test_router_service();
-        let agent_selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let agent_selector = AgentSelector::new(orchestrator_service);
         let mut pipeline_processor = PipelineProcessor::default();
 
         // Create test data

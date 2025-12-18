@@ -61,6 +61,10 @@ properties:
               type: string
             timeout:
               type: string
+            router:
+              type: string
+              enum:
+                - plano_orchestrator_v1
             type:
               type: string
               enum:

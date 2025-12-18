@@ -17,7 +17,7 @@ use tracing::{debug, info, warn};
 use super::agent_selector::{AgentSelectionError, AgentSelector};
 use super::pipeline_processor::{PipelineError, PipelineProcessor};
 use super::response_handler::ResponseHandler;
-use crate::router::llm_router::RouterService;
+use crate::router::plano_orchestrator::OrchestratorService;
 use crate::tracing::{OperationNameBuilder, operation_component, http};
 
 /// Main errors for agent chat completions
@@ -37,7 +37,7 @@ pub enum AgentFilterChainError {
 
 pub async fn agent_chat(
     request: Request<hyper::body::Incoming>,
-    router_service: Arc<RouterService>,
+    orchestrator_service: Arc<OrchestratorService>,
     _: String,
     agents_list: Arc<tokio::sync::RwLock<Option<Vec<common::configuration::Agent>>>>,
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
@@ -45,7 +45,7 @@ pub async fn agent_chat(
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     match handle_agent_chat(
         request,
-        router_service,
+        orchestrator_service,
         agents_list,
         listeners,
         trace_collector,
@@ -123,13 +123,13 @@ pub async fn agent_chat(
 
 async fn handle_agent_chat(
     request: Request<hyper::body::Incoming>,
-    router_service: Arc<RouterService>,
+    orchestrator_service: Arc<OrchestratorService>,
     agents_list: Arc<tokio::sync::RwLock<Option<Vec<common::configuration::Agent>>>>,
     listeners: Arc<tokio::sync::RwLock<Vec<common::configuration::Listener>>>,
     trace_collector: Arc<common::traces::TraceCollector>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, AgentFilterChainError> {
     // Initialize services
-    let agent_selector = AgentSelector::new(router_service);
+    let agent_selector = AgentSelector::new(orchestrator_service);
     let mut pipeline_processor = PipelineProcessor::default();
     let response_handler = ResponseHandler::new();
 
@@ -215,94 +215,123 @@ async fn handle_agent_chat(
         (String::new(), None)
     };
 
-    // Select appropriate agent using arch router llm model
-    let selected_agent = agent_selector
-        .select_agent(&message, &listener, trace_parent.clone())
+    // Select appropriate agents using arch orchestrator llm model
+    let selected_agents = agent_selector
+        .select_agents(&message, &listener, trace_parent.clone())
         .await?;
 
-    debug!("Processing agent pipeline: {}", selected_agent.id);
+    info!("Selected {} agent(s) for execution", selected_agents.len());
 
-    // Record the start time for agent span
-    let agent_start_time = SystemTime::now();
-    let agent_start_instant = Instant::now();
-    // let (span_id, trace_id) = trace_collector.start_span(
-    //     trace_parent.clone(),
-    //     operation_component::AGENT,
-    //     &format!("/agents{}", request_path),
-    //     &selected_agent.id,
-    // );
+    // Execute agents sequentially, passing output from one to the next
+    let mut current_messages = message.clone();
+    let agent_count = selected_agents.len();
 
-    let span_id = generate_random_span_id();
+    for (agent_index, selected_agent) in selected_agents.iter().enumerate() {
+        let is_last_agent = agent_index == agent_count - 1;
+        
+        debug!(
+            "Processing agent {}/{}: {}",
+            agent_index + 1,
+            agent_count,
+            selected_agent.id
+        );
 
-    // Process the filter chain
-    let chat_history = pipeline_processor
-        .process_filter_chain(
-            &message,
-            &selected_agent,
-            &agent_map,
-            &request_headers,
-            Some(&trace_collector),
-            trace_id.clone(),
-            span_id.clone(),
-        )
-        .await?;
+        // Record the start time for agent span
+        let agent_start_time = SystemTime::now();
+        let agent_start_instant = Instant::now();
+        let span_id = generate_random_span_id();
 
-    // Get terminal agent and send final response
-    let terminal_agent_name = selected_agent.id.clone();
-    let terminal_agent = agent_map.get(&terminal_agent_name).unwrap();
+        // Process the filter chain
+        let chat_history = pipeline_processor
+            .process_filter_chain(
+                &current_messages,
+                selected_agent,
+                &agent_map,
+                &request_headers,
+                Some(&trace_collector),
+                trace_id.clone(),
+                span_id.clone(),
+            )
+            .await?;
 
-    debug!("Processing terminal agent: {}", terminal_agent_name);
-    debug!("Terminal agent details: {:?}", terminal_agent);
+        // Get agent details and invoke
+        let agent_name = selected_agent.id.clone();
+        let agent = agent_map.get(&agent_name).unwrap();
 
-    let llm_response = pipeline_processor
-        .invoke_agent(
-            &chat_history,
-            client_request,
-            terminal_agent,
-            &request_headers,
-            trace_id.clone(),
-            span_id.clone(),
-        )
-        .await?;
+        debug!("Invoking agent: {}", agent_name);
 
-    // Record agent span after processing is complete
-    let agent_end_time = SystemTime::now();
-    let agent_elapsed = agent_start_instant.elapsed();
+        let llm_response = pipeline_processor
+            .invoke_agent(
+                &chat_history,
+                client_request.clone(),
+                agent,
+                &request_headers,
+                trace_id.clone(),
+                span_id.clone(),
+            )
+            .await?;
 
-    // Build full path with /agents prefix
-    let full_path = format!("/agents{}", request_path);
+        // Record agent span
+        let agent_end_time = SystemTime::now();
+        let agent_elapsed = agent_start_instant.elapsed();
+        let full_path = format!("/agents{}", request_path);
+        let operation_name = OperationNameBuilder::new()
+            .with_method("POST")
+            .with_path(&full_path)
+            .with_target(&agent_name)
+            .build();
 
-    // Build operation name: POST {full_path} {agent_name}
-    let operation_name = OperationNameBuilder::new()
-        .with_method("POST")
-        .with_path(&full_path)
-        .with_target(&terminal_agent_name)
-        .build();
+        let mut span_builder = SpanBuilder::new(&operation_name)
+            .with_span_id(span_id)
+            .with_kind(SpanKind::Internal)
+            .with_start_time(agent_start_time)
+            .with_end_time(agent_end_time)
+            .with_attribute(http::METHOD, "POST")
+            .with_attribute(http::TARGET, full_path)
+            .with_attribute("agent.name", agent_name.clone())
+            .with_attribute("agent.sequence", format!("{}/{}", agent_index + 1, agent_count))
+            .with_attribute("duration_ms", format!("{:.2}", agent_elapsed.as_secs_f64() * 1000.0));
 
-    let mut span_builder = SpanBuilder::new(&operation_name)
-        .with_span_id(span_id)
-        .with_kind(SpanKind::Internal)
-        .with_start_time(agent_start_time)
-        .with_end_time(agent_end_time)
-        .with_attribute(http::METHOD, "POST")
-        .with_attribute(http::TARGET, full_path)
-        .with_attribute("agent.name", terminal_agent_name.clone())
-        .with_attribute("duration_ms", format!("{:.2}", agent_elapsed.as_secs_f64() * 1000.0));
+        if !trace_id.is_empty() {
+            span_builder = span_builder.with_trace_id(trace_id.clone());
+        }
+        if let Some(parent_id) = parent_span_id.clone() {
+            span_builder = span_builder.with_parent_span_id(parent_id);
+        }
 
-    if !trace_id.is_empty() {
-        span_builder = span_builder.with_trace_id(trace_id);
+        let span = span_builder.build();
+        trace_collector.record_span(operation_component::AGENT, span);
+
+        // If this is the last agent, return the streaming response
+        if is_last_agent {
+            info!("Completed agent chain, returning response from last agent: {}", agent_name);
+            return response_handler
+                .create_streaming_response(llm_response)
+                .await
+                .map_err(AgentFilterChainError::from);
+        }
+
+        // For intermediate agents, collect the full response and pass to next agent
+        debug!("Collecting response from intermediate agent: {}", agent_name);
+        let response_text = response_handler.collect_full_response(llm_response).await?;
+        
+        // Create a new message with the agent's response as assistant message
+        // and add it to the conversation history
+        current_messages.push(OpenAIMessage {
+            role: hermesllm::apis::openai::Role::Assistant,
+            content: hermesllm::apis::openai::MessageContent::Text(response_text.clone()),
+            name: Some(agent_name.clone()),
+            tool_calls: None,
+            tool_call_id: None,
+        });
+
+        info!(
+            "Agent {} completed, passing {} character response to next agent",
+            agent_name,
+            response_text.len()
+        );
     }
-    if let Some(parent_id) = parent_span_id {
-        span_builder = span_builder.with_parent_span_id(parent_id);
-    }
 
-    let span = span_builder.build();
-    // Use plano(agent) as service name for the agent processing span
-    trace_collector.record_span(operation_component::AGENT, span);
-
-    // Create streaming response
-    response_handler
-        .create_streaming_response(llm_response)
-        .await
-        .map_err(AgentFilterChainError::from)
+    // This should never be reached since we return in the last agent iteration
+    unreachable!("Agent execution loop should have returned a response")
 }

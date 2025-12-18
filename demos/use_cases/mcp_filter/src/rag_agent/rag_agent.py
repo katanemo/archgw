@@ -74,17 +74,13 @@ async def chat_completion_http(request: Request, request_body: ChatCompletionReq
     else:
         logger.info("No traceparent header found")
 
-    # Check if streaming is requested
-    if request_body.stream:
-        return StreamingResponse(
-            stream_chat_completions(request_body, traceparent_header),
-            media_type="text/plain",
-            headers={
-                "content-type": "text/event-stream",
-            },
-        )
-    else:
-        return await non_streaming_chat_completions(request_body, traceparent_header)
+    return StreamingResponse(
+        stream_chat_completions(request_body, traceparent_header),
+        media_type="text/plain",
+        headers={
+            "content-type": "text/event-stream",
+        },
+    )
 
 
 async def stream_chat_completions(
@@ -184,88 +180,6 @@ async def stream_chat_completions(
 
         yield f"data: {error_chunk.model_dump_json()}\n\n"
         yield "data: [DONE]\n\n"
-
-
-async def non_streaming_chat_completions(
-    request_body: ChatCompletionRequest, traceparent_header: str = None
-):
-    """Generate non-streaming chat completions."""
-    # Prepare messages for response generation
-    response_messages = prepare_response_messages(request_body)
-
-    try:
-        # Call archgw using OpenAI client
-        logger.info(f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to generate response")
-
-        # Prepare extra headers if traceparent is provided
-        extra_headers = {"x-envoy-max-retries": "3"}
-        if traceparent_header:
-            extra_headers["traceparent"] = traceparent_header
-
-        response = await archgw_client.chat.completions.create(
-            model=RESPONSE_MODEL,
-            messages=response_messages,
-            temperature=request_body.temperature or 0.7,
-            max_tokens=request_body.max_tokens or 1000,
-            extra_headers=extra_headers,
-        )
-
-        generated_response = response.choices[0].message.content.strip()
-        logger.info(f"Response generated successfully")
-
-        return ChatCompletionResponse(
-            id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
-            created=int(time.time()),
-            model=request_body.model,
-            choices=[
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": generated_response,
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={
-                "prompt_tokens": sum(
-                    len(msg.content.split()) for msg in request_body.messages
-                ),
-                "completion_tokens": len(generated_response.split()),
-                "total_tokens": sum(
-                    len(msg.content.split()) for msg in request_body.messages
-                )
-                + len(generated_response.split()),
-            },
-        )
-
-    except Exception as e:
-        logger.error(f"Error generating response: {e}")
-
-        # Fallback response
-        fallback_message = "I apologize, but I'm having trouble generating a response right now. Please try again."
-        return ChatCompletionResponse(
-            id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
-            created=int(time.time()),
-            model=request_body.model,
-            choices=[
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": fallback_message},
-                    "finish_reason": "stop",
-                }
-            ],
-            usage={
-                "prompt_tokens": sum(
-                    len(msg.content.split()) for msg in request_body.messages
-                ),
-                "completion_tokens": len(fallback_message.split()),
-                "total_tokens": sum(
-                    len(msg.content.split()) for msg in request_body.messages
-                )
-                + len(fallback_message.split()),
-            },
-        )
 
 
 @app.get("/health")

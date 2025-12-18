@@ -1,0 +1,38 @@
+version: v0.3.0
+
+agents:
+  - id: weather_agent
+    url: http://host.docker.internal:10510
+  - id: flight_agent
+    url: http://host.docker.internal:10520
+  - id: hotel_agent
+    url: http://host.docker.internal:10530
+
+model_providers:
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    default: true
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+
+model_aliases:
+  fast-llm:
+    target: gpt-4o-mini
+  smart-llm:
+    target: gpt-4o
+
+listeners:
+  - type: agent
+    name: travel_booking_service
+    port: 8001
+    router: plano_orchestrator_v1
+    agents:
+      - id: weather_agent
+        description: Get current weather and forecast information for any location worldwide
+      - id: flight_agent
+        description: Search and book flights between cities with pricing and availability
+      - id: hotel_agent
+        description: Search and reserve hotel rooms with preferences and pricing
+
+tracing:
+  random_sampling: 100

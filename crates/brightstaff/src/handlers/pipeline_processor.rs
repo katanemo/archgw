@@ -200,7 +200,13 @@ impl PipelineProcessor {
     ) -> Result<Vec<Message>, PipelineError> {
         let mut chat_history_updated = chat_history.to_vec();
 
-        for agent_name in &agent_filter_chain.filter_chain {
+        // If filter_chain is None or empty, proceed without filtering
+        let filter_chain = match agent_filter_chain.filter_chain.as_ref() {
+            Some(fc) if !fc.is_empty() => fc,
+            _ => return Ok(chat_history_updated),
+        };
+
+        for agent_name in filter_chain {
             debug!("Processing filter agent: {}", agent_name);
 
             let agent = agent_map

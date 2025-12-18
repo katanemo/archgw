@@ -113,6 +113,52 @@ impl ResponseHandler {
             .body(stream_body)
             .map_err(ResponseError::from)
     }
+
+    /// Collect the full response body as a string
+    /// This is used for intermediate agents where we need to capture the full response
+    /// before passing it to the next agent. 
+    /// 
+    /// This method handles both streaming and non-streaming responses:
+    /// - For streaming SSE responses: parses chunks and extracts text deltas
+    /// - For non-streaming responses: returns the full text
+    pub async fn collect_full_response(
+        &self,
+        llm_response: reqwest::Response,
+    ) -> Result<String, ResponseError> {
+        use hermesllm::apis::streaming_shapes::sse::SseStreamIter;
+        
+        let response_bytes = llm_response
+            .bytes()
+            .await
+            .map_err(|e| ResponseError::StreamError(format!("Failed to read response: {}", e)))?;
+        
+        // Try to parse as SSE streaming response
+        if let Ok(sse_iter) = SseStreamIter::try_from(response_bytes.as_ref()) {
+            let mut accumulated_text = String::new();
+            
+            for sse_event in sse_iter {
+                // Skip [DONE] markers and event-only lines
+                if sse_event.is_done() || sse_event.is_event_only() {
+                    continue;
+                }
+                
+                // Try to get provider response and extract content delta
+                if let Ok(provider_response) = sse_event.provider_response() {
+                    if let Some(content) = provider_response.content_delta() {
+                        accumulated_text.push_str(&content);
+                    }
+                }
+            }
+            
+            return Ok(accumulated_text);
+        }
+        
+        // If not SSE, treat as regular text response
+        let response_text = String::from_utf8(response_bytes.to_vec())
+            .map_err(|e| ResponseError::StreamError(format!("Failed to decode response: {}", e)))?;
+        
+        Ok(response_text)
+    }
 }
 
 impl Default for ResponseHandler {

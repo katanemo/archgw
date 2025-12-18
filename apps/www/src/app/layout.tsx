@@ -7,7 +7,7 @@ import { ConditionalLayout } from "@/components/ConditionalLayout";
 export const metadata: Metadata = {
   title: "Plano - Delivery Infrastructure for Agentic Apps",
   description:
-    "Build agents faster, and deliver them reliably to production - by offloading the critical plumbing work to Plano.",
+    "Build agents faster, and deliver them reliably to production - by offloading the critical plumbing work to Plano!",
 };
 
 export default function RootLayout({

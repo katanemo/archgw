@@ -111,7 +111,7 @@ export function NetworkAnimation({ className }: NetworkAnimationProps) {
   return (
     <div className="absolute inset-0 pointer-events-none opacity-100">
       <motion.div
-        className={`absolute 
+        className={`absolute
         top-[9%] right-[-3%] w-[380px] h-[380px] ${className || ""}`}
         initial={{
           rotate: 9, // Start at the same rotation as animation to prevent flicker

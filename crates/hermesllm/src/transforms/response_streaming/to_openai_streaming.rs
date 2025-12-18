@@ -364,6 +364,23 @@ fn convert_content_delta(
             None,
             None,
         )),
+        MessagesContentDelta::SignatureDelta { signature: _ } => {
+            // Signature delta is cryptographic verification metadata, not content
+            // Create an empty delta chunk to maintain stream continuity
+            Ok(create_openai_chunk(
+                "stream",
+                "unknown",
+                MessageDelta {
+                    role: None,
+                    content: None,
+                    refusal: None,
+                    function_call: None,
+                    tool_calls: None,
+                },
+                None,
+                None,
+            ))
+        }
     }
 }
 

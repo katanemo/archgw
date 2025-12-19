@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common::{
     configuration::{AgentUsagePreference, OrchestrationPreference},
-    consts::ARCH_PROVIDER_HINT_HEADER,
+    consts::{ARCH_PROVIDER_HINT_HEADER, PLANO_ORCHESTRATOR_MODEL_NAME},
 };
 use hermesllm::apis::openai::{ChatCompletionsResponse, Message};
 use hyper::header;
@@ -17,7 +17,6 @@ pub struct OrchestratorService {
     orchestrator_url: String,
     client: reqwest::Client,
     orchestrator_model: Arc<dyn OrchestratorModel>,
-    orchestration_provider_name: String,
 }
 
 #[derive(Debug, Error)]
@@ -38,7 +37,6 @@ impl OrchestratorService {
     pub fn new(
         orchestrator_url: String,
         orchestration_model_name: String,
-        orchestration_provider_name: String,
     ) -> Self {
         // Empty agent orchestrations - will be provided via usage_preferences in requests
         let agent_orchestrations: HashMap<String, Vec<OrchestrationPreference>> = HashMap::new();
@@ -53,7 +51,6 @@ impl OrchestratorService {
             orchestrator_url,
             client: reqwest::Client::new(),
             orchestrator_model,
-            orchestration_provider_name,
         }
     }
 
@@ -95,7 +92,7 @@ impl OrchestratorService {
 
         orchestration_request_headers.insert(
             header::HeaderName::from_static(ARCH_PROVIDER_HINT_HEADER),
-            header::HeaderValue::from_str(&self.orchestration_provider_name).unwrap(),
+            header::HeaderValue::from_str(PLANO_ORCHESTRATOR_MODEL_NAME).unwrap(),
         );
 
         if let Some(trace_parent) = trace_parent {
@@ -107,7 +104,7 @@ impl OrchestratorService {
 
         orchestration_request_headers.insert(
             header::HeaderName::from_static("model"),
-            header::HeaderValue::from_static("Plano-Orchestrator"),
+            header::HeaderValue::from_static(PLANO_ORCHESTRATOR_MODEL_NAME),
         );
 
         let start_time = std::time::Instant::now();

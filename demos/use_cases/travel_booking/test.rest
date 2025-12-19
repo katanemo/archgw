@@ -14,3 +14,34 @@ model: Plano-Orchestrator
   "continue_final_message": false,
   "add_generation_prompt": true
 }
+
+### test archfc with plano orchestrator for travel
+POST https://archfc.katanemo.dev/v1/chat/completions HTTP/1.1
+Content-Type: application/json
+model: Plano-Orchestrator
+
+{
+  "model": "Plano-Orchestrator",
+  "messages": [
+    {
+      "role": "user",
+      "content": "You are a helpful assistant that selects the most suitable routes based on user intent.\nYou are provided with a list of available routes enclosed within <routes></routes> XML tags:\n<routes>\n{\"name\": \"weather_agent\", \"description\": \"Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed). Provides temperature, humidity, wind speed, precipitation, and detailed weather conditions.\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n{\"name\": \"flight_agent\", \"description\": \"Get live flight information between airports using AviationStack API. Shows real-time flight status, scheduled/actual departure and arrival times, gate information, and whether flights are in the air. Uses IATA airport codes (e.g., JFK, LAX, LHR). Displays current and scheduled flights with live tracking data.\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n{\"name\": \"currency_agent\", \"description\": \"Get real-time currency exchange rates and perform currency conversions using Frankfurter API (free, no API key needed). Provides latest exchange rates, historical rates, and currency conversions between any supported currencies. Uses standard 3-letter currency codes (e.g., USD, EUR, GBP, JPY).\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n</routes>\n\nYou are also given the conversation context enclosed within <conversation></conversation> XML tags:\n<conversation>\n[\n    {\n        \"role\": \"user\",\n        \"content\": \"book a flight and hotel to seattle from LA if weather in sunny over the weekend\"\n    }\n]\n</conversation>\n\n## Instructions\n1. Analyze the latest user intent from the conversation.\n2. Compare it against the available routes to find which routes can help fulfill the request.\n3. Respond only with the exact route names from <routes>.\n4. If no routes can help or the intent is already fulfilled, return an empty list.\n\n## Response Format\nReturn your answer strictly in JSON as follows:\n{\"route\": [\"route_name_1\", \"route_name_2\", \"...\"]}\nIf no routes are needed, return an empty list for `route`."
+    }
+  ]
+}
+
+### local 12001 llm
+POST http://localhost:12001/v1/chat/completions HTTP/1.1
+Content-Type: application/json
+x-arch-llm-provider-hint: Plano-Orchestrator
+model: Plano-Orchestrator
+
+{
+  "model": "Plano-Orchestrator",
+  "messages": [
+    {
+      "role": "user",
+      "content": "You are a helpful assistant that selects the most suitable routes based on user intent.\nYou are provided with a list of available routes enclosed within <routes></routes> XML tags:\n<routes>\n{\"name\": \"weather_agent\", \"description\": \"Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed). Provides temperature, humidity, wind speed, precipitation, and detailed weather conditions.\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n{\"name\": \"flight_agent\", \"description\": \"Get live flight information between airports using AviationStack API. Shows real-time flight status, scheduled/actual departure and arrival times, gate information, and whether flights are in the air. Uses IATA airport codes (e.g., JFK, LAX, LHR). Displays current and scheduled flights with live tracking data.\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n{\"name\": \"currency_agent\", \"description\": \"Get real-time currency exchange rates and perform currency conversions using Frankfurter API (free, no API key needed). Provides latest exchange rates, historical rates, and currency conversions between any supported currencies. Uses standard 3-letter currency codes (e.g., USD, EUR, GBP, JPY).\", \"parameters\": {\"type\": \"object\", \"properties\": {}, \"required\": []}}\n</routes>\n\nYou are also given the conversation context enclosed within <conversation></conversation> XML tags:\n<conversation>\n[\n    {\n        \"role\": \"user\",\n        \"content\": \"book a flight and hotel to seattle from LA if weather in sunny over the weekend\"\n    }\n]\n</conversation>\n\n## Instructions\n1. Analyze the latest user intent from the conversation.\n2. Compare it against the available routes to find which routes can help fulfill the request.\n3. Respond only with the exact route names from <routes>.\n4. If no routes can help or the intent is already fulfilled, return an empty list.\n\n## Response Format\nReturn your answer strictly in JSON as follows:\n{\"route\": [\"route_name_1\", \"route_name_2\", \"...\"]}\nIf no routes are needed, return an empty list for `route`."
+    }
+  ]
+}

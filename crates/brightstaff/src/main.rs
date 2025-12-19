@@ -103,7 +103,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let orchestrator_service: Arc<OrchestratorService> = Arc::new(OrchestratorService::new(
         llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
         PLANO_ORCHESTRATOR_MODEL_NAME.to_string(),
-        routing_llm_provider,
     ));
 
 

@@ -9,17 +9,8 @@ agents:
     url: http://host.docker.internal:10530
 
 model_providers:
-  - model: openai/gpt-4o-mini
-    access_key: $OPENAI_API_KEY
-    default: true
   - model: openai/gpt-4o
     access_key: $OPENAI_API_KEY
-
-model_aliases:
-  fast-llm:
-    target: gpt-4o-mini
-  smart-llm:
-    target: gpt-4o
 
 listeners:
   - type: agent
@@ -28,11 +19,11 @@ listeners:
     router: plano_orchestrator_v1
     agents:
       - id: weather_agent
-        description: Get current weather and forecast information for any location worldwide
+        description: Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed). Provides temperature, humidity, wind speed, precipitation, and detailed weather conditions.
       - id: flight_agent
-        description: Search and book flights between cities with pricing and availability
-      - id: hotel_agent
-        description: Search and reserve hotel rooms with preferences and pricing
+        description: Get live flight information between airports using AviationStack API. Shows real-time flight status, scheduled/actual departure and arrival times, gate information, and whether flights are in the air. Uses IATA airport codes (e.g., JFK, LAX, LHR). Displays current and scheduled flights with live tracking data.
+      - id: currency_agent
+        description: Get real-time currency exchange rates and perform currency conversions using Frankfurter API (free, no API key needed). Provides latest exchange rates, historical rates, and currency conversions between any supported currencies. Uses standard 3-letter currency codes (e.g., USD, EUR, GBP, JPY).
 
 tracing:
   random_sampling: 100

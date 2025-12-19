@@ -22,7 +22,6 @@ mod integration_tests {
         Arc::new(OrchestratorService::new(
             "http://localhost:8080".to_string(),
             "test-model".to_string(),
-            "test-provider".to_string(),
         ))
     }
 

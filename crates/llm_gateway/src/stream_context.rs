@@ -133,7 +133,7 @@ impl StreamContext {
             .get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
             .map(|llm_name| llm_name.into());
 
-        info!("llm_providers: {:?}", self.llm_providers);
+        // info!("llm_providers: {:?}", self.llm_providers);
         self.llm_provider = Some(routing::get_llm_provider(
             &self.llm_providers,
             provider_hint,

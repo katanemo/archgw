@@ -64,6 +64,9 @@ model_providers:
 - model: Arch-Function
   name: arch-function
   provider_interface: arch
+- model: Plano-Orchestrator
+  name: plano-orchestrator
+  provider_interface: arch
 overrides:
   prompt_target_intent_matching_threshold: 0.6
 prompt_guards:

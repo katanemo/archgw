@@ -745,11 +745,10 @@ impl HttpContext for StreamContext {
             .map(|val| val == "true")
             .unwrap_or(false);
 
-
         // let routing_header_value = self.get_http_request_header(ARCH_ROUTING_HEADER);
 
         self.select_llm_provider();
-            // Check if this is a supported API endpoint
+        // Check if this is a supported API endpoint
         if SupportedAPIsFromClient::from_endpoint(&request_path).is_none() {
             self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
             return Action::Continue;
@@ -761,8 +760,7 @@ impl HttpContext for StreamContext {
         self.client_api = supported_api;
 
         // Debug: log provider, client API, resolved API, and request path
-        if let (Some(api), Some(provider)) =
-            (self.client_api.as_ref(), self.llm_provider.as_ref())
+        if let (Some(api), Some(provider)) = (self.client_api.as_ref(), self.llm_provider.as_ref())
         {
             let provider_id = provider.to_provider_id();
             self.resolved_api =

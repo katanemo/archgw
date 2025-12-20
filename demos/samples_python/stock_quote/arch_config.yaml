@@ -19,12 +19,6 @@ endpoints:
 system_prompt: |
   You are a helpful assistant.
 
-prompt_guards:
-  input_guards:
-    jailbreak:
-      on_exception:
-        message: Looks like you're curious about my abilities, but I can only provide assistance for currency exchange.
-
 prompt_targets:
   - name: stock_quote
     description: get current stock exchange rate for a given symbol

@@ -66,12 +66,6 @@ model_providers:
   provider_interface: arch
 overrides:
   prompt_target_intent_matching_threshold: 0.6
-prompt_guards:
-  input_guards:
-    jailbreak:
-      on_exception:
-        message: Looks like you're curious about my abilities, but I can only provide
-          assistance within my programmed parameters.
 prompt_targets:
 - auto_llm_dispatch_on_response: true
   default: true

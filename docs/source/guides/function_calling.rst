@@ -126,7 +126,7 @@ Step 3: Arch Takes Over
 Once you have defined the functions and configured the prompt targets, Arch Gateway takes care of the remaining work.
 It will automatically validate parameters, and ensure that the required parameters (e.g., location) are present in the prompt, and add validation rules if necessary.
 
-.. figure:: /_static/img/arch_network_diagram_high_level.png
+.. figure:: /_static/img/plano_network_diagram_high_level.png
    :width: 100%
    :align: center
 

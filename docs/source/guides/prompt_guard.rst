@@ -1,66 +1,89 @@
 .. _prompt_guard:
 
-Prompt Guard
-=============
+Guardrails
+==========
 
-**Prompt guard** is a security and validation feature offered in Arch to protect agents, by filtering and analyzing prompts before they reach your application logic.
-In applications where prompts generate responses or execute specific actions based on user inputs, prompt guard minimizes risks like malicious inputs (or misaligned outputs).
-By adding a layer of input scrutiny, prompt guards ensures safer, more reliable, and accurate interactions with agents.
+**Guardrails** are Plano's way of applying safety and validation checks to prompts before they reach your application logic. They are typically implemented as
+filters in a :ref:`Filter Chain <filter_chain>` attached to an agent, so every request passes through a consistent processing layer.
 
-Why Prompt Guard
-----------------
+
+Why Guardrails
+--------------
+Guardrails are essential for maintaining control over AI-driven applications. They help enforce organizational policies, ensure compliance with regulations
+(like GDPR or HIPAA), and protect users from harmful or inappropriate content. In applications where prompts generate responses or trigger actions, guardrails
+minimize risks like malicious inputs, off-topic queries, or misaligned outputs—adding a consistent layer of input scrutiny that makes interactions safer,
+more reliable, and easier to reason about.
+
 
 .. vale Vale.Spelling = NO
 
-- **Prompt Sanitization via Arch-Guard**
-    - **Jailbreak Prevention**: Detects and filters inputs that might attempt jailbreak attacks, like alternating LLM intended behavior, exposing the system prompt, or bypassing ethnics safety.
+- **Jailbreak Prevention**: Detect and filter inputs that attempt to change LLM behavior, expose system prompts, or bypass safety policies.
+- **Domain and Topicality Enforcement**: Ensure that agents only respond to prompts within an approved domain (for example, finance-only or healthcare-only use cases) and reject unrelated queries.
+- **Dynamic Error Handling**: Provide clear error messages when requests violate policy, helping users correct their inputs.
 
-- **Dynamic Error Handling**
-    - **Automatic Correction**: Applies error-handling techniques to suggest corrections for minor input errors, such as typos or misformatted data.
-    - **Feedback Mechanism**: Provides informative error messages to users, helping them understand how to correct input mistakes or adhere to guidelines.
+How Guardrails Work
+-------------------
 
-.. Note::
-    Today, Arch offers support for jailbreak via Arch-Guard. We will be adding support for additional guards in Q1, 2025 (including response guardrails)
+In Plano, guardrails are usually implemented as filters that run as HTTP services. Each filter receives the incoming prompt and related metadata, evaluates it
+against policy, and either lets the request continue (HTTP 200) or terminates it early with an appropriate error code (typically HTTP 4xx for policy failures).
 
-What Is Arch-Guard
-~~~~~~~~~~~~~~~~~~
-`Arch-Guard <https://huggingface.co/collections/katanemo/arch-guard-6702bdc08b889e4bce8f446d>`_ is a robust classifier model specifically trained on a diverse corpus of prompt attacks.
-It excels at detecting explicitly malicious prompts, providing an essential layer of security for LLM applications.
+The example below shows a simple, plain-Python HTTP service that acts as a topicality guardrail: it rejects any prompt that is not related to the
+"weather" domain.
 
-By embedding Arch-Guard within the Arch architecture, we empower developers to build robust, LLM-powered applications while prioritizing security and safety. With Arch-Guard, you can navigate the complexities of prompt management with confidence, knowing you have a reliable defense against malicious input.
+.. code-block:: python
+    :caption: Example topicality guard filter in plain Python (FastAPI)
 
+    from fastapi import FastAPI, Request, HTTPException
 
-Example Configuration
-~~~~~~~~~~~~~~~~~~~~~
-Here is an example of using Arch-Guard in Arch:
+    app = FastAPI()
 
-.. literalinclude:: includes/arch_config.yaml
-    :language: yaml
-    :linenos:
-    :lines: 22-26
-    :caption: Arch-Guard Example Configuration
+    ALLOWED_KEYWORDS = {"weather", "forecast", "temperature", "rain", "snow", "humidity"}
 
-How Arch-Guard Works
-----------------------
+    @app.post("/guardrails/topic")
+    async def topic_guard(request: Request):
+        body = await request.json()
+        # Expecting an OpenAI-style request body with messages
+        messages = body.get("messages", [])
+        user_content = " ".join(
+            m["content"] for m in messages if m.get("role") == "user"
+        ).lower()
 
-#. **Pre-Processing Stage**
+        if not any(keyword in user_content for keyword in ALLOWED_KEYWORDS):
+            # Return 400 to indicate a policy failure (not a server error)
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "off_topic",
+                    "message": "This assistant only answers weather-related questions.",
+                },
+            )
 
-    As a request or prompt is received, Arch Guard first performs validation. If any violations are detected, the input is flagged, and a tailored error message may be returned.
-
-#. **Error Handling and Feedback**
-
-    If the prompt contains errors or does not meet certain criteria, the user receives immediate feedback or correction suggestions, enhancing usability and reducing the chance of repeated input mistakes.
-
-Benefits of Using Arch Guard
-------------------------------
-
-- **Enhanced Security**: Protects against injection attacks, harmful content, and misuse, securing both system and user data.
-
-- **Better User Experience**: Clear feedback and error correction improve user interactions by guiding them to correct input formats and constraints.
+        # If the prompt is on-topic, just pass the original body through
+        return body
 
 
-Summary
--------
+To wire this guardrail into Plano, you define a listener of ``type: agent`` and attach a filter chain with a single filter that points
+to the Python service above.
 
-Prompt guard is an essential tool for any prompt-based system that values security, accuracy, and compliance.
-By implementing Prompt Guard, developers can provide a robust layer of input validation and security, leading to better-performing, reliable, and safer applications.
+.. code-block:: yaml
+    :caption: Listener (type: agent) with a topicality guard filter
+
+    filters:
+      - id: topicality_guard
+        url: http://topic-guard:8000/guardrails/topic
+
+    listeners:
+    - type: agent
+        name: agent_listener
+        port: 8001
+        router: arch_agent_router
+        agents:
+        - id: rag_agent
+            description: virtual assistant for retrieval augmented generation tasks
+            filter_chain:
+            - topicality_guard
+
+
+When a request arrives at ``agent_listener``, Plano will first call the ``topicality_guard`` filter. If the filter returns **HTTP 200**,
+the request continues on to the configured agent or prompt target. If the filter returns **HTTP 400**, Plano returns that error back to
+the caller and does not forward the request further—enforcing your domain guardrail without changing any application code.

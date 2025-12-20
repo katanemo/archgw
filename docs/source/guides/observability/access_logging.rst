@@ -3,14 +3,14 @@
 Access Logging
 ==============
 
-Access logging in Arch refers to the logging of detailed information about each request and response that flows through Arch.
-It provides visibility into the traffic passing through Arch, which is crucial for monitoring, debugging, and analyzing the
+Access logging in Plano refers to the logging of detailed information about each request and response that flows through Plano.
+It provides visibility into the traffic passing through Plano, which is crucial for monitoring, debugging, and analyzing the
 behavior of AI applications and their interactions.
 
 Key Features
 ^^^^^^^^^^^^
 * **Per-Request Logging**:
-  Each request that passes through Arch is logged. This includes important metadata such as HTTP method,
+  Each request that passes through Plano is logged. This includes important metadata such as HTTP method,
   path, response status code, request duration, upstream host, and more.
 * **Integration with Monitoring Tools**:
   Access logs can be exported to centralized logging systems (e.g., ELK stack or Fluentd) or used to feed monitoring and alerting systems.
@@ -19,7 +19,7 @@ Key Features
 How It Works
 ^^^^^^^^^^^^
 
-Arch gateway exposes access logs for every call it manages on your behalf. By default these access logs can be found under ``~/archgw_logs``. For example:
+Plano exposes access logs for every call it manages on your behalf. By default these access logs can be found under ``~/archgw_logs``. For example:
 
 .. code-block:: console
 

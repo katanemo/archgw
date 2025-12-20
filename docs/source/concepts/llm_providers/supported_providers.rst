@@ -3,10 +3,10 @@
 Supported Providers & Configuration
 ===================================
 
-Arch provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.
+Plano provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.
 
 .. note::
-   **Model Support:** Arch supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.
+   **Model Support:** Plano supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.
 
 Configuration Structure
 -----------------------
@@ -50,7 +50,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 Supported API Endpoints
 ------------------------
 
-Arch supports the following standardized endpoints across providers:
+Plano supports the following standardized endpoints across providers:
 
 .. list-table::
    :header-rows: 1
@@ -524,7 +524,7 @@ Amazon Bedrock
 
 **Provider Prefix:** ``amazon_bedrock/``
 
-**API Endpoint:** Arch automatically constructs the endpoint as:
+**API Endpoint:** Plano automatically constructs the endpoint as:
   - Non-streaming: ``/model/{model-id}/converse``
   - Streaming: ``/model/{model-id}/converse-stream``
 

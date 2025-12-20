@@ -3,17 +3,17 @@
 Threading Model
 ===============
 
-Arch builds on top of Envoy's single process with multiple threads architecture.
+Plano builds on top of Envoy's single process with multiple threads architecture.
 
 A single *primary* thread controls various sporadic coordination tasks while some number of *worker*
 threads perform filtering, and forwarding.
 
 Once a connection is accepted, the connection spends the rest of its lifetime bound to a single worker
 thread. All the functionality around prompt handling from a downstream client is handled in a separate worker thread.
-This allows the majority of Arch to be largely single threaded (embarrassingly parallel) with a small amount
+This allows the majority of Plano to be largely single threaded (embarrassingly parallel) with a small amount
 of more complex code handling coordination between the worker threads.
 
-Generally, Arch is written to be 100% non-blocking.
+Generally, Plano is written to be 100% non-blocking.
 
 .. tip::
 

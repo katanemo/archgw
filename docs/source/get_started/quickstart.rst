@@ -1,9 +1,9 @@
 .. _quickstart:
 
 Quickstart
-================
+==========
 
-Follow this guide to learn how to quickly set up Arch and integrate it into your generative AI applications.
+Follow this guide to learn how to quickly set up Plano and integrate it into your generative AI applications.
 
 
 Prerequisites
@@ -15,32 +15,31 @@ Before you begin, ensure you have the following:
 2. `Docker Compose <https://docs.docker.com/compose/install/>`_ (v2.29)
 3. `Python <https://www.python.org/downloads/>`_ (v3.10+)
 
-Arch's CLI allows you to manage and interact with the Arch gateway efficiently. To install the CLI, simply run the following command:
+Plano's CLI allows you to manage and interact with the Plano efficiently. To install the CLI, simply run the following command:
 
 .. tip::
 
-   We recommend that developers create a new Python virtual environment to isolate dependencies before installing Arch. This ensures that ``archgw`` and its dependencies do not interfere with other packages on your system.
-
+   We recommend that developers create a new Python virtual environment to isolate dependencies before installing Plano. This ensures that ``plano`` and its dependencies do not interfere with other packages on your system.
 .. code-block:: console
 
    $ python -m venv venv
    $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-   $ pip install archgw==0.3.22
+   $ pip install plano==0.4.0
 
 
-Build AI Agent with Arch Gateway
---------------------------------
+Build Agentic Apps with Plano
+-----------------------------
 
-In the following quickstart, we will show you how easy it is to build an AI agent with the Arch gateway. We will build a currency exchange agent using the following simple steps. For this demo, we will use `https://api.frankfurter.dev/` to fetch the latest prices for currencies and assume USD as the base currency.
+In the following quickstart, we will show you how easy it is to build an AI agent with the Plano. We will build a currency exchange agent using the following simple steps. For this demo, we will use `https://api.frankfurter.dev/` to fetch the latest prices for currencies and assume USD as the base currency.
 
-Step 1. Create arch config file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1. Create plano config file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Create ``arch_config.yaml`` file with the following content:
+Create ``plano_config.yaml`` file with the following content:
 
 .. code-block:: yaml
 
-   version: v0.1.0
+  version: v0.1.0
 
   listeners:
     ingress_traffic:
@@ -49,18 +48,12 @@ Create ``arch_config.yaml`` file with the following content:
       message_format: openai
       timeout: 30s
 
-   llm_providers:
+   model_providers:
      - access_key: $OPENAI_API_KEY
        model: openai/gpt-4o
 
    system_prompt: |
      You are a helpful assistant.
-
-   prompt_guards:
-     input_guards:
-       jailbreak:
-         on_exception:
-           message: Looks like you're curious about my abilities, but I can only provide assistance for currency exchange.
 
    prompt_targets:
      - name: currency_exchange
@@ -88,16 +81,16 @@ Create ``arch_config.yaml`` file with the following content:
        endpoint: api.frankfurter.dev:443
        protocol: https
 
-Step 2. Start arch gateway with currency conversion config
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 2. Start plano with currency conversion config
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: sh
 
-   $ archgw up arch_config.yaml
-   2024-12-05 16:56:27,979 - cli.main - INFO - Starting archgw cli version: 0.1.5
+   $ plano up plano_config.yaml
+   2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.1.5
    ...
    2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
-   2024-12-05 16:56:28,485 - cli.main - INFO - Starting arch model server and arch gateway
+   2024-12-05 16:56:28,485 - cli.main - INFO - Starting plano model server and plano gateway
    ...
    2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!
 
@@ -129,15 +122,15 @@ And to get the list of supported currencies:
    "Here is a list of the currencies that are supported for conversion from USD, along with their symbols:\n\n1. AUD - Australian Dollar\n2. BGN - Bulgarian Lev\n3. BRL - Brazilian Real\n4. CAD - Canadian Dollar\n5. CHF - Swiss Franc\n6. CNY - Chinese Renminbi Yuan\n7. CZK - Czech Koruna\n8. DKK - Danish Krone\n9. EUR - Euro\n10. GBP - British Pound\n11. HKD - Hong Kong Dollar\n12. HUF - Hungarian Forint\n13. IDR - Indonesian Rupiah\n14. ILS - Israeli New Sheqel\n15. INR - Indian Rupee\n16. ISK - Icelandic Króna\n17. JPY - Japanese Yen\n18. KRW - South Korean Won\n19. MXN - Mexican Peso\n20. MYR - Malaysian Ringgit\n21. NOK - Norwegian Krone\n22. NZD - New Zealand Dollar\n23. PHP - Philippine Peso\n24. PLN - Polish Złoty\n25. RON - Romanian Leu\n26. SEK - Swedish Krona\n27. SGD - Singapore Dollar\n28. THB - Thai Baht\n29. TRY - Turkish Lira\n30. USD - United States Dollar\n31. ZAR - South African Rand\n\nIf you want to convert USD to any of these currencies, you can select the one you are interested in."
 
 
-Use Arch Gateway as LLM Router
-------------------------------
+Use Plano as a LLM Router
+-------------------------
 
-Step 1. Create arch config file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1. Create plano config file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Arch operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.
+Plano operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.
 
-Create ``arch_config.yaml`` file with the following content:
+Create ``plano_config.yaml`` file with the following content:
 
 .. code-block:: yaml
 
@@ -150,7 +143,7 @@ Create ``arch_config.yaml`` file with the following content:
       message_format: openai
       timeout: 30s
 
-   llm_providers:
+   model_providers:
      - access_key: $OPENAI_API_KEY
        model: openai/gpt-4o
        default: true
@@ -158,19 +151,19 @@ Create ``arch_config.yaml`` file with the following content:
      - access_key: $MISTRAL_API_KEY
        model: mistralministral-3b-latest
 
-Step 2. Start arch gateway
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 2. Start plano
+~~~~~~~~~~~~~~~~~~~
 
 Once the config file is created, ensure that you have environment variables set up for ``MISTRAL_API_KEY`` and ``OPENAI_API_KEY`` (or these are defined in a ``.env`` file).
 
-Start the Arch gateway:
+Start the Plano gateway:
 
 .. code-block:: console
 
-   $ archgw up arch_config.yaml
-   2024-12-05 11:24:51,288 - cli.main - INFO - Starting archgw cli version: 0.1.5
+   $ plano up plano_config.yaml
+   2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
    2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
-   2024-12-05 11:24:51,825 - cli.main - INFO - Starting arch model server and arch gateway
+   2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano model server and plano gateway
    ...
    2024-12-05 11:25:16,131 - cli.core - INFO - Container is healthy!
 
@@ -180,7 +173,7 @@ Step 3: Interact with LLM
 Step 3.1: Using OpenAI Python client
 ++++++++++++++++++++++++++++++++++++
 
-Make outbound calls via the Arch gateway:
+Make outbound calls via the Plano gateway:
 
 .. code-block:: python
 
@@ -188,14 +181,14 @@ Make outbound calls via the Arch gateway:
 
    # Use the OpenAI client as usual
    client = OpenAI(
-     # No need to set a specific openai.api_key since it's configured in Arch's gateway
+     # No need to set a specific openai.api_key since it's configured in Plano's gateway
      api_key='--',
-     # Set the OpenAI API base URL to the Arch gateway endpoint
+     # Set the OpenAI API base URL to the Plano gateway endpoint
      base_url="http://127.0.0.1:12000/v1"
    )
 
    response = client.chat.completions.create(
-       # we select model from arch_config file
+       # we select model from plano_config file
        model="--",
        messages=[{"role": "user", "content": "What is the capital of France?"}],
    )
@@ -225,12 +218,12 @@ Step 3.2: Using curl command
      ],
    }
 
-You can override model selection using the ``x-arch-llm-provider-hint`` header. For example, to use Mistral, use the following curl command:
+You can override model selection using the ``x-plano-llm-provider-hint`` header. For example, to use Mistral, use the following curl command:
 
 .. code-block:: bash
 
    $ curl --header 'Content-Type: application/json' \
-     --header 'x-arch-llm-provider-hint: ministral-3b' \
+     --header 'x-plano-llm-provider-hint: ministral-3b' \
      --data '{"messages": [{"role": "user","content": "What is the capital of France?"}], "model": "none"}' \
      http://localhost:12000/v1/chat/completions
 
@@ -253,10 +246,10 @@ You can override model selection using the ``x-arch-llm-provider-hint`` header. 
 Next Steps
 ==========
 
-Congratulations! You've successfully set up Arch and made your first prompt-based request. To further enhance your GenAI applications, explore the following resources:
+Congratulations! You've successfully set up Plano and made your first prompt-based request. To further enhance your GenAI applications, explore the following resources:
 
 - :ref:`Full Documentation <overview>`: Comprehensive guides and references.
-- `GitHub Repository <https://github.com/katanemo/arch>`_: Access the source code, contribute, and track updates.
-- `Support <https://github.com/katanemo/arch#contact>`_: Get help and connect with the Arch community .
+- `GitHub Repository <https://github.com/katanemo/plano>`_: Access the source code, contribute, and track updates.
+- `Support <https://github.com/katanemo/plano#contact>`_: Get help and connect with the Plano community .
 
-With Arch, building scalable, fast, and personalized GenAI applications has never been easier. Dive deeper into Arch's capabilities and start creating innovative AI-driven experiences today!
+With Plano, building scalable, fast, and personalized GenAI applications has never been easier. Dive deeper into Plano's capabilities and start creating innovative AI-driven experiences today!

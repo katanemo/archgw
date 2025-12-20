@@ -1,38 +1,38 @@
 .. _overview:
 
-
 Overview
-============
-`Arch <https://github.com/katanemo/arch>`_ is a smart edge and AI gateway for AI agents - one that is natively designed to handle and process prompts, not just network traffic.
+========
+`Plano <https://github.com/katanemo/plano>`_ is delivery infrastructure for agentic apps —a models-native proxy and dataplane that helps you ship agents to production faster and operate them reliably.
 
-Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a protocol-friendly and framework-agnostic infrastructure layer designed to help you build and ship agentic apps faster.
+Plano pulls out the rote plumbing work (the “hidden AI middleware”) and decouples you from brittle, ever‑changing framework abstractions. It centralizes what shouldn’t be bespoke in every codebase like agent routing and orchestration, rich agentic signals and traces for continuous improvement, guardrail filters for safety and moderation, and smart LLM routing APIs for UX and DX agility. Use any language or AI framework, and ship agents to production faster with Plano.
 
-In this documentation, you will learn how to quickly set up Arch to trigger API calls via prompts, apply prompt guardrails without writing any application-level logic,
-simplify the interaction with upstream LLMs, and improve observability all while simplifying your application development process.
+Built by core contributors to the widely adopted Envoy Proxy <https://www.envoyproxy.io/>_, Plano gives you a production‑grade foundation for agentic applications. It helps **developers** stay focused on the core logic of their agents, helps **product teams** shorten feedback loops for learning, and helps **engineering teams**  standardize policy and safety across agents and LLMs. Plano is grounded in open protocols (de facto: OpenAI‑style v1/responses, de jure: MCP) and proven patterns like sidecar deployments, so it plugs in cleanly while remaining robust, scalable, and flexible.
 
-.. figure:: /_static/img/arch_network_diagram_high_level.png
+In this documentation, you’ll learn how to set up Plano quickly, trigger API calls via prompts, apply guardrails without tight coupling with application code, simplify model and provider integration, and improve observability — so that you can focus on what matters most: the core product logic of your agents.
+
+.. figure:: /_static/img/plano_network_diagram_high_level.png
    :width: 100%
    :align: center
 
-   High-level network flow of where Arch Gateway sits in your agentic stack. Designed for both ingress and egress prompt traffic.
+   High-level network flow of where Plano sits in your agentic stack. Designed for both ingress and egress traffic.
 
 
 Get Started
 -----------
 
-This section introduces you to Arch and helps you get set up quickly:
+This section introduces you to Plano and helps you get set up quickly:
 
 .. grid:: 3
 
     .. grid-item-card:: :octicon:`apps` Overview
         :link: overview.html
 
-        Overview of Arch and Doc navigation
+        Overview of Plano and Doc navigation
 
-    .. grid-item-card:: :octicon:`book` Intro to Arch
-        :link: intro_to_arch.html
+    .. grid-item-card:: :octicon:`book` Intro to Plano
+        :link: intro_to_plano.html
 
-        Explore Arch's features and developer workflow
+        Explore Plano's features and developer workflow
 
     .. grid-item-card:: :octicon:`rocket` Quickstart
         :link: quickstart.html
@@ -43,7 +43,7 @@ This section introduces you to Arch and helps you get set up quickly:
 Concepts
 --------
 
-Deep dive into essential ideas and mechanisms behind Arch:
+Deep dive into essential ideas and mechanisms behind Plano:
 
 .. grid:: 3
 
@@ -60,12 +60,12 @@ Deep dive into essential ideas and mechanisms behind Arch:
     .. grid-item-card:: :octicon:`workflow` Prompt Target
         :link: ../concepts/prompt_target.html
 
-        Understand how Arch handles prompts
+        Understand how Plano handles prompts
 
 
 Guides
 ------
-Step-by-step tutorials for practical Arch use cases and scenarios:
+Step-by-step tutorials for practical Plano use cases and scenarios:
 
 .. grid:: 3
 
@@ -82,22 +82,22 @@ Step-by-step tutorials for practical Arch use cases and scenarios:
     .. grid-item-card:: :octicon:`issue-opened` Observability
         :link: ../guides/observability/observability.html
 
-        Learn to monitor and troubleshoot Arch
+        Learn to monitor and troubleshoot Plano
 
 
-Build with Arch
----------------
+Build with Plano
+----------------
 
-For developers extending and customizing Arch for specialized needs:
+For developers extending and customizing Plano for specialized needs:
 
 .. grid:: 2
 
     .. grid-item-card:: :octicon:`dependabot` Agentic Workflow
-        :link: ../build_with_arch/agent.html
+        :link: ../build_with_plano/agent.html
 
-        Discover how to create and manage custom agents within Arch
+        Discover how to create and manage custom agents within Plano
 
     .. grid-item-card:: :octicon:`stack` RAG Application
-        :link: ../build_with_arch/rag.html
+        :link: ../build_with_plano/rag.html
 
         Integrate RAG for knowledge-driven responses

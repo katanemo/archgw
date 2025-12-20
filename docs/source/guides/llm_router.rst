@@ -5,7 +5,7 @@ LLM Routing
 
 With the rapid proliferation of large language models (LLM) — each optimized for different strengths, style, or latency/cost profile — routing has become an essential technique to operationalize the use of different models.
 
-Arch provides three distinct routing approaches to meet different use cases:
+Plano provides three distinct routing approaches to meet different use cases:
 
 1. **Model-based Routing**: Direct routing to specific models using provider/model names
 2. **Alias-based Routing**: Semantic routing using custom aliases that map to underlying models
@@ -42,7 +42,7 @@ Preference-aligned Routing (Arch-Router)
 
 Traditional LLM routing approaches face significant limitations: they evaluate performance using benchmarks that often fail to capture human preferences, select from fixed model pools, and operate as "black boxes" without practical mechanisms for encoding user preferences.
 
-Arch's preference-aligned routing addresses these challenges by applying a fundamental engineering principle: decoupling. The framework separates route selection (matching queries to human-readable policies) from model assignment (mapping policies to specific LLMs). This separation allows you to define routing policies using descriptive labels like ``Domain: 'finance', Action: 'analyze_earnings_report'`` rather than cryptic identifiers, while independently configuring which models handle each policy.
+Plano's preference-aligned routing addresses these challenges by applying a fundamental engineering principle: decoupling. The framework separates route selection (matching queries to human-readable policies) from model assignment (mapping policies to specific LLMs). This separation allows you to define routing policies using descriptive labels like ``Domain: 'finance', Action: 'analyze_earnings_report'`` rather than cryptic identifiers, while independently configuring which models handle each policy.
 
 The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ model automatically selects the most appropriate LLM based on:
 
@@ -65,7 +65,7 @@ For direct model routing, the process is straightforward:
 
 #. **Provider Validation**
 
-    Arch validates that the specified provider and model are configured and available.
+    Plano validates that the specified provider and model are configured and available.
 
 #. **Direct Routing**
 
@@ -87,11 +87,11 @@ For alias-based routing, the process includes name resolution:
 
 #. **Alias Resolution**
 
-    Arch resolves the alias to the actual provider/model name based on configuration.
+    Plano resolves the alias to the actual provider/model name based on configuration.
 
 #. **Model Selection**
 
-    If the alias maps to multiple models, Arch selects one based on availability and load balancing.
+    If the alias maps to multiple models, Plano selects one based on availability and load balancing.
 
 #. **Request Forwarding**
 
@@ -158,6 +158,8 @@ In summary, Arch-Router demonstrates:
 
 - **Production-Ready Performance**: Optimized for low-latency, high-throughput applications in multi-model environments.
 
+
+.. _implementing_routing:
 
 Implementing Routing
 --------------------
@@ -390,7 +392,7 @@ Best practicesm
 ..   The model is not trained to process raw image or audio inputs. While it can handle textual queries *about* these modalities (e.g., "generate an image of a cat"), it cannot interpret encoded multimedia data directly.
 
 .. - **❌ Function Calling:**
-..   This model is designed for **semantic preference matching**, not exact intent classification or tool execution. For structured function invocation, use models in the **Arch-Function-Calling** collection.
+..   This model is designed for **semantic preference matching**, not exact intent classification or tool execution. For structured function invocation, use models in the **Plano-Function-Calling** collection.
 
 .. - **❌ System Prompt Dependency:**
 ..   Arch-Router routes based solely on the user’s conversation history. It does not use or rely on system prompts for routing decisions.

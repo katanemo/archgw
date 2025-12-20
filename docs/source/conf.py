@@ -12,10 +12,10 @@ from sphinx.util.docfields import Field
 from sphinxawesome_theme import ThemeOptions
 from sphinxawesome_theme.postprocess import Icons
 
-project = "Arch Docs"
+project = "Plano Docs"
 copyright = "2025, Katanemo Labs, Inc"
 author = "Katanemo Labs, Inc"
-release = " v0.3.22"
+release = " v0.4"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -72,7 +72,7 @@ theme_options = ThemeOptions(
     awesome_external_links=True,
     extra_header_link_icons={
         "repository on GitHub": {
-            "link": "https://github.com/katanemo/arch",
+            "link": "https://github.com/katanemo/plano",
             "icon": (
                 '<svg height="26px" style="margin-top:-2px;display:inline" '
                 'viewBox="0 0 45 44" '
@@ -142,5 +142,3 @@ def setup(app: Sphinx) -> None:
             )
         ],
     )
-
-    app.add_css_file("_static/custom.css")

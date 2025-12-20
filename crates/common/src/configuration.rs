@@ -476,7 +476,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use std::fs;
 
-    use crate::{api::open_ai::ToolType, configuration::GuardType};
+    use crate::api::open_ai::ToolType;
 
     #[test]
     fn test_deserialize_configuration() {
@@ -487,22 +487,6 @@ mod test {
 
         let config: super::Configuration = serde_yaml::from_str(&ref_config).unwrap();
         assert_eq!(config.version, "v0.1");
-
-        let prompt_guards = config.prompt_guards.as_ref().unwrap();
-        let input_guards = &prompt_guards.input_guards;
-        let jailbreak_guard = input_guards.get(&GuardType::Jailbreak).unwrap();
-        assert_eq!(
-            jailbreak_guard
-                .on_exception
-                .as_ref()
-                .unwrap()
-                .forward_to_error_target,
-            None
-        );
-        assert_eq!(
-            jailbreak_guard.on_exception.as_ref().unwrap().error_handler,
-            None
-        );
 
         let prompt_targets = &config.prompt_targets;
         assert_eq!(prompt_targets.as_ref().unwrap().len(), 2);

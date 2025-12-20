@@ -1,56 +1,36 @@
-# Travel Booking Demo
+# Travel Booking Agent Demo
 
-A multi-agent travel booking system demonstrating archgw's agent router with specialized agents for weather, flights, and hotels.
+A production-ready multi-agent travel booking system demonstrating Plano's intelligent agent routing. This demo showcases three specialized agents working together to help users plan trips with weather information, flight searches, and currency exchange rates.
 
-## Architecture
+## Overview
 
-This demo consists of three intelligent agents:
+This demo consists of three intelligent agents that work together seamlessly:
 
-1. **Weather Agent** (REST) - Provides current weather and forecasts for destinations worldwide
-2. **Flight Agent** (REST) - Searches and books flights between cities with pricing and availability
-3. **Hotel Agent** (REST) - Searches and reserves hotel rooms with preferences and pricing
+- **Weather Agent** - Real-time weather conditions and forecasts for any city worldwide
+- **Flight Agent** - Live flight information between airports with real-time tracking
+- **Currency Agent** - Real-time currency exchange rates and conversions
 
-All agents use archgw's agent router to intelligently route user requests to the appropriate specialized agent.
+All agents use Plano's agent router to intelligently route user requests to the appropriate specialized agent based on conversation context and user intent.
 
-## Components
+## Features
 
-### Weather Forecast Agent
-- **Port**: 10510
-- **Endpoint**: `/v1/chat/completions`
-- Provides weather information and forecasts for any location
-- Returns temperature, conditions, humidity, and wind speed
-- Supports multi-day forecasts
+- **Intelligent Routing**: Plano automatically routes requests to the right agent
+- **Conversation Context**: Agents understand follow-up questions and references
+- **Real-Time Data**: Live weather, flight, and currency data from public APIs
+- **LLM-Powered**: Uses GPT-4o-mini for extraction and GPT-4o for responses
+- **Streaming Responses**: Real-time streaming for better user experience
 
-### Flight Booking Agent
-- **Port**: 10520
-- **Endpoint**: `/v1/chat/completions`
-- Searches for flights between cities
-- Returns flight options with airlines, times, prices, and durations
-- Supports booking confirmations
+## Prerequisites
 
-### Hotel Reservation Agent
-- **Port**: 10530
-- **Endpoint**: `/v1/chat/completions`
-- Searches for hotels in any city
-- Returns hotel options with ratings, amenities, prices, and locations
-- Supports reservation confirmations
+- Python 3.10 or higher
+- [UV package manager](https://github.com/astral-sh/uv) (recommended) or pip
+- OpenAI API key
+- [Plano CLI](https://docs.planoai.dev) installed
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.10 or higher
-- UV package manager (recommended) or pip
-- OpenAI API key
-- archgw installed and configured
+### 1. Install Dependencies
 
-### 1. Set up environment
-```bash
-# Copy and edit the .env file with your OpenAI API key
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
-```
-
-### 2. Install dependencies
 ```bash
 # Using UV (recommended)
 uv sync
@@ -59,7 +39,17 @@ uv sync
 pip install -e .
 ```
 
-### 3. Start all agents
+### 2. Set Environment Variables
+
+Create a `.env` file or export environment variables:
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+export AEROAPI_KEY="your-flightaware-api-key"  # Optional, demo key included
+```
+
+### 3. Start All Agents
+
 ```bash
 chmod +x start_agents.sh
 ./start_agents.sh
@@ -68,206 +58,153 @@ chmod +x start_agents.sh
 This starts:
 - Weather Agent on port 10510
 - Flight Agent on port 10520
-- Hotel Agent on port 10530
+- Currency Agent on port 10530
 
-### 4. Start archgw
+### 4. Start Plano Orchestrator
+
 In a new terminal:
+
 ```bash
 cd /path/to/travel_booking
-archgw up --foreground
+plano up arch_config.yaml
 ```
 
-### 5. Test the system
+The gateway will start on port 8001 and route requests to the appropriate agents.
 
-#### Weather Query
+### 5. Test the System
+
+Send requests to Plano Orchestrator:
+
 ```bash
 curl -X POST http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4o-mini",
+    "model": "gpt-4o",
     "messages": [
       {"role": "user", "content": "What is the weather like in Paris?"}
     ]
   }'
 ```
 
-#### Flight Search
-```bash
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4o-mini",
-    "messages": [
-      {"role": "user", "content": "Find me flights from New York to London next week"}
-    ]
-  }'
-```
-
-#### Hotel Search
-```bash
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4o-mini",
-    "messages": [
-      {"role": "user", "content": "I need a hotel in Tokyo for 3 nights"}
-    ]
-  }'
-```
-
-### 6. Use with Open WebUI (Optional)
-
-Start the docker compose services:
-```bash
-docker-compose up -d
-```
-
-Then open http://localhost:8080 in your browser. The Open WebUI is pre-configured to use the archgw endpoint at http://host.docker.internal:8001/v1.
-
 ## Example Conversations
 
+### Weather Query
+```
+User: What's the weather in Istanbul?
+Assistant: [Weather Agent provides current conditions and forecast]
+```
+
+### Flight Search
+```
+User: What flights go from London to Seattle?
+Assistant: [Flight Agent shows available flights with schedules and status]
+```
+
+### Currency Exchange
+```
+User: What's the exchange rate for Turkish Lira to USD?
+Assistant: [Currency Agent provides current exchange rate]
+```
+
 ### Multi-Agent Conversation
-The system can handle complex travel planning that involves multiple agents:
-
 ```
-User: I'm planning a trip to Tokyo next month. What's the weather like?
-Assistant: [Weather Agent provides Tokyo weather forecast]
+User: What's the weather in Istanbul?
+Assistant: [Weather information]
 
-User: Great! Can you find me flights from San Francisco to Tokyo?
-Assistant: [Flight Agent shows flight options]
+User: What's their exchange rate?
+Assistant: [Currency rate for Turkey]
 
-User: I'll take the United flight. Now I need a hotel near the city center.
-Assistant: [Hotel Agent shows hotel options in Tokyo]
+User: Do they fly out from Seattle?
+Assistant: [Flight information from Istanbul to Seattle]
 ```
 
-The archgw agent router automatically routes each request to the appropriate agent based on the content.
+The system understands context and pronouns, automatically routing to the right agent.
 
-## Agent Capabilities
+## Agent Details
 
 ### Weather Agent
-- Current weather conditions
-- 5-day forecasts
-- Temperature (Celsius and Fahrenheit)
-- Humidity and wind speed
-- Weather conditions (sunny, cloudy, rainy, etc.)
+- **Port**: 10510
+- **API**: Open-Meteo (free, no API key)
+- **Capabilities**: Current weather, multi-day forecasts, temperature, conditions, sunrise/sunset
 
 ### Flight Agent
-- Flight search between any two cities
-- Multiple airline options
-- Flight times and durations
-- Pricing information
-- Direct and connecting flights
-- Seat availability
-- Booking confirmations
+- **Port**: 10520
+- **API**: FlightAware AeroAPI
+- **Capabilities**: Real-time flight status, schedules, delays, gates, terminals, live tracking
 
-### Hotel Agent
-- Hotel search by city
-- Check-in/check-out date support
-- Hotel ratings and reviews
-- Amenities listing
-- Distance from city center
-- Pricing per night and total
-- Room availability
-- Reservation confirmations
+### Currency Agent
+- **Port**: 10530
+- **API**: Frankfurter (free, no API key)
+- **Capabilities**: Exchange rates, currency conversions, historical rates
 
-## Architecture Details
+## Architecture
 
-### Agent Routing
-archgw's agent router analyzes incoming requests and automatically routes them to the most appropriate agent based on:
-- Request content and intent
-- Agent descriptions in arch_config.yaml
-- Conversation context
-
-### Request Flow
-1. User sends a request to archgw (port 8001)
-2. archgw's agent router analyzes the request
-3. Router selects the appropriate agent (weather, flight, or hotel)
-4. Agent processes the request using archgw's LLM gateway
-5. Response streams back to the user
-
-### Tracing
-The demo includes Jaeger for distributed tracing:
-- View traces at http://localhost:16686
-- Trace sampling set to 100% for demo purposes
-- Track requests across archgw and agents
-
-## Development
-
-### Running Individual Agents
-You can start agents individually for development:
-
-```bash
-# Weather agent
-uv run python -m travel_agents --agent weather --port 10510
-
-# Flight agent
-uv run python -m travel_agents --agent flight --port 10520
-
-# Hotel agent
-uv run python -m travel_agents --agent hotel --port 10530
+```
+User Request → Plano Gateway (port 8001)
+                ↓
+         Agent Router (LLM-based)
+                ↓
+    ┌───────────┼───────────┐
+    ↓           ↓           ↓
+Weather      Flight     Currency
+Agent        Agent       Agent
+(10510)      (10520)     (10530)
 ```
 
-### Project Structure
-```
-travel_booking/
-├── arch_config.yaml          # archgw configuration
-├── docker-compose.yaml       # Optional services (Jaeger, Open WebUI)
-├── pyproject.toml           # Python dependencies
-├── start_agents.sh          # Start all agents script
-├── .env                     # Environment variables
-└── src/
-    └── travel_agents/
-        ├── __init__.py      # CLI entry point
-        ├── __main__.py      # Module runner
-        ├── api.py           # Shared API models
-        ├── weather_agent.py # Weather forecast agent
-        ├── flight_agent.py  # Flight booking agent
-        └── hotel_agent.py   # Hotel reservation agent
-```
+Each agent:
+1. Extracts intent using GPT-4o-mini
+2. Fetches real-time data from APIs
+3. Generates response using GPT-4o
+4. Streams response back to user
 
 ## Configuration
 
-### arch_config.yaml
-The configuration defines:
-- Three agents with their URLs and descriptions
-- Model providers (OpenAI)
-- Model aliases for easy reference
-- Agent router on port 8001
-- Tracing configuration
+### plano_config.yaml
+
+Defines the three agents, their descriptions, and routing configuration. The agent router uses these descriptions to intelligently route requests.
 
 ### Environment Variables
-- `OPENAI_API_KEY`: Your OpenAI API key (required)
-- `LLM_GATEWAY_ENDPOINT`: archgw LLM gateway URL (default: http://localhost:12000/v1)
+
+- `OPENAI_API_KEY` - Required for LLM operations
+- `AEROAPI_KEY` - Optional, FlightAware API key (demo key included)
+- `LLM_GATEWAY_ENDPOINT` - Plano LLM gateway URL (default: http://localhost:12000/v1)
+
+## Project Structure
+
+```
+travel_booking/
+├── arch_config.yaml          # Plano configuration
+├── start_agents.sh          # Start all agents script
+├── pyproject.toml           # Python dependencies
+└── src/
+    └── travel_agents/
+        ├── __init__.py      # CLI entry point
+        ├── api.py           # Shared API models
+        ├── weather_agent.py # Weather forecast agent
+        ├── flight_agent.py  # Flight information agent
+        └── currency_agent.py # Currency exchange agent
+```
 
 ## Troubleshooting
 
-### Agents won't start
+**Agents won't start**
 - Ensure Python 3.10+ is installed
 - Check that UV is installed: `pip install uv`
 - Verify ports 10510, 10520, 10530 are available
 
-### archgw won't start
-- Make sure you're in the travel_booking directory
-- Check that OPENAI_API_KEY is set in .env
-- Verify archgw is installed: `archgw --version`
+**Plano won't start**
+- Verify Plano is installed: `plano --version`
+- Check that `OPENAI_API_KEY` is set
+- Ensure you're in the travel_booking directory
 
-### No response from agents
-- Check that all agents are running (check start_agents.sh output)
-- Verify archgw is running on port 8001
-- Check logs for errors
+**No response from agents**
+- Verify all agents are running (check start_agents.sh output)
+- Check that Plano is running on port 8001
+- Review agent logs for errors
 
-### Wrong agent responds
-- The agent router uses LLM-based routing
-- If routing is incorrect, try being more explicit in your request
-- Check agent descriptions in arch_config.yaml
+## API Endpoints
 
-## Notes
+All agents expose OpenAI-compatible chat completion endpoints:
 
-- This is a demo with mock data - flights and hotels are simulated
-- Real implementations would integrate with actual APIs (Amadeus, Booking.com, etc.)
-- Weather data is generated randomly based on typical patterns for each city
-- All agents use streaming responses for better user experience
-
-## License
-
-This demo is part of the archgw project.
+- `POST /v1/chat/completions` - Chat completion endpoint
+- `GET /health` - Health check endpoint

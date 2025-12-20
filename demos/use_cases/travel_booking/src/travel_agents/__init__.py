@@ -8,16 +8,14 @@ import click
     "--agent",
     "agent",
     required=True,
-    help="Agent name: weather, flight, or hotel",
+    help="Agent name: weather, flight, or currency",
 )
 def main(host, port, agent):
     """Start a travel agent REST server."""
-
-    # Map friendly names to agent modules
     agent_map = {
         "weather": ("travel_agents.weather_agent", 10510),
         "flight": ("travel_agents.flight_agent", 10520),
-        "hotel": ("travel_agents.hotel_agent", 10530),
+        "currency": ("travel_agents.currency_agent", 10530),
     }
 
     if agent not in agent_map:
@@ -27,13 +25,11 @@ def main(host, port, agent):
 
     module_name, default_port = agent_map[agent]
 
-    # Use default port if not specified
     if port == 8000:
         port = default_port
 
     print(f"Starting {agent} agent REST server on {host}:{port}")
 
-    # Import the agent module and start server
     if agent == "weather":
         from travel_agents.weather_agent import start_server
 
@@ -42,8 +38,8 @@ def main(host, port, agent):
         from travel_agents.flight_agent import start_server
 
         start_server(host=host, port=port)
-    elif agent == "hotel":
-        from travel_agents.hotel_agent import start_server
+    elif agent == "currency":
+        from travel_agents.currency_agent import start_server
 
         start_server(host=host, port=port)
 

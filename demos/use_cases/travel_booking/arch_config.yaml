@@ -5,11 +5,13 @@ agents:
     url: http://host.docker.internal:10510
   - id: flight_agent
     url: http://host.docker.internal:10520
-  - id: hotel_agent
+  - id: currency_agent
     url: http://host.docker.internal:10530
 
 model_providers:
   - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+  - model: openai/gpt-4o-mini
     access_key: $OPENAI_API_KEY
 
 listeners:
@@ -19,11 +21,11 @@ listeners:
     router: plano_orchestrator_v1
     agents:
       - id: weather_agent
-        description: Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed). Provides temperature, humidity, wind speed, precipitation, and detailed weather conditions.
+        description: Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed). Provides current temperature, multi-day forecasts, weather conditions, sunrise/sunset times, and detailed weather information. Understands conversation context to resolve location references from previous messages.
       - id: flight_agent
-        description: Get live flight information between airports using AviationStack API. Shows real-time flight status, scheduled/actual departure and arrival times, gate information, and whether flights are in the air. Uses IATA airport codes (e.g., JFK, LAX, LHR). Displays current and scheduled flights with live tracking data.
+        description: Get live flight information between airports using FlightAware AeroAPI. Shows real-time flight status, scheduled/estimated/actual departure and arrival times, gate and terminal information, delays, aircraft type, and flight status. Automatically resolves city names to airport codes (IATA/ICAO). Understands conversation context to infer origin/destination from follow-up questions. Supports queries like "What flights go from London to Seattle?" or "Do they fly out from Seattle?" (using context from previous messages).
       - id: currency_agent
-        description: Get real-time currency exchange rates and perform currency conversions using Frankfurter API (free, no API key needed). Provides latest exchange rates, historical rates, and currency conversions between any supported currencies. Uses standard 3-letter currency codes (e.g., USD, EUR, GBP, JPY).
+        description: Get real-time currency exchange rates and perform currency conversions using Frankfurter API (free, no API key needed). Provides latest exchange rates, currency conversions with amount calculations, and supports any currency pair. Automatically extracts currency codes from country names and conversation context. Understands pronouns like "their currency" when referring to previously mentioned countries. Uses standard 3-letter ISO currency codes (e.g., USD, EUR, GBP, JPY, PKR).
 
 tracing:
   random_sampling: 100

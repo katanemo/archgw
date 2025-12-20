@@ -29,14 +29,14 @@ log "Starting flight agent on port 10520..."
 uv run python -m travel_agents --host 0.0.0.0 --port 10520 --agent flight &
 WAIT_FOR_PIDS+=($!)
 
-log "Starting hotel agent on port 10530..."
-uv run python -m travel_agents --host 0.0.0.0 --port 10530 --agent hotel &
+log "Starting currency agent on port 10530..."
+uv run python -m travel_agents --host 0.0.0.0 --port 10530 --agent currency &
 WAIT_FOR_PIDS+=($!)
 
 log "All agents started successfully!"
 log "  - Weather Agent: http://localhost:10510"
 log "  - Flight Agent: http://localhost:10520"
-log "  - Hotel Agent: http://localhost:10530"
+log "  - Currency Agent: http://localhost:10530"
 log ""
 log "Waiting for agents to run..."
 

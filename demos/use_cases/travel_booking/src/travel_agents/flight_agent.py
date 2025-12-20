@@ -8,11 +8,12 @@ import time
 import uuid
 import uvicorn
 from datetime import datetime, timedelta
-import random
+import httpx
+from typing import Optional
+from urllib.parse import quote
 
 from .api import (
     ChatCompletionRequest,
-    ChatCompletionResponse,
     ChatCompletionStreamResponse,
 )
 
@@ -25,155 +26,15 @@ logger = logging.getLogger(__name__)
 
 # Configuration for archgw LLM gateway
 LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
-FLIGHT_MODEL = "gpt-4o-mini"
+FLIGHT_MODEL = "openai/gpt-4o"
+FLIGHT_EXTRACTION_MODEL = "openai/gpt-4o-mini"
 
-# Sample flight data
-AIRLINES = [
-    "United Airlines",
-    "Delta",
-    "American Airlines",
-    "British Airways",
-    "Emirates",
-    "Lufthansa",
-    "Air France",
-    "Singapore Airlines",
-]
-AIRCRAFT_TYPES = [
-    "Boeing 737",
-    "Airbus A320",
-    "Boeing 777",
-    "Airbus A350",
-    "Boeing 787",
-]
+# FlightAware AeroAPI configuration
+AEROAPI_BASE_URL = "https://aeroapi.flightaware.com/aeroapi"
+AEROAPI_KEY = os.getenv("AEROAPI_KEY", "ESVFX7TJLxB7OTuayUv0zTQBryA3tOPr")
 
-CITIES = [
-    "New York",
-    "London",
-    "Tokyo",
-    "Paris",
-    "Sydney",
-    "Dubai",
-    "Singapore",
-    "San Francisco",
-    "Los Angeles",
-    "Chicago",
-    "Miami",
-    "Seattle",
-    "Boston",
-    "Hong Kong",
-    "Bangkok",
-    "Rome",
-]
-
-# System prompt for flight agent
-SYSTEM_PROMPT = """You are a helpful flight booking assistant.
-
-Your role is to help users search for and book flights based on their travel needs.
-
-When responding:
-1. Parse the user's request to understand departure city, destination, dates, and preferences
-2. Use the flight search results provided in the conversation context
-3. Present flight options clearly with key details (airline, times, price, duration)
-4. Help users compare options and make informed decisions
-5. If they want to book, confirm their selection and provide booking confirmation
-6. Ask clarifying questions if needed information is missing
-
-Be professional, helpful, and make the booking process smooth and easy."""
-
-
-def generate_flight_data(
-    origin: str, destination: str, date: str = None, num_results: int = 5
-):
-    """Generate mock flight search results."""
-    if not date:
-        date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-
-    flights = []
-    for i in range(num_results):
-        # Generate departure and arrival times
-        departure_hour = random.randint(6, 22)
-        departure_min = random.choice([0, 15, 30, 45])
-        flight_duration_hours = random.randint(2, 14)
-        flight_duration_mins = random.choice([0, 15, 30, 45])
-
-        departure_time = f"{departure_hour:02d}:{departure_min:02d}"
-        arrival_hour = (departure_hour + flight_duration_hours) % 24
-        arrival_min = (departure_min + flight_duration_mins) % 60
-        arrival_time = f"{arrival_hour:02d}:{arrival_min:02d}"
-
-        # Generate price based on duration
-        base_price = 200 + (flight_duration_hours * 50)
-        price_variation = random.randint(-100, 300)
-        price = base_price + price_variation
-
-        # Determine if it's direct or has stops
-        stops = random.choice([0, 0, 0, 1, 2])  # Bias towards direct flights
-
-        flight = {
-            "flight_number": f"{random.choice(['UA', 'DL', 'AA', 'BA', 'EK'])}{random.randint(100, 999)}",
-            "airline": random.choice(AIRLINES),
-            "aircraft": random.choice(AIRCRAFT_TYPES),
-            "origin": origin,
-            "destination": destination,
-            "date": date,
-            "departure_time": departure_time,
-            "arrival_time": arrival_time,
-            "duration": f"{flight_duration_hours}h {flight_duration_mins}m",
-            "stops": stops,
-            "price_usd": price,
-            "available_seats": random.randint(5, 150),
-            "class": random.choice(
-                ["Economy", "Economy", "Premium Economy", "Business"]
-            ),
-        }
-        flights.append(flight)
-
-    # Sort by price
-    flights.sort(key=lambda x: x["price_usd"])
-
-    return flights
-
-
-def extract_flight_params(messages):
-    """Extract flight search parameters from messages."""
-    origin = None
-    destination = None
-    date = None
-
-    # Look through messages for flight details
-    for msg in reversed(messages):
-        if msg.role == "user":
-            content = msg.content.lower()
-
-            # Look for "from X to Y" pattern
-            if " from " in content and " to " in content:
-                parts = content.split(" from ")
-                if len(parts) > 1:
-                    remaining = parts[1]
-                    if " to " in remaining:
-                        city_parts = remaining.split(" to ")
-                        origin = city_parts[0].strip().title()
-                        # Extract destination (may have more text after)
-                        dest_words = city_parts[1].strip().split()
-                        if dest_words:
-                            destination = dest_words[0].title()
-
-            # Look for date mentions
-            if "tomorrow" in content:
-                date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-            elif "next week" in content:
-                date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-
-    # Defaults
-    if not origin:
-        origin = "New York"
-    if not destination:
-        destination = "London"
-    if not date:
-        date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-
-    return origin, destination, date
-
+# HTTP client for API calls
+http_client = httpx.AsyncClient(timeout=30.0)
 
 # Initialize OpenAI client for archgw
 archgw_client = AsyncOpenAI(
@@ -181,35 +42,494 @@ archgw_client = AsyncOpenAI(
     api_key="EMPTY",
 )
 
-# FastAPI app for REST server
-app = FastAPI(title="Flight Booking Agent", version="1.0.0")
+# System prompt for flight agent
+SYSTEM_PROMPT = """You are a helpful flight information assistant. Your role is to provide accurate, clear, and helpful flight information based on the structured flight data provided to you.
+
+CRITICAL INSTRUCTIONS:
+
+1. DATA STRUCTURE:
+   - You will receive flight data as JSON in a system message
+   - The data contains flight information including origin, destination, flight numbers, airlines, schedules, delays, gates, terminals, and status
+   - Some fields may be null/None - handle these gracefully
+
+2. FLIGHT INFORMATION:
+   - Present flights clearly with key details: airline, flight number, origin, destination, scheduled/estimated/actual times
+   - Include gate and terminal information when available
+   - Mention delays if present
+   - Indicate flight status (scheduled, enroute, arrived, cancelled, etc.)
+   - Show aircraft type when available
+
+3. RESPONSE FORMAT:
+   - For flight searches: List available flights with clear details
+   - Include departure and arrival times (scheduled, estimated, actual)
+   - Mention any delays or status changes
+   - Use natural, conversational language
+   - Be concise but complete
+
+4. HANDLING INCOMPLETE QUERIES:
+   - If the user asks a follow-up question like "Do they fly out from X?" or "Do they have flights to Y?", use conversation context to understand what they're asking
+   - If origin or destination is missing from the data, check if it can be inferred from the conversation context
+   - If you cannot determine the complete route, politely ask for clarification: "I can help you find flights! Could you please specify both the origin and destination cities? For example, 'flights from Istanbul to Seattle' or 'flights from Seattle to Istanbul'."
+   - When answering follow-up questions, acknowledge what you understand from context: "Based on our conversation about Istanbul, I can help you find flights from Istanbul to Seattle..."
+
+5. ERROR HANDLING:
+   - If flight data is missing or null, acknowledge this politely
+   - Never invent or guess flight information - only use what's provided
+   - If airports or flights cannot be found, mention this clearly
+   - If the route doesn't exist or no flights are available, suggest alternatives or ask if they meant a different route
+
+Remember: Only use the data provided. Never fabricate flight information. If data is missing, clearly state what's unavailable. Use conversation context to understand follow-up questions."""
 
 
-def prepare_flight_messages(request_body: ChatCompletionRequest):
+FLIGHT_EXTRACTION_PROMPT = """You are a flight information extraction assistant. Your ONLY job is to extract flight-related information from user messages and convert it to structured data.
+
+CRITICAL RULES:
+1. Extract origin city/airport and destination city/airport from the message AND conversation context
+2. Extract any mentioned dates or time references
+3. PAY ATTENTION TO CONVERSATION CONTEXT - THIS IS CRITICAL:
+   - If previous messages mention cities/countries, use that context to resolve pronouns and incomplete queries
+   - Example 1: Previous: "What's the weather in Istanbul?" → Current: "Do they fly out from Seattle?"
+     → This likely means: "Do flights go from Istanbul to Seattle?" OR "Do flights go from Seattle to Istanbul?"
+     → Since Istanbul was mentioned first, interpret as: origin=Istanbul, destination=Seattle
+   - Example 2: Previous: "What's the weather in London?" → Current: "What flights go from there to Seattle?"
+     → "there" = London → origin=London, destination=Seattle
+   - Example 3: Previous: "What's the exchange rate for Turkey?" → Current: "Do they have flights to Seattle?"
+     → "they" refers to Turkey/Istanbul → origin=Istanbul, destination=Seattle
+4. For follow-up questions like "Do they fly out from X?" or "Do they have flights to Y?":
+   - Look for previously mentioned cities/countries in the conversation
+   - If a city was mentioned earlier, use it as the missing origin or destination
+   - If the question mentions a city explicitly, use that city
+   - Try to infer the complete route from context
+5. Extract dates and time references:
+   - "tomorrow", "today", "next week", specific dates
+   - Convert relative dates to ISO format (YYYY-MM-DD) when possible
+6. Determine the origin and destination based on context:
+   - "from X to Y" → origin=X, destination=Y
+   - "X to Y" → origin=X, destination=Y
+   - "flights from X" → origin=X, destination=null (unless context provides destination)
+   - "flights to Y" → origin=null (unless context provides origin), destination=Y
+   - "Do they fly out from X?" → origin=X (or from context), destination=from context or null
+   - "Do they have flights to Y?" → origin=from context, destination=Y
+7. Return your response as a JSON object with the following structure:
+   {
+     "origin": "London" or null,
+     "destination": "Seattle" or null,
+     "date": "2025-12-20" or null,
+     "origin_airport_code": "LHR" or null,
+     "destination_airport_code": "SEA" or null
+   }
+
+8. If you cannot determine a value, use null for that field
+9. Use city names (not airport codes) in origin/destination fields - airport codes will be resolved separately
+10. Ignore error messages, HTML tags, and assistant responses
+11. Extract from the most recent user message BUT use conversation context to resolve references
+12. For dates: Use ISO format (YYYY-MM-DD). If relative date like "tomorrow", calculate the actual date
+13. IMPORTANT: When a follow-up question mentions one city but context has another city, try to infer the complete route
+
+Examples with context:
+- Conversation: "What's the weather in Istanbul?" → Current: "Do they fly out from Seattle?" → {"origin": "Istanbul", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- Conversation: "What's the weather in London?" → Current: "What flights go from there to Seattle?" → {"origin": "London", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- Conversation: "Tell me about Istanbul" → Current: "Do they have flights to Seattle?" → {"origin": "Istanbul", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- "What flights go from London to Seattle?" → {"origin": "London", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- "Show me flights to New York tomorrow" → {"origin": null, "destination": "New York", "date": "2025-12-21", "origin_airport_code": null, "destination_airport_code": null}
+- "Flights from LAX to JFK" → {"origin": "Los Angeles", "destination": "New York", "date": null, "origin_airport_code": "LAX", "destination_airport_code": "JFK"}
+
+Now extract the flight information from this message, considering the conversation context:"""
+
+
+async def extract_flight_info_from_messages(messages):
+    """Extract flight information from user messages using LLM, considering conversation context."""
+    conversation_context = []
+    for msg in messages:
+        content = msg.content.strip()
+        content_lower = content.lower()
+        if any(
+            pattern in content_lower
+            for pattern in ["<", ">", "error:", "i apologize", "i'm having trouble"]
+        ):
+            continue
+        conversation_context.append({"role": msg.role, "content": content})
+
+    user_messages = [msg for msg in messages if msg.role == "user"]
+
+    if not user_messages:
+        logger.warning("No user messages found")
+        return {
+            "origin": None,
+            "destination": None,
+            "date": None,
+            "origin_airport_code": None,
+            "destination_airport_code": None,
+        }
+
+    user_content = None
+    for msg in reversed(user_messages):
+        content = msg.content.strip()
+        content_lower = content.lower()
+        if any(
+            pattern in content_lower
+            for pattern in [
+                "<",
+                ">",
+                "assistant:",
+                "error:",
+                "i apologize",
+                "i'm having trouble",
+            ]
+        ):
+            continue
+        user_content = content
+        break
+
+    if not user_content:
+        logger.warning("No valid user message found")
+        return {
+            "origin": None,
+            "destination": None,
+            "date": None,
+            "origin_airport_code": None,
+            "destination_airport_code": None,
+        }
+
+    try:
+        logger.info(f"Extracting flight info from user message: {user_content[:200]}")
+        logger.info(
+            f"Using conversation context with {len(conversation_context)} messages"
+        )
+
+        llm_messages = [{"role": "system", "content": FLIGHT_EXTRACTION_PROMPT}]
+
+        context_messages = (
+            conversation_context[-10:]
+            if len(conversation_context) > 10
+            else conversation_context
+        )
+        for msg in context_messages:
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
+
+        response = await archgw_client.chat.completions.create(
+            model=FLIGHT_EXTRACTION_MODEL,
+            messages=llm_messages,
+            temperature=0.1,
+            max_tokens=300,
+        )
+
+        extracted_text = response.choices[0].message.content.strip()
+
+        try:
+            if "```json" in extracted_text:
+                extracted_text = (
+                    extracted_text.split("```json")[1].split("```")[0].strip()
+                )
+            elif "```" in extracted_text:
+                extracted_text = extracted_text.split("```")[1].split("```")[0].strip()
+
+            flight_info = json.loads(extracted_text)
+
+            date = flight_info.get("date")
+            if date:
+                today = datetime.now().date()
+                if date.lower() == "tomorrow":
+                    date = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+                elif date.lower() == "today":
+                    date = today.strftime("%Y-%m-%d")
+                elif "next week" in date.lower():
+                    date = (today + timedelta(days=7)).strftime("%Y-%m-%d")
+
+            result = {
+                "origin": flight_info.get("origin"),
+                "destination": flight_info.get("destination"),
+                "date": date,
+                "origin_airport_code": flight_info.get("origin_airport_code"),
+                "destination_airport_code": flight_info.get("destination_airport_code"),
+            }
+
+            logger.info(f"LLM extracted flight info: {result}")
+            return result
+
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"Failed to parse JSON from LLM response: {extracted_text}, error: {e}"
+            )
+            return {
+                "origin": None,
+                "destination": None,
+                "date": None,
+                "origin_airport_code": None,
+                "destination_airport_code": None,
+            }
+
+    except Exception as e:
+        logger.error(f"Error extracting flight info with LLM: {e}, using defaults")
+        return {
+            "origin": None,
+            "destination": None,
+            "date": None,
+            "origin_airport_code": None,
+            "destination_airport_code": None,
+        }
+
+
+AIRPORT_CODE_RESOLUTION_PROMPT = """You are an airport code resolution assistant. Your ONLY job is to convert city names or locations to their primary airport IATA/ICAO codes.
+
+CRITICAL RULES:
+1. Convert city names, locations, or airport names to their primary airport code (prefer IATA 3-letter codes like JFK, LHR, LAX)
+2. For cities with multiple airports, choose the PRIMARY/MOST COMMONLY USED airport:
+   - London → LHR (Heathrow, not Gatwick or Stansted)
+   - New York → JFK (not LGA or EWR)
+   - Paris → CDG (not ORY)
+   - Tokyo → NRT (Narita, not HND)
+   - Beijing → PEK (not PKX)
+   - Shanghai → PVG (not SHA)
+3. If the input is already an airport code (3-letter IATA or 4-letter ICAO), return it as-is
+4. Return ONLY the airport code, nothing else
+5. Use standard IATA codes when available, ICAO codes as fallback
+6. If you cannot determine the airport code, return "NOT_FOUND"
+
+Examples:
+- "London" → "LHR"
+- "New York" → "JFK"
+- "Los Angeles" → "LAX"
+- "Seattle" → "SEA"
+- "Paris" → "CDG"
+- "Tokyo" → "NRT"
+- "JFK" → "JFK"
+- "LAX" → "LAX"
+- "LHR" → "LHR"
+- "Unknown City" → "NOT_FOUND"
+
+Now convert this location to an airport code:"""
+
+
+async def resolve_airport_code(city_name: str) -> Optional[str]:
+    """Resolve city name to airport code using LLM and FlightAware API.
+
+    Uses LLM to convert city names to airport codes, then validates via API.
+    """
+    if not city_name:
+        return None
+
+    try:
+        logger.info(f"Resolving airport code for: {city_name}")
+
+        response = await archgw_client.chat.completions.create(
+            model=FLIGHT_EXTRACTION_MODEL,
+            messages=[
+                {"role": "system", "content": AIRPORT_CODE_RESOLUTION_PROMPT},
+                {"role": "user", "content": city_name},
+            ],
+            temperature=0.1,
+            max_tokens=50,
+        )
+
+        airport_code = response.choices[0].message.content.strip().upper()
+        airport_code = airport_code.strip("\"'`.,!? \n\t")
+
+        if airport_code == "NOT_FOUND" or not airport_code:
+            logger.warning(f"LLM could not resolve airport code for {city_name}")
+            return None
+
+        logger.info(f"LLM resolved {city_name} to airport code: {airport_code}")
+
+        try:
+            url = f"{AEROAPI_BASE_URL}/airports/{airport_code}"
+            headers = {"x-apikey": AEROAPI_KEY}
+
+            validation_response = await http_client.get(url, headers=headers)
+
+            if validation_response.status_code == 200:
+                data = validation_response.json()
+                validated_code = data.get("code_icao") or data.get("code_iata")
+                if validated_code:
+                    logger.info(
+                        f"Validated airport code {airport_code} → {validated_code}"
+                    )
+                    return validated_code
+                else:
+                    return airport_code
+            else:
+                logger.warning(
+                    f"API validation failed for {airport_code}, but using LLM result"
+                )
+                return airport_code
+
+        except Exception as e:
+            logger.warning(
+                f"API validation error for {airport_code}: {e}, using LLM result"
+            )
+            return airport_code
+
+    except Exception as e:
+        logger.error(f"Error resolving airport code for {city_name} with LLM: {e}")
+        return None
+
+
+async def get_flights_between_airports(
+    origin_code: str, dest_code: str, start_date: str = None, end_date: str = None
+) -> Optional[dict]:
+    """Get flights between two airports using FlightAware AeroAPI."""
+    try:
+        url = f"{AEROAPI_BASE_URL}/airports/{origin_code}/flights/to/{dest_code}"
+        headers = {"x-apikey": AEROAPI_KEY}
+
+        params = {}
+        if start_date:
+            params["start"] = start_date
+        if end_date:
+            params["end"] = end_date
+        params["connection"] = "nonstop"
+        params["max_pages"] = 1
+
+        response = await http_client.get(url, headers=headers, params=params)
+
+        if response.status_code != 200:
+            logger.warning(
+                f"FlightAware API returned status {response.status_code} for {origin_code} to {dest_code}"
+            )
+            return None
+
+        data = response.json()
+
+        flights = []
+        for flight_group in data.get("flights", []):
+            segments = flight_group.get("segments", [])
+            if segments:
+                segment = segments[0]
+                flight_info = {
+                    "ident": segment.get("ident"),
+                    "ident_icao": segment.get("ident_icao"),
+                    "ident_iata": segment.get("ident_iata"),
+                    "operator": segment.get("operator"),
+                    "operator_iata": segment.get("operator_iata"),
+                    "flight_number": segment.get("flight_number"),
+                    "origin": {
+                        "code": segment.get("origin", {}).get("code"),
+                        "code_iata": segment.get("origin", {}).get("code_iata"),
+                        "name": segment.get("origin", {}).get("name"),
+                        "city": segment.get("origin", {}).get("city"),
+                    },
+                    "destination": {
+                        "code": segment.get("destination", {}).get("code"),
+                        "code_iata": segment.get("destination", {}).get("code_iata"),
+                        "name": segment.get("destination", {}).get("name"),
+                        "city": segment.get("destination", {}).get("city"),
+                    },
+                    "scheduled_out": segment.get("scheduled_out"),
+                    "estimated_out": segment.get("estimated_out"),
+                    "actual_out": segment.get("actual_out"),
+                    "scheduled_off": segment.get("scheduled_off"),
+                    "estimated_off": segment.get("estimated_off"),
+                    "actual_off": segment.get("actual_off"),
+                    "scheduled_on": segment.get("scheduled_on"),
+                    "estimated_on": segment.get("estimated_on"),
+                    "actual_on": segment.get("actual_on"),
+                    "scheduled_in": segment.get("scheduled_in"),
+                    "estimated_in": segment.get("estimated_in"),
+                    "actual_in": segment.get("actual_in"),
+                    "status": segment.get("status"),
+                    "aircraft_type": segment.get("aircraft_type"),
+                    "departure_delay": segment.get("departure_delay"),
+                    "arrival_delay": segment.get("arrival_delay"),
+                    "gate_origin": segment.get("gate_origin"),
+                    "gate_destination": segment.get("gate_destination"),
+                    "terminal_origin": segment.get("terminal_origin"),
+                    "terminal_destination": segment.get("terminal_destination"),
+                    "cancelled": segment.get("cancelled"),
+                    "diverted": segment.get("diverted"),
+                }
+                flights.append(flight_info)
+
+        return {
+            "origin_code": origin_code,
+            "destination_code": dest_code,
+            "flights": flights,
+            "num_flights": len(flights),
+        }
+
+    except httpx.HTTPError as e:
+        logger.error(
+            f"HTTP error fetching flights from {origin_code} to {dest_code}: {e}"
+        )
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON response from FlightAware API: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error fetching flights: {e}")
+        return None
+
+
+app = FastAPI(title="Flight Information Agent", version="1.0.0")
+
+
+async def prepare_flight_messages(request_body: ChatCompletionRequest):
     """Prepare messages with flight data."""
-    # Extract flight parameters
-    origin, destination, date = extract_flight_params(request_body.messages)
+    flight_info = await extract_flight_info_from_messages(request_body.messages)
 
-    # Check if user wants to book (vs just search)
-    last_user_msg = ""
-    for msg in reversed(request_body.messages):
-        if msg.role == "user":
-            last_user_msg = msg.content.lower()
-            break
+    origin = flight_info.get("origin")
+    destination = flight_info.get("destination")
+    date = flight_info.get("date")
+    origin_code = flight_info.get("origin_airport_code")
+    dest_code = flight_info.get("destination_airport_code")
 
-    is_booking = any(
-        word in last_user_msg for word in ["book", "reserve", "purchase", "buy"]
-    )
+    if origin and not origin_code:
+        origin_code = await resolve_airport_code(origin)
+    if destination and not dest_code:
+        dest_code = await resolve_airport_code(destination)
 
-    # Generate flight search results
-    flights = generate_flight_data(origin, destination, date)
+    if not date:
+        date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    flight_context = f"""
-Flight search results for {origin} to {destination} on {date}:
+    start_date = f"{date}T00:00:00Z"
+    end_date = f"{date}T23:59:59Z"
 
-{json.dumps(flights, indent=2)}
+    flight_data = None
+    if origin_code and dest_code:
+        flight_data = await get_flights_between_airports(
+            origin_code, dest_code, start_date, end_date
+        )
+    else:
+        logger.warning(
+            f"Cannot fetch flights: origin_code={origin_code}, dest_code={dest_code}"
+        )
 
-{'User wants to book a flight. Help them complete the booking.' if is_booking else 'Present these options to the user clearly.'}
+    # Build context message based on what we have
+    if flight_data and flight_data.get("flights"):
+        flight_context = f"""
+Flight search results for {origin or origin_code} to {destination or dest_code} on {date}:
+
+{json.dumps(flight_data, indent=2)}
+
+Use this data to answer the user's flight query. Present the flights clearly with all relevant details.
+"""
+    elif origin_code and not dest_code:
+        # We have origin but no destination - this is a follow-up question
+        flight_context = f"""
+The user is asking about flights from {origin or origin_code}, but no destination was specified.
+
+From the conversation context, it appears the user may be asking about flights from {origin or origin_code} to a previously mentioned location, or they may need to specify a destination.
+
+Check the conversation history to see if a destination was mentioned earlier. If so, you can mention that you'd be happy to search for flights from {origin or origin_code} to that destination. If not, politely ask the user to specify both origin and destination cities.
+
+Example response: "I can help you find flights from {origin or origin_code}! Could you please tell me which city you'd like to fly to? For example, 'flights from {origin or origin_code} to Seattle' or 'flights from {origin or origin_code} to Istanbul'."
+"""
+    elif dest_code and not origin_code:
+        # We have destination but no origin
+        flight_context = f"""
+The user is asking about flights to {destination or dest_code}, but no origin was specified.
+
+From the conversation context, it appears the user may be asking about flights to {destination or dest_code} from a previously mentioned location, or they may need to specify an origin.
+
+Check the conversation history to see if an origin was mentioned earlier. If so, you can mention that you'd be happy to search for flights from that origin to {destination or dest_code}. If not, politely ask the user to specify both origin and destination cities.
+"""
+    else:
+        # Neither origin nor destination
+        flight_context = f"""
+Flight search attempted but both origin and destination are missing.
+
+The user's query was incomplete. Check the conversation history to see if origin or destination cities were mentioned earlier. If so, use that context to help the user. If not, politely ask the user to specify both origin and destination cities for their flight search.
+
+Example: "I'd be happy to help you find flights! Could you please tell me both the departure city and destination city? For example, 'flights from Seattle to Istanbul' or 'flights from Istanbul to Seattle'."
 """
 
     response_messages = [
@@ -227,11 +547,8 @@ Flight search results for {origin} to {destination} on {date}:
 @app.post("/v1/chat/completions")
 async def chat_completion_http(request: Request, request_body: ChatCompletionRequest):
     """HTTP endpoint for chat completions with streaming support."""
-    logger.info(
-        f"Received flight booking request with {len(request_body.messages)} messages"
-    )
+    logger.info(f"Received flight request with {len(request_body.messages)} messages")
 
-    # Get traceparent header from HTTP request
     traceparent_header = request.headers.get("traceparent")
 
     if traceparent_header:
@@ -251,7 +568,7 @@ async def stream_chat_completions(
 ):
     """Generate streaming chat completions."""
     # Prepare messages with flight data
-    response_messages = prepare_flight_messages(request_body)
+    response_messages = await prepare_flight_messages(request_body)
 
     try:
         logger.info(
@@ -296,7 +613,6 @@ async def stream_chat_completions(
 
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
-        # Send final chunk
         full_response = "".join(collected_content)
         updated_history = [{"role": "assistant", "content": full_response}]
 
@@ -331,7 +647,7 @@ async def stream_chat_completions(
                 {
                     "index": 0,
                     "delta": {
-                        "content": "I apologize, but I'm having trouble searching for flights right now. Please try again."
+                        "content": "I apologize, but I'm having trouble retrieving flight information right now. Please try again."
                     },
                     "finish_reason": "stop",
                 }
@@ -345,7 +661,11 @@ async def stream_chat_completions(
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "agent": "flight_booking"}
+    return {"status": "healthy", "agent": "flight_information"}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=10520)
 
 
 def start_server(host: str = "localhost", port: int = 10520):

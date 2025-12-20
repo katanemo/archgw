@@ -8,7 +8,9 @@ import time
 import uuid
 import uvicorn
 from datetime import datetime, timedelta
-import random
+import httpx
+from typing import Optional
+from urllib.parse import quote
 
 from .api import (
     ChatCompletionRequest,
@@ -25,96 +27,326 @@ logger = logging.getLogger(__name__)
 
 # Configuration for archgw LLM gateway
 LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
-WEATHER_MODEL = "gpt-4o-mini"
+WEATHER_MODEL = "openai/gpt-4o"
+LOCATION_MODEL = "openai/gpt-4o-mini"
 
-# Sample weather data
-WEATHER_CONDITIONS = ["Sunny", "Partly Cloudy", "Cloudy", "Rainy", "Stormy", "Snowy"]
-CITIES_DATA = {
-    "new york": {"temp_base": 15, "condition_bias": "Cloudy"},
-    "london": {"temp_base": 12, "condition_bias": "Rainy"},
-    "tokyo": {"temp_base": 18, "condition_bias": "Partly Cloudy"},
-    "paris": {"temp_base": 14, "condition_bias": "Cloudy"},
-    "sydney": {"temp_base": 22, "condition_bias": "Sunny"},
-    "dubai": {"temp_base": 32, "condition_bias": "Sunny"},
-    "singapore": {"temp_base": 28, "condition_bias": "Rainy"},
-    "san francisco": {"temp_base": 16, "condition_bias": "Partly Cloudy"},
-}
+# HTTP client for API calls
+http_client = httpx.AsyncClient(timeout=10.0)
 
 # System prompt for weather agent
-SYSTEM_PROMPT = """You are a helpful weather information assistant.
+SYSTEM_PROMPT = """You are a professional weather information assistant. Your role is to provide accurate, clear, and helpful weather information based on the structured weather data provided to you.
 
-Your role is to provide accurate and helpful weather information based on the weather data provided.
+CRITICAL INSTRUCTIONS:
 
-When responding:
-1. Parse the user's request to understand the location they're asking about
-2. Use the weather data provided in the conversation context
-3. Provide clear, concise weather information
-4. Include temperature, conditions, and any relevant details
-5. If asked about forecast, provide multi-day information
-6. Be conversational and helpful
+1. DATA STRUCTURE:
+   - You will receive weather data as JSON in a system message
+   - The data contains a "location" field (string) and a "forecast" array
+   - Each forecast entry has: date, day_name, temperature_c, temperature_f, temperature_max_c, temperature_min_c, condition, sunrise, sunset
+   - Some fields may be null/None - handle these gracefully
 
-Format your responses in a user-friendly way."""
+2. TEMPERATURE HANDLING:
+   - For single-day queries: Use temperature_c/temperature_f (current/primary temperature)
+   - For multi-day forecasts: Use temperature_max_c and temperature_min_c when available
+   - Always provide temperatures in both Celsius and Fahrenheit when available
+   - If temperature is null, say "temperature data unavailable" rather than making up numbers
+
+3. ERROR HANDLING:
+   - If the forecast array contains an "error" field, acknowledge the issue politely
+   - If temperature or condition is null/None, mention that specific data is unavailable
+   - Never invent or guess weather data - only use what's provided
+   - If location couldn't be determined, acknowledge this but still provide available data
+
+4. RESPONSE FORMAT:
+   - For single-day queries: Provide current conditions, temperature, and condition
+   - For multi-day forecasts: List each day with date, day name, high/low temps, and condition
+   - Include sunrise/sunset times when available and relevant
+   - Use natural, conversational language
+   - Be concise but complete
+
+5. CONDITION DESCRIPTIONS:
+   - Use the exact condition provided (e.g., "Clear sky", "Rainy", "Partly Cloudy")
+   - Add context when helpful (e.g., "perfect for outdoor activities" for clear skies)
+
+6. LOCATION HANDLING:
+   - Always mention the location name from the data
+   - If the location differs from what the user asked, acknowledge this politely
+
+7. RESPONSE STYLE:
+   - Be friendly and professional
+   - Use natural language, not technical jargon
+   - Format dates and times clearly
+   - For forecasts, use bullet points or numbered lists for clarity
+
+Remember: Only use the data provided. Never fabricate weather information. If data is missing, clearly state what's unavailable."""
 
 
-def get_weather_data(location: str, days: int = 1):
-    """Generate mock weather data for a location."""
-    location_lower = location.lower()
+async def geocode_city(city: str) -> Optional[dict]:
+    """Geocode a city name to latitude and longitude using Open-Meteo API."""
+    try:
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={quote(city)}&count=1&language=en&format=json"
+        response = await http_client.get(url)
 
-    # Find matching city
-    city_data = None
-    for city, data in CITIES_DATA.items():
-        if city in location_lower or location_lower in city:
-            city_data = data
-            location = city.title()
-            break
+        if response.status_code != 200:
+            logger.warning(
+                f"Geocoding API returned status {response.status_code} for city: {city}"
+            )
+            return None
 
-    if not city_data:
-        # Default for unknown cities
-        city_data = {"temp_base": 20, "condition_bias": "Partly Cloudy"}
+        data = response.json()
 
-    weather_info = []
-    for day in range(days):
-        date = datetime.now() + timedelta(days=day)
-        temp_variation = random.randint(-5, 5)
-        temp = city_data["temp_base"] + temp_variation
+        if not data.get("results") or len(data["results"]) == 0:
+            logger.warning(f"No geocoding results found for city: {city}")
+            return None
 
-        # Bias towards the city's typical condition
-        if random.random() < 0.6:
-            condition = city_data["condition_bias"]
-        else:
-            condition = random.choice(WEATHER_CONDITIONS)
+        result = data["results"][0]
+        return {
+            "latitude": result["latitude"],
+            "longitude": result["longitude"],
+            "name": result.get("name", city),
+        }
+    except Exception as e:
+        logger.error(f"Error geocoding city {city}: {e}")
+        return None
+
+
+async def get_live_weather(
+    latitude: float, longitude: float, days: int = 1
+) -> Optional[dict]:
+    """Get live weather data from Open-Meteo API."""
+    try:
+        forecast_days = min(days, 16)
+
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?"
+            f"latitude={latitude}&"
+            f"longitude={longitude}&"
+            f"current=temperature_2m&"
+            f"hourly=temperature_2m&"
+            f"daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code&"
+            f"forecast_days={forecast_days}&"
+            f"timezone=auto"
+        )
+
+        response = await http_client.get(url)
+
+        if response.status_code != 200:
+            logger.warning(f"Weather API returned status {response.status_code}")
+            return None
+
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error fetching weather data: {e}")
+        return None
+
+
+def weather_code_to_condition(weather_code: int) -> str:
+    """Convert WMO weather code to human-readable condition."""
+    # WMO Weather interpretation codes (WW)
+    if weather_code == 0:
+        return "Clear sky"
+    elif weather_code in [1, 2, 3]:
+        return "Partly Cloudy"
+    elif weather_code in [45, 48]:
+        return "Foggy"
+    elif weather_code in [51, 53, 55, 56, 57]:
+        return "Drizzle"
+    elif weather_code in [61, 63, 65, 66, 67]:
+        return "Rainy"
+    elif weather_code in [71, 73, 75, 77]:
+        return "Snowy"
+    elif weather_code in [80, 81, 82]:
+        return "Rainy"
+    elif weather_code in [85, 86]:
+        return "Snowy"
+    elif weather_code in [95, 96, 99]:
+        return "Stormy"
+    else:
+        return "Cloudy"
+
+
+async def get_weather_data(location: str, days: int = 1):
+    """Get live weather data for a location using Open-Meteo API."""
+    geocode_result = await geocode_city(location)
+
+    if not geocode_result:
+        logger.warning(f"Could not geocode location: {location}, using fallback")
+        geocode_result = await geocode_city("New York")
+        if not geocode_result:
+            return {
+                "location": location,
+                "forecast": [
+                    {
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "day_name": datetime.now().strftime("%A"),
+                        "temperature_c": None,
+                        "temperature_f": None,
+                        "condition": "Unknown",
+                        "error": "Could not retrieve weather data",
+                    }
+                ],
+            }
+
+    location_name = geocode_result["name"]
+    latitude = geocode_result["latitude"]
+    longitude = geocode_result["longitude"]
+
+    weather_data = await get_live_weather(latitude, longitude, days)
+
+    if not weather_data:
+        logger.warning(f"Could not fetch weather data for {location_name}")
+        return {
+            "location": location_name,
+            "forecast": [
+                {
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "day_name": datetime.now().strftime("%A"),
+                    "temperature_c": None,
+                    "temperature_f": None,
+                    "condition": "Unknown",
+                    "error": "Could not retrieve weather data",
+                }
+            ],
+        }
+
+    current_temp = weather_data.get("current", {}).get("temperature_2m")
+    daily_data = weather_data.get("daily", {})
+
+    forecast = []
+    for i in range(min(days, len(daily_data.get("time", [])))):
+        date_str = daily_data["time"][i]
+        date_obj = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+
+        temp_max = (
+            daily_data.get("temperature_2m_max", [None])[i]
+            if i < len(daily_data.get("temperature_2m_max", []))
+            else None
+        )
+        temp_min = (
+            daily_data.get("temperature_2m_min", [None])[i]
+            if i < len(daily_data.get("temperature_2m_min", []))
+            else None
+        )
+        weather_code = (
+            daily_data.get("weather_code", [0])[i]
+            if i < len(daily_data.get("weather_code", []))
+            else 0
+        )
+        sunrise = (
+            daily_data.get("sunrise", [None])[i]
+            if i < len(daily_data.get("sunrise", []))
+            else None
+        )
+        sunset = (
+            daily_data.get("sunset", [None])[i]
+            if i < len(daily_data.get("sunset", []))
+            else None
+        )
+
+        temp_c = (
+            temp_max if temp_max is not None else (current_temp if i == 0 else temp_min)
+        )
 
         day_info = {
-            "date": date.strftime("%Y-%m-%d"),
-            "day_name": date.strftime("%A"),
-            "temperature_c": temp,
-            "temperature_f": int(temp * 9 / 5 + 32),
-            "condition": condition,
-            "humidity": random.randint(40, 80),
-            "wind_speed_kmh": random.randint(5, 30),
+            "date": date_str.split("T")[0],
+            "day_name": date_obj.strftime("%A"),
+            "temperature_c": round(temp_c, 1) if temp_c is not None else None,
+            "temperature_f": round(temp_c * 9 / 5 + 32, 1)
+            if temp_c is not None
+            else None,
+            "temperature_max_c": round(temp_max, 1) if temp_max is not None else None,
+            "temperature_min_c": round(temp_min, 1) if temp_min is not None else None,
+            "condition": weather_code_to_condition(weather_code),
+            "sunrise": sunrise.split("T")[1] if sunrise else None,
+            "sunset": sunset.split("T")[1] if sunset else None,
         }
-        weather_info.append(day_info)
+        forecast.append(day_info)
 
-    return {"location": location, "forecast": weather_info}
+    return {"location": location_name, "forecast": forecast}
 
 
-def extract_location_from_messages(messages):
-    """Extract location from user messages."""
-    # Look through messages for location mentions
-    for msg in reversed(messages):
-        if msg.role == "user":
-            content = msg.content.lower()
-            # Check for known cities
-            for city in CITIES_DATA.keys():
-                if city in content:
-                    return city.title()
-            # Basic extraction for "in [location]" or "weather [location]"
-            words = content.split()
-            if "in" in words:
-                idx = words.index("in")
-                if idx + 1 < len(words):
-                    return words[idx + 1].title()
-    return "New York"  # Default location
+LOCATION_EXTRACTION_PROMPT = """You are a location extraction assistant. Your ONLY job is to extract the geographic location (city, state, country, etc.) from user messages.
+
+CRITICAL RULES:
+1. Extract ONLY the location name - nothing else
+2. Return just the location name in plain text (e.g., "London", "New York", "Paris, France")
+3. If the user mentions multiple locations, extract the PRIMARY location they're asking about
+4. Ignore error messages, HTML tags, and assistant responses
+5. If no clear location is found, return exactly: "NOT_FOUND"
+6. Clean the location name - remove words like "about", "for", "in", "the weather in", etc.
+7. Return the location in a format suitable for geocoding (city name, or "City, State", or "City, Country")
+
+Examples:
+- "What's the weather in London?" → "London"
+- "Tell me about the weather for New York" → "New York"
+- "Weather forecast for Paris, France" → "Paris, France"
+- "I'm going to Seattle" → "Seattle"
+- "About London" → "London"
+- "What's happening?" → "NOT_FOUND"
+
+Now extract the location from this message:"""
+
+
+async def extract_location_from_messages(messages):
+    """Extract location from user messages using LLM."""
+    user_messages = [msg for msg in messages if msg.role == "user"]
+
+    if not user_messages:
+        logger.warning("No user messages found, using default: New York")
+        return "New York"
+
+    user_content = None
+    for msg in reversed(user_messages):
+        content = msg.content.strip()
+        content_lower = content.lower()
+        if any(
+            pattern in content_lower
+            for pattern in [
+                "<",
+                ">",
+                "assistant:",
+                "error:",
+                "i apologize",
+                "i'm having trouble",
+            ]
+        ):
+            continue
+        user_content = content
+        break
+
+    if not user_content:
+        logger.warning("No valid user message found, using default: New York")
+        return "New York"
+
+    try:
+        logger.info(f"Extracting location from user message: {user_content[:200]}")
+
+        response = await archgw_client.chat.completions.create(
+            model=LOCATION_MODEL,
+            messages=[
+                {"role": "system", "content": LOCATION_EXTRACTION_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.1,
+            max_tokens=50,
+        )
+
+        location = response.choices[0].message.content.strip()
+        location = location.strip("\"'`.,!?")
+
+        if not location or location.upper() == "NOT_FOUND":
+            logger.warning(
+                f"LLM could not extract location from message, using default: New York"
+            )
+            return "New York"
+
+        logger.info(f"LLM extracted location: {location}")
+        return location
+
+    except Exception as e:
+        logger.error(
+            f"Error extracting location with LLM: {e}, using default: New York"
+        )
+        return "New York"
 
 
 # Initialize OpenAI client for archgw
@@ -127,10 +359,10 @@ archgw_client = AsyncOpenAI(
 app = FastAPI(title="Weather Forecast Agent", version="1.0.0")
 
 
-def prepare_weather_messages(request_body: ChatCompletionRequest):
+async def prepare_weather_messages(request_body: ChatCompletionRequest):
     """Prepare messages with weather data."""
-    # Extract location from conversation
-    location = extract_location_from_messages(request_body.messages)
+    # Extract location from conversation using LLM
+    location = await extract_location_from_messages(request_body.messages)
 
     # Determine if they want forecast (multi-day)
     last_user_msg = ""
@@ -141,8 +373,8 @@ def prepare_weather_messages(request_body: ChatCompletionRequest):
 
     days = 5 if "forecast" in last_user_msg or "week" in last_user_msg else 1
 
-    # Get weather data
-    weather_data = get_weather_data(location, days)
+    # Get live weather data
+    weather_data = await get_weather_data(location, days)
 
     # Create system message with weather data
     weather_context = f"""
@@ -170,7 +402,6 @@ async def chat_completion_http(request: Request, request_body: ChatCompletionReq
     """HTTP endpoint for chat completions with streaming support."""
     logger.info(f"Received weather request with {len(request_body.messages)} messages")
 
-    # Get traceparent header from HTTP request
     traceparent_header = request.headers.get("traceparent")
 
     if traceparent_header:
@@ -189,15 +420,13 @@ async def stream_chat_completions(
     request_body: ChatCompletionRequest, traceparent_header: str = None
 ):
     """Generate streaming chat completions."""
-    # Prepare messages with weather data
-    response_messages = prepare_weather_messages(request_body)
+    response_messages = await prepare_weather_messages(request_body)
 
     try:
         logger.info(
             f"Calling archgw at {LLM_GATEWAY_ENDPOINT} to generate weather response"
         )
 
-        # Prepare extra headers
         extra_headers = {"x-envoy-max-retries": "3"}
         if traceparent_header:
             extra_headers["traceparent"] = traceparent_header
@@ -235,7 +464,6 @@ async def stream_chat_completions(
 
                 yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
-        # Send final chunk
         full_response = "".join(collected_content)
         updated_history = [{"role": "assistant", "content": full_response}]
 

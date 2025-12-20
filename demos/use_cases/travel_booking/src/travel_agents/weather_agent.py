@@ -193,7 +193,7 @@ async def get_weather_data(location: str, days: int = 1):
     weather_data = await get_live_weather(latitude, longitude, days)
 
     if not weather_data:
-        logger.warning(f"Could not fetch weather data for {location_name}")
+        logger.warning("Could not fetch weather data for requested location")
         return {
             "location": location_name,
             "forecast": [

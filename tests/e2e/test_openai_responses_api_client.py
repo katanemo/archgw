@@ -595,7 +595,7 @@ def test_openai_responses_api_streaming_with_tools_upstream_anthropic():
 
     stream = client.responses.create(
         model="claude-sonnet-4-20250514",
-        input="Call the echo tool",
+        input="Call the echo tool with hello_world",
         tools=tools,
         stream=True,
     )

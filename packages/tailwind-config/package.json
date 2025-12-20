@@ -1,0 +1,12 @@
+{
+  "name": "@katanemo/tailwind-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "files": [
+    "tailwind.config.ts"
+  ],
+  "devDependencies": {
+    "tailwindcss": "^4"
+  }
+}

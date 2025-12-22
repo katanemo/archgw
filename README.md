@@ -44,11 +44,6 @@ Plano pulls rote plumbing out of your framework so you can stay focused on what 
 ## Contact
 To get in touch with us, please join our [discord server](https://discord.gg/pGZf2gcwEc). We will be monitoring that actively and offering support there.
 
-## Demos
-* [Sample App: Weather Forecast Agent](demos/samples_python/weather_forecast/README.md) - A sample agentic weather forecasting app that highlights core function calling capabilities of Plano.
-* [Sample App: Network Operator Agent](demos/samples_python/network_switch_operator_agent/README.md) - A simple network device switch operator agent that can retrieve device statistics and reboot them.
-
-
 ## Quickstart
 
 Follow this quickstart guide to use Plano as a router for local or hosted LLMs, including dynamic routing. Later in the section we will see how you can Plano to build highly capable agentic applications, and to provide e2e observability.

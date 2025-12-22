@@ -3,8 +3,16 @@
 Quickstart
 ==========
 
-Follow this guide to learn how to quickly set up Plano and integrate it into your generative AI applications.
+Follow this guide to learn how to quickly set up Plano and integrate it into your generative AI applications. You can:
 
+- :ref:`Build agents <quickstart_agents>` for multi-step workflows (e.g., travel assistants with flights and hotels).
+- :ref:`Call deterministic APIs via prompt targets <quickstart_prompt_targets>` to turn instructions directly into function calls.
+- :ref:`Use Plano as a model proxy (Gateway) <llm_routing_quickstart>` to standardize access to multiple LLM providers.
+
+.. note::
+  This quickstart assumes basic familiarity with agents and prompt targets from the Concepts section. For background, see :ref:`Agents <agents>` and :ref:`Prompt Target <prompt_target>`.
+
+  The full agent and backend API implementations used here are available in the `plano-quickstart repository <https://github.com/plano-ai/plano-quickstart>`_. This guide focuses on wiring and configuring Plano (orchestration, prompt targets, and the model proxy), not application code.
 
 Prerequisites
 -------------
@@ -30,10 +38,92 @@ Plano's CLI allows you to manage and interact with the Plano efficiently. To ins
 Build Agentic Apps with Plano
 -----------------------------
 
-In the following quickstart, we will show you how easy it is to build an AI agent with the Plano. We will build a currency exchange agent using the following simple steps. For this demo, we will use `https://api.frankfurter.dev/` to fetch the latest prices for currencies and assume USD as the base currency.
+Plano helps you build agentic applications in two complementary ways:
+
+* **Orchestrate agents**: Let Plano decide which agent or LLM should handle each request and in what sequence.
+* **Call deterministic backends**: Use prompt targets to turn natural-language prompts into structured, validated API calls.
+
+.. _quickstart_agents:
+
+Building agents with Plano orchestration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Agents are where your business logic lives (the "inner loop"). Plano takes care of the "outer loop"—routing, sequencing, and managing calls across agents and LLMs.
+
+At a high level, building agents with Plano looks like this:
+
+1. **Implement your agent** in your framework of choice (Python, JS/TS, etc.), exposing it as an HTTP service.
+2. **Route LLM calls through Plano's Model Proxy**, so all models share a consistent interface and observability.
+3. **Configure Plano to orchestrate**: define which agent(s) can handle which kinds of prompts, and let Plano decide when to call an agent vs. an LLM.
+
+This quickstart uses a simplified version of the Travel Booking Assistant; for the full multi-agent walkthrough, see :ref:`Orchestration <agent_routing>`.
+
+Step 1. Minimal orchestration config
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here is a minimal configuration that wires Plano-Orchestrator to two HTTP services: one for flights and one for hotels.
+
+.. code-block:: yaml
+
+  version: v0.1.0
+
+  agents:
+    - id: flight_agent
+      url: http://host.docker.internal:10520  # your flights service
+    - id: hotel_agent
+      url: http://host.docker.internal:10530  # your hotels service
+
+  model_providers:
+    - model: openai/gpt-4o
+      access_key: $OPENAI_API_KEY
+
+  listeners:
+    - type: agent
+      name: travel_assistant
+      port: 8001
+      router: plano_orchestrator_v1
+      agents:
+        - id: flight_agent
+          description: Search for flights and provide flight status.
+        - id: hotel_agent
+          description: Find hotels and check availability.
+
+  tracing:
+    random_sampling: 100
+
+Step 2. Start your agents and Plano
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run your ``flight_agent`` and ``hotel_agent`` services (see :ref:`Orchestration <agent_routing>` for a full Travel Booking example), then start Plano with the config above:
+
+.. code-block:: console
+
+  $ plano up plano_config.yaml
+
+Plano will start the orchestrator and expose an agent listener on port ``8001``.
+
+Step 3. Send a prompt and let Plano route
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now send a request to Plano using the OpenAI-compatible chat completions API—the orchestrator will analyze the prompt and route it to the right agent based on intent:
+
+.. code-block:: bash
+
+  $ curl --header 'Content-Type: application/json' \
+    --data '{"messages": [{"role": "user","content": "Find me flights from SFO to JFK tomorrow"}], "model": "openai/gpt-4o"}' \
+    http://localhost:8001/v1/chat/completions
+
+You can then ask a follow-up like "Also book me a hotel near JFK" and Plano-Orchestrator will route to ``hotel_agent``—your agents stay focused on business logic while Plano handles routing.
+
+.. _quickstart_prompt_targets:
+
+Deterministic API calls with prompt targets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Next, we'll show Plano's deterministic API calling using a single prompt target. We'll build a currency exchange backend powered by `https://api.frankfurter.dev/`, assuming USD as the base currency.
 
 Step 1. Create plano config file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create ``plano_config.yaml`` file with the following content:
 
@@ -82,7 +172,7 @@ Create ``plano_config.yaml`` file with the following content:
        protocol: https
 
 Step 2. Start plano with currency conversion config
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: sh
 
@@ -99,7 +189,7 @@ Once the gateway is up, you can start interacting with it at port 10000 using th
 Some sample queries you can ask include: ``what is currency rate for gbp?`` or ``show me list of currencies for conversion``.
 
 Step 3. Interacting with gateway using curl command
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Here is a sample curl command you can use to interact:
 
@@ -122,8 +212,10 @@ And to get the list of supported currencies:
    "Here is a list of the currencies that are supported for conversion from USD, along with their symbols:\n\n1. AUD - Australian Dollar\n2. BGN - Bulgarian Lev\n3. BRL - Brazilian Real\n4. CAD - Canadian Dollar\n5. CHF - Swiss Franc\n6. CNY - Chinese Renminbi Yuan\n7. CZK - Czech Koruna\n8. DKK - Danish Krone\n9. EUR - Euro\n10. GBP - British Pound\n11. HKD - Hong Kong Dollar\n12. HUF - Hungarian Forint\n13. IDR - Indonesian Rupiah\n14. ILS - Israeli New Sheqel\n15. INR - Indian Rupee\n16. ISK - Icelandic Króna\n17. JPY - Japanese Yen\n18. KRW - South Korean Won\n19. MXN - Mexican Peso\n20. MYR - Malaysian Ringgit\n21. NOK - Norwegian Krone\n22. NZD - New Zealand Dollar\n23. PHP - Philippine Peso\n24. PLN - Polish Złoty\n25. RON - Romanian Leu\n26. SEK - Swedish Krona\n27. SGD - Singapore Dollar\n28. THB - Thai Baht\n29. TRY - Turkish Lira\n30. USD - United States Dollar\n31. ZAR - South African Rand\n\nIf you want to convert USD to any of these currencies, you can select the one you are interested in."
 
 
-Use Plano as a LLM Router
--------------------------
+.. _llm_routing_quickstart:
+
+Use Plano as a Model Proxy (Gateway)
+------------------------------------
 
 Step 1. Create plano config file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,14 +248,14 @@ Step 2. Start plano
 
 Once the config file is created, ensure that you have environment variables set up for ``MISTRAL_API_KEY`` and ``OPENAI_API_KEY`` (or these are defined in a ``.env`` file).
 
-Start the Plano gateway:
+Start Plano:
 
 .. code-block:: console
 
    $ plano up plano_config.yaml
    2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
    2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
-   2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano model server and plano gateway
+   2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano
    ...
    2024-12-05 11:25:16,131 - cli.core - INFO - Container is healthy!
 
@@ -171,7 +263,7 @@ Step 3: Interact with LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Step 3.1: Using OpenAI Python client
-++++++++++++++++++++++++++++++++++++
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Make outbound calls via the Plano gateway:
 
@@ -196,7 +288,7 @@ Make outbound calls via the Plano gateway:
    print("OpenAI Response:", response.choices[0].message.content)
 
 Step 3.2: Using curl command
-++++++++++++++++++++++++++++
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -217,31 +309,6 @@ Step 3.2: Using curl command
        }
      ],
    }
-
-You can override model selection using the ``x-plano-llm-provider-hint`` header. For example, to use Mistral, use the following curl command:
-
-.. code-block:: bash
-
-   $ curl --header 'Content-Type: application/json' \
-     --header 'x-plano-llm-provider-hint: ministral-3b' \
-     --data '{"messages": [{"role": "user","content": "What is the capital of France?"}], "model": "none"}' \
-     http://localhost:12000/v1/chat/completions
-
-   {
-     ...
-     "model": "ministral-3b-latest",
-     "choices": [
-       {
-         "messages": {
-           "role": "assistant",
-           "content": "The capital of France is Paris. It is the most populous city in France and is known for its iconic landmarks such as the Eiffel Tower, the Louvre Museum, and Notre-Dame Cathedral. Paris is also a major global center for art, fashion, gastronomy, and culture.",
-         },
-         ...
-       }
-     ],
-     ...
-   }
-
 
 Next Steps
 ==========

@@ -48,7 +48,7 @@ Your agent controls:
    * **Rich agentic signals**: Automatic capture of function calls, tool usage, reasoning steps, and model behavior—surfaced through traces and metrics without instrumenting your agent code.
    * **Smart model routing**: Leverage :ref:`model-based, alias-based, or preference-aligned routing <llm_providers>` to dynamically select the best model for each task based on cost, performance, or custom policies.
 
-   By routing LLM calls through the Model Proxy, your agents remain decoupled from specific providers and can benefit from centralized policy enforcement, observability, and intelligent routing—all managed in the outer loop. For a step-by-step guide, see :ref:`implementing_routing` in the LLM Router guide.
+   By routing LLM calls through the Model Proxy, your agents remain decoupled from specific providers and can benefit from centralized policy enforcement, observability, and intelligent routing—all managed in the outer loop. For a step-by-step guide, see :ref:`llm_router` in the LLM Router guide.
 
 Outer Loop (Orchestration)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

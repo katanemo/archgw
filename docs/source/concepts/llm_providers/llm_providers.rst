@@ -2,15 +2,15 @@
 
 Model (LLM) Providers
 =====================
-**LLM Providers** are a top-level primitive in Plano, helping developers centrally define, secure, observe,
-and manage the usage of their LLMs. Plano builds on Envoy's reliable `cluster subsystem <https://www.envoyproxy.io/docs/envoy/v1.31.2/intro/arch_overview/upstream/cluster_manager>`_
-to manage egress traffic to LLMs, which includes intelligent routing, retry and fail-over mechanisms,
-ensuring high availability and fault tolerance. This abstraction also enables developers to seamlessly
-switch between LLM providers or upgrade LLM versions, simplifying the integration and scaling of LLMs
-across applications.
+**Model Providers** are a top-level primitive in Plano, helping developers centrally define, secure, observe,
+and manage the usage of their models. Plano builds on Envoy's reliable `cluster subsystem <https://www.envoyproxy.io/docs/envoy/v1.31.2/intro/arch_overview/upstream/cluster_manager>`_ to manage egress traffic to models, which includes intelligent routing, retry and fail-over mechanisms,
+ensuring high availability and fault tolerance. This abstraction also enables developers to seamlessly switch between model providers or upgrade model versions, simplifying the integration and scaling of models across applications.
 
-Today, we are enabling you to connect to 11+ different AI providers through a unified interface with advanced routing and management capabilities.
+Today, we are enable you to connect to 15+ different AI providers through a unified interface with advanced routing and management capabilities.
 Whether you're using OpenAI, Anthropic, Azure OpenAI, local Ollama models, or any OpenAI-compatible provider, Plano provides seamless integration with enterprise-grade features.
+
+.. note::
+    Please refer to the quickstart guide :ref:`here <llm_routing_quickstart>` to configure and use LLM providers via common client libraries like OpenAI and Anthropic Python SDKs, or via direct HTTP/cURL requests.
 
 Core Capabilities
 -----------------

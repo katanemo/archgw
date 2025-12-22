@@ -115,7 +115,7 @@ sitemap_url_scheme = "{link}"
 # Add this configuration at the bottom of your conf.py
 
 html_context = {
-    "google_analytics_id": "G-K2LXXSX6HB",  # Replace with your Google Analytics tracking ID
+    "google_analytics_id": "G-EH2VW19FXE",  # Replace with your Google Analytics tracking ID
 }
 
 templates_path = ["_templates"]

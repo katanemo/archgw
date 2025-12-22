@@ -343,21 +343,22 @@ async fn handle_agent_chat(
         debug!("Collecting response from intermediate agent: {}", agent_name);
         let response_text = response_handler.collect_full_response(llm_response).await?;
 
-        // Create a new message with the agent's response as assistant message
-        // and add it to the conversation history
-        current_messages.push(OpenAIMessage {
-            role: hermesllm::apis::openai::Role::Assistant,
-            content: hermesllm::apis::openai::MessageContent::Text(response_text.clone()),
-            name: Some(agent_name.clone()),
-            tool_calls: None,
-            tool_call_id: None,
-        });
-
         info!(
             "Agent {} completed, passing {} character response to next agent",
             agent_name,
             response_text.len()
         );
+
+        // Create a new message with the agent's response as assistant message
+        // and add it to the conversation history
+        current_messages.push(OpenAIMessage {
+            role: hermesllm::apis::openai::Role::Assistant,
+            content: hermesllm::apis::openai::MessageContent::Text(response_text),
+            name: Some(agent_name.clone()),
+            tool_calls: None,
+            tool_call_id: None,
+        });
+
     }
 
     // This should never be reached since we return in the last agent iteration

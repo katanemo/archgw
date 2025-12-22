@@ -1,4 +1,7 @@
 use bytes::Bytes;
+use hermesllm::SseEvent;
+use hermesllm::apis::OpenAIApi;
+use hermesllm::clients::{SupportedAPIsFromClient, SupportedUpstreamAPIs};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
@@ -6,7 +9,7 @@ use hyper::{Response, StatusCode};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
-use tracing::warn;
+use tracing::{info, warn};
 
 /// Errors that can occur during response handling
 #[derive(Debug, thiserror::Error)]
@@ -132,6 +135,11 @@ impl ResponseHandler {
             .await
             .map_err(|e| ResponseError::StreamError(format!("Failed to read response: {}", e)))?;
 
+
+        let client_api =
+            SupportedAPIsFromClient::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+        let upstream_api = SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+
         // Try to parse as SSE streaming response
         if let Ok(sse_iter) = SseStreamIter::try_from(response_bytes.as_ref()) {
             let mut accumulated_text = String::new();
@@ -142,10 +150,19 @@ impl ResponseHandler {
                     continue;
                 }
 
+                let transformed_event = SseEvent::try_from((sse_event, &client_api, &upstream_api)).unwrap();
+
                 // Try to get provider response and extract content delta
-                if let Ok(provider_response) = sse_event.provider_response() {
-                    if let Some(content) = provider_response.content_delta() {
-                        accumulated_text.push_str(&content);
+                match transformed_event.provider_response() {
+                    Ok(provider_response) => {
+                        if let Some(content) = provider_response.content_delta() {
+                            accumulated_text.push_str(&content);
+                        } else {
+                            info!("No content delta in provider response");
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse provider response: {:?}", e);
                     }
                 }
             }

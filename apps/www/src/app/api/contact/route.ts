@@ -1,14 +1,60 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY environment variable is not set');
+  }
+  return new Resend(apiKey);
+}
+
+interface ContactPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  company?: string;
+  lookingFor: string;
+}
+
+function buildProperties(company?: string, lookingFor?: string): Record<string, string> | undefined {
+  const properties: Record<string, string> = {};
+  if (company) properties.company_name = company;
+  if (lookingFor) properties.looking_for = lookingFor;
+  return Object.keys(properties).length > 0 ? properties : undefined;
+}
+
+function isDuplicateError(error: { message?: string; statusCode?: number | null }): boolean {
+  const errorMessage = error.message?.toLowerCase() || '';
+  return (
+    errorMessage.includes('already exists') ||
+    errorMessage.includes('duplicate') ||
+    error.statusCode === 409
+  );
+}
+
+function createContactPayload(
+  email: string,
+  firstName: string,
+  lastName: string,
+  company?: string,
+  lookingFor?: string
+) {
+  const properties = buildProperties(company, lookingFor);
+  return {
+    email,
+    firstName,
+    lastName,
+    unsubscribed: false,
+    ...(properties && { properties }),
+  };
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { firstName, lastName, email, company, lookingFor } = body;
+    const { firstName, lastName, email, company, lookingFor }: ContactPayload = body;
 
-    // Validate required fields
     if (!email || !firstName || !lastName || !lookingFor) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -16,48 +62,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create or update the contact
-    // Note: Contact properties (company_name, looking_for) should be
-    // created manually in Resend dashboard or via a one-time setup script.
-    // Attempting to create them on every request causes rate limit issues.
+    const contactPayload = createContactPayload(email, firstName, lastName, company, lookingFor);
+    const resend = getResendClient();
 
-    // Build properties object with custom fields
-    // Property keys must match exactly what's defined in Resend dashboard
-    const properties: Record<string, string> = {};
-    if (company) properties.company_name = company;
-    if (lookingFor) properties.looking_for = lookingFor;
-
-    let { data, error } = await resend.contacts.create({
-      email,
-      firstName,
-      lastName,
-      unsubscribed: false,
-      // Pass custom properties as a Record<string, string>
-      ...(Object.keys(properties).length > 0 && { properties }),
-    });
+    const { data, error } = await resend.contacts.create(contactPayload);
 
     if (error) {
-      // If contact already exists, update it instead
-      const errorMessage = error.message?.toLowerCase() || '';
-      const isDuplicate =
-        errorMessage.includes('already exists') ||
-        errorMessage.includes('duplicate') ||
-        error.statusCode === 409;
-
-      if (isDuplicate) {
-        // Build properties object for update
-        const updateProperties: Record<string, string> = {};
-        if (company) updateProperties.company_name = company;
-        if (lookingFor) updateProperties.looking_for = lookingFor;
-
-        const { data: updateData, error: updateError } = await resend.contacts.update({
-          email,
-          firstName,
-          lastName,
-          unsubscribed: false,
-          // Pass custom properties as a Record<string, string>
-          ...(Object.keys(updateProperties).length > 0 && { properties: updateProperties }),
-        });
+      if (isDuplicateError(error)) {
+        const { data: updateData, error: updateError } = await resend.contacts.update(
+          contactPayload
+        );
 
         if (updateError) {
           console.error('Resend update error:', updateError);

@@ -661,6 +661,19 @@ impl SignalAnalyzer {
             // Frustration
             "this is frustrating",
             "frustrated",
+            "incomplete",
+            "overwhelm",
+            "overwhelmed",
+            "overwhelming",
+            "exhausted",
+            "struggled",
+            // same issue
+            "same issue",
+            // polite dissatisfaction
+            "i'm disappointed",
+            "thanks, but",
+            "appreciate it, but",
+            "good, but",
             // Fed up/done
             "i give up",
             "give up",
@@ -2040,4 +2053,68 @@ mod tests {
         println!("test_frustrated_user_false_claim took: {:?}", start.elapsed());
         println!("Full signal analysis completed in {:?}", start.elapsed());
     }
+
+    // false negative tests
+    #[test]
+    fn test_dissatisfaction_polite_not_working_for_me() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "Thanks, but this still isn't working for me."), // Polite dissatisfaction, e.g., I appreciate it, but this isn't what I was looking for.
+            create_message(Role::Assistant, "Sorry—what error do you see?"),
+        ];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_frustration(&normalized);
+        assert!(signal.has_frustration, "Polite dissatisfaction should be detected");
+    }
+
+
+    #[test]
+    fn test_dissatisfaction_giving_up_without_escalation() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "Never mind, I'll figure it out myself."),
+        ];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_escalation(&normalized);
+        assert!(signal.escalation_requested, "Giving up should count as escalation/quit intent");
+    }
+
+    #[test]
+    fn test_dissatisfaction_same_problem_again() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "I'm running into the same issue again."),
+        ];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_frustration(&normalized);
+        assert!(signal.has_frustration, "'same issue again' should be detected");
+    }
+
+    #[test]
+    fn test_unsatisfied_incomplete() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![create_message(Role::User, "This feels incomplete.")];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_frustration(&normalized);
+        assert!(signal.has_frustration, "Should detect 'incomplete' dissatisfaction");
+    }
+
+    #[test]
+    fn test_low_mood_overwhelming() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![create_message(Role::User, "This is overwhelming and I'm not sure what to do.")];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_frustration(&normalized);
+        assert!(signal.has_frustration, "Should detect overwhelmed language");
+    }
+
+    #[test]
+    fn test_low_mood_exhausted_trying() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![create_message(Role::User, "I'm exhausted trying to get this working.")];
+        let normalized = preprocess_messages(&messages);
+        let signal = analyzer.analyze_frustration(&normalized);
+        assert!(signal.has_frustration, "Should detect exhaustion/struggle language");
+    }
+
 }

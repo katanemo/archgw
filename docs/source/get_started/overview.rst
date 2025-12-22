@@ -47,12 +47,12 @@ Deep dive into essential ideas and mechanisms behind Plano:
 
 .. grid:: 3
 
-    .. grid-item-card:: :octicon:`package` Tech Overview
-        :link: ../concepts/tech_overview/tech_overview.html
+    .. grid-item-card:: :octicon:`package` Agents
+        :link: ../concepts/agents.html
 
-        Learn about the technology stack
+        Learn about how to build and scale agents with Plano
 
-    .. grid-item-card:: :octicon:`webhook` LLM Providers
+    .. grid-item-card:: :octicon:`webhook` Model Providers
         :link: ../concepts/llm_providers/llm_providers.html
 
         Explore Arch’s LLM integration options
@@ -69,35 +69,35 @@ Step-by-step tutorials for practical Plano use cases and scenarios:
 
 .. grid:: 3
 
-    .. grid-item-card:: :octicon:`shield-check` Prompt Guard
+    .. grid-item-card:: :octicon:`shield-check` Guardrails
         :link: ../guides/prompt_guard.html
 
         Instructions on securing and validating prompts
 
-    .. grid-item-card:: :octicon:`code-square` Function Calling
-        :link: ../guides/function_calling.html
+    .. grid-item-card:: :octicon:`code-square` LLM Routing
+        :link: ../guides/llm_router.html
 
-        A guide to effective function calling
+        A guide to effective model selection strategies
 
-    .. grid-item-card:: :octicon:`issue-opened` Observability
-        :link: ../guides/observability/observability.html
+    .. grid-item-card:: :octicon:`issue-opened` State Management
+        :link: ../guides/state.html
 
-        Learn to monitor and troubleshoot Plano
+        Learn to manage conversation and application state
 
 
 Build with Plano
 ----------------
 
-For developers extending and customizing Plano for specialized needs:
+End to end examples demonstrating how to build agentic applications using Plano:
 
 .. grid:: 2
 
-    .. grid-item-card:: :octicon:`dependabot` Agentic Workflow
-        :link: ../build_with_plano/agent.html
+    .. grid-item-card:: :octicon:`dependabot` Build Agentic Apps
+        :link: ../get_started/quickstart.html#build-agentic-apps-with-plano
 
         Discover how to create and manage custom agents within Plano
 
-    .. grid-item-card:: :octicon:`stack` RAG Application
-        :link: ../build_with_plano/rag.html
+    .. grid-item-card:: :octicon:`stack` Build Multi-LLM Apps
+        :link: ../get_started/quickstart.html#use-plano-as-a-model-proxy-gateway
 
-        Integrate RAG for knowledge-driven responses
+        Learn how to route LLM calls through Plano for enhanced control and observability

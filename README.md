@@ -8,7 +8,6 @@
 
 
 [Quickstart](#Quickstart) •
-[Demos](#Demos) •
 [Route LLMs](#use-plano-as-a-llm-router) •
 [Build Agentic Apps with Plano](#Build-Agentic-Apps-with-Plano) •
 [Documentation](https://docs.planoai.dev) •

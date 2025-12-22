@@ -20,5 +20,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "npm@10.0.0",
+  "dependencies": {
+    "react": "^19.2.3",
+    "resend": "^6.6.0"
+  }
 }

@@ -10,7 +10,7 @@ const footerLinks = {
     { label: "Hugging Face", href: "https://huggingface.co/katanemo", external: true },
   ],
   resources: [
-    { label: "GitHub", href: "https://github.com/katanemo/arch", external: true },
+    { label: "GitHub", href: "https://github.com/katanemo/archgw", external: true },
     { label: "Discord", href: "https://discord.gg/pGZf2gcwEc", external: true },
     { label: "Get Started", href: "https://docs.planoai.dev/get_started/installation", external: true },
   ],

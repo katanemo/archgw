@@ -13,6 +13,7 @@ const navItems = [
   { href: "https://docs.planoai.dev", label: "docs" },
   { href: "/research", label: "research" },
   { href: "/blog", label: "blog" },
+  { href: "/contact", label: "contact" },
 ];
 
 export function Navbar() {

@@ -26,8 +26,8 @@ Building agentic demos is easy. Shipping agentic applications safely, reliably, 
 
 Plano solves this by moving core delivery concerns into a unified, out-of-process dataplane.
 
-- **🚦 Orchestration:** Low-latency orchestration between agents; add new agents without changing application code
-- **🔗 Model Agility:** Route [by model name, alias (semantic names) or automatically via preferences](#use-plano-as-a-llm-router)
+- **🚦 Orchestration:** Low-latency orchestration between agents; add new agents without modifying app code.
+- **🔗 Model Agility:** Route [by model name, alias (semantic names) or automatically via preferences](#use-plano-as-a-llm-router).
 - **🕵 Agentic Signals&trade;:** Zero-code capture of [behavior signals](#observability) plus OTEL traces/metrics across every agent.
 - **🛡️ Moderation & Memory Hooks:** Build jailbreak protection, add moderation policies and memory consistently via [Filter Chains](https://docs.planoai.dev/concepts/filter_chain.html).
 

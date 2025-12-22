@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Hero } from "@/components/Hero";
 import { IntroSection } from "@/components/IntroSection";
 import { IdeaToAgentSection } from "@/components/IdeaToAgentSection";

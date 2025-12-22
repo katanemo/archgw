@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@katanemo/ui";
 import Link from "next/link";
 import { ArrowRight, MessageSquare, Building2, MessagesSquare } from "lucide-react";

@@ -26,11 +26,16 @@ trap cleanup EXIT
 # WAIT_FOR_PIDS+=($!)
 
 
-log "Starting query_parser agent on port 10501..."
+log "Starting query_rewriter agent on port 10500/http..."
+uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10500 --agent query_rewriter &
+WAIT_FOR_PIDS+=($!)
+
+
+log "Starting query_parser agent on port 10501/mcp..."
 uv run python -m rag_agent --host 0.0.0.0 --port 10501 --agent query_rewriter &
 WAIT_FOR_PIDS+=($!)
 
-log "Starting context_builder agent on port 10502..."
+log "Starting context_builder agent on port 10502/mcp..."
 uv run python -m rag_agent --host 0.0.0.0 --port 10502 --agent context_builder &
 WAIT_FOR_PIDS+=($!)
 

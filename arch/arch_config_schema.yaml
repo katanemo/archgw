@@ -36,6 +36,7 @@ properties:
           type: string
           enum:
             - mcp
+            - rest
         transport:
           type: string
           enum:

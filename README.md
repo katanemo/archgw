@@ -107,7 +107,7 @@ Plano uses a lightweight 1.5B autoregressive model to intelligently map user pro
 
 <div align="left">
   <a href="https://arxiv.org/abs/2506.16655" target="_blank">
-    <img src="docs/source/_static/img/plano_router_paper_preview.png" alt="Plano Router Paper Preview">
+    <img src="docs/source/_static/img/arch_router_paper_preview.png" alt="Plano Router Paper Preview">
   </a>
 </div>
 

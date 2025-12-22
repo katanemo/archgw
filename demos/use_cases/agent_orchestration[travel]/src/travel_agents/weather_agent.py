@@ -1,4 +1,5 @@
 import json
+import re
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
@@ -50,34 +51,42 @@ CRITICAL INSTRUCTIONS:
    - Always provide temperatures in both Celsius and Fahrenheit when available
    - If temperature is null, say "temperature data unavailable" rather than making up numbers
 
-3. ERROR HANDLING:
+3. MULTI-PART QUERIES AND MULTI-AGENT COLLABORATION:
+   - If the user asks multiple questions in one message (e.g., "What's the weather in Seattle, and what flights go to New York?"), focus ONLY on answering the weather-related part
+   - When queries contain multiple intents (weather + flights, weather + currency), you are part of a coordinated response where each agent handles their domain
+   - Provide complete weather information directly without mentioning other agents or deferring to them
+   - Example: "Here's the weather in Seattle: [provide complete weather info]." (Do NOT say "other agents may handle flights")
+   - Do NOT attempt to answer questions outside your weather expertise
+   - Simply provide your weather response - the system coordinates responses from multiple agents automatically
+
+4. ERROR HANDLING:
    - If the forecast array contains an "error" field, acknowledge the issue politely
    - If temperature or condition is null/None, mention that specific data is unavailable
    - Never invent or guess weather data - only use what's provided
    - If location couldn't be determined, acknowledge this but still provide available data
 
-4. RESPONSE FORMAT:
+5. RESPONSE FORMAT:
    - For single-day queries: Provide current conditions, temperature, and condition
    - For multi-day forecasts: List each day with date, day name, high/low temps, and condition
    - Include sunrise/sunset times when available and relevant
    - Use natural, conversational language
    - Be concise but complete
 
-5. CONDITION DESCRIPTIONS:
+6. CONDITION DESCRIPTIONS:
    - Use the exact condition provided (e.g., "Clear sky", "Rainy", "Partly Cloudy")
    - Add context when helpful (e.g., "perfect for outdoor activities" for clear skies)
 
-6. LOCATION HANDLING:
+7. LOCATION HANDLING:
    - Always mention the location name from the data
    - If the location differs from what the user asked, acknowledge this politely
 
-7. RESPONSE STYLE:
+8. RESPONSE STYLE:
    - Be friendly and professional
    - Use natural language, not technical jargon
    - Format dates and times clearly
    - For forecasts, use bullet points or numbered lists for clarity
 
-Remember: Only use the data provided. Never fabricate weather information. If data is missing, clearly state what's unavailable."""
+Remember: Only use the data provided. Never fabricate weather information. If data is missing, clearly state what's unavailable. Focus ONLY on weather-related questions. Provide complete weather responses without mentioning other agents."""
 
 
 async def geocode_city(city: str) -> Optional[dict]:
@@ -264,68 +273,114 @@ async def get_weather_data(location: str, days: int = 1):
     return {"location": location_name, "forecast": forecast}
 
 
-LOCATION_EXTRACTION_PROMPT = """You are a location extraction assistant. Your ONLY job is to extract the geographic location (city, state, country, etc.) from user messages.
+LOCATION_EXTRACTION_PROMPT = """You are a location extraction assistant for WEATHER queries. Your ONLY job is to extract the geographic location (city, state, country, etc.) that the user is asking about for WEATHER information.
 
 CRITICAL RULES:
-1. Extract ONLY the location name - nothing else
+1. Extract ONLY the location name associated with WEATHER questions - nothing else
 2. Return just the location name in plain text (e.g., "London", "New York", "Paris, France")
-3. If the user mentions multiple locations, extract the PRIMARY location they're asking about
-4. Ignore error messages, HTML tags, and assistant responses
-5. If no clear location is found, return exactly: "NOT_FOUND"
-6. Clean the location name - remove words like "about", "for", "in", "the weather in", etc.
-7. Return the location in a format suitable for geocoding (city name, or "City, State", or "City, Country")
+3. If the user mentions multiple locations in a multi-part query, extract ONLY the location mentioned in the WEATHER part
+   - Example: "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → Extract "Seattle" (the weather location, NOT Atlanta which is for flights)
+   - Example: "Weather in London and flights to Paris" → Extract "London" (weather location)
+4. Look for patterns like "weather in [location]", "forecast for [location]", "weather [location]"
+5. Ignore error messages, HTML tags, and assistant responses
+6. If no clear weather-related location is found, return exactly: "NOT_FOUND"
+7. Clean the location name - remove words like "about", "for", "in", "the weather in", etc.
+8. Return the location in a format suitable for geocoding (city name, or "City, State", or "City, Country")
 
 Examples:
 - "What's the weather in London?" → "London"
 - "Tell me about the weather for New York" → "New York"
 - "Weather forecast for Paris, France" → "Paris, France"
-- "I'm going to Seattle" → "Seattle"
-- "About London" → "London"
+- "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → "Seattle" (NOT Atlanta - that's for flights)
+- "Weather in Istanbul and flights to Seattle" → "Istanbul" (weather location)
+- "I'm going to Seattle" → "Seattle" (if context suggests weather query)
 - "What's happening?" → "NOT_FOUND"
 
-Now extract the location from this message:"""
+Now extract the WEATHER location from this message:"""
 
 
 async def extract_location_from_messages(messages):
-    """Extract location from user messages using LLM."""
+    """Extract location from user messages using LLM, focusing on weather-related locations."""
     user_messages = [msg for msg in messages if msg.role == "user"]
 
     if not user_messages:
         logger.warning("No user messages found, using default: New York")
         return "New York"
 
+    # CRITICAL: Always preserve the FIRST user message (original query) for multi-agent scenarios
+    # When Plano processes multiple agents, it may add assistant responses that get filtered out,
+    # but we need to always use the original user query
+    original_user_message = user_messages[0].content.strip() if user_messages else None
+
+    # Try to find a valid recent user message first (for follow-up queries)
     user_content = None
     for msg in reversed(user_messages):
         content = msg.content.strip()
         content_lower = content.lower()
+
+        # Skip messages that are clearly JSON-encoded assistant responses or errors
+        # But be less aggressive - only skip if it's clearly not a user query
+        if content.startswith("[{") or content.startswith("[{"):
+            # Likely JSON-encoded assistant response
+            continue
         if any(
             pattern in content_lower
             for pattern in [
-                "<",
-                ">",
-                "assistant:",
+                '"role": "assistant"',
+                '"role":"assistant"',
                 "error:",
-                "i apologize",
-                "i'm having trouble",
             ]
         ):
             continue
+        # Don't skip messages that just happen to contain these words naturally
         user_content = content
         break
+
+    # Fallback to original user message if no valid recent message found
+    if not user_content and original_user_message:
+        # Check if original message is valid (not JSON-encoded)
+        if not (
+            original_user_message.startswith("[{")
+            or original_user_message.startswith("[{")
+        ):
+            user_content = original_user_message
+            logger.info(f"Using original user message: {user_content[:200]}")
 
     if not user_content:
         logger.warning("No valid user message found, using default: New York")
         return "New York"
 
     try:
-        logger.info(f"Extracting location from user message: {user_content[:200]}")
+        logger.info(
+            f"Extracting weather location from user message: {user_content[:200]}"
+        )
+
+        # Build context from conversation history
+        conversation_context = []
+        for msg in messages:
+            content = msg.content.strip()
+            content_lower = content.lower()
+            if any(
+                pattern in content_lower
+                for pattern in ["<", ">", "error:", "i apologize", "i'm having trouble"]
+            ):
+                continue
+            conversation_context.append({"role": msg.role, "content": content})
+
+        # Use last 5 messages for context
+        context_messages = (
+            conversation_context[-5:]
+            if len(conversation_context) > 5
+            else conversation_context
+        )
+
+        llm_messages = [{"role": "system", "content": LOCATION_EXTRACTION_PROMPT}]
+        for msg in context_messages:
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
 
         response = await archgw_client.chat.completions.create(
             model=LOCATION_MODEL,
-            messages=[
-                {"role": "system", "content": LOCATION_EXTRACTION_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
+            messages=llm_messages,
             temperature=0.1,
             max_tokens=50,
         )
@@ -334,18 +389,55 @@ async def extract_location_from_messages(messages):
         location = location.strip("\"'`.,!?")
 
         if not location or location.upper() == "NOT_FOUND":
+            # Fallback: Try regex extraction for weather patterns
+            weather_patterns = [
+                r"weather\s+(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                r"forecast\s+(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                r"weather\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+            ]
+            for msg in reversed(context_messages):
+                if msg["role"] == "user":
+                    content = msg["content"]
+                    for pattern in weather_patterns:
+                        match = re.search(pattern, content, re.IGNORECASE)
+                        if match:
+                            potential_location = match.group(1).strip()
+                            logger.info(
+                                f"Fallback regex extracted weather location: {potential_location}"
+                            )
+                            return potential_location
+
             logger.warning(
                 f"LLM could not extract location from message, using default: New York"
             )
             return "New York"
 
-        logger.info(f"LLM extracted location: {location}")
+        logger.info(f"LLM extracted weather location: {location}")
         return location
 
     except Exception as e:
-        logger.error(
-            f"Error extracting location with LLM: {e}, using default: New York"
-        )
+        logger.error(f"Error extracting location with LLM: {e}, trying fallback regex")
+        # Fallback regex extraction
+        try:
+            for msg in reversed(messages):
+                if msg.role == "user":
+                    content = msg.content
+                    weather_patterns = [
+                        r"weather\s+(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                        r"forecast\s+(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                    ]
+                    for pattern in weather_patterns:
+                        match = re.search(pattern, content, re.IGNORECASE)
+                        if match:
+                            potential_location = match.group(1).strip()
+                            logger.info(
+                                f"Fallback regex extracted weather location: {potential_location}"
+                            )
+                            return potential_location
+        except:
+            pass
+
+        logger.error("All extraction methods failed, using default: New York")
         return "New York"
 
 

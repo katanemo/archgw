@@ -120,6 +120,16 @@ Assistant: [Flight information from Istanbul to Seattle]
 
 The system understands context and pronouns, automatically routing to the right agent.
 
+### Multi-Intent Queries
+```
+User: What's the weather in Seattle, and do any flights go direct to New York?
+Assistant: [Both weather_agent and flight_agent respond simultaneously]
+  - Weather Agent: [Weather information for Seattle]
+  - Flight Agent: [Flight information from Seattle to New York]
+```
+
+The orchestrator can select multiple agents simultaneously for queries containing multiple intents.
+
 ## Agent Details
 
 ### Weather Agent

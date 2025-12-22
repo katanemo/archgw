@@ -1,4 +1,5 @@
 import json
+import re
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
@@ -59,26 +60,37 @@ CRITICAL INSTRUCTIONS:
    - Indicate flight status (scheduled, enroute, arrived, cancelled, etc.)
    - Show aircraft type when available
 
-3. RESPONSE FORMAT:
+3. MULTI-PART QUERIES AND MULTI-AGENT COLLABORATION:
+   - If the user asks multiple questions in one message (e.g., "What's the weather in Seattle, and what flights go to New York?"), focus ONLY on answering the flight-related part
+   - When queries contain multiple intents (weather + flights, flights + currency), you are part of a coordinated response where each agent handles their domain
+   - Provide complete flight information directly without mentioning other agents or deferring to them
+   - Example: "Here's a flight from Seattle to New York: [provide complete flight info]." (Do NOT say "other agents may handle weather")
+   - Do NOT attempt to answer questions outside your flight expertise (e.g., weather, currency, hotels)
+   - Simply provide your flight response - the system coordinates responses from multiple agents automatically
+
+4. RESPONSE FORMAT:
    - For flight searches: List available flights with clear details
    - Include departure and arrival times (scheduled, estimated, actual)
    - Mention any delays or status changes
    - Use natural, conversational language
    - Be concise but complete
 
-4. HANDLING INCOMPLETE QUERIES:
-   - If the user asks a follow-up question like "Do they fly out from X?" or "Do they have flights to Y?", use conversation context to understand what they're asking
-   - If origin or destination is missing from the data, check if it can be inferred from the conversation context
-   - If you cannot determine the complete route, politely ask for clarification: "I can help you find flights! Could you please specify both the origin and destination cities? For example, 'flights from Istanbul to Seattle' or 'flights from Seattle to Istanbul'."
-   - When answering follow-up questions, acknowledge what you understand from context: "Based on our conversation about Istanbul, I can help you find flights from Istanbul to Seattle..."
+5. HANDLING INCOMPLETE QUERIES AND CONVERSATION CONTEXT:
+   - ALWAYS check conversation history for context when origin or destination is missing
+   - If the user asks "What flights go direct from Seattle?" after asking about weather in Istanbul, infer: origin=Seattle, destination=Istanbul (from previous context)
+   - If the user asks "Do they fly out from X?" look for previously mentioned cities in the conversation
+   - When a destination is missing but a city was mentioned earlier (e.g., "What's the weather in Istanbul?"), use that city as the destination
+   - When an origin is missing but a city was mentioned earlier, use that city as the origin
+   - If you cannot determine the complete route from context, politely ask for clarification: "I can help you find flights! Could you please specify both the origin and destination cities? For example, 'flights from Istanbul to Seattle' or 'flights from Seattle to Istanbul'."
+   - When answering follow-up questions, acknowledge what you understand from context: "Based on our conversation about Istanbul, I can help you find flights from Seattle to Istanbul..."
 
-5. ERROR HANDLING:
+6. ERROR HANDLING:
    - If flight data is missing or null, acknowledge this politely
    - Never invent or guess flight information - only use what's provided
    - If airports or flights cannot be found, mention this clearly
    - If the route doesn't exist or no flights are available, suggest alternatives or ask if they meant a different route
 
-Remember: Only use the data provided. Never fabricate flight information. If data is missing, clearly state what's unavailable. Use conversation context to understand follow-up questions."""
+Remember: Only use the data provided. Never fabricate flight information. If data is missing, clearly state what's unavailable. Use conversation context to understand follow-up questions. Focus ONLY on flight-related questions. Provide complete flight responses without mentioning other agents."""
 
 
 FLIGHT_EXTRACTION_PROMPT = """You are a flight information extraction assistant. Your ONLY job is to extract flight-related information from user messages and convert it to structured data.
@@ -106,10 +118,12 @@ CRITICAL RULES:
 6. Determine the origin and destination based on context:
    - "from X to Y" → origin=X, destination=Y
    - "X to Y" → origin=X, destination=Y
-   - "flights from X" → origin=X, destination=null (unless context provides destination)
-   - "flights to Y" → origin=null (unless context provides origin), destination=Y
-   - "Do they fly out from X?" → origin=X (or from context), destination=from context or null
-   - "Do they have flights to Y?" → origin=from context, destination=Y
+   - "flights from X" → origin=X, destination=null (UNLESS conversation context provides a previously mentioned city - use that as destination)
+   - "flights to Y" → origin=null (UNLESS conversation context provides a previously mentioned city - use that as origin), destination=Y
+   - "What flights go direct from X?" → origin=X, destination=from conversation context (if a city was mentioned earlier)
+   - "Do they fly out from X?" → origin=X (or from context), destination=from context (check ALL previous messages for mentioned cities)
+   - "Do they have flights to Y?" → origin=from context (check ALL previous messages), destination=Y
+   - CRITICAL: When only one part (origin OR destination) is provided, ALWAYS check conversation history for the missing part
 7. Return your response as a JSON object with the following structure:
    {
      "origin": "London" or null,
@@ -128,6 +142,7 @@ CRITICAL RULES:
 
 Examples with context:
 - Conversation: "What's the weather in Istanbul?" → Current: "Do they fly out from Seattle?" → {"origin": "Istanbul", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- Conversation: "What's the weather in Istanbul?" → Current: "What flights go direct from Seattle?" → {"origin": "Seattle", "destination": "Istanbul", "date": null, "origin_airport_code": null, "destination_airport_code": null} (Istanbul from previous context)
 - Conversation: "What's the weather in London?" → Current: "What flights go from there to Seattle?" → {"origin": "London", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
 - Conversation: "Tell me about Istanbul" → Current: "Do they have flights to Seattle?" → {"origin": "Istanbul", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
 - "What flights go from London to Seattle?" → {"origin": "London", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
@@ -162,24 +177,44 @@ async def extract_flight_info_from_messages(messages):
             "destination_airport_code": None,
         }
 
+    # CRITICAL: Always preserve the FIRST user message (original query) for multi-agent scenarios
+    # When Plano processes multiple agents, it may add assistant responses that get filtered out,
+    # but we need to always use the original user query
+    original_user_message = user_messages[0].content.strip() if user_messages else None
+
+    # Try to find a valid recent user message first (for follow-up queries)
     user_content = None
     for msg in reversed(user_messages):
         content = msg.content.strip()
         content_lower = content.lower()
+
+        # Skip messages that are clearly JSON-encoded assistant responses or errors
+        # But be less aggressive - only skip if it's clearly not a user query
+        if content.startswith("[{") or content.startswith("[{"):
+            # Likely JSON-encoded assistant response
+            continue
         if any(
             pattern in content_lower
             for pattern in [
-                "<",
-                ">",
-                "assistant:",
+                '"role": "assistant"',
+                '"role":"assistant"',
                 "error:",
-                "i apologize",
-                "i'm having trouble",
             ]
         ):
             continue
+        # Don't skip messages that just happen to contain these words naturally
         user_content = content
         break
+
+    # Fallback to original user message if no valid recent message found
+    if not user_content and original_user_message:
+        # Check if original message is valid (not JSON-encoded)
+        if not (
+            original_user_message.startswith("[{")
+            or original_user_message.startswith("[{")
+        ):
+            user_content = original_user_message
+            logger.info(f"Using original user message: {user_content[:200]}")
 
     if not user_content:
         logger.warning("No valid user message found")
@@ -243,6 +278,39 @@ async def extract_flight_info_from_messages(messages):
                 "origin_airport_code": flight_info.get("origin_airport_code"),
                 "destination_airport_code": flight_info.get("destination_airport_code"),
             }
+
+            # Fallback: If destination is missing but we have origin, try to infer from conversation context
+            if result["origin"] and not result["destination"]:
+                # Look for cities mentioned in previous messages
+                for msg in reversed(conversation_context):
+                    if msg["role"] == "user":
+                        content = msg["content"]
+                        # Look for weather queries mentioning cities
+                        if (
+                            "weather" in content.lower()
+                            or "forecast" in content.lower()
+                        ):
+                            # Common patterns: "weather in [city]", "forecast for [city]", "weather [city]"
+                            patterns = [
+                                r"(?:weather|forecast).*?(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                                r"weather\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                            ]
+                            for pattern in patterns:
+                                city_match = re.search(pattern, content, re.IGNORECASE)
+                                if city_match:
+                                    potential_city = city_match.group(1).strip()
+                                    # Don't use the same city as origin
+                                    if (
+                                        potential_city.lower()
+                                        != result["origin"].lower()
+                                    ):
+                                        logger.info(
+                                            f"Inferring destination from conversation context: {potential_city}"
+                                        )
+                                        result["destination"] = potential_city
+                                        break
+                            if result["destination"]:
+                                break
 
             logger.info(f"LLM extracted flight info: {result}")
             return result
@@ -471,6 +539,34 @@ async def prepare_flight_messages(request_body: ChatCompletionRequest):
     date = flight_info.get("date")
     origin_code = flight_info.get("origin_airport_code")
     dest_code = flight_info.get("destination_airport_code")
+
+    # Enhanced context extraction: If destination is missing, try to infer from conversation
+    if origin and not destination:
+        # Look through conversation history for mentioned cities
+        mentioned_cities = set()
+        for msg in request_body.messages:
+            if msg.role == "user":
+                content = msg.content
+                # Extract cities from weather queries: "weather in [city]", "forecast for [city]"
+                weather_patterns = [
+                    r"(?:weather|forecast).*?(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                    r"weather\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                ]
+                for pattern in weather_patterns:
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    for match in matches:
+                        city = match.strip()
+                        # Don't use same city as origin, and validate it's a real city name
+                        if city.lower() != origin.lower() and len(city.split()) <= 3:
+                            mentioned_cities.add(city)
+
+        # If we found cities in context, use the first one as destination
+        if mentioned_cities:
+            destination = list(mentioned_cities)[0]
+            logger.info(
+                f"Inferred destination from conversation context: {destination}"
+            )
+            flight_info["destination"] = destination
 
     if origin and not origin_code:
         origin_code = await resolve_airport_code(origin)

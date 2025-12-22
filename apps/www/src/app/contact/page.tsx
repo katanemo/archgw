@@ -143,7 +143,7 @@ export default function ContactPage() {
                    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                          <div className="flex flex-col gap-2">
-                            <label htmlFor="firstName" className="text-xs font-mono font-bold text-gray-700 uppercase tracking-wide">First Name</label>
+                            <label htmlFor="firstName" className="text-sm font-medium text-gray-600">First Name</label>
                             <input
                               type="text"
                               id="firstName"
@@ -156,7 +156,7 @@ export default function ContactPage() {
                             />
                          </div>
                          <div className="flex flex-col gap-2">
-                            <label htmlFor="lastName" className="text-xs font-mono font-bold text-gray-700 uppercase tracking-wide">Last Name</label>
+                            <label htmlFor="lastName" className="text-sm font-medium text-gray-600">Last Name</label>
                              <input
                               type="text"
                               id="lastName"
@@ -171,7 +171,7 @@ export default function ContactPage() {
                       </div>
 
                       <div className="flex flex-col gap-2">
-                         <label htmlFor="email" className="text-xs font-mono font-bold text-gray-700 uppercase tracking-wide">Work Email</label>
+                         <label htmlFor="email" className="text-sm font-medium text-gray-600">Work Email</label>
                          <input
                             type="email"
                             id="email"
@@ -185,7 +185,7 @@ export default function ContactPage() {
                       </div>
 
                       <div className="flex flex-col gap-2">
-                         <label htmlFor="company" className="text-xs font-mono font-bold text-gray-700 uppercase tracking-wide">Company Name</label>
+                         <label htmlFor="company" className="text-sm font-medium text-gray-600">Company Name</label>
                          <input
                             type="text"
                             id="company"
@@ -198,7 +198,7 @@ export default function ContactPage() {
                       </div>
 
                       <div className="flex flex-col gap-2">
-                          <label htmlFor="lookingFor" className="text-xs font-mono font-bold text-gray-700 uppercase tracking-wide">How can we help?</label>
+                          <label htmlFor="lookingFor" className="text-sm font-medium text-gray-600">How can we help?</label>
                           <textarea
                             id="lookingFor"
                             name="lookingFor"

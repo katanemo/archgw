@@ -7,8 +7,8 @@ agents:
 filters:
   - id: query_rewriter
     url: http://host.docker.internal:10500
-    type: rest
-    # type: rest or mcp, mcp is default
+    type: http
+    # type: http or mcp, mcp is default
     # transport: streamable-http # default is streamable-http
     # tool: query_rewriter # default name is the filter id
   - id: context_builder

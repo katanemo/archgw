@@ -1,11 +1,44 @@
+
 services:
   jaeger:
     build:
       context: ../../shared/jaeger
+    container_name: jaeger
+    restart: always
     ports:
-      - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+
+  weather-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weather-agent
+    restart: always
+    ports:
+      - "10510:10510"
+    environment:
+      - LLM_GATEWAY_ENDPOINT=http://host.docker.internal:12000/v1
+    command: ["uv", "run", "python", "src/travel_agents/weather_agent.py"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  flight-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flight-agent
+    restart: always
+    ports:
+      - "10520:10520"
+    environment:
+      - LLM_GATEWAY_ENDPOINT=http://host.docker.internal:12000/v1
+      - AEROAPI_KEY=${AEROAPI_KEY:-ESVFX7TJLxB7OTuayUv0zTQBryA3tOPr}
+    command: ["uv", "run", "python", "src/travel_agents/flight_agent.py"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   open-web-ui:
     image: dyrnq/open-webui:main
     restart: always
@@ -15,3 +48,6 @@ services:
       - DEFAULT_MODEL=gpt-4o-mini
       - ENABLE_OPENAI_API=true
       - OPENAI_API_BASE_URL=http://host.docker.internal:8001/v1
+    depends_on:
+      - weather-agent
+      - flight-agent

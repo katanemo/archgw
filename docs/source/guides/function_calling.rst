@@ -34,7 +34,7 @@ Function Calling Workflow
 
 
 Arch-Function
--------------------------
+-------------
 The `Arch-Function <https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68>`_ collection of large language models (LLMs) is a collection state-of-the-art (SOTA) LLMs specifically designed for **function calling** tasks.
 The models are designed to understand complex function signatures, identify required parameters, and produce accurate function call outputs based on natural language prompts.
 Achieving performance on par with GPT-4, these models set a new benchmark in the domain of function-oriented tasks, making them suitable for scenarios where automated API interaction and function execution is crucial.
@@ -122,7 +122,7 @@ Specify the parameters your function needs and how Plano should interpret these.
     For a complete refernce of attributes that you can configure in a prompt target, see :ref:`here <defining_prompt_target_parameters>`.
 
 Step 3: Plano Takes Over
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 Once you have defined the functions and configured the prompt targets, Plano takes care of the remaining work.
 It will automatically validate parameters, and ensure that the required parameters (e.g., location) are present in the prompt, and add validation rules if necessary.
 

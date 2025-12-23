@@ -37,7 +37,7 @@ and a context builder that prepares retrieval context before the agent runs.
 .. literalinclude:: ../../source/resources/includes/plano_config_agents_filters.yaml
     :language: yaml
     :linenos:
-    :emphasize-lines: 29-39
+    :emphasize-lines: 7-14, 37-39
     :caption: Example Configuration
 
 In this setup:

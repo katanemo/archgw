@@ -51,7 +51,7 @@ are some sample configuration files for both, respectively.
         timeout: 10s
         api_version: v2
     scrape_configs:
-    - job_name: archgw
+    - job_name: plano
         honor_timestamps: true
         scrape_interval: 15s
         scrape_timeout: 10s

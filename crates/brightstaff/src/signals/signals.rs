@@ -2117,4 +2117,146 @@ mod tests {
         assert!(signal.has_frustration, "Should detect exhaustion/struggle language");
     }
 
+    #[test]
+    fn test_common_polite_unresolved_dissatisfaction() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "I'm trying to set up SSH keys for GitHub."),
+            create_message(Role::Assistant, "Sure. First generate a key using ssh-keygen."),
+            create_message(Role::User, "I did that already."),
+            create_message(Role::Assistant, "Then add the key to your GitHub account settings."),
+            create_message(Role::User, "I've done that too."),
+            create_message(Role::Assistant, "After that, make sure your SSH agent is running."),
+            create_message(Role::User, "Okay, but this still doesn't seem to fix the issue."),
+            create_message(Role::Assistant, "What error message are you seeing?"),
+            create_message(Role::User, "It's just not connecting the way I expected."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // This is a common false negative if you only look for caps/profanity.
+        // Desired: detect dissatisfaction/frustration (or at least not rate as Excellent).
+        assert!(
+            report.frustration.has_frustration || report.follow_up.repair_count >= 1,
+            "Should detect polite unresolved dissatisfaction via frustration or follow-up indicators"
+        );
+
+        assert!(
+            !matches!(report.overall_quality, InteractionQuality::Excellent),
+            "Should not classify unresolved dissatisfaction as Excellent"
+        );
+    }
+
+    #[test]
+    fn test_common_resigned_giving_up_quietly() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "Can you explain how to deploy this with Docker?"),
+            create_message(Role::Assistant, "You need to write a Dockerfile and build an image."),
+            create_message(Role::User, "I tried that."),
+            create_message(Role::Assistant, "Then you can run docker-compose up."),
+            create_message(Role::User, "I did, but it didn’t really help."),
+            create_message(Role::Assistant, "What error are you getting?"),
+            create_message(Role::User, "Honestly, never mind. I’ll just try something else."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // Many systems miss "never mind / I'll try something else" if they only look for "human agent".
+        assert!(
+            report.escalation.escalation_requested || report.frustration.has_frustration,
+            "Resigned quitting language should trigger escalation or frustration"
+        );
+
+        assert!(
+            matches!(report.overall_quality, InteractionQuality::Poor | InteractionQuality::Severe)
+                || report.escalation.escalation_requested
+                || report.frustration.has_frustration,
+            "Giving up should not be classified as a high-quality interaction"
+        );
+    }
+
+    #[test]
+    fn test_common_discouraged_overwhelmed_low_mood() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "I'm trying to understand backpropagation."),
+            create_message(Role::Assistant, "It's a way to compute gradients efficiently."),
+            create_message(Role::User, "I’ve read that explanation already."),
+            create_message(Role::Assistant, "Would you like a mathematical derivation?"),
+            create_message(Role::User, "Maybe, but I’m still having trouble following."),
+            create_message(Role::Assistant, "I can walk through a simple example."),
+            create_message(Role::User, "That might help, but honestly this is pretty overwhelming."),
+            create_message(Role::Assistant, "Let’s slow it down step by step."),
+            create_message(Role::User, "Yeah… I’m just feeling kind of discouraged right now."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // This is negative affect without caps/profanity. Should still count as frustration/negative signal.
+        assert!(
+            report.frustration.has_frustration,
+            "Overwhelmed/discouraged language should be detected as negative sentiment/frustration"
+        );
+
+        assert!(
+            !matches!(report.overall_quality, InteractionQuality::Excellent),
+            "Low-mood discouragement should not be classified as Excellent"
+        );
+    }
+
+    #[test]
+    fn test_common_misalignment_not_what_i_asked() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "How do I optimize this SQL query?"),
+            create_message(Role::Assistant, "You can add indexes to improve performance."),
+            create_message(Role::User, "I already have indexes."),
+            create_message(Role::Assistant, "Then you could consider query caching."),
+            create_message(Role::User, "That’s not really what I was asking about."),
+            create_message(Role::Assistant, "What specifically are you trying to optimize?"),
+            create_message(Role::User, "The execution plan — this answer doesn’t address that."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // Misalignment often shows as follow-up repair or frustration.
+        assert!(
+            report.follow_up.repair_count >= 1 || report.frustration.has_frustration,
+            "Misalignment ('not what I asked') should trigger repair or frustration signals"
+        );
+
+        assert!(
+            !matches!(report.overall_quality, InteractionQuality::Excellent),
+            "Misalignment should not be rated as Excellent"
+        );
+    }
+
+    #[test]
+    fn test_common_false_negative_polite_disappointment_complexity() {
+        let analyzer = SignalAnalyzer::new();
+        let messages = vec![
+            create_message(Role::User, "Can you help me write a regex for this?"),
+            create_message(Role::Assistant, "Sure, try this pattern: ^[a-z]+$"),
+            create_message(Role::User, "I tested it."),
+            create_message(Role::Assistant, "Did it work?"),
+            create_message(Role::User, "Not quite — it matches more than it should."),
+            create_message(Role::Assistant, "You can refine it with a lookahead."),
+            create_message(Role::User, "I see… this is more complicated than I expected."),
+        ];
+
+        let report = analyzer.analyze(&messages);
+
+        // Polite disappointment often becomes a false negative.
+        assert!(
+            report.frustration.has_frustration || report.follow_up.repair_count >= 1,
+            "Polite dissatisfaction ('not quite', 'more complicated than expected') should trigger a negative signal"
+        );
+
+        assert!(
+            !matches!(report.overall_quality, InteractionQuality::Excellent),
+            "Polite disappointment should not be classified as Excellent"
+        );
+    }
+
 }

@@ -17,6 +17,7 @@ Configuration Structure
 All providers are configured in the ``llm_providers`` section of your ``plano_config.yaml`` file:
 
 .. code-block:: yaml
+
     llm_providers:
       # Provider configurations go here
       - model: provider/model-name

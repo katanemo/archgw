@@ -18,7 +18,7 @@ Model-based routing
 
 Direct routing allows you to specify exact provider and model combinations using the format ``provider/model-name``:
 
-- Use provider-specific names like ``openai/gpt-4o`` or ``anthropic/claude-3-5-sonnet-20241022``
+- Use provider-specific names like ``openai/gpt-5.2`` or ``anthropic/claude-sonnet-4-5``
 - Provides full control and transparency over which model handles each request
 - Ideal for production workloads where you want predictable routing behavior
 
@@ -38,14 +38,14 @@ Configure your LLM providers with specific provider/model names:
         timeout: 30s
 
     llm_providers:
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         default: true
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
 
 Client usage
@@ -57,12 +57,12 @@ Clients specify exact models:
 
     # Direct provider/model specification
     response = client.chat.completions.create(
-        model="openai/gpt-4o-mini",
+        model="openai/gpt-5.2",
         messages=[{"role": "user", "content": "Hello!"}]
     )
 
     response = client.chat.completions.create(
-        model="anthropic/claude-3-5-sonnet-20241022",
+        model="anthropic/claude-sonnet-4-5",
         messages=[{"role": "user", "content": "Write a story"}]
     )
 
@@ -73,7 +73,7 @@ Alias-based routing
 
 Alias-based routing lets you create semantic model names that decouple your application from specific providers:
 
-- Use meaningful names like ``fast-model``, ``reasoning-model``, or ``arch.summarize.v1`` (see :ref:`model_aliases`)
+- Use meaningful names like ``fast-model``, ``reasoning-model``, or ``plano.summarize.v1`` (see :ref:`model_aliases`)
 - Maps semantic names to underlying provider models for easier experimentation and provider switching
 - Ideal for applications that want abstraction from specific model names while maintaining control
 
@@ -93,25 +93,25 @@ Configure semantic aliases that map to underlying models:
         timeout: 30s
 
     llm_providers:
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
 
     model_aliases:
       # Model aliases - friendly names that map to actual provider names
       fast-model:
-        target: gpt-4o-mini
+        target: gpt-5.2
 
       reasoning-model:
-        target: gpt-4o
+        target: gpt-5
 
       creative-model:
-        target: claude-3-5-sonnet-20241022
+        target: claude-sonnet-4-5
 
 Client usage
 ^^^^^^^^^^^^
@@ -160,11 +160,11 @@ To configure preference-aligned dynamic routing, define routing preferences that
         timeout: 30s
 
     llm_providers:
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         default: true
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
         routing_preferences:
           - name: code understanding
@@ -172,7 +172,7 @@ To configure preference-aligned dynamic routing, define routing preferences that
           - name: complex reasoning
             description: deep analysis, mathematical problem solving, and logical reasoning
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
         routing_preferences:
           - name: creative writing
@@ -190,7 +190,7 @@ Clients can let the router decide or still specify aliases:
     # Let Arch-Router choose based on content
     response = client.chat.completions.create(
         messages=[{"role": "user", "content": "Write a creative story about space exploration"}]
-        # No model specified - router will analyze and choose claude-3-5-sonnet-20241022
+        # No model specified - router will analyze and choose claude-sonnet-4-5
     )
 
 
@@ -237,17 +237,17 @@ You can combine static model selection with dynamic routing preferences for maxi
     :caption: Hybrid Routing Configuration
 
     llm_providers:
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         default: true
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
         routing_preferences:
           - name: complex_reasoning
             description: deep analysis and complex problem solving
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
         routing_preferences:
           - name: creative_tasks
@@ -256,14 +256,14 @@ You can combine static model selection with dynamic routing preferences for maxi
     model_aliases:
       # Model aliases - friendly names that map to actual provider names
       fast-model:
-        target: gpt-4o-mini
+        target: gpt-5.2
 
       reasoning-model:
-        target: gpt-4o
+        target: gpt-5
 
       # Aliases that can also participate in dynamic routing
       creative-model:
-        target: claude-3-5-sonnet-20241022
+        target: claude-sonnet-4-5
 
 This configuration allows clients to:
 

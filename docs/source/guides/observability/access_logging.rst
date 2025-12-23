@@ -19,24 +19,24 @@ Key Features
 How It Works
 ^^^^^^^^^^^^
 
-Plano exposes access logs for every call it manages on your behalf. By default these access logs can be found under ``~/archgw_logs``. For example:
+Plano exposes access logs for every call it manages on your behalf. By default these access logs can be found under ``~/plano_logs``. For example:
 
 .. code-block:: console
 
-  $ tail -F ~/archgw_logs/access_*.log
+  $ tail -F ~/plano_logs/access_*.log
 
-  ==> /Users/adilhafeez/archgw_logs/access_llm.log <==
+  ==> /Users/username/plano_logs/access_llm.log <==
   [2024-10-10T03:55:49.537Z] "POST /v1/chat/completions HTTP/1.1" 0 DC 0 0 770 - "-" "OpenAI/Python 1.51.0" "469793af-b25f-9b57-b265-f376e8d8c586" "api.openai.com" "162.159.140.245:443"
 
-  ==> /Users/adilhafeez/archgw_logs/access_internal.log <==
+  ==> /Users/username/plano_logs/access_internal.log <==
   [2024-10-10T03:56:03.906Z] "POST /embeddings HTTP/1.1" 200 - 52 21797 54 53 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
   [2024-10-10T03:56:03.961Z] "POST /zeroshot HTTP/1.1" 200 - 106 218 87 87 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
   [2024-10-10T03:56:04.050Z] "POST /v1/chat/completions HTTP/1.1" 200 - 1301 614 441 441 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
   [2024-10-10T03:56:04.492Z] "POST /hallucination HTTP/1.1" 200 - 556 127 104 104 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
   [2024-10-10T03:56:04.598Z] "POST /insurance_claim_details HTTP/1.1" 200 - 447 125 17 17 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "api_server" "192.168.65.254:18083"
 
-  ==> /Users/adilhafeez/archgw_logs/access_ingress.log <==
-  [2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "arch_llm_listener" "0.0.0.0:12000"
+  ==> /Users/username/plano_logs/access_ingress.log <==
+  [2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "plano_llm_listener" "0.0.0.0:12000"
 
 
 Log Format
@@ -58,6 +58,6 @@ For example for following request:
 
 .. code-block:: console
 
-  [2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "arch_llm_listener" "0.0.0.0:12000"
+  [2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "plano_llm_listener" "0.0.0.0:12000"
 
 Total duration was 1695ms, and the upstream service took 984ms to process the request. Bytes received and sent were 463 and 1022 respectively.

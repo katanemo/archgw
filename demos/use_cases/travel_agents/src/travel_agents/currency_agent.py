@@ -402,7 +402,7 @@ Use this data to answer the user's currency exchange query.
 
     response_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": currency_context},
+        {"role": "assistant", "content": currency_context},
     ]
 
     # Add conversation history

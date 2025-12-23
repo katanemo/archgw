@@ -664,7 +664,7 @@ Example: "I'd be happy to help you find flights! Could you please tell me both t
 
     response_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": flight_context},
+        {"role": "assistant", "content": flight_context},
     ]
 
     # Add conversation history

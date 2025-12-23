@@ -349,6 +349,9 @@ async fn handle_agent_chat(
             response_text.len()
         );
 
+        // remove last message and add new one at the end
+        let last_message = current_messages.pop().unwrap();
+
         // Create a new message with the agent's response as assistant message
         // and add it to the conversation history
         current_messages.push(OpenAIMessage {
@@ -358,6 +361,8 @@ async fn handle_agent_chat(
             tool_calls: None,
             tool_call_id: None,
         });
+
+        current_messages.push(last_message);
 
     }
 

@@ -508,7 +508,7 @@ Use this data to answer the user's weather query.
 
     response_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": weather_context},
+        {"role": "assistant", "content": weather_context},
     ]
 
     # Add conversation history

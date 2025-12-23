@@ -307,10 +307,14 @@ LOCATION_EXTRACTION_PROMPT = """You are a location extraction assistant for WEAT
 CRITICAL RULES:
 1. Extract ONLY the location name associated with WEATHER questions - nothing else
 2. Return just the location name in plain text (e.g., "London", "New York", "Paris, France")
-3. If the user mentions multiple locations in a multi-part query, extract ONLY the location mentioned in the WEATHER part
-   - Example: "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → Extract "Seattle" (the weather location, NOT Atlanta which is for flights)
+3. **MULTI-PART QUERY HANDLING**: If the user mentions multiple locations in a multi-part query, extract ONLY the location mentioned in the WEATHER part
+   - Look for patterns like "weather in [location]", "forecast for [location]", "weather [location]"
+   - The location that appears WITH "weather" keywords is the weather location
+   - Example: "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → Extract "Seattle" (appears with "weather in")
+   - Example: "What is the weather in Atlanta and what flight goes from Detroit to Atlanta?" → Extract "Atlanta" (appears with "weather in", even though Atlanta also appears in flight part)
    - Example: "Weather in London and flights to Paris" → Extract "London" (weather location)
-4. Look for patterns like "weather in [location]", "forecast for [location]", "weather [location]"
+   - Example: "What flight goes from Detroit to Atlanta and what's the weather in Atlanta?" → Extract "Atlanta" (appears with "weather in")
+4. Look for patterns like "weather in [location]", "forecast for [location]", "weather [location]", "temperature in [location]"
 5. Ignore error messages, HTML tags, and assistant responses
 6. If no clear weather-related location is found, return exactly: "NOT_FOUND"
 7. Clean the location name - remove words like "about", "for", "in", "the weather in", etc.
@@ -320,8 +324,10 @@ Examples:
 - "What's the weather in London?" → "London"
 - "Tell me about the weather for New York" → "New York"
 - "Weather forecast for Paris, France" → "Paris, France"
-- "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → "Seattle" (NOT Atlanta - that's for flights)
+- "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → "Seattle" (appears with "weather in")
+- "What is the weather in Atlanta and what flight goes from Detroit to Atlanta?" → "Atlanta" (appears with "weather in")
 - "Weather in Istanbul and flights to Seattle" → "Istanbul" (weather location)
+- "What flight goes from Detroit to Atlanta and what's the weather in Atlanta?" → "Atlanta" (appears with "weather in")
 - "I'm going to Seattle" → "Seattle" (if context suggests weather query)
 - "What's happening?" → "NOT_FOUND"
 

@@ -132,33 +132,48 @@ FLIGHT_EXTRACTION_PROMPT = """You are a flight information extraction assistant.
 CRITICAL RULES:
 1. Extract origin city/airport and destination city/airport from the message AND conversation context
 2. Extract any mentioned dates or time references
-3. PAY ATTENTION TO CONVERSATION CONTEXT - THIS IS CRITICAL:
+3. **CROSS-AGENT REFERENCE HANDLING - CRITICAL**: When extracting flight info, use cities mentioned in weather queries as context
+   - If a weather query mentions a city (e.g., "weather in Seattle"), use that city to fill missing flight origin/destination
+   - Example: "What is the weather in Seattle and what flight goes to New York direct?"
+     → Weather mentions "Seattle" → Use Seattle as flight origin
+     → Extract origin=Seattle, destination=New York
+   - Example: "What is the weather in Atlanta and what flight goes from Detroit to Atlanta?"
+     → Extract origin=Detroit, destination=Atlanta (both explicitly mentioned in flight part)
+   - **ALWAYS check conversation history for cities mentioned in weather queries** - use them to infer missing flight origin/destination
+4. **MULTI-PART QUERY HANDLING**: When the user asks about both weather/flights/currency in one query, extract ONLY the flight-related parts
+   - Look for patterns like "flight from X to Y", "flights from X", "flights to Y", "flight goes from X to Y"
+   - Example: "What is the weather in Atlanta and what flight goes from Detroit to Atlanta?" → Extract origin=Detroit, destination=Atlanta (ignore Atlanta weather part)
+   - Example: "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" → Extract origin=Seattle (from weather context), destination=Atlanta
+   - Focus on the flight route, but use weather context to fill missing parts
+5. PAY ATTENTION TO CONVERSATION CONTEXT - THIS IS CRITICAL:
    - If previous messages mention cities/countries, use that context to resolve pronouns and incomplete queries
    - Example 1: Previous: "What's the weather in Istanbul?" → Current: "Do they fly out from Seattle?"
-     → This likely means: "Do flights go from Istanbul to Seattle?" OR "Do flights go from Seattle to Istanbul?"
-     → Since Istanbul was mentioned first, interpret as: origin=Istanbul, destination=Seattle
+     → "they" refers to Istanbul → origin=Istanbul, destination=Seattle
    - Example 2: Previous: "What's the weather in London?" → Current: "What flights go from there to Seattle?"
      → "there" = London → origin=London, destination=Seattle
    - Example 3: Previous: "What's the exchange rate for Turkey?" → Current: "Do they have flights to Seattle?"
      → "they" refers to Turkey/Istanbul → origin=Istanbul, destination=Seattle
-4. For follow-up questions like "Do they fly out from X?" or "Do they have flights to Y?":
+   - Example 4: Previous: "What is the weather in Seattle?" → Current: "What flight goes to New York direct?"
+     → Seattle mentioned in weather query → Use Seattle as origin → origin=Seattle, destination=New York
+6. For follow-up questions like "Do they fly out from X?" or "Do they have flights to Y?":
    - Look for previously mentioned cities/countries in the conversation
    - If a city was mentioned earlier, use it as the missing origin or destination
    - If the question mentions a city explicitly, use that city
    - Try to infer the complete route from context
-5. Extract dates and time references:
+7. Extract dates and time references:
    - "tomorrow", "today", "next week", specific dates
    - Convert relative dates to ISO format (YYYY-MM-DD) when possible
-6. Determine the origin and destination based on context:
+8. Determine the origin and destination based on context:
    - "from X to Y" → origin=X, destination=Y
    - "X to Y" → origin=X, destination=Y
+   - "flight goes from X to Y" → origin=X, destination=Y
    - "flights from X" → origin=X, destination=null (UNLESS conversation context provides a previously mentioned city - use that as destination)
    - "flights to Y" → origin=null (UNLESS conversation context provides a previously mentioned city - use that as origin), destination=Y
    - "What flights go direct from X?" → origin=X, destination=from conversation context (if a city was mentioned earlier)
    - "Do they fly out from X?" → origin=X (or from context), destination=from context (check ALL previous messages for mentioned cities)
    - "Do they have flights to Y?" → origin=from context (check ALL previous messages), destination=Y
    - CRITICAL: When only one part (origin OR destination) is provided, ALWAYS check conversation history for the missing part
-7. Return your response as a JSON object with the following structure:
+8. Return your response as a JSON object with the following structure:
    {
      "origin": "London" or null,
      "destination": "Seattle" or null,
@@ -167,14 +182,16 @@ CRITICAL RULES:
      "destination_airport_code": "SEA" or null
    }
 
-8. If you cannot determine a value, use null for that field
-9. Use city names (not airport codes) in origin/destination fields - airport codes will be resolved separately
-10. Ignore error messages, HTML tags, and assistant responses
-11. Extract from the most recent user message BUT use conversation context to resolve references
-12. For dates: Use ISO format (YYYY-MM-DD). If relative date like "tomorrow", calculate the actual date
-13. IMPORTANT: When a follow-up question mentions one city but context has another city, try to infer the complete route
+9. If you cannot determine a value, use null for that field
+10. Use city names (not airport codes) in origin/destination fields - airport codes will be resolved separately
+11. Ignore error messages, HTML tags, and assistant responses
+12. Extract from the most recent user message BUT use conversation context to resolve references
+13. For dates: Use ISO format (YYYY-MM-DD). If relative date like "tomorrow", calculate the actual date
+14. IMPORTANT: When a follow-up question mentions one city but context has another city, try to infer the complete route
 
 Examples with context:
+- "What is the weather in Atlanta and what flight goes from Detroit to Atlanta?" → {"origin": "Detroit", "destination": "Atlanta", "date": null, "origin_airport_code": null, "destination_airport_code": null}
+- "What is the weather in Seattle and what flight goes to New York direct?" → {"origin": "Seattle", "destination": "New York", "date": null, "origin_airport_code": null, "destination_airport_code": null} (Seattle from weather context)
 - Conversation: "What's the weather in Istanbul?" → Current: "Do they fly out from Seattle?" → {"origin": "Istanbul", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
 - Conversation: "What's the weather in Istanbul?" → Current: "What flights go direct from Seattle?" → {"origin": "Seattle", "destination": "Istanbul", "date": null, "origin_airport_code": null, "destination_airport_code": null} (Istanbul from previous context)
 - Conversation: "What's the weather in London?" → Current: "What flights go from there to Seattle?" → {"origin": "London", "destination": "Seattle", "date": null, "origin_airport_code": null, "destination_airport_code": null}
@@ -312,6 +329,39 @@ async def extract_flight_info_from_messages(messages):
                 "origin_airport_code": flight_info.get("origin_airport_code"),
                 "destination_airport_code": flight_info.get("destination_airport_code"),
             }
+
+            # Fallback: If origin is missing but we have destination, infer from weather context
+            if not result["origin"] and result["destination"]:
+                # Look for cities mentioned in weather queries in conversation context
+                for msg in reversed(conversation_context):
+                    if msg["role"] == "user":
+                        content = msg["content"]
+                        # Look for weather queries mentioning cities
+                        if (
+                            "weather" in content.lower()
+                            or "forecast" in content.lower()
+                        ):
+                            # Common patterns: "weather in [city]", "forecast for [city]", "weather [city]"
+                            patterns = [
+                                r"(?:weather|forecast).*?(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                                r"weather\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                            ]
+                            for pattern in patterns:
+                                city_match = re.search(pattern, content, re.IGNORECASE)
+                                if city_match:
+                                    potential_city = city_match.group(1).strip()
+                                    # Don't use the same city as destination
+                                    if (
+                                        potential_city.lower()
+                                        != result["destination"].lower()
+                                    ):
+                                        logger.info(
+                                            f"Inferring origin from weather context in extraction: {potential_city}"
+                                        )
+                                        result["origin"] = potential_city
+                                        break
+                            if result["origin"]:
+                                break
 
             # Fallback: If destination is missing but we have origin, try to infer from conversation context
             if result["origin"] and not result["destination"]:
@@ -574,7 +624,39 @@ async def prepare_flight_messages(request_body: ChatCompletionRequest):
     origin_code = flight_info.get("origin_airport_code")
     dest_code = flight_info.get("destination_airport_code")
 
-    # Enhanced context extraction: If destination is missing, try to infer from conversation
+    # Enhanced context extraction: Use weather queries to infer missing origin or destination
+    # CRITICAL: When user asks "weather in X and flight to Y", use X as origin
+    if not origin and destination:
+        # Look through conversation history for cities mentioned in weather queries
+        for msg in request_body.messages:
+            if msg.role == "user":
+                content = msg.content
+                # Extract cities from weather queries: "weather in [city]", "forecast for [city]"
+                weather_patterns = [
+                    r"(?:weather|forecast).*?(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                    r"weather\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+                ]
+                for pattern in weather_patterns:
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    for match in matches:
+                        city = match.strip()
+                        # Use weather city as origin if it's different from destination
+                        if (
+                            city.lower() != destination.lower()
+                            and len(city.split()) <= 3
+                        ):
+                            origin = city
+                            logger.info(
+                                f"Inferred origin from weather context: {origin} (destination: {destination})"
+                            )
+                            flight_info["origin"] = origin
+                            break
+                    if origin:
+                        break
+                if origin:
+                    break
+
+    # If destination is missing but origin is present, try to infer from conversation
     if origin and not destination:
         # Look through conversation history for mentioned cities
         mentioned_cities = set()

@@ -2,6 +2,7 @@
   "extends": "@katanemo/tsconfig/nextjs.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "esModuleInterop": true,
     "paths": {
       "@/*": ["./src/*"],
       "@katanemo/ui": ["../../packages/ui/src"]

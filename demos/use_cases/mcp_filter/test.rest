@@ -52,19 +52,16 @@ Content-Type: application/json
   "stream": true
 }
 
-### send request to context builder agent
-POST http://localhost:10501/v1/chat/completions
+### send request to query_rewriter agent
+POST http://localhost:10500/
 Content-Type: application/json
 
-{
-  "model": "gpt-4o-mini",
-  "messages": [
-    {
-      "role": "user",
-      "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
-    }
-  ]
-}
+[
+  {
+    "role": "user",
+    "content": "What is the guaranteed uptime percentage for TechCorp's cloud services?"
+  }
+]
 
 ### test fast-llm
 POST http://localhost:12000/v1/chat/completions

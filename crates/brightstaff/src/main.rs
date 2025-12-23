@@ -3,13 +3,14 @@ use brightstaff::handlers::function_calling::function_calling_chat_handler;
 use brightstaff::handlers::llm::llm_chat;
 use brightstaff::handlers::models::list_models;
 use brightstaff::router::llm_router::RouterService;
+use brightstaff::router::plano_orchestrator::OrchestratorService;
 use brightstaff::state::StateStorage;
 use brightstaff::state::postgresql::PostgreSQLConversationStorage;
 use brightstaff::state::memory::MemoryConversationalStorage;
 use brightstaff::utils::tracing::init_tracer;
 use bytes::Bytes;
 use common::configuration::{Agent, Configuration};
-use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH};
+use common::consts::{CHAT_COMPLETIONS_PATH, MESSAGES_PATH, OPENAI_RESPONSES_API_PATH, PLANO_ORCHESTRATOR_MODEL_NAME};
 use common::traces::TraceCollector;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use hyper::body::Incoming;
@@ -95,9 +96,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_service: Arc<RouterService> = Arc::new(RouterService::new(
         arch_config.model_providers.clone(),
         llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
-        routing_model_name,
-        routing_llm_provider,
+        routing_model_name.clone(),
+        routing_llm_provider.clone(),
     ));
+
+    let orchestrator_service: Arc<OrchestratorService> = Arc::new(OrchestratorService::new(
+        llm_provider_url.clone() + CHAT_COMPLETIONS_PATH,
+        PLANO_ORCHESTRATOR_MODEL_NAME.to_string(),
+    ));
+
 
     let model_aliases = Arc::new(arch_config.model_aliases.clone());
 
@@ -154,6 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
 
         let router_service: Arc<RouterService> = Arc::clone(&router_service);
+        let orchestrator_service: Arc<OrchestratorService> = Arc::clone(&orchestrator_service);
         let model_aliases: Arc<
             Option<std::collections::HashMap<String, common::configuration::ModelAlias>>,
         > = Arc::clone(&model_aliases);
@@ -166,6 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let state_storage = state_storage.clone();
         let service = service_fn(move |req| {
             let router_service = Arc::clone(&router_service);
+            let orchestrator_service = Arc::clone(&orchestrator_service);
             let parent_cx = extract_context_from_request(&req);
             let llm_provider_url = llm_provider_url.clone();
             let llm_providers = llm_providers.clone();
@@ -188,7 +197,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         let fully_qualified_url = format!("{}{}", llm_provider_url, stripped_path);
                         return agent_chat(
                             req,
-                            router_service,
+                            orchestrator_service,
                             fully_qualified_url,
                             agents_list,
                             listeners,

@@ -47,7 +47,7 @@ pub struct StreamContext {
     ttft_time: Option<u128>,
     traceparent: Option<String>,
     request_body_sent_time: Option<u128>,
-    overrides: Rc<Option<Overrides>>,
+    _overrides: Rc<Option<Overrides>>,
     user_message: Option<String>,
     upstream_status_code: Option<StatusCode>,
     binary_frame_decoder: Option<BedrockBinaryFrameDecoder<bytes::BytesMut>>,
@@ -65,7 +65,7 @@ impl StreamContext {
     ) -> Self {
         StreamContext {
             metrics,
-            overrides,
+            _overrides: overrides,
             ratelimit_selector: None,
             streaming_response: false,
             response_tokens: 0,
@@ -133,6 +133,7 @@ impl StreamContext {
             .get_http_request_header(ARCH_PROVIDER_HINT_HEADER)
             .map(|llm_name| llm_name.into());
 
+        // info!("llm_providers: {:?}", self.llm_providers);
         self.llm_provider = Some(routing::get_llm_provider(
             &self.llm_providers,
             provider_hint,
@@ -744,55 +745,35 @@ impl HttpContext for StreamContext {
             .map(|val| val == "true")
             .unwrap_or(false);
 
-        let use_agent_orchestrator = match self.overrides.as_ref() {
-            Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
-            None => false,
-        };
+        // let routing_header_value = self.get_http_request_header(ARCH_ROUTING_HEADER);
 
-        let routing_header_value = self.get_http_request_header(ARCH_ROUTING_HEADER);
+        self.select_llm_provider();
+        // Check if this is a supported API endpoint
+        if SupportedAPIsFromClient::from_endpoint(&request_path).is_none() {
+            self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
+            return Action::Continue;
+        }
 
-        if routing_header_value.is_some() && !routing_header_value.as_ref().unwrap().is_empty() {
-            let routing_header_value = routing_header_value.as_ref().unwrap();
-            info!("routing header already set: {}", routing_header_value);
-            self.llm_provider = Some(Rc::new(LlmProvider {
-                name: routing_header_value.to_string(),
-                provider_interface: LlmProviderType::OpenAI,
-                ..Default::default() //TODO: THiS IS BROKEN. WHY ARE WE ASSUMING OPENAI FOR UPSTREAM?
-            }));
-        } else {
-            //TODO: Fix this brittle code path. We need to return values and have compile time
-            self.select_llm_provider();
+        // Get the SupportedApi for routing decisions
+        let supported_api: Option<SupportedAPIsFromClient> =
+            SupportedAPIsFromClient::from_endpoint(&request_path);
+        self.client_api = supported_api;
 
-            // Check if this is a supported API endpoint
-            if SupportedAPIsFromClient::from_endpoint(&request_path).is_none() {
-                self.send_http_response(404, vec![], Some(b"Unsupported endpoint"));
-                return Action::Continue;
-            }
+        // Debug: log provider, client API, resolved API, and request path
+        if let (Some(api), Some(provider)) = (self.client_api.as_ref(), self.llm_provider.as_ref())
+        {
+            let provider_id = provider.to_provider_id();
+            self.resolved_api =
+                Some(provider_id.compatible_api_for_client(api, self.streaming_response));
 
-            // Get the SupportedApi for routing decisions
-            let supported_api: Option<SupportedAPIsFromClient> =
-                SupportedAPIsFromClient::from_endpoint(&request_path);
-            self.client_api = supported_api;
-
-            // Debug: log provider, client API, resolved API, and request path
-            if let (Some(api), Some(provider)) =
-                (self.client_api.as_ref(), self.llm_provider.as_ref())
-            {
-                let provider_id = provider.to_provider_id();
-                self.resolved_api =
-                    Some(provider_id.compatible_api_for_client(api, self.streaming_response));
-
-                debug!(
-                    "[PLANO_REQ_ID:{}] ROUTING_INFO: provider='{}' client_api={:?} resolved_api={:?} request_path='{}'",
-                    self.request_identifier(),
-                    provider.to_provider_id(),
-                    api,
-                    self.resolved_api,
-                    request_path
-                );
-            } else {
-                self.resolved_api = None;
-            }
+            debug!(
+                "[PLANO_REQ_ID:{}] ROUTING_INFO: provider='{}' client_api={:?} resolved_api={:?} request_path='{}'",
+                self.request_identifier(),
+                provider.to_provider_id(),
+                api,
+                self.resolved_api,
+                request_path
+            );
 
             //We need to update the upstream path if there is a variation for a provider like Gemini/Groq, etc.
             self.update_upstream_path(&request_path);
@@ -816,7 +797,6 @@ impl HttpContext for StreamContext {
             if let Err(error) = self.modify_auth_headers() {
                 // ensure that the provider has an endpoint if the access key is missing else return a bad request
                 if self.llm_provider.as_ref().unwrap().endpoint.is_none()
-                    && !use_agent_orchestrator
                     && self.llm_provider.as_ref().unwrap().provider_interface
                         != LlmProviderType::Arch
                 {
@@ -918,11 +898,6 @@ impl HttpContext for StreamContext {
             None => None,
         };
 
-        let use_agent_orchestrator = match self.overrides.as_ref() {
-            Some(overrides) => overrides.use_agent_orchestrator.unwrap_or_default(),
-            None => false,
-        };
-
         // Store the original model for logging
         let model_requested = deserialized_client_request.model().to_string();
 
@@ -930,29 +905,25 @@ impl HttpContext for StreamContext {
         let resolved_model = match model_name {
             Some(model_name) => model_name.clone(),
             None => {
-                if use_agent_orchestrator {
-                    "agent_orchestrator".to_string()
-                } else {
-                    warn!(
-                        "[PLANO_REQ_ID:{}] MODEL_RESOLUTION_ERROR: no model specified | req_model='{}' provider='{}' config_model={:?}",
-                        self.request_identifier(),
-                        model_requested,
-                        self.llm_provider().name,
-                        self.llm_provider().model
-                    );
-                    self.send_server_error(
-                        ServerError::BadRequest {
-                            why: format!(
-                                "No model specified in request and couldn't determine model name from arch_config. Model name in req: {}, arch_config, provider: {}, model: {:?}",
-                                model_requested,
-                                self.llm_provider().name,
-                                self.llm_provider().model
-                            ),
-                        },
-                        Some(StatusCode::BAD_REQUEST),
-                    );
-                    return Action::Continue;
-                }
+                warn!(
+                    "[PLANO_REQ_ID:{}] MODEL_RESOLUTION_ERROR: no model specified | req_model='{}' provider='{}' config_model={:?}",
+                    self.request_identifier(),
+                    model_requested,
+                    self.llm_provider().name,
+                    self.llm_provider().model
+                );
+                self.send_server_error(
+                    ServerError::BadRequest {
+                        why: format!(
+                            "No model specified in request and couldn't determine model name from arch_config. Model name in req: {}, arch_config, provider: {}, model: {:?}",
+                            model_requested,
+                            self.llm_provider().name,
+                            self.llm_provider().model
+                        ),
+                    },
+                    Some(StatusCode::BAD_REQUEST),
+                );
+                return Action::Continue;
             }
         };
 

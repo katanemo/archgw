@@ -6,8 +6,9 @@ agents:
 
 filters:
   - id: query_rewriter
-    url: http://host.docker.internal:10501
-    # type: mcp # default is mcp
+    url: http://host.docker.internal:10500
+    type: rest
+    # type: rest or mcp, mcp is default
     # transport: streamable-http # default is streamable-http
     # tool: query_rewriter # default name is the filter id
   - id: context_builder
@@ -30,7 +31,7 @@ listeners:
   - type: agent
     name: agent_1
     port: 8001
-    router: arch_agent_router
+    router: plano_orchestrator_v1
     agents:
       - id: rag_agent
         description: virtual assistant for retrieval augmented generation tasks

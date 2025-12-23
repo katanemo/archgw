@@ -1,11 +1,14 @@
 import asyncio
 import json
+import time
 from typing import List, Optional, Dict, Any
+import uuid
+from fastapi import FastAPI, Depends, Request
 from openai import AsyncOpenAI
 import os
 import logging
 
-from .api import ChatMessage
+from .api import ChatCompletionRequest, ChatCompletionResponse, ChatMessage
 from . import mcp
 from fastmcp.server.dependencies import get_http_headers
 
@@ -16,7 +19,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # Configuration for archgw LLM gateway
 LLM_GATEWAY_ENDPOINT = os.getenv("LLM_GATEWAY_ENDPOINT", "http://localhost:12000/v1")
 QUERY_REWRITE_MODEL = "gpt-4o-mini"
@@ -26,6 +28,8 @@ archgw_client = AsyncOpenAI(
     base_url=LLM_GATEWAY_ENDPOINT,
     api_key="EMPTY",  # archgw doesn't require a real API key
 )
+
+app = FastAPI()
 
 
 async def rewrite_query_with_archgw(
@@ -79,15 +83,11 @@ async def rewrite_query_with_archgw(
     return ""
 
 
-@mcp.tool()
 async def query_rewriter(messages: List[ChatMessage]) -> List[ChatMessage]:
     """Chat completions endpoint that rewrites the last user query using archgw.
 
     Returns a dict with a 'messages' key containing the updated message list.
     """
-    import time
-    import uuid
-
     logger.info(f"Received chat completion request with {len(messages)} messages")
 
     # Get traceparent header from HTTP request using FastMCP's dependency function
@@ -117,3 +117,42 @@ async def query_rewriter(messages: List[ChatMessage]) -> List[ChatMessage]:
 
     # Return as dict to minimize text serialization
     return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
+
+
+# Register MCP tool only if mcp is available
+if mcp is not None:
+    mcp.tool()(query_rewriter)
+
+
+@app.post("/")
+async def chat_completions_endpoint(
+    request_messages: List[ChatMessage], request: Request
+) -> List[ChatMessage]:
+    """FastAPI endpoint for chat completions with query rewriting."""
+    logger.info(
+        f"Received /v1/chat/completions request with {len(request_messages)} messages"
+    )
+
+    # Extract traceparent header
+    traceparent_header = request.headers.get("traceparent")
+    if traceparent_header:
+        logger.info(f"Received traceparent header: {traceparent_header}")
+    else:
+        logger.info("No traceparent header found")
+
+    # Call the query rewriter tool
+    updated_messages_data = await query_rewriter(request_messages)
+
+    # Convert back to ChatMessage objects
+    updated_messages = [ChatMessage(**msg) for msg in updated_messages_data]
+
+    logger.info("Returning rewritten chat completion response")
+    return updated_messages
+
+
+def start_server(host: str = "0.0.0.0", port: int = 10501):
+    """Start the FastAPI server for query rewriter."""
+    import uvicorn
+
+    logger.info(f"Starting Query Rewriter REST server on {host}:{port}")
+    uvicorn.run(app, host=host, port=port)

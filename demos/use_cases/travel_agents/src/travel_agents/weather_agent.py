@@ -299,7 +299,7 @@ async def invoke_weather_agent(
     # Extract specific number of days if mentioned (e.g., "5 day forecast")
     import re
 
-    day_match = re.search(r"(\d+)\s*day", last_user_msg)
+    day_match = re.search(r"(\d{1,2})\s+day", last_user_msg)
     if day_match:
         requested_days = int(day_match.group(1))
         days = min(requested_days, 16)  # API supports max 16 days

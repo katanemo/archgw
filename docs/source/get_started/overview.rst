@@ -55,7 +55,7 @@ Deep dive into essential ideas and mechanisms behind Plano:
     .. grid-item-card:: :octicon:`webhook` Model Providers
         :link: ../concepts/llm_providers/llm_providers.html
 
-        Explore Arch’s LLM integration options
+        Explore Plano's LLM integration options
 
     .. grid-item-card:: :octicon:`workflow` Prompt Target
         :link: ../concepts/prompt_target.html

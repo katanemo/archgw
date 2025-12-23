@@ -3,12 +3,12 @@
 Deployment
 ==========
 
-This guide shows how to deploy Arch directly using Docker without the archgw CLI, including basic runtime checks for routing and health monitoring.
+This guide shows how to deploy Plano  directly using Docker without the archgw CLI, including basic runtime checks for routing and health monitoring.
 
 Docker Deployment
 -----------------
 
-Below is a minimal, production-ready example showing how to deploy the Arch Docker image directly and run basic runtime checks. Adjust image names, tags, and the ``arch_config.yaml`` path to match your environment.
+Below is a minimal, production-ready example showing how to deploy the Plano  Docker image directly and run basic runtime checks. Adjust image names, tags, and the ``arch_config.yaml`` path to match your environment.
 
 .. note::
    You will need to pass all required environment variables that are referenced in your ``arch_config.yaml`` file.
@@ -65,7 +65,7 @@ Test the chat completion endpoint with automatic routing:
 
 .. code-block:: bash
 
-   # Request handled by the gateway. 'model: "none"' lets Arch decide routing
+   # Request handled by the gateway. 'model: "none"' lets Plano  decide routing
    curl --header 'Content-Type: application/json' \
      --data '{"messages":[{"role":"user","content":"tell me a joke"}], "model":"none"}' \
      http://localhost:12000/v1/chat/completions | jq .model

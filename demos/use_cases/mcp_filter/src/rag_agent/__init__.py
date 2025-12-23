@@ -37,6 +37,7 @@ def main(host, port, agent, transport, agent_name, rest_server, rest_port):
 
     # Map friendly names to agent modules
     agent_map = {
+        "input_guards": ("rag_agent.input_guards", "Input Guards Agent"),
         "query_rewriter": ("rag_agent.query_rewriter", "Query Rewriter Agent"),
         "context_builder": ("rag_agent.context_builder", "Context Builder Agent"),
         "response_generator": (
@@ -75,10 +76,12 @@ def main(host, port, agent, transport, agent_name, rest_server, rest_port):
             print(f"Remove --rest-server flag to start {agent} as an MCP server.")
             return
     else:
-        # Only query_rewriter and context_builder support MCP
-        if agent not in ["query_rewriter", "context_builder"]:
+        # Only input_guards, query_rewriter and context_builder support MCP
+        if agent not in ["input_guards", "query_rewriter", "context_builder"]:
             print(f"Error: Agent '{agent}' does not support MCP mode.")
-            print(f"MCP is only supported for: query_rewriter, context_builder")
+            print(
+                f"MCP is only supported for: input_guards, query_rewriter, context_builder"
+            )
             print(f"Use --rest-server flag to start {agent} as a REST server.")
             return
 

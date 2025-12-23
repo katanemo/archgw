@@ -551,7 +551,7 @@ impl PipelineProcessor {
 
             return Err(PipelineError::ClientError {
                 agent: agent.id.clone(),
-                status: http_status.as_u16(),
+                status: hyper::StatusCode::BAD_REQUEST.as_u16(),
                 body: error_message,
             });
         }

@@ -1,4 +1,29 @@
 services:
+  rag-agents:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "10500:10500"
+      - "10501:10501"
+      - "10502:10502"
+      - "10505:10505"
+    environment:
+      - LLM_GATEWAY_ENDPOINT=${LLM_GATEWAY_ENDPOINT:-http://host.docker.internal:12000/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY environment variable is required but not set}
+  archgw:
+    build:
+      context: ../../../
+      dockerfile: arch/Dockerfile
+    ports:
+      - "12000:12000"
+      - "8001:8001"
+    environment:
+      - ARCH_CONFIG_PATH=/config/arch_config.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY environment variable is required but not set}
+    volumes:
+      - ./arch_config.yaml:/app/arch_config.yaml
+      - /etc/ssl/cert.pem:/etc/ssl/cert.pem
   jaeger:
     build:
       context: ../../shared/jaeger

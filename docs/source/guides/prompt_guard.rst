@@ -24,66 +24,93 @@ more reliable, and easier to reason about.
 How Guardrails Work
 -------------------
 
-In Plano, guardrails are usually implemented as filters that run as HTTP services. Each filter receives the incoming prompt and related metadata, evaluates it
-against policy, and either lets the request continue (HTTP 200) or terminates it early with an appropriate error code (typically HTTP 4xx for policy failures).
+In Plano, guardrails are implemented as MCP filters that validate incoming requests. Each filter receives the chat messages, evaluates them
+against policy, and either lets the request continue or raises a ``ToolError`` to reject it with a helpful error message.
 
-The example below shows a simple, plain-Python HTTP service that acts as a topicality guardrail: it rejects any prompt that is not related to the
-"weather" domain.
+The example below shows an input guard for TechCorp's customer support system that validates queries are within the company's domain:
 
 .. code-block:: python
-    :caption: Example topicality guard filter in plain Python (FastAPI)
+    :caption: Example domain validation guard using FastMCP
 
-    from fastapi import FastAPI, Request, HTTPException
+    from typing import List
+    from fastmcp.exceptions import ToolError
+    from . import mcp
 
-    app = FastAPI()
+    @mcp.tool
+    async def input_guards(messages: List[ChatMessage]) -> List[ChatMessage]:
+        """Validates queries are within TechCorp's domain."""
 
-    ALLOWED_KEYWORDS = {"weather", "forecast", "temperature", "rain", "snow", "humidity"}
+        # Get the user's query
+        user_query = next(
+            (msg.content for msg in reversed(messages) if msg.role == "user"),
+            ""
+        )
 
-    @app.post("/guardrails/topic")
-    async def topic_guard(request: Request):
-        body = await request.json()
-        # Expecting an OpenAI-style request body with messages
-        messages = body.get("messages", [])
-        user_content = " ".join(
-            m["content"] for m in messages if m.get("role") == "user"
-        ).lower()
+        # Use an LLM to validate the query scope (simplified)
+        is_valid = await validate_with_llm(user_query)
 
-        if not any(keyword in user_content for keyword in ALLOWED_KEYWORDS):
-            # Return 400 to indicate a policy failure (not a server error)
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "error": "off_topic",
-                    "message": "This assistant only answers weather-related questions.",
-                },
+        if not is_valid:
+            raise ToolError(
+                "I can only assist with questions related to TechCorp and its services. "
+                "Please ask about TechCorp's products, pricing, SLAs, or technical support."
             )
 
-        # If the prompt is on-topic, just pass the original body through
-        return body
+        return messages
 
 
-To wire this guardrail into Plano, you define a listener of ``type: agent`` and attach a filter chain with a single filter that points
-to the Python service above.
+To wire this guardrail into Plano, define the filter and add it to your agent's filter chain:
 
 .. code-block:: yaml
-    :caption: Listener (type: agent) with a topicality guard filter
+    :caption: Plano configuration with input guard filter
 
     filters:
-      - id: topicality_guard
-        url: http://topic-guard:8000/guardrails/topic
+      - id: input_guards
+        url: http://localhost:10500
 
     listeners:
-    - type: agent
-        name: agent_listener
+      - type: agent
+        name: agent_1
         port: 8001
-        router: arch_agent_router
+        router: plano_orchestrator_v1
         agents:
-        - id: rag_agent
+          - id: rag_agent
             description: virtual assistant for retrieval augmented generation tasks
             filter_chain:
-            - topicality_guard
+              - input_guards
 
 
-When a request arrives at ``agent_listener``, Plano will first call the ``topicality_guard`` filter. If the filter returns **HTTP 200**,
-the request continues on to the configured agent or prompt target. If the filter returns **HTTP 400**, Plano returns that error back to
-the caller and does not forward the request further—enforcing your domain guardrail without changing any application code.
+When a request arrives at ``agent_1``, Plano invokes the ``input_guards`` filter first. If validation passes, the request continues to
+the agent. If validation fails (``ToolError`` raised), Plano returns an error response to the caller.
+
+Testing the Guardrail
+---------------------
+
+Here's an example of the guardrail in action, rejecting a query about Apple Corporation (outside TechCorp's domain):
+
+.. code-block:: bash
+    :caption: Request that violates the guardrail policy
+
+    curl -X POST http://localhost:8001/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4",
+        "messages": [
+          {
+            "role": "user",
+            "content": "what is sla for apple corporation?"
+          }
+        ],
+        "stream": false
+      }'
+
+.. code-block:: json
+    :caption: Error response from the guardrail
+
+    {
+      "error": "ClientError",
+      "agent": "input_guards",
+      "status": 400,
+      "agent_response": "I apologize, but I can only assist with questions related to TechCorp and its services. Your query appears to be outside this scope. The query is about SLA for Apple Corporation, which is unrelated to TechCorp.\n\nPlease ask me about TechCorp's products, services, pricing, SLAs, or technical support."
+    }
+
+This prevents out-of-scope queries from reaching your agent while providing clear feedback to users about why their request was rejected.

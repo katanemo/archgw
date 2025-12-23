@@ -4,14 +4,21 @@ A multi-agent RAG system demonstrating archgw's agent filter chain with MCP prot
 
 ## Architecture
 
-This demo consists of three components:
-1. **Query Rewriter** (MCP filter) - Rewrites user queries for better retrieval
-2. **Context Builder** (MCP filter) - Retrieves relevant context from knowledge base
-3. **RAG Agent** (REST) - Generates final responses based on augmented context
+This demo consists of four components:
+1. **Input Guards** (MCP filter) - Validates queries are within TechCorp's domain
+2. **Query Rewriter** (MCP filter) - Rewrites user queries for better retrieval
+3. **Context Builder** (MCP filter) - Retrieves relevant context from knowledge base
+4. **RAG Agent** (REST) - Generates final responses based on augmented context
 
 ## Components
 
-### Query Rewriter Filter (MCP)
+### Input Guards Filter (MCP)
+- **Port**: 10500
+- **Tool**: `input_guards`
+- Validates queries are within TechCorp's domain
+- Rejects queries about other companies or unrelated topics
+
+### Query Rewrit3r Filter (MCP)
 - **Port**: 10501
 - **Tool**: `query_rewriter`
 - Improves queries using LLM before retrieval
@@ -34,6 +41,7 @@ This demo consists of three components:
 ```
 
 This starts:
+- Input Guards MCP server on port 10500
 - Query Rewriter MCP server on port 10501
 - Context Builder MCP server on port 10502
 - RAG Agent REST server on port 10505
@@ -59,29 +67,37 @@ The `arch_config.yaml` defines how agents are connected:
 
 ```yaml
 filters:
+  - id: input_guards
+    url: http://host.docker.internal:10500
+    # type: mcp (default)
+    # tool: input_guards (default - same as filter id)
+
   - id: query_rewriter
-    url: mcp://host.docker.internal:10500
-    tool: rewrite_query_with_archgw  # MCP tool name
+    url: http://host.docker.internal:10501
+    # type: mcp (default)
 
   - id: context_builder
-    url: mcp://host.docker.internal:10501
-    tool: chat_completions
+    url: http://host.docker.internal:10502
 ```
-How It Works
+
+## How It Works
 
 1. User sends request to archgw listener on port 8001
 2. Request passes through MCP filter chain:
+   - **Input Guards** validates the query is within TechCorp's domain
    - **Query Rewriter** rewrites the query for better retrieval
    - **Context Builder** augments query with relevant knowledge base passages
 3. Augmented request is forwarded to **RAG Agent** REST endpoint
 4. RAG Agent generates final response using LLM
 
-## Configuration
+## Additional Configuration
 
 See `arch_config.yaml` for the complete filter chain setup. The MCP filters use default settings:
 - `type: mcp` (default)
 - `transport: streamable-http` (default)
-- Tool name defaults to filter ID `sample_queries.md` for example queries to test the RAG system.
+- Tool name defaults to filter ID
+
+See `sample_queries.md` for example queries to test the RAG system.
 
 Example request:
 ```bash

@@ -54,7 +54,7 @@ Filters are implemented as simple RESTful endpoints reachable via HTTP. If you w
 
 When defining a filter in Plano configuration, the following fields are optional:
 
-* ``type``: Controls the filter runtime (defaults to ``mcp``). You can omit this if you're using MCP.
+* ``type``: Controls the filter runtime (defaults to ``mcp``). You can also set this to ``rest`` for plain HTTP filters.
 * ``transport``: Controls how Plano talks to the filter (defaults to ``streamable-http`` for efficient streaming interactions over HTTP). You can omit this for standard HTTP transport.
 * ``tool``: Names the MCP tool Plano will invoke (by default, the filter ``id``). You can omit this if the tool name matches your filter id.
 

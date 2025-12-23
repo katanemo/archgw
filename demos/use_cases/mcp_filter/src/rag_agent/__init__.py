@@ -54,18 +54,26 @@ def main(host, port, agent, transport, agent_name, rest_server, rest_port):
     mcp_name = agent_name or default_name
 
     if rest_server:
-        # Only response_generator supports REST server mode
-        if agent != "response_generator":
+        # REST server mode - supported for query_rewriter and response_generator
+        if agent == "response_generator":
+            print(f"Starting REST server on {host}:{rest_port} for agent: {agent}")
+            from rag_agent.rag_agent import start_server
+
+            start_server(host=host, port=rest_port)
+            return
+        elif agent == "query_rewriter":
+            print(f"Starting REST server on {host}:{rest_port} for agent: {agent}")
+            from rag_agent.query_rewriter import start_server
+
+            start_server(host=host, port=rest_port)
+            return
+        else:
             print(f"Error: Agent '{agent}' does not support REST server mode.")
-            print(f"REST server is only supported for: response_generator")
+            print(
+                f"REST server is only supported for: query_rewriter, response_generator"
+            )
             print(f"Remove --rest-server flag to start {agent} as an MCP server.")
             return
-
-        print(f"Starting REST server on {host}:{rest_port} for agent: {agent}")
-        from rag_agent.rag_agent import start_server
-
-        start_server(host=host, port=rest_port)
-        return
     else:
         # Only query_rewriter and context_builder support MCP
         if agent not in ["query_rewriter", "context_builder"]:

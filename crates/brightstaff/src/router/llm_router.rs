@@ -17,6 +17,7 @@ pub struct RouterService {
     router_url: String,
     client: reqwest::Client,
     router_model: Arc<dyn RouterModel>,
+    #[allow(dead_code)]
     routing_provider_name: String,
     llm_usage_defined: bool,
 }

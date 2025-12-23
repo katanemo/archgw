@@ -184,7 +184,6 @@ async def augment_query_with_context(
 load_knowledge_base()
 
 
-@mcp.tool()
 async def context_builder(messages: List[ChatMessage]) -> List[ChatMessage]:
     """MCP tool that augments user queries with relevant context from the knowledge base."""
     logger.info(f"Received chat completion request with {len(messages)} messages")
@@ -203,3 +202,8 @@ async def context_builder(messages: List[ChatMessage]) -> List[ChatMessage]:
 
     # Return as dict to minimize text serialization
     return [{"role": msg.role, "content": msg.content} for msg in updated_messages]
+
+
+# Register MCP tool only if mcp is available
+if mcp is not None:
+    mcp.tool()(context_builder)

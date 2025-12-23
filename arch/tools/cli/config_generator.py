@@ -323,6 +323,15 @@ def validate_and_render_schema():
             }
         )
 
+    if "plano-orchestrator" not in model_provider_name_set:
+        updated_model_providers.append(
+            {
+                "name": "plano-orchestrator",
+                "provider_interface": "arch",
+                "model": "Plano-Orchestrator",
+            }
+        )
+
     config_yaml["model_providers"] = deepcopy(updated_model_providers)
 
     listeners_with_provider = 0

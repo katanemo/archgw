@@ -1,4 +1,7 @@
 use bytes::Bytes;
+use hermesllm::apis::OpenAIApi;
+use hermesllm::clients::{SupportedAPIsFromClient, SupportedUpstreamAPIs};
+use hermesllm::SseEvent;
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
@@ -6,7 +9,7 @@ use hyper::{Response, StatusCode};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
-use tracing::warn;
+use tracing::{info, warn};
 
 /// Errors that can occur during response handling
 #[derive(Debug, thiserror::Error)]
@@ -112,6 +115,74 @@ impl ResponseHandler {
         response_builder
             .body(stream_body)
             .map_err(ResponseError::from)
+    }
+
+    /// Collect the full response body as a string
+    /// This is used for intermediate agents where we need to capture the full response
+    /// before passing it to the next agent.
+    ///
+    /// This method handles both streaming and non-streaming responses:
+    /// - For streaming SSE responses: parses chunks and extracts text deltas
+    /// - For non-streaming responses: returns the full text
+    pub async fn collect_full_response(
+        &self,
+        llm_response: reqwest::Response,
+    ) -> Result<String, ResponseError> {
+        use hermesllm::apis::streaming_shapes::sse::SseStreamIter;
+
+        let response_headers = llm_response.headers();
+        let is_sse_streaming = response_headers
+            .get(hyper::header::CONTENT_TYPE)
+            .map_or(false, |v| {
+                v.to_str().unwrap_or("").contains("text/event-stream")
+            });
+
+        let response_bytes = llm_response
+            .bytes()
+            .await
+            .map_err(|e| ResponseError::StreamError(format!("Failed to read response: {}", e)))?;
+
+        if is_sse_streaming {
+            let client_api =
+                SupportedAPIsFromClient::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+            let upstream_api =
+                SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+
+            let sse_iter = SseStreamIter::try_from(response_bytes.as_ref()).unwrap();
+            let mut accumulated_text = String::new();
+
+            for sse_event in sse_iter {
+                // Skip [DONE] markers and event-only lines
+                if sse_event.is_done() || sse_event.is_event_only() {
+                    continue;
+                }
+
+                let transformed_event =
+                    SseEvent::try_from((sse_event, &client_api, &upstream_api)).unwrap();
+
+                // Try to get provider response and extract content delta
+                match transformed_event.provider_response() {
+                    Ok(provider_response) => {
+                        if let Some(content) = provider_response.content_delta() {
+                            accumulated_text.push_str(&content);
+                        } else {
+                            info!("No content delta in provider response");
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse provider response: {:?}", e);
+                    }
+                }
+            }
+            return Ok(accumulated_text);
+        } else {
+            // If not SSE, treat as regular text response
+            let response_text = String::from_utf8(response_bytes.to_vec()).map_err(|e| {
+                ResponseError::StreamError(format!("Failed to decode response: {}", e))
+            })?;
+
+            Ok(response_text)
+        }
     }
 }
 

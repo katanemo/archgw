@@ -6,11 +6,11 @@ use hyper::header::HeaderMap;
 use crate::handlers::agent_selector::{AgentSelectionError, AgentSelector};
 use crate::handlers::pipeline_processor::PipelineProcessor;
 use crate::handlers::response_handler::ResponseHandler;
-use crate::router::llm_router::RouterService;
+use crate::router::plano_orchestrator::OrchestratorService;
 
 /// Integration test that demonstrates the modular agent chat flow
 /// This test shows how the three main components work together:
-/// 1. AgentSelector - selects the appropriate agent based on routing
+/// 1. AgentSelector - selects the appropriate agents based on orchestration
 /// 2. PipelineProcessor - executes the agent pipeline
 /// 3. ResponseHandler - handles response streaming
 #[cfg(test)]
@@ -18,12 +18,10 @@ mod integration_tests {
     use super::*;
     use common::configuration::{Agent, AgentFilterChain, Listener};
 
-    fn create_test_router_service() -> Arc<RouterService> {
-        Arc::new(RouterService::new(
-            vec![], // empty providers for testing
+    fn create_test_orchestrator_service() -> Arc<OrchestratorService> {
+        Arc::new(OrchestratorService::new(
             "http://localhost:8080".to_string(),
             "test-model".to_string(),
-            "test-provider".to_string(),
         ))
     }
 
@@ -40,8 +38,8 @@ mod integration_tests {
     #[tokio::test]
     async fn test_modular_agent_chat_flow() {
         // Setup services
-        let router_service = create_test_router_service();
-        let agent_selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let agent_selector = AgentSelector::new(orchestrator_service);
         let mut pipeline_processor = PipelineProcessor::default();
 
         // Create test data
@@ -64,7 +62,7 @@ mod integration_tests {
 
         let agent_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
-            filter_chain: vec!["filter-agent".to_string(), "terminal-agent".to_string()],
+            filter_chain: Some(vec!["filter-agent".to_string(), "terminal-agent".to_string()]),
             description: Some("Test pipeline".to_string()),
             default: Some(true),
         };
@@ -104,7 +102,7 @@ mod integration_tests {
         // Create a pipeline with empty filter chain to avoid network calls
         let test_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
-            filter_chain: vec![], // Empty filter chain - no network calls needed
+            filter_chain: Some(vec![]), // Empty filter chain - no network calls needed
             description: None,
             default: None,
         };
@@ -143,7 +141,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_error_handling_flow() {
-        let router_service = create_test_router_service();
+        let router_service = create_test_orchestrator_service();
         let agent_selector = AgentSelector::new(router_service);
 
         // Test listener not found

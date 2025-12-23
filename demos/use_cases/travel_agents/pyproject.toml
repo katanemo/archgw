@@ -1,0 +1,21 @@
+[project]
+name = "travel-agents"
+version = "0.1.0"
+description = "Travel Booking Agents - Weather, Flight, and Currency"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.2.1",
+    "pydantic>=2.11.7",
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
+    "openai>=2.13.0",
+    "httpx>=0.24.0",
+]
+
+[project.scripts]
+travel_agents = "travel_agents:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

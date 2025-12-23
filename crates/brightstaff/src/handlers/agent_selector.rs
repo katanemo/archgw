@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common::configuration::{
-    Agent, AgentFilterChain, Listener, ModelUsagePreference, RoutingPreference,
+    Agent, AgentFilterChain, Listener, AgentUsagePreference, OrchestrationPreference,
 };
 use hermesllm::apis::openai::Message;
 use tracing::{debug, warn};
 
-use crate::router::llm_router::RouterService;
+use crate::router::plano_orchestrator::OrchestratorService;
 
 /// Errors that can occur during agent selection
 #[derive(Debug, thiserror::Error)]
@@ -16,23 +16,23 @@ pub enum AgentSelectionError {
     ListenerNotFound(String),
     #[error("No agents configured for listener: {0}")]
     NoAgentsConfigured(String),
-    #[error("Routing service error: {0}")]
-    RoutingError(String),
     #[error("Default agent not found for listener: {0}")]
     DefaultAgentNotFound(String),
     #[error("MCP client error: {0}")]
     McpError(String),
+    #[error("Orchestration service error: {0}")]
+    OrchestrationError(String),
 }
 
-/// Service for selecting agents based on routing preferences and listener configuration
+/// Service for selecting agents based on orchestration preferences and listener configuration
 pub struct AgentSelector {
-    router_service: Arc<RouterService>,
+    orchestrator_service: Arc<OrchestratorService>,
 }
 
 impl AgentSelector {
-    pub fn new(router_service: Arc<RouterService>) -> Self {
+    pub fn new(orchestrator_service: Arc<OrchestratorService>) -> Self {
         Self {
-            router_service,
+            orchestrator_service,
         }
     }
 
@@ -63,59 +63,6 @@ impl AgentSelector {
             .collect()
     }
 
-    /// Select appropriate agent based on routing preferences
-    pub async fn select_agent(
-        &self,
-        messages: &[Message],
-        listener: &Listener,
-        trace_parent: Option<String>,
-    ) -> Result<AgentFilterChain, AgentSelectionError> {
-        let agents = listener
-            .agents
-            .as_ref()
-            .ok_or_else(|| AgentSelectionError::NoAgentsConfigured(listener.name.clone()))?;
-
-        // If only one agent, skip routing
-        if agents.len() == 1 {
-            debug!("Only one agent available, skipping routing");
-            return Ok(agents[0].clone());
-        }
-
-        let usage_preferences = self
-            .convert_agent_description_to_routing_preferences(agents)
-            .await;
-        debug!(
-            "Agents usage preferences for agent routing str: {}",
-            serde_json::to_string(&usage_preferences).unwrap_or_default()
-        );
-
-        match self
-            .router_service
-            .determine_route(messages, trace_parent, Some(usage_preferences))
-            .await
-        {
-            Ok(Some((_, agent_name))) => {
-                debug!("Determined agent: {}", agent_name);
-                let selected_agent = agents
-                    .iter()
-                    .find(|a| a.id == agent_name)
-                    .cloned()
-                    .ok_or_else(|| {
-                        AgentSelectionError::RoutingError(format!(
-                            "Selected agent '{}' not found in listener agents",
-                            agent_name
-                        ))
-                    })?;
-                Ok(selected_agent)
-            }
-            Ok(None) => {
-                debug!("No agent determined using routing preferences, using default agent");
-                self.get_default_agent(agents, &listener.name)
-            }
-            Err(err) => Err(AgentSelectionError::RoutingError(err.to_string())),
-        }
-    }
-
     /// Get the default agent or the first agent if no default is specified
     fn get_default_agent(
         &self,
@@ -136,17 +83,17 @@ impl AgentSelector {
             .ok_or_else(|| AgentSelectionError::DefaultAgentNotFound(listener_name.to_string()))
     }
 
-    /// Convert agent descriptions to routing preferences
-    async fn convert_agent_description_to_routing_preferences(
+    /// Convert agent descriptions to orchestration preferences
+    async fn convert_agent_description_to_orchestration_preferences(
         &self,
         agents: &[AgentFilterChain],
-    ) -> Vec<ModelUsagePreference> {
+    ) -> Vec<AgentUsagePreference> {
         let mut preferences = Vec::new();
 
         for agent_chain in agents {
-            preferences.push(ModelUsagePreference {
+            preferences.push(AgentUsagePreference {
                 model: agent_chain.id.clone(),
-                routing_preferences: vec![RoutingPreference {
+                orchestration_preferences: vec![OrchestrationPreference {
                     name: agent_chain.id.clone(),
                     description: agent_chain.description.clone().unwrap_or_default(),
                 }],
@@ -155,6 +102,71 @@ impl AgentSelector {
 
         preferences
     }
+
+    /// Select multiple agents using orchestration
+    pub async fn select_agents(
+        &self,
+        messages: &[Message],
+        listener: &Listener,
+        trace_parent: Option<String>,
+    ) -> Result<Vec<AgentFilterChain>, AgentSelectionError> {
+        let agents = listener
+            .agents
+            .as_ref()
+            .ok_or_else(|| AgentSelectionError::NoAgentsConfigured(listener.name.clone()))?;
+
+        // If only one agent, skip orchestration
+        if agents.len() == 1 {
+            debug!("Only one agent available, skipping orchestration");
+            return Ok(vec![agents[0].clone()]);
+        }
+
+        let usage_preferences = self
+            .convert_agent_description_to_orchestration_preferences(agents)
+            .await;
+        debug!(
+            "Agents usage preferences for orchestration: {}",
+            serde_json::to_string(&usage_preferences).unwrap_or_default()
+        );
+
+        match self
+            .orchestrator_service
+            .determine_orchestration(messages, trace_parent, Some(usage_preferences))
+            .await
+        {
+            Ok(Some(routes)) => {
+                debug!("Determined {} agent(s) via orchestration", routes.len());
+                let mut selected_agents = Vec::new();
+
+                for (route_name, agent_name) in routes {
+                    debug!("Processing route: {}, agent: {}", route_name, agent_name);
+                    let selected_agent = agents
+                        .iter()
+                        .find(|a| a.id == agent_name)
+                        .cloned()
+                        .ok_or_else(|| {
+                            AgentSelectionError::OrchestrationError(format!(
+                                "Selected agent '{}' not found in listener agents",
+                                agent_name
+                            ))
+                        })?;
+                    selected_agents.push(selected_agent);
+                }
+
+                if selected_agents.is_empty() {
+                    debug!("No agents determined using orchestration, using default agent");
+                    Ok(vec![self.get_default_agent(agents, &listener.name)?])
+                } else {
+                    Ok(selected_agents)
+                }
+            }
+            Ok(None) => {
+                debug!("No agents determined using orchestration, using default agent");
+                Ok(vec![self.get_default_agent(agents, &listener.name)?])
+            }
+            Err(err) => Err(AgentSelectionError::OrchestrationError(err.to_string())),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,12 +174,10 @@ mod tests {
     use super::*;
     use common::configuration::{AgentFilterChain, Listener};
 
-    fn create_test_router_service() -> Arc<RouterService> {
-        Arc::new(RouterService::new(
-            vec![], // empty providers for testing
+    fn create_test_orchestrator_service() -> Arc<OrchestratorService> {
+        Arc::new(OrchestratorService::new(
             "http://localhost:8080".to_string(),
             "test-model".to_string(),
-            "test-provider".to_string(),
         ))
     }
 
@@ -176,7 +186,7 @@ mod tests {
             id: name.to_string(),
             description: Some(description.to_string()),
             default: Some(is_default),
-            filter_chain: vec![name.to_string()],
+            filter_chain: Some(vec![name.to_string()]),
         }
     }
 
@@ -201,8 +211,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_listener_success() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let selector = AgentSelector::new(orchestrator_service);
 
         let listener1 = create_test_listener("test-listener", vec![]);
         let listener2 = create_test_listener("other-listener", vec![]);
@@ -218,8 +228,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_listener_not_found() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let selector = AgentSelector::new(orchestrator_service);
 
         let listeners = vec![create_test_listener("other-listener", vec![])];
 
@@ -236,8 +246,8 @@ mod tests {
 
     #[test]
     fn test_create_agent_map() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let selector = AgentSelector::new(orchestrator_service);
 
         let agents = vec![
             create_test_agent_struct("agent1"),
@@ -251,33 +261,10 @@ mod tests {
         assert!(agent_map.contains_key("agent2"));
     }
 
-    #[tokio::test]
-    async fn test_convert_agent_description_to_routing_preferences() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
-
-        let agents = vec![
-            create_test_agent("agent1", "First agent description", true),
-            create_test_agent("agent2", "Second agent description", false),
-        ];
-
-        let preferences = selector
-            .convert_agent_description_to_routing_preferences(&agents)
-            .await;
-
-        assert_eq!(preferences.len(), 2);
-        assert_eq!(preferences[0].model, "agent1");
-        assert_eq!(preferences[0].routing_preferences[0].name, "agent1");
-        assert_eq!(
-            preferences[0].routing_preferences[0].description,
-            "First agent description"
-        );
-    }
-
     #[test]
     fn test_get_default_agent() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let selector = AgentSelector::new(orchestrator_service);
 
         let agents = vec![
             create_test_agent("agent1", "First agent", false),
@@ -293,8 +280,8 @@ mod tests {
 
     #[test]
     fn test_get_default_agent_fallback_to_first() {
-        let router_service = create_test_router_service();
-        let selector = AgentSelector::new(router_service);
+        let orchestrator_service = create_test_orchestrator_service();
+        let selector = AgentSelector::new(orchestrator_service);
 
         let agents = vec![
             create_test_agent("agent1", "First agent", false),

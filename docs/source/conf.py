@@ -5,6 +5,8 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+import os
+import sys
 from dataclasses import asdict
 
 from sphinx.application import Sphinx
@@ -34,6 +36,8 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_sitemap",
     "sphinx_design",
+    # Local extensions
+    "llms_txt",
 ]
 
 # Paths that contain templates, relative to this directory.
@@ -42,6 +46,9 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and directories
 # to ignore when looking for source files.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# Allow importing extensions from docs/source/_ext (robust to current working directory)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "_ext")))
 
 
 # -- Options for HTML output -------------------------------------------------

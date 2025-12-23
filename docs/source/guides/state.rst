@@ -32,7 +32,7 @@ This pattern dramatically reduces bandwidth and makes it easier to build multi-t
 
     # First turn - Plano creates a new conversation state
     response = client.responses.create(
-        model="gpt-4o-mini",  # Works with any configured provider
+        model="claude-sonnet-4-5",  # Works with any configured provider
         input="My name is Alice and I like Python"
     )
 
@@ -42,7 +42,7 @@ This pattern dramatically reduces bandwidth and makes it easier to build multi-t
 
     # Second turn - Plano automatically retrieves previous context
     resp2 = client.responses.create(
-        model="claude-sonnet-4-20250514", # Different model/provider, make sure its configured in plano_config.yaml
+        model="claude-sonnet-4-5", # Make sure its configured in plano_config.yaml
         input="Please list all the messages you have received in our conversation, numbering each one.",
         previous_response_id=resp_id,
     )

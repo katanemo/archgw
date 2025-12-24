@@ -6,7 +6,7 @@ Observability
 .. toctree::
   :maxdepth: 2
 
-  signals
+  ../../concepts/signals
   tracing
   monitoring
   access_logging

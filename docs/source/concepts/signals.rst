@@ -348,6 +348,7 @@ Mitigation strategies:
 See Also
 ========
 
-- :doc:`tracing` - Distributed tracing for agent systems
-- :doc:`monitoring` - Metrics and dashboards
-- :doc:`access_logging` - Request/response logging
+- :doc:`../guides/observability/tracing` - Distributed tracing for agent systems
+- :doc:`../guides/observability/monitoring` - Metrics and dashboards
+- :doc:`../guides/observability/access_logging` - Request/response logging
+- :doc:`../guides/observability/observability` - Complete observability guide

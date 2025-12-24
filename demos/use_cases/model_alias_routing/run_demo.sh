@@ -26,7 +26,7 @@ start_demo() {
 
   # Step 3: Start Arch
   echo "Starting Arch with arch_config_with_aliases.yaml..."
-  archgw up arch_config_with_aliases.yaml
+  planoai up arch_config_with_aliases.yaml
 
   echo "\n\nArch started successfully."
   echo "Please run the following CURL command to test model alias routing. Additional instructions are in the README.md file. \n"
@@ -48,7 +48,7 @@ start_demo() {
 stop_demo() {
   # Step 2: Stop Arch
   echo "Stopping Arch..."
-  archgw down
+  planoai down
 }
 
 # Main script logic

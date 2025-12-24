@@ -265,7 +265,7 @@ def cli_agent(type, file, path, settings):
     archgw_status = docker_container_status(PLANO_DOCKER_NAME)
     if archgw_status != "running":
         log.error(f"archgw docker container is not running (status: {archgw_status})")
-        log.error("Please start plano using the 'archgw up' command.")
+        log.error("Please start plano using the 'planoai up' command.")
         sys.exit(1)
 
     # Determine arch_config.yaml path

@@ -65,13 +65,13 @@ export ANTHROPIC_API_KEY="your-anthropic-key-here"
 ```bash
 # Install and start the gateway
 pip install archgw
-archgw up
+planoai up
 ```
 
 ### Step 4: Launch Enhanced Claude Code
 ```bash
 # This will launch Claude Code with multi-model routing
-archgw cli-agent claude
+planoai cli-agent claude
 ```
 ![claude code](claude_code.png)
 
@@ -111,7 +111,7 @@ llm_providers:
 ### Override Model Selection
 ```bash
 # Force a specific model for this session
-archgw cli-agent claude --settings='{"ANTHROPIC_SMALL_FAST_MODEL": "deepseek-coder-v2"}'
+planoai cli-agent claude --settings='{"ANTHROPIC_SMALL_FAST_MODEL": "deepseek-coder-v2"}'
 
 ### Environment Variables
 The system automatically configures these variables for Claude Code:

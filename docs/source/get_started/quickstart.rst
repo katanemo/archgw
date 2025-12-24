@@ -220,40 +220,40 @@ Use Plano as a Model Proxy (Gateway)
 Step 1. Create plano config file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Plano operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.
+Plano operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Anthropic LLM providers.
 
 Create ``plano_config.yaml`` file with the following content:
 
 .. code-block:: yaml
 
-   version: v0.1.0
+  version: v0.3.0
 
   listeners:
-    egress_traffic:
+    - type: model
+      name: model_1
       address: 0.0.0.0
       port: 12000
-      message_format: openai
-      timeout: 30s
 
-   model_providers:
-     - access_key: $OPENAI_API_KEY
-       model: openai/gpt-4o
-       default: true
+  model_providers:
 
-     - access_key: $MISTRAL_API_KEY
-       model: mistralministral-3b-latest
+    - access_key: $OPENAI_API_KEY
+      model: openai/gpt-4o
+      default: true
+
+    - access_key: $ANTHROPIC_API_KEY
+      model: anthropic/claude-sonnet-4-5
 
 Step 2. Start plano
 ~~~~~~~~~~~~~~~~~~~
 
-Once the config file is created, ensure that you have environment variables set up for ``MISTRAL_API_KEY`` and ``OPENAI_API_KEY`` (or these are defined in a ``.env`` file).
+Once the config file is created, ensure that you have environment variables set up for ``ANTHROPIC_API_KEY`` and ``OPENAI_API_KEY`` (or these are defined in a ``.env`` file).
 
 Start Plano:
 
 .. code-block:: console
 
    $ planoai up plano_config.yaml
-   2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
+   2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.4.0
    2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
    2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano
    ...

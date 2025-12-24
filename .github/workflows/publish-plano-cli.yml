@@ -11,7 +11,7 @@ on:
           - pypi
           - github
           - both
-        default: 'pypi'
+        default: 'github'
       version:
         description: 'Version to publish (leave empty to use version from pyproject.toml)'
         required: false

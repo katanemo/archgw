@@ -1,4 +1,4 @@
-name: arch tools tests
+name: plano tools tests
 
 permissions:
   contents: read
@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  arch_tools_tests:
+  plano_tools_tests:
     runs-on: ubuntu-latest-m
     defaults:
       run:
@@ -31,7 +31,7 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           export PATH="$HOME/.local/bin:$PATH"
 
-      - name: install arch tools
+      - name: install plano tools
         run: |
           poetry install
 

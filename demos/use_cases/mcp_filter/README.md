@@ -35,23 +35,22 @@ This demo consists of four components:
 
 ## Quick Start
 
-### 1. Start all agents
+### 1. Start everything with Docker Compose
 ```bash
-./start_agents.sh
+docker compose up --build
 ```
 
-This starts:
+This brings up:
 - Input Guards MCP server on port 10500
 - Query Rewriter MCP server on port 10501
 - Context Builder MCP server on port 10502
 - RAG Agent REST server on port 10505
+- Plano listener on port 8001 (and gateway on 12000)
+- Jaeger UI for viewing traces at http://localhost:16686
 
-### 2. Start plano
-```bash
-planoai up --foreground
-```
+> Set `OPENAI_API_KEY` in your environment before running; `LLM_GATEWAY_ENDPOINT` defaults to `http://host.docker.internal:12000/v1`.
 
-### 3. Test the system
+### 2. Test the system
 ```bash
 curl -X POST http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \

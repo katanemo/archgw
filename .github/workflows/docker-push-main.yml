@@ -5,8 +5,8 @@ env:
 
 on:
   push:
-    # branches:
-    #   - main
+    branches:
+      - main
 
 jobs:
   # Build ARM64 image on native ARM64 runner

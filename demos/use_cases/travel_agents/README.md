@@ -6,7 +6,7 @@ A production-ready multi-agent travel booking system demonstrating Plano's intel
 
 This demo consists of two intelligent agents that work together seamlessly:
 
-- **Weather Agent** - Real-time weather conditions for any city worldwide (single-day weather)
+- **Weather Agent** - Real-time weather conditions and multi-day forecasts for any city worldwide
 - **Flight Agent** - Live flight information between airports with real-time tracking
 
 All agents use Plano's agent router to intelligently route user requests to the appropriate specialized agent based on conversation context and user intent. Both agents run as Docker containers for easy deployment.
@@ -15,7 +15,8 @@ All agents use Plano's agent router to intelligently route user requests to the 
 
 - **Intelligent Routing**: Plano automatically routes requests to the right agent
 - **Conversation Context**: Agents understand follow-up questions and references
-- **Real-Time Data**: Live weather, flight, and currency data from public APIs
+- **Real-Time Data**: Live weather and flight data from public APIs
+- **Multi-Day Forecasts**: Weather agent supports up to 16-day forecasts
 - **LLM-Powered**: Uses GPT-4o-mini for extraction and GPT-4o for responses
 - **Streaming Responses**: Real-time streaming for better user experience
 
@@ -52,7 +53,6 @@ This starts:
 - Weather Agent on port 10510
 - Flight Agent on port 10520
 - Open WebUI on port 8080
-- SignOz observability stack
 
 ### 3. Start Plano Orchestrator
 
@@ -65,15 +65,15 @@ plano up arch_config.yaml
 
 The gateway will start on port 8001 and route requests to the appropriate agents.
 
-### 5. Test the System
+### 4. Test the System
 
-Send requests to Plano Orchestrator:
+**Option 1**: Use Open WebUI at http://localhost:8080
 
-```b4. Test the System
+**Option 2**: Send requests directly to Plano Orchestrator:
 
-Option 1: Use Open WebUI at http://localhost:8080
-
-Option 2: Send requests directly to Planon" \
+```bash
+curl http://localhost:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4o",
     "messages": [
@@ -96,9 +96,7 @@ User: What flights go from London to Seattle?
 Assistant: [Flight Agent shows available flights with schedules and status]
 ```
 
-### Currency Exchange
-```
-UserMulti-Agent Conversation
+### Multi-Agent Conversation
 ```
 User: What's the weather in Istanbul?
 Assistant: [Weather information]
@@ -119,8 +117,7 @@ Assistant: [Both weather_agent and flight_agent respond simultaneously]
 
 The orchestrator can select multiple agents simultaneously for queries containing multiple intents.
 
-### Learning Exercise
-The weather agent currently provides single-day weather only. Want to add multi-day forecasts? Check out the TODO comments in `weather_agent.py` - it's a great way to learn how Plano handles dynamic data! 🚀
+## Agent Details
 
 ### Weather Agent
 - **Port**: 10510
@@ -132,28 +129,22 @@ The weather agent currently provides single-day weather only. Want to add multi-
 - **API**: FlightAware AeroAPI
 - **Capabilities**: Real-time flight status, schedules, delays, gates, terminals, live tracking
 
-### Currency Agent
-- **Port**: 10530day weather, temperature (Celsius/Fahrenheit), conditions, sunrise/sunset
-- **Learning Opportunity**: Multi-day forecasts available as TODO exercise
+## Architecture
 
-### Flight Agent
-- **Port**: 10520
-- **API**: FlightAware AeroAPI
-- **Capabilities**: Real-time flight status, schedules, delays, gates, terminals, live tracking
-    ┌───────────┼───────────┐
-    ↓           ↓           ↓
-Weather      Flight     Currency
-Agent        Agent       Agent
-(10510)      (10520)     (10530)
+```
+    User Request
+         ↓
+    Plano (8001)
+     [Orchestrator]
+         |
+    ┌────┴────┐
+    ↓         ↓
+Weather    Flight
+Agent      Agent
+(10510)    (10520)
+[Docker]   [Docker]
 ```
 
-Each agent:
-1. E     ┌──────┴──────┐
-         ↓             ↓
-    Weather        Flight
-    Agent          Agent
-    (10510)        (10520)
-    [Docker]       [Docker]
 ```
 
 Each agent:
@@ -163,7 +154,26 @@ Each agent:
 4. Streams response back to user
 
 Both agents run as Docker containers and communicate with Plano via `host.docker.internal`.
-arch_config.yaml
+
+## Project Structure
+
+```
+travel_agents/
+├── arch_config.yaml          # Plano configuration
+├── docker-compose.yaml       # Docker services orchestration
+├── Dockerfile               # Multi-agent container image
+├── start_agents.sh          # Quick start script
+├── pyproject.toml           # Python dependencies
+└── src/
+    └── travel_agents/
+        ├── __init__.py      # CLI entry point
+        ├── weather_agent.py # Weather forecast agent (multi-day support)
+        └── flight_agent.py  # Flight information agent
+```
+
+## Configuration Files
+
+### arch_config.yaml
 
 Defines the two agents, their descriptions, and routing configuration. The agent router uses these descriptions to intelligently route requests.
 
@@ -173,26 +183,12 @@ Orchestrates the deployment of:
 - Weather Agent (builds from Dockerfile)
 - Flight Agent (builds from Dockerfile)
 - Open WebUI (for testing)
-- SignOz (for observability)
-
-### Environment Variables
-agents/
-├── arch_config.yaml          # Plano configuration
-├── docker-compose.yaml       # Docker services orchestration
-├── Dockerfile               # Multi-agent container image
-├── start_agents.sh          # Quick start script
-├── pyproject.toml           # Python dependencies
-└── src/
-    └── travel_agents/
-        ├── __init__.py      # CLI entry point
-        ├── weather_agent.py # Weather forecast agent (single-day)
-        └── flight_agent.py  # Flight informationgent
-        ├── flight_agent.py  # Flight information agent
-        └── currency_agent.py # Currency exchange agent
-```
+- Jaeger (for distributed tracing)
 
 ## Troubleshooting
-Docker and Docker Compose are installed
+
+**Docker containers won't start**
+- Verify Docker and Docker Compose are installed
 - Check that ports 10510, 10520, 8080 are available
 - Review container logs: `docker compose logs weather-agent` or `docker compose logs flight-agent`
 
@@ -205,9 +201,7 @@ Docker and Docker Compose are installed
 - Verify all containers are running: `docker compose ps`
 - Check that Plano is running on port 8001
 - Review agent logs: `docker compose logs -f`
-- Verify `host.docker.internal` resolves correctly (should point to host machine)g (check start_agents.sh output)
-- Check that Plano is running on port 8001
-- Review agent logs for errors
+- Verify `host.docker.internal` resolves correctly (should point to host machine)
 
 ## API Endpoints
 

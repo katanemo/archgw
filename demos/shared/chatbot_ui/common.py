@@ -159,7 +159,7 @@ def convert_prompt_target_to_openai_format(target):
 
 def get_prompt_targets():
     try:
-        with open(os.getenv("ARCH_CONFIG", "arch_config.yaml"), "r") as file:
+        with open(os.getenv("ARCH_CONFIG", "config.yaml"), "r") as file:
             config = yaml.safe_load(file)
 
             available_tools = []
@@ -181,7 +181,7 @@ def get_prompt_targets():
 
 def get_llm_models():
     try:
-        with open(os.getenv("ARCH_CONFIG", "arch_config.yaml"), "r") as file:
+        with open(os.getenv("ARCH_CONFIG", "config.yaml"), "r") as file:
             config = yaml.safe_load(file)
 
             available_models = [""]

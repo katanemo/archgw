@@ -1,6 +1,6 @@
 # RAG Agent Demo
 
-A multi-agent RAG system demonstrating archgw's agent filter chain with MCP protocol.
+A multi-agent RAG system demonstrating plano's agent filter chain with MCP protocol.
 
 ## Architecture
 
@@ -46,9 +46,9 @@ This starts:
 - Context Builder MCP server on port 10502
 - RAG Agent REST server on port 10505
 
-### 2. Start archgw
+### 2. Start plano
 ```bash
-archgw up --foreground
+plano up --foreground
 ```
 
 ### 3. Test the system
@@ -63,7 +63,7 @@ curl -X POST http://localhost:8001/v1/chat/completions \
 
 ## Configuration
 
-The `arch_config.yaml` defines how agents are connected:
+The `config.yaml` defines how agents are connected:
 
 ```yaml
 filters:
@@ -82,7 +82,7 @@ filters:
 
 ## How It Works
 
-1. User sends request to archgw listener on port 8001
+1. User sends request to plano listener on port 8001
 2. Request passes through MCP filter chain:
    - **Input Guards** validates the query is within TechCorp's domain
    - **Query Rewriter** rewrites the query for better retrieval
@@ -92,7 +92,7 @@ filters:
 
 ## Additional Configuration
 
-See `arch_config.yaml` for the complete filter chain setup. The MCP filters use default settings:
+See `config.yaml` for the complete filter chain setup. The MCP filters use default settings:
 - `type: mcp` (default)
 - `transport: streamable-http` (default)
 - Tool name defaults to filter ID
@@ -113,10 +113,10 @@ curl -X POST http://localhost:8001/v1/chat/completions \
     ]
   }'
 ```
-- `LLM_GATEWAY_ENDPOINT` - archgw endpoint (default: `http://localhost:12000/v1`)
+- `LLM_GATEWAY_ENDPOINT` - lpano endpoint (default: `http://localhost:12000/v1`)
 - `OPENAI_API_KEY` - OpenAI API key for model providers
 
 ## Additional Resources
 
 - See `sample_queries.md` for more example queries
-- See `arch_config.yaml` for complete configuration details
+- See `config.yaml` for complete configuration details

@@ -73,8 +73,8 @@ start_demo() {
   fi
 
   # Step 4: Start Arch
-  echo "Starting Arch with arch_config.yaml..."
-  archgw up arch_config.yaml
+  echo "Starting Arch with config.yaml..."
+  plano up config.yaml
 
   # Step 5: Start Network Agent with the chosen Docker Compose file
   echo "Starting Network Agent with $COMPOSE_FILE..."
@@ -93,7 +93,7 @@ stop_demo() {
 
   # Stop Arch
   echo "Stopping Arch..."
-  archgw down
+  plano down
 }
 
 # Main script logic

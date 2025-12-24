@@ -1,7 +1,7 @@
 name: Publish docker image to ghcr (latest)
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/archgw
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/plano
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
           file: ./arch/Dockerfile
           platforms: linux/arm64
           push: true
-          # produce ghcr.io/<owner>/archgw:latest-arm64
+          # produce ghcr.io/<owner>/plano:latest-arm64
           tags: ${{ steps.meta.outputs.tags }}-arm64
 
   build-amd64:

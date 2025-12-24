@@ -1,6 +1,6 @@
 
 ### Use Arch for (Model-based) LLM Routing Step 1. Create arch config file
-Create `arch_config.yaml` file with following content:
+Create `config.yaml` file with following content:
 
 ```yaml
 version: v0.1.0
@@ -28,8 +28,8 @@ Once the config file is created ensure that you have env vars setup for `MISTRAL
 Start arch gateway,
 
 ```
-$ archgw up arch_config.yaml
-2024-12-05 11:24:51,288 - cli.main - INFO - Starting archgw cli version: 0.1.5
+$ plano up config.yaml
+2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.4.0
 2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
 2024-12-05 11:24:51,825 - cli.main - INFO - Starting arch model server and arch gateway
 ...

@@ -4,8 +4,8 @@ import sys
 import requests
 
 from cli.consts import (
-    ARCHGW_DOCKER_IMAGE,
-    ARCHGW_DOCKER_NAME,
+    PLANO_DOCKER_IMAGE,
+    PLANO_DOCKER_NAME,
 )
 from cli.utils import getLogger
 
@@ -40,9 +40,8 @@ def docker_remove_container(container: str) -> str:
     return result.returncode
 
 
-def docker_start_archgw_detached(
+def docker_start_plano_detached(
     arch_config_file: str,
-    logs_path_abs: str,
     env: dict,
     gateway_ports: list[int],
 ) -> str:
@@ -70,13 +69,13 @@ def docker_start_archgw_detached(
         "run",
         "-d",
         "--name",
-        ARCHGW_DOCKER_NAME,
+        PLANO_DOCKER_NAME,
         *port_mappings_args,
         *volume_mappings_args,
         *env_args,
         "--add-host",
         "host.docker.internal:host-gateway",
-        ARCHGW_DOCKER_IMAGE,
+        PLANO_DOCKER_IMAGE,
     ]
 
     result = subprocess.run(options, capture_output=True, text=True, check=False)
@@ -93,11 +92,11 @@ def health_check_endpoint(endpoint: str) -> bool:
     return False
 
 
-def stream_gateway_logs(follow, service="archgw"):
+def stream_gateway_logs(follow, service="plano"):
     """
-    Stream logs from the arch gateway service.
+    Stream logs from the plano gateway service.
     """
-    log.info("Logs from arch gateway service.")
+    log.info("Logs from plano gateway service.")
 
     options = ["docker", "logs"]
     if follow:
@@ -116,7 +115,7 @@ def stream_gateway_logs(follow, service="archgw"):
         log.info(f"Failed to stream logs: {str(e)}")
 
 
-def docker_validate_archgw_schema(arch_config_file):
+def docker_validate_plano_schema(arch_config_file):
     result = subprocess.run(
         [
             "docker",
@@ -126,7 +125,7 @@ def docker_validate_archgw_schema(arch_config_file):
             f"{arch_config_file}:/app/arch_config.yaml:ro",
             "--entrypoint",
             "python",
-            ARCHGW_DOCKER_IMAGE,
+            PLANO_DOCKER_IMAGE,
             "-m",
             "cli.config_generator",
         ],

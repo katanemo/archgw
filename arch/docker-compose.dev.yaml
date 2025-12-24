@@ -1,6 +1,6 @@
 services:
-  archgw:
-    image: katanemo/archgw:latest
+  plano:
+    image: katanemo/plano:latest
     ports:
       - "10000:10000"
       - "10001:10001"

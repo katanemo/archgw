@@ -11,7 +11,7 @@ services:
     environment:
       - LLM_GATEWAY_ENDPOINT=${LLM_GATEWAY_ENDPOINT:-http://host.docker.internal:12000/v1}
       - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY environment variable is required but not set}
-  archgw:
+  plano:
     build:
       context: ../../../
       dockerfile: arch/Dockerfile
@@ -19,10 +19,10 @@ services:
       - "12000:12000"
       - "8001:8001"
     environment:
-      - ARCH_CONFIG_PATH=/config/arch_config.yaml
+      - ARCH_CONFIG_PATH=/config/config.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY environment variable is required but not set}
     volumes:
-      - ./arch_config.yaml:/app/arch_config.yaml
+      - ./config.yaml:/app/arch_config.yaml
       - /etc/ssl/cert.pem:/etc/ssl/cert.pem
   jaeger:
     build:

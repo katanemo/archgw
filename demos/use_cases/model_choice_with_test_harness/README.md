@@ -1,6 +1,6 @@
 # Model Choice Newsletter Demo
 
-This folder demonstrates a practical workflow for rapid model adoption and safe model switching using Arch Gateway (`archgw`). It includes both a minimal test harness and a sample proxy configuration.
+This folder demonstrates a practical workflow for rapid model adoption and safe model switching using Arch Gateway (`plano`). It includes both a minimal test harness and a sample proxy configuration.
 
 ---
 
@@ -34,13 +34,13 @@ fixtures:
 
 #### 2. Candidate Models
 
-List the model aliases (e.g., `arch.summarize.v1`, `arch.reason.v1`) you want to test. The harness will route requests through `archgw`, so you don’t need provider API keys in your code.
+List the model aliases (e.g., `arch.summarize.v1`, `arch.reason.v1`) you want to test. The harness will route requests through `plano`, so you don’t need provider API keys in your code.
 
 #### 3. Minimal Python Harness
 
 See `bench.py` for a complete example. It:
 - Loads fixtures.
-- Sends requests to each candidate model via `archgw`.
+- Sends requests to each candidate model via `plano`.
 - Validates output against schema and anchor words.
 - Reports success rate and latency.
 
@@ -60,7 +60,7 @@ python bench.py
 
 ### Part 2 — Network Infrastructure
 
-**Goal:** Use a proxy server (`archgw`) to decouple your app from vendor-specific model names and centralize control.
+**Goal:** Use a proxy server (`plano`) to decouple your app from vendor-specific model names and centralize control.
 
 #### Why Use a Proxy?
 
@@ -73,7 +73,7 @@ python bench.py
 
 #### Example Proxy Config
 
-See `arch_config.yaml` for a sample configuration mapping aliases to provider models.
+See `config.yaml` for a sample configuration mapping aliases to provider models.
 
 ---
 
@@ -108,12 +108,12 @@ See `arch_config.yaml` for a sample configuration mapping aliases to provider mo
 - `bench.py` — Minimal Python test harness
 - `evals_summarize.yaml` — Example test fixtures
 - `pyproject.toml` — Poetry environment file
-- `arch_config.yaml` — Sample archgw config (if present)
+- `config.yaml` — Sample plano config (if present)
 
 ---
 
 ## Troubleshooting
 
 - If you see `Success: 0/2 (0%)`, check your anchor words and prompt clarity.
-- Make sure archgw is running and accessible at `http://localhost:12000/`.
+- Make sure plano is running and accessible at `http://localhost:12000/`.
 - For schema validation errors, ensure your prompt instructs the model to output the correct JSON structure.

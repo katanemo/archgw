@@ -6,15 +6,15 @@ set -e
 
 print_disk_usage
 
-mkdir -p ~/archgw_logs
-touch ~/archgw_logs/modelserver.log
+mkdir -p ~/plano_logs
+touch ~/plano_logs/modelserver.log
 
 print_debug() {
   log "Received signal to stop"
   log "Printing debug logs for docker"
   log "===================================="
   tail -n 100 ../build.log
-  archgw logs --debug | tail -n 100
+  plano logs --debug | tail -n 100
 }
 
 trap 'print_debug' INT TERM ERR
@@ -27,7 +27,7 @@ cd ../../demos/samples_python/weather_forecast/
 docker compose up weather_forecast_service --build -d
 cd -
 
-log building and installing archgw cli
+log building and installing plano cli
 log ==================================
 cd ../../arch/tools
 poetry install
@@ -36,16 +36,16 @@ cd -
 log building docker image for arch gateway
 log ======================================
 cd ../../
-archgw build
+plano build
 cd -
 
-# Once we build archgw we have to install the dependencies again to a new virtual environment.
+# Once we build plano we have to install the dependencies again to a new virtual environment.
 poetry install
 
 log startup arch gateway with function calling demo
 cd ../../
-archgw down
-archgw up demos/samples_python/weather_forecast/arch_config.yaml
+plano down
+plano up demos/samples_python/weather_forecast/config.yaml
 cd -
 
 log running e2e tests for prompt gateway
@@ -54,11 +54,11 @@ poetry run pytest test_prompt_gateway.py
 
 log shutting down the arch gateway service for prompt_gateway demo
 log ===============================================================
-archgw down
+plano down
 
 log startup arch gateway with model alias routing demo
 cd ../../
-archgw up demos/use_cases/model_alias_routing/arch_config_with_aliases.yaml
+plano up demos/use_cases/model_alias_routing/config_with_aliases.yaml
 cd -
 
 log running e2e tests for model alias routing
@@ -70,8 +70,8 @@ log ========================================
 poetry run pytest test_openai_responses_api_client.py
 
 log startup arch gateway with state storage for openai responses api client demo
-archgw down
-archgw up arch_config_memory_state_v1_responses.yaml
+plano down
+plano up config_memory_state_v1_responses.yaml
 
 log running e2e tests for openai responses api client
 log ========================================

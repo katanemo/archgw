@@ -22,9 +22,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: build arch docker image
+      - name: build plano docker image
         run: |
-          docker build  -f arch/Dockerfile . -t katanemo/archgw -t katanemo/archgw:0.3.22
+          docker build  -f arch/Dockerfile . -t katanemo/plano -t katanemo/plano:0.4.0
 
       - name: install poetry
         run: |
@@ -43,7 +43,7 @@ jobs:
       - name: install arch gateway and test dependencies
         run: |
           source venv/bin/activate
-          cd arch/tools && echo "installing archgw cli" && poetry install
+          cd arch/tools && echo "installing plano cli" && poetry install
           cd ../../demos/shared/test_runner && echo "installing test dependencies" && poetry install
 
       - name: run demo tests

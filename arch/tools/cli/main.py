@@ -7,7 +7,7 @@ import importlib.metadata
 import json
 from cli import targets
 from cli.docker_cli import (
-    docker_validate_archgw_schema,
+    docker_validate_plano_schema,
     stream_gateway_logs,
     docker_container_status,
 )
@@ -25,43 +25,45 @@ from cli.core import (
     start_cli_agent,
 )
 from cli.consts import (
-    ARCHGW_DOCKER_IMAGE,
-    ARCHGW_DOCKER_NAME,
+    PLANO_DOCKER_IMAGE,
+    PLANO_DOCKER_NAME,
     SERVICE_NAME_ARCHGW,
 )
 
 log = getLogger(__name__)
 
+# ref https://patorjk.com/software/taag/#p=display&f=Doom&t=Plano&x=none&v=4&h=4&w=80&we=false
 logo = r"""
-     _                _
-    / \    _ __  ___ | |__
-   / _ \  | '__|/ __|| '_ \
-  / ___ \ | |  | (__ | | | |
- /_/   \_\|_|   \___||_| |_|
+______ _
+| ___ \ |
+| |_/ / | __ _ _ __   ___
+|  __/| |/ _` | '_ \ / _ \
+| |   | | (_| | | | | (_) |
+\_|   |_|\__,_|_| |_|\___/
 
 """
 
-# Command to build archgw Docker images
+# Command to build plano Docker images
 ARCHGW_DOCKERFILE = "./arch/Dockerfile"
 
 
 def get_version():
     try:
-        version = importlib.metadata.version("archgw")
+        version = importlib.metadata.version("plano")
         return version
     except importlib.metadata.PackageNotFoundError:
         return "version not found"
 
 
 @click.group(invoke_without_command=True)
-@click.option("--version", is_flag=True, help="Show the archgw cli version and exit.")
+@click.option("--version", is_flag=True, help="Show the plano cli version and exit.")
 @click.pass_context
 def main(ctx, version):
     if version:
-        click.echo(f"archgw cli version: {get_version()}")
+        click.echo(f"plano cli version: {get_version()}")
         ctx.exit()
 
-    log.info(f"Starting archgw cli version: {get_version()}")
+    log.info(f"Starting plano cli version: {get_version()}")
 
     if ctx.invoked_subcommand is None:
         click.echo("""Arch (The Intelligent Prompt Gateway) CLI""")
@@ -76,7 +78,7 @@ def build():
     # Check if /arch/Dockerfile exists
     if os.path.exists(ARCHGW_DOCKERFILE):
         if os.path.exists(ARCHGW_DOCKERFILE):
-            click.echo("Building archgw image...")
+            click.echo("Building plano image...")
             try:
                 subprocess.run(
                     [
@@ -85,7 +87,7 @@ def build():
                         "-f",
                         ARCHGW_DOCKERFILE,
                         "-t",
-                        f"{ARCHGW_DOCKER_IMAGE}",
+                        f"{PLANO_DOCKER_IMAGE}",
                         ".",
                         "--add-host=host.docker.internal:host-gateway",
                     ],
@@ -93,7 +95,7 @@ def build():
                 )
                 click.echo("archgw image built successfully.")
             except subprocess.CalledProcessError as e:
-                click.echo(f"Error building archgw image: {e}")
+                click.echo(f"Error building plano image: {e}")
                 sys.exit(1)
         else:
             click.echo("Error: Dockerfile not found in /arch")
@@ -128,7 +130,7 @@ def up(file, path, foreground):
         validation_return_code,
         validation_stdout,
         validation_stderr,
-    ) = docker_validate_archgw_schema(arch_config_file)
+    ) = docker_validate_plano_schema(arch_config_file)
     if validation_return_code != 0:
         log.info(f"Error: Validation failed. Exiting")
         log.info(f"Validation stdout: {validation_stdout}")
@@ -211,7 +213,7 @@ def generate_prompt_targets(file):
 @click.command()
 @click.option(
     "--debug",
-    help="For detailed debug logs to trace calls from archgw <> api_server, etc",
+    help="For detailed debug logs to trace calls from plano <> api_server, etc",
     is_flag=True,
 )
 @click.option("--follow", help="Follow the logs", is_flag=True)
@@ -259,11 +261,11 @@ def cli_agent(type, file, path, settings):
     CLI_AGENT: The type of CLI agent to start (currently only 'claude' is supported)
     """
 
-    # Check if archgw docker container is running
-    archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
+    # Check if plano docker container is running
+    archgw_status = docker_container_status(PLANO_DOCKER_NAME)
     if archgw_status != "running":
         log.error(f"archgw docker container is not running (status: {archgw_status})")
-        log.error("Please start archgw using the 'archgw up' command.")
+        log.error("Please start plano using the 'archgw up' command.")
         sys.exit(1)
 
     # Determine arch_config.yaml path

@@ -20,8 +20,8 @@ do
   echo "Running tests for $demo ..."
   echo "****************************************"
   cd ../../$demo
-  echo "starting archgw"
-  archgw up arch_config.yaml
+  echo "starting plano"
+  plano up config.yaml
   echo "starting docker containers"
   # only execute docker compose if demo is use_cases/preference_based_routing
   if [ "$demo" == "use_cases/preference_based_routing" ]; then
@@ -33,12 +33,12 @@ do
   echo "starting hurl tests"
   if ! hurl hurl_tests/*.hurl; then
     echo "Hurl tests failed for $demo"
-    echo "docker logs for archgw:"
-    docker logs archgw | tail -n 100
+    echo "docker logs for plano:"
+    docker logs plano | tail -n 100
     exit 1
   fi
-  echo "stopping docker containers and archgw"
-  archgw down
+  echo "stopping docker containers and plano"
+  plano down
   docker compose down -v
   cd ../../shared/test_runner
 done

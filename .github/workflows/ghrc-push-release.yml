@@ -1,7 +1,7 @@
 name: release - publish docker image to ghcr (latest)
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/archgw
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/plano
 
 on:
   release:

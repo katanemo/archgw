@@ -2,7 +2,7 @@ services:
 
 
   open-web-ui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: dyrnq/open-webui:main
     restart: always
     ports:
       - "8080:8080"

@@ -1,5 +1,5 @@
 services:
-  archgw:
+  plano:
     image: katanemo/plano:latest
     ports:
       - "10000:10000"

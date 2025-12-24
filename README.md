@@ -63,7 +63,7 @@ Plano's CLI allows you to manage and interact with the Plano gateway efficiently
 ```console
 $ python3.12 -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install plano==0.4.0
+$ pip install planoai==0.4.0
 ```
 
 ### Use Plano as a LLM Router
@@ -160,7 +160,7 @@ tracing:
 Run your `flight_agent` and `hotel_agent` services (see the [Orchestration guide](https://docs.planoai.dev/guides/orchestration.html) for a full Travel Booking example), then start Plano with the config above:
 
 ```console
-$ plano up plano_config.yaml
+$ planoai up plano_config.yaml
 ```
 
 Plano will start the orchestrator and expose an agent listener on port `8001`.
@@ -232,7 +232,7 @@ endpoints:
 ##### Step 2. Start Plano with currency conversion config
 
 ```sh
-$ plano up plano_config.yaml
+$ planoai up plano_config.yaml
 2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.4.0
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
 2024-12-05 16:56:28,485 - cli.main - INFO - Starting plano model server and plano gateway

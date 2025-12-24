@@ -14,7 +14,7 @@ print_debug() {
   log "Printing debug logs for docker"
   log "===================================="
   tail -n 100 ../build.log
-  plano logs --debug | tail -n 100
+  planoai logs --debug | tail -n 100
 }
 
 trap 'print_debug' INT TERM ERR
@@ -36,7 +36,7 @@ cd -
 log building docker image for arch gateway
 log ======================================
 cd ../../
-plano build
+planoai build
 cd -
 
 # Once we build plano we have to install the dependencies again to a new virtual environment.
@@ -44,8 +44,8 @@ poetry install
 
 log startup arch gateway with function calling demo
 cd ../../
-plano down
-plano up demos/samples_python/weather_forecast/config.yaml
+planoai down
+planoai up demos/samples_python/weather_forecast/config.yaml
 cd -
 
 log running e2e tests for prompt gateway
@@ -54,11 +54,11 @@ poetry run pytest test_prompt_gateway.py
 
 log shutting down the arch gateway service for prompt_gateway demo
 log ===============================================================
-plano down
+planoai down
 
 log startup arch gateway with model alias routing demo
 cd ../../
-plano up demos/use_cases/model_alias_routing/config_with_aliases.yaml
+planoai up demos/use_cases/model_alias_routing/config_with_aliases.yaml
 cd -
 
 log running e2e tests for model alias routing
@@ -70,8 +70,8 @@ log ========================================
 poetry run pytest test_openai_responses_api_client.py
 
 log startup arch gateway with state storage for openai responses api client demo
-plano down
-plano up config_memory_state_v1_responses.yaml
+planoai down
+planoai up config_memory_state_v1_responses.yaml
 
 log running e2e tests for openai responses api client
 log ========================================

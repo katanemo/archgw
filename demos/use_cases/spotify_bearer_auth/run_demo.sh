@@ -20,7 +20,7 @@ start_demo() {
 
   # Step 3: Start Arch
   echo "Starting Arch with config.yaml..."
-  plano up config.yaml
+  planoai up config.yaml
 
   # Step 4: Start developer services
   echo "Starting Network Agent using Docker Compose..."
@@ -35,7 +35,7 @@ stop_demo() {
 
   # Step 2: Stop Arch
   echo "Stopping Arch..."
-  plano down
+  planoai down
 }
 
 # Main script logic

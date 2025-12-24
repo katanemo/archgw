@@ -32,7 +32,7 @@ Plano's CLI allows you to manage and interact with the Plano efficiently. To ins
 
    $ python -m venv venv
    $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-   $ pip install plano==0.4.0
+   $ pip install planoai==0.4.0
 
 
 Build Agentic Apps with Plano
@@ -98,7 +98,7 @@ Run your ``flight_agent`` and ``hotel_agent`` services (see :ref:`Orchestration 
 
 .. code-block:: console
 
-  $ plano up plano_config.yaml
+  $ planoai up plano_config.yaml
 
 Plano will start the orchestrator and expose an agent listener on port ``8001``.
 
@@ -176,7 +176,7 @@ Step 2. Start plano with currency conversion config
 
 .. code-block:: sh
 
-   $ plano up plano_config.yaml
+   $ planoai up plano_config.yaml
    2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.1.5
    ...
    2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
@@ -252,7 +252,7 @@ Start Plano:
 
 .. code-block:: console
 
-   $ plano up plano_config.yaml
+   $ planoai up plano_config.yaml
    2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
    2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
    2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano

@@ -13,7 +13,7 @@ Make sure your machine is up to date with [latest version of plano]([url](https:
 ```
 2. start plano in the foreground
 ```bash
-(venv) $ plano up --service plano --foreground
+(venv) $ planoai up --service plano --foreground
 2025-05-30 18:00:09,953 - cli.main - INFO - Starting plano cli version: 0.4.0
 2025-05-30 18:00:09,953 - cli.main - INFO - Validating /Users/adilhafeez/src/intelligent-prompt-gateway/demos/use_cases/preference_based_routing/config.yaml
 2025-05-30 18:00:10,422 - cli.core - INFO - Starting arch gateway, image name: plano, tag: katanemo/plano:0.4.0

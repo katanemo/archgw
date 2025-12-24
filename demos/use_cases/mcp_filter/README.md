@@ -47,10 +47,17 @@ This brings up:
 - RAG Agent REST server on port 10505
 - Plano listener on port 8001 (and gateway on 12000)
 - Jaeger UI for viewing traces at http://localhost:16686
+- Open WebUI at http://localhost:8080 for interactive queries
 
 > Set `OPENAI_API_KEY` in your environment before running; `LLM_GATEWAY_ENDPOINT` defaults to `http://host.docker.internal:12000/v1`.
 
 ### 2. Test the system
+
+**Option A: Using Open WebUI (recommended)**
+
+Navigate to http://localhost:8080 and send queries through the chat interface.
+
+**Option B: Using curl**
 ```bash
 curl -X POST http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \

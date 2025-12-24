@@ -69,9 +69,8 @@ async def get_weather_data(request: Request, messages: list, days: int = 1):
     2. Fetches weather data for that location from Open-Meteo
 
     Currently returns only current day weather. Want to add multi-day forecasts?
-    Check out the TODO comments below - it's a great learning exercise! 🚀
     """
-    # Step 1: Extract location from conversation using LLM
+
     instructions = """Extract the location for WEATHER queries. Return just the city name.
 
             Rules:

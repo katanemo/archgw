@@ -94,7 +94,6 @@ Let's examine the Weather Agent implementation:
     :language: python
     :linenos:
     :lines: 262-283
-    :emphasize-lines: 1-2, 13-21
     :caption: Weather Agent - Core Structure
 
 **Key Points:**
@@ -113,8 +112,7 @@ The Weather Agent extracts location information:
 .. literalinclude:: ../resources/includes/agents/weather.py
     :language: python
     :linenos:
-    :lines: 72-119
-    :emphasize-lines: 108-128
+    :lines: 73-119
     :caption: Weather Agent - Location Extraction
 
 The Flight Agent extracts more complex information—origin, destination, and dates:
@@ -122,8 +120,7 @@ The Flight Agent extracts more complex information—origin, destination, and da
 .. literalinclude:: ../resources/includes/agents/flights.py
     :language: python
     :linenos:
-    :lines: 66-120
-    :emphasize-lines: 1-14, 28-45
+    :lines: 69-120
     :caption: Flight Agent - Flight Information Extraction
 
 **Key Points:**
@@ -142,7 +139,6 @@ After extracting information, agents call external APIs to fetch real-time data:
     :language: python
     :linenos:
     :lines: 136-197
-    :emphasize-lines: 3-5, 18-30, 35-45
     :caption: Weather Agent - External API Call
 
 The Flight Agent calls FlightAware's AeroAPI:
@@ -150,8 +146,7 @@ The Flight Agent calls FlightAware's AeroAPI:
 .. literalinclude:: ../resources/includes/agents/flights.py
     :language: python
     :linenos:
-    :lines: 154-260
-    :emphasize-lines: 1-4, 18-28, 45-55
+    :lines: 156-260
     :caption: Flight Agent - External API Call
 
 **Key Points:**
@@ -170,7 +165,6 @@ Agents combine extracted information, API data, and conversation history to gene
     :language: python
     :linenos:
     :lines: 290-370
-    :emphasize-lines: 28-36, 47-57, 62-72
     :caption: Weather Agent - Context Preparation and Response Generation
 
 **Key Points:**
@@ -179,26 +173,6 @@ Agents combine extracted information, API data, and conversation history to gene
 * Include full conversation history for context-aware responses
 * Stream responses for better user experience
 * Route all LLM calls through Plano's gateway for consistent behavior and observability
-
-Handling Conversation Context
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-One of the most powerful features of multi-agent systems is handling follow-up questions that reference previous context. The Flight Agent demonstrates this:
-
-.. literalinclude:: ../resources/includes/agents/flights.py
-    :language: python
-    :linenos:
-    :lines: 66-120
-    :emphasize-lines: 10-20, 32-45
-    :caption: Flight Agent - Context-Aware Follow-up Questions with Extraction
-
-**Key Points:**
-
-* Include conversation history in extraction prompts
-* Use pronouns and references from context (e.g., "they", "there", "that country")
-* Limit context window to recent messages (e.g., last 10) for efficiency
-* Handle cases where context is insufficient gracefully
-
 
 Best Practices
 --------------

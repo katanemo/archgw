@@ -1,6 +1,6 @@
 Plano Docs v0.4.0
 llms.txt (auto-generated)
-Generated (UTC): 2025-12-24T02:38:30.379923+00:00
+Generated (UTC): 2025-12-24T03:32:36.503126+00:00
 
 Table of contents
 - Agents (concepts/agents)
@@ -2472,7 +2472,7 @@ We recommend that developers create a new Python virtual environment to isolate 
 
 $ python -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install plano==0.4.0
+$ pip install planoai==0.4.0
 
 Build Agentic Apps with Plano
 
@@ -2532,7 +2532,7 @@ Step 2. Start your agents and Plano
 
 Run your flight_agent and hotel_agent services (see Orchestration for a full Travel Booking example), then start Plano with the config above:
 
-$ plano up plano_config.yaml
+$ planoai up plano_config.yaml
 
 Plano will start the orchestrator and expose an agent listener on port 8001.
 
@@ -2600,7 +2600,7 @@ listeners:
 
 Step 2. Start plano with currency conversion config
 
-$ plano up plano_config.yaml
+$ planoai up plano_config.yaml
 2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.1.5
 ...
 2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
@@ -2663,7 +2663,7 @@ Once the config file is created, ensure that you have environment variables set 
 
 Start Plano:
 
-$ plano up plano_config.yaml
+$ planoai up plano_config.yaml
 2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
 2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
 2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano

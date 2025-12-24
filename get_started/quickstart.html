@@ -184,7 +184,7 @@
 </div>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
 </span><span id="line-2"><span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w">   </span><span class="c1"># On Windows, use: venv\Scripts\activate</span>
-</span><span id="line-3"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">plano</span><span class="o">==</span><span class="m">0</span>.4.0
+</span><span id="line-3"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">planoai</span><span class="o">==</span><span class="m">0</span>.4.0
 </span></code></pre></div>
 </div>
 </section>
@@ -239,7 +239,7 @@
 <section id="step-2-start-your-agents-and-plano">
 <h4>Step 2. Start your agents and Plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-your-agents-and-plano"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
 <p>Run your <code class="docutils literal notranslate"><span class="pre">flight_agent</span></code> and <code class="docutils literal notranslate"><span class="pre">hotel_agent</span></code> services (see <a class="reference internal" href="../guides/orchestration.html#agent-routing"><span class="std std-ref">Orchestration</span></a> for a full Travel Booking example), then start Plano with the config above:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
 </span></code></pre></div>
 </div>
 <p>Plano will start the orchestrator and expose an agent listener on port <code class="docutils literal notranslate"><span class="pre">8001</span></code>.</p>
@@ -307,7 +307,7 @@
 </section>
 <section id="step-2-start-plano-with-currency-conversion-config">
 <h4>Step 2. Start plano with currency conversion config<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-plano-with-currency-conversion-config"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
 </span><span id="line-2"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:27,979<span class="w"> </span>-<span class="w"> </span>cli.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>cli<span class="w"> </span>version:<span class="w"> </span><span class="m">0</span>.1.5
 </span><span id="line-3">...
 </span><span id="line-4"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>cli.utils<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Schema<span class="w"> </span>validation<span class="w"> </span>successful!
@@ -369,7 +369,7 @@
 <h3>Step 2. Start plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-plano" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-2-start-plano'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
 <p>Once the config file is created, ensure that you have environment variables set up for <code class="docutils literal notranslate"><span class="pre">MISTRAL_API_KEY</span></code> and <code class="docutils literal notranslate"><span class="pre">OPENAI_API_KEY</span></code> (or these are defined in a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file).</p>
 <p>Start Plano:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
 </span><span id="line-2"><span class="go">2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5</span>
 </span><span id="line-3"><span class="go">2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!</span>
 </span><span id="line-4"><span class="go">2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano</span>

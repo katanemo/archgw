@@ -48,7 +48,7 @@ This starts:
 
 ### 2. Start plano
 ```bash
-plano up --foreground
+planoai up --foreground
 ```
 
 ### 3. Test the system

@@ -19,12 +19,12 @@ source venv/bin/activate
 
 ### Step 3: Run the build script
 ```bash
-pip install plano==0.4.0
+pip install planoai==0.4.0
 ```
 
 ## Uninstall Instructions: plano CLI
 ```bash
-pip uninstall plano
+pip uninstall planoai
 ```
 
 ## Setup Instructions (Dev): plano CLI
@@ -53,16 +53,16 @@ poetry install
 
 ### Step 4: build Arch
 ```bash
-plano build
+planoai build
 ```
 
 ### Logs
 `plano` command can also view logs from the gateway. Use following command to view logs,
 
 ```bash
-plano logs --follow
+planoai logs --follow
 ```
 
 ## Uninstall Instructions: plano CLI
 ```bash
-pip uninstall plano
+pip uninstall planoai

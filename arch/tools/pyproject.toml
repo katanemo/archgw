@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "plano"
+name = "planoai"
 version = "0.4.0"
 description = "Python-based CLI tool to manage Plano."
 authors = ["Katanemo Labs, Inc."]
@@ -18,7 +18,7 @@ requests = ">=2.31.0,<3.0.0"
 pytest = ">=8.4.1,<9.0.0"
 
 [tool.poetry.scripts]
-plano = "cli.main:main"
+planoai = "cli.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

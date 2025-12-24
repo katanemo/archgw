@@ -60,7 +60,7 @@ In a new terminal:
 
 ```bash
 cd /path/to/travel_agents
-plano up config.yaml
+planoai up config.yaml
 ```
 
 The gateway will start on port 8001 and route requests to the appropriate agents.

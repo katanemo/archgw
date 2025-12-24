@@ -2,8 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install uv for faster dependency management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install bash and uv
+RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv
 
 # Copy dependency files
 COPY pyproject.toml README.md ./

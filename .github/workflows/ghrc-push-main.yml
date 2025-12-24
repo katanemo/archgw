@@ -4,7 +4,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/plano
 
 on:
-  # push:
+  push:
   #   branches: [main]
 
 jobs:

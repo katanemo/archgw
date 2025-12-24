@@ -60,7 +60,7 @@ In a new terminal:
 
 ```bash
 cd /path/to/travel_agents
-plano up arch_config.yaml
+plano up config.yaml
 ```
 
 The gateway will start on port 8001 and route requests to the appropriate agents.
@@ -159,7 +159,7 @@ Both agents run as Docker containers and communicate with Plano via `host.docker
 
 ```
 travel_agents/
-├── arch_config.yaml          # Plano configuration
+├── config.yaml          # Plano configuration
 ├── docker-compose.yaml       # Docker services orchestration
 ├── Dockerfile               # Multi-agent container image
 ├── start_agents.sh          # Quick start script
@@ -173,7 +173,7 @@ travel_agents/
 
 ## Configuration Files
 
-### arch_config.yaml
+### config.yaml
 
 Defines the two agents, their descriptions, and routing configuration. The agent router uses these descriptions to intelligently route requests.
 
@@ -195,7 +195,7 @@ Orchestrates the deployment of:
 **Plano won't start**
 - Verify Plano is installed: `plano --version`
 - Ensure you're in the travel_agents directory
-- Check arch_config.yaml is valid
+- Check config.yaml is valid
 
 **No response from agents**
 - Verify all containers are running: `docker compose ps`

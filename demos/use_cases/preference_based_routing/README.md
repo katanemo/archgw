@@ -1,5 +1,5 @@
 # Usage based LLM Routing
-This demo shows how you can use user preferences to route user prompts to appropriate llm. See [arch_config.yaml](arch_config.yaml) for details on how you can define user preferences.
+This demo shows how you can use user preferences to route user prompts to appropriate llm. See [config.yaml](config.yaml) for details on how you can define user preferences.
 
 ## How to start the demo
 
@@ -15,7 +15,7 @@ Make sure your machine is up to date with [latest version of archgw]([url](https
 ```bash
 (venv) $ archgw up --service archgw --foreground
 2025-05-30 18:00:09,953 - cli.main - INFO - Starting archgw cli version: 0.4.0
-2025-05-30 18:00:09,953 - cli.main - INFO - Validating /Users/adilhafeez/src/intelligent-prompt-gateway/demos/use_cases/preference_based_routing/arch_config.yaml
+2025-05-30 18:00:09,953 - cli.main - INFO - Validating /Users/adilhafeez/src/intelligent-prompt-gateway/demos/use_cases/preference_based_routing/config.yaml
 2025-05-30 18:00:10,422 - cli.core - INFO - Starting arch gateway, image name: archgw, tag: katanemo/plano:0.4.0
 2025-05-30 18:00:10,662 - cli.core - INFO - archgw status: running, health status: starting
 2025-05-30 18:00:11,712 - cli.core - INFO - archgw status: running, health status: starting

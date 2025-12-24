@@ -73,7 +73,7 @@ python bench.py
 
 #### Example Proxy Config
 
-See `arch_config.yaml` for a sample configuration mapping aliases to provider models.
+See `config.yaml` for a sample configuration mapping aliases to provider models.
 
 ---
 
@@ -108,7 +108,7 @@ See `arch_config.yaml` for a sample configuration mapping aliases to provider mo
 - `bench.py` — Minimal Python test harness
 - `evals_summarize.yaml` — Example test fixtures
 - `pyproject.toml` — Poetry environment file
-- `arch_config.yaml` — Sample archgw config (if present)
+- `config.yaml` — Sample archgw config (if present)
 
 ---
 

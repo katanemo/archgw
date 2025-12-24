@@ -19,8 +19,8 @@ start_demo() {
   fi
 
   # Step 3: Start Arch
-  echo "Starting Arch with arch_config.yaml..."
-  archgw up arch_config.yaml
+  echo "Starting Arch with config.yaml..."
+  archgw up config.yaml
 
   # Step 4: Start Network Agent
   echo "Starting HR Agent using Docker Compose..."

@@ -21,7 +21,7 @@ do
   echo "****************************************"
   cd ../../$demo
   echo "starting archgw"
-  archgw up arch_config.yaml
+  archgw up config.yaml
   echo "starting docker containers"
   # only execute docker compose if demo is use_cases/preference_based_routing
   if [ "$demo" == "use_cases/preference_based_routing" ]; then

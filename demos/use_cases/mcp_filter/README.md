@@ -63,7 +63,7 @@ curl -X POST http://localhost:8001/v1/chat/completions \
 
 ## Configuration
 
-The `arch_config.yaml` defines how agents are connected:
+The `config.yaml` defines how agents are connected:
 
 ```yaml
 filters:
@@ -92,7 +92,7 @@ filters:
 
 ## Additional Configuration
 
-See `arch_config.yaml` for the complete filter chain setup. The MCP filters use default settings:
+See `config.yaml` for the complete filter chain setup. The MCP filters use default settings:
 - `type: mcp` (default)
 - `transport: streamable-http` (default)
 - Tool name defaults to filter ID
@@ -119,4 +119,4 @@ curl -X POST http://localhost:8001/v1/chat/completions \
 ## Additional Resources
 
 - See `sample_queries.md` for more example queries
-- See `arch_config.yaml` for complete configuration details
+- See `config.yaml` for complete configuration details

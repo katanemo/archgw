@@ -1,17 +1,15 @@
-Welcome to Arch!
-================
+Welcome to Plano!
+=================
 
-.. image:: /_static/img/arch-logo.png
+.. image:: /_static/img/PlanoTagline.svg
    :width: 100%
    :align: center
 
-.. raw:: html
+`Plano <https://github.com/katanemo/plano>`_ is delivery infrastructure for agentic apps. A models-native proxy server and data plane designed to help you build agents faster, and deliver them reliably to production.
 
-   <a href="https://www.producthunt.com/posts/arch-3?embed=true&utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-arch&#0045;3" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=565761&theme=dark&period=daily&t=1742433071161" alt="Arch - Build&#0032;fast&#0044;&#0032;hyper&#0045;personalized&#0032;agents&#0032;with&#0032;intelligent&#0032;infra | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+Plano pulls out the rote plumbing work (aka “hidden AI middleware”) and decouples you from brittle, ever‑changing framework abstractions. It centralizes what shouldn’t be bespoke in every codebase like agent routing and orchestration, rich agentic signals and traces for continuous improvement, guardrail filters for safety and moderation, and smart LLM routing APIs for UX and DX agility. Use any language or AI framework, and ship agents to production faster with Plano.
 
-`Arch <https://github.com/katanemo/arch>`_ is a models-native edge and LLM proxy/gateway for AI agents - one that is natively designed to handle and process prompts, not just network traffic.
-
-Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Arch handles the *pesky low-level work* in building agentic apps — like applying guardrails, clarifying vague user input, routing prompts to the right agent, and unifying access to any LLM. It’s a language and framework friendly infrastructure layer designed to help you build and ship agentic apps faster.
+Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy.io/>`_, Plano **helps developers** focus more on the core product logic of agents, **product teams** accelerate feedback loops for reinforcement learning, and **engineering teams** standardize policies and access controls across every agent and LLM for safer, more reliable scaling.
 
 .. tab-set::
 
@@ -23,7 +21,7 @@ Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy
       :maxdepth: 2
 
       get_started/overview
-      get_started/intro_to_arch
+      get_started/intro_to_plano
       get_started/quickstart
 
   .. tab-item:: Concepts
@@ -33,7 +31,9 @@ Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy
       :titlesonly:
       :maxdepth: 2
 
-      concepts/tech_overview/tech_overview
+      concepts/listeners
+      concepts/agents
+      concepts/filter_chain
       concepts/llm_providers/llm_providers
       concepts/prompt_target
 
@@ -44,22 +44,12 @@ Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy
       :titlesonly:
       :maxdepth: 2
 
-      guides/prompt_guard
-      guides/agent_routing
-      guides/function_calling
+      guides/orchestration
       guides/llm_router
+      guides/function_calling
       guides/observability/observability
-
-  .. tab-item:: Build with Arch
-
-    .. toctree::
-      :caption: Build with Arch
-      :titlesonly:
-      :maxdepth: 2
-
-      build_with_arch/agent
-      build_with_arch/rag
-      build_with_arch/multi_turn
+      guides/prompt_guard
+      guides/state
 
   .. tab-item:: Resources
 
@@ -68,5 +58,7 @@ Built by contributors to the widely adopted `Envoy Proxy <https://www.envoyproxy
       :titlesonly:
       :maxdepth: 2
 
+      resources/tech_overview/tech_overview
       resources/deployment
       resources/configuration_reference
+      resources/llms_txt

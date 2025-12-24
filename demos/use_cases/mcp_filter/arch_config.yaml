@@ -5,12 +5,16 @@ agents:
     url: http://host.docker.internal:10505
 
 filters:
-  - id: query_rewriter
+  - id: input_guards
     url: http://host.docker.internal:10500
-    type: rest
-    # type: rest or mcp, mcp is default
-    # transport: streamable-http # default is streamable-http
-    # tool: query_rewriter # default name is the filter id
+    # type: mcp (default)
+    # transport: streamable-http (default)
+    # tool: input_guards (default - same as filter id)
+  - id: query_rewriter
+    url: http://host.docker.internal:10501
+    # type: mcp (default)
+    # transport: streamable-http (default)
+    # tool: query_rewriter (default - same as filter id)
   - id: context_builder
     url: http://host.docker.internal:10502
 
@@ -36,6 +40,7 @@ listeners:
       - id: rag_agent
         description: virtual assistant for retrieval augmented generation tasks
         filter_chain:
+          - input_guards
           - query_rewriter
           - context_builder
 tracing:

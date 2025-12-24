@@ -3,130 +3,199 @@
 LLM Routing
 ==============================================================
 
-With the rapid proliferation of large language models (LLM) — each optimized for different strengths, style, or latency/cost profile — routing has become an essential technique to operationalize the use of different models.
+With the rapid proliferation of large language models (LLMs) — each optimized for different strengths, style, or latency/cost profile — routing has become an essential technique to operationalize the use of different models. Plano provides three distinct routing approaches to meet different use cases: :ref:`Model-based routing <model_based_routing>`, :ref:`Alias-based routing <alias_based_routing>`, and :ref:`Preference-aligned routing <preference_aligned_routing>`. This enables optimal performance, cost efficiency, and response quality by matching requests with the most suitable model from your available LLM fleet.
 
-Arch provides three distinct routing approaches to meet different use cases:
-
-1. **Model-based Routing**: Direct routing to specific models using provider/model names
-2. **Alias-based Routing**: Semantic routing using custom aliases that map to underlying models
-3. **Preference-aligned Routing**: Intelligent routing using the Arch-Router model based on context and user-defined preferences
-
-This enables optimal performance, cost efficiency, and response quality by matching requests with the most suitable model from your available LLM fleet.
-
+.. note::
+  For details on supported model providers, configuration options, and client libraries, see :ref:`LLM Providers <llm_providers>`.
 
 Routing Methods
 ---------------
 
-Model-based Routing
+.. _model_based_routing:
+
+Model-based routing
 ~~~~~~~~~~~~~~~~~~~
 
 Direct routing allows you to specify exact provider and model combinations using the format ``provider/model-name``:
 
-- Use provider-specific names like ``openai/gpt-4o`` or ``anthropic/claude-3-5-sonnet-20241022``
+- Use provider-specific names like ``openai/gpt-5.2`` or ``anthropic/claude-sonnet-4-5``
 - Provides full control and transparency over which model handles each request
 - Ideal for production workloads where you want predictable routing behavior
 
-Alias-based Routing
+Configuration
+^^^^^^^^^^^^^
+
+Configure your LLM providers with specific provider/model names:
+
+.. code-block:: yaml
+    :caption: Model-based Routing Configuration
+
+    listeners:
+      egress_traffic:
+        address: 0.0.0.0
+        port: 12000
+        message_format: openai
+        timeout: 30s
+
+    llm_providers:
+      - model: openai/gpt-5.2
+        access_key: $OPENAI_API_KEY
+        default: true
+
+      - model: openai/gpt-5
+        access_key: $OPENAI_API_KEY
+
+      - model: anthropic/claude-sonnet-4-5
+        access_key: $ANTHROPIC_API_KEY
+
+Client usage
+^^^^^^^^^^^^
+
+Clients specify exact models:
+
+.. code-block:: python
+
+    # Direct provider/model specification
+    response = client.chat.completions.create(
+        model="openai/gpt-5.2",
+        messages=[{"role": "user", "content": "Hello!"}]
+    )
+
+    response = client.chat.completions.create(
+        model="anthropic/claude-sonnet-4-5",
+        messages=[{"role": "user", "content": "Write a story"}]
+    )
+
+.. _alias_based_routing:
+
+Alias-based routing
 ~~~~~~~~~~~~~~~~~~~
 
 Alias-based routing lets you create semantic model names that decouple your application from specific providers:
 
-- Use meaningful names like ``fast-model``, ``reasoning-model``, or ``arch.summarize.v1`` (see :ref:`model_aliases`)
+- Use meaningful names like ``fast-model``, ``reasoning-model``, or ``plano.summarize.v1`` (see :ref:`model_aliases`)
 - Maps semantic names to underlying provider models for easier experimentation and provider switching
 - Ideal for applications that want abstraction from specific model names while maintaining control
 
+Configuration
+^^^^^^^^^^^^^
+
+Configure semantic aliases that map to underlying models:
+
+.. code-block:: yaml
+    :caption: Alias-based Routing Configuration
+
+    listeners:
+      egress_traffic:
+        address: 0.0.0.0
+        port: 12000
+        message_format: openai
+        timeout: 30s
+
+    llm_providers:
+      - model: openai/gpt-5.2
+        access_key: $OPENAI_API_KEY
+
+      - model: openai/gpt-5
+        access_key: $OPENAI_API_KEY
+
+      - model: anthropic/claude-sonnet-4-5
+        access_key: $ANTHROPIC_API_KEY
+
+    model_aliases:
+      # Model aliases - friendly names that map to actual provider names
+      fast-model:
+        target: gpt-5.2
+
+      reasoning-model:
+        target: gpt-5
+
+      creative-model:
+        target: claude-sonnet-4-5
+
+Client usage
+^^^^^^^^^^^^
+
+Clients use semantic names:
+
+.. code-block:: python
+
+    # Using semantic aliases
+    response = client.chat.completions.create(
+        model="fast-model",  # Routes to best available fast model
+        messages=[{"role": "user", "content": "Quick summary please"}]
+    )
+
+    response = client.chat.completions.create(
+        model="reasoning-model",  # Routes to best reasoning model
+        messages=[{"role": "user", "content": "Solve this complex problem"}]
+    )
+
 .. _preference_aligned_routing:
 
-Preference-aligned Routing (Arch-Router)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preference-aligned routing (Arch-Router)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Traditional LLM routing approaches face significant limitations: they evaluate performance using benchmarks that often fail to capture human preferences, select from fixed model pools, and operate as "black boxes" without practical mechanisms for encoding user preferences.
+Preference-aligned routing uses the `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ model to pick the best LLM based on domain, action, and your configured preferences instead of hard-coding a model.
 
-Arch's preference-aligned routing addresses these challenges by applying a fundamental engineering principle: decoupling. The framework separates route selection (matching queries to human-readable policies) from model assignment (mapping policies to specific LLMs). This separation allows you to define routing policies using descriptive labels like ``Domain: 'finance', Action: 'analyze_earnings_report'`` rather than cryptic identifiers, while independently configuring which models handle each policy.
+- **Domain**: High-level topic of the request (e.g., legal, healthcare, programming).
+- **Action**: What the user wants to do (e.g., summarize, generate code, translate).
+- **Routing preferences**: Your mapping from (domain, action) to preferred models.
 
-The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ model automatically selects the most appropriate LLM based on:
+Arch-Router analyzes each prompt to infer domain and action, then applies your preferences to select a model. This decouples **routing policy** (how to choose) from **model assignment** (what to run), making routing transparent, controllable, and easy to extend as you add or swap models.
 
-- Domain Analysis: Identifies the subject matter (e.g., legal, healthcare, programming)
-- Action Classification: Determines the type of operation (e.g., summarization, code generation, translation)
-- User-Defined Preferences: Maps domains and actions to preferred models using transparent, configurable routing decisions
-- Human Preference Alignment: Uses domain-action mappings that capture subjective evaluation criteria, ensuring routing aligns with real-world user needs rather than just benchmark scores
+Configuration
+^^^^^^^^^^^^^
 
-This approach supports seamlessly adding new models without retraining and is ideal for dynamic, context-aware routing that adapts to request content and intent.
+To configure preference-aligned dynamic routing, define routing preferences that map domains and actions to specific models:
 
+.. code-block:: yaml
+    :caption: Preference-Aligned Dynamic Routing Configuration
 
-Model-based Routing Workflow
-----------------------------
+    listeners:
+      egress_traffic:
+        address: 0.0.0.0
+        port: 12000
+        message_format: openai
+        timeout: 30s
 
-For direct model routing, the process is straightforward:
+    llm_providers:
+      - model: openai/gpt-5.2
+        access_key: $OPENAI_API_KEY
+        default: true
 
-#. **Client Request**
+      - model: openai/gpt-5
+        access_key: $OPENAI_API_KEY
+        routing_preferences:
+          - name: code understanding
+            description: understand and explain existing code snippets, functions, or libraries
+          - name: complex reasoning
+            description: deep analysis, mathematical problem solving, and logical reasoning
 
-    The client specifies the exact model using provider/model format (``openai/gpt-4o``).
+      - model: anthropic/claude-sonnet-4-5
+        access_key: $ANTHROPIC_API_KEY
+        routing_preferences:
+          - name: creative writing
+            description: creative content generation, storytelling, and writing assistance
+          - name: code generation
+            description: generating new code snippets, functions, or boilerplate based on user prompts
 
-#. **Provider Validation**
+Client usage
+^^^^^^^^^^^^
 
-    Arch validates that the specified provider and model are configured and available.
+Clients can let the router decide or still specify aliases:
 
-#. **Direct Routing**
+.. code-block:: python
 
-    The request is sent directly to the specified model without analysis or decision-making.
+    # Let Arch-Router choose based on content
+    response = client.chat.completions.create(
+        messages=[{"role": "user", "content": "Write a creative story about space exploration"}]
+        # No model specified - router will analyze and choose claude-sonnet-4-5
+    )
 
-#. **Response Handling**
-
-    The response is returned to the client with optional metadata about the routing decision.
-
-
-Alias-based Routing Workflow
------------------------------
-
-For alias-based routing, the process includes name resolution:
-
-#. **Client Request**
-
-    The client specifies a semantic alias name (``reasoning-model``).
-
-#. **Alias Resolution**
-
-    Arch resolves the alias to the actual provider/model name based on configuration.
-
-#. **Model Selection**
-
-    If the alias maps to multiple models, Arch selects one based on availability and load balancing.
-
-#. **Request Forwarding**
-
-    The request is forwarded to the resolved model.
-
-#. **Response Handling**
-
-    The response is returned with optional metadata about the alias resolution.
-
-
-.. _preference_aligned_routing_workflow:
-
-Preference-aligned Routing Workflow (Arch-Router)
--------------------------------------------------
-
-For preference-aligned dynamic routing, the process involves intelligent analysis:
-
-#. **Prompt Analysis**
-
-    When a user submits a prompt without specifying a model, the Arch-Router analyzes it to determine the domain (subject matter) and action (type of operation requested).
-
-#. **Model Selection**
-
-    Based on the analyzed intent and your configured routing preferences, the Router selects the most appropriate model from your available LLM fleet.
-
-#. **Request Forwarding**
-
-    Once the optimal model is identified, our gateway forwards the original prompt to the selected LLM endpoint. The routing decision is transparent and can be logged for monitoring and optimization purposes.
-
-#. **Response Handling**
-
-    After the selected model processes the request, the response is returned through the gateway. The gateway can optionally add routing metadata or performance metrics to help you understand and optimize your routing decisions.
 
 Arch-Router
--------------------------
+-----------
 The `Arch-Router <https://huggingface.co/katanemo/Arch-Router-1.5B>`_ is a state-of-the-art **preference-based routing model** specifically designed to address the limitations of traditional LLM routing. This compact 1.5B model delivers production-ready performance with low latency and high accuracy while solving key routing challenges.
 
 **Addressing Traditional Routing Limitations:**
@@ -159,145 +228,6 @@ In summary, Arch-Router demonstrates:
 - **Production-Ready Performance**: Optimized for low-latency, high-throughput applications in multi-model environments.
 
 
-Implementing Routing
---------------------
-
-**Model-based Routing**
-
-For direct model routing, configure your LLM providers with specific provider/model names:
-
-.. code-block:: yaml
-    :caption: Model-based Routing Configuration
-
-    listeners:
-      egress_traffic:
-        address: 0.0.0.0
-        port: 12000
-        message_format: openai
-        timeout: 30s
-
-    llm_providers:
-      - model: openai/gpt-4o-mini
-        access_key: $OPENAI_API_KEY
-        default: true
-
-      - model: openai/gpt-4o
-        access_key: $OPENAI_API_KEY
-
-      - model: anthropic/claude-3-5-sonnet-20241022
-        access_key: $ANTHROPIC_API_KEY
-
-Clients specify exact models:
-
-.. code-block:: python
-
-    # Direct provider/model specification
-    response = client.chat.completions.create(
-        model="openai/gpt-4o-mini",
-        messages=[{"role": "user", "content": "Hello!"}]
-    )
-
-    response = client.chat.completions.create(
-        model="anthropic/claude-3-5-sonnet-20241022",
-        messages=[{"role": "user", "content": "Write a story"}]
-    )
-
-**Alias-based Routing**
-
-Configure semantic aliases that map to underlying models:
-
-.. code-block:: yaml
-    :caption: Alias-based Routing Configuration
-
-    listeners:
-      egress_traffic:
-        address: 0.0.0.0
-        port: 12000
-        message_format: openai
-        timeout: 30s
-
-    llm_providers:
-      - model: openai/gpt-4o-mini
-        access_key: $OPENAI_API_KEY
-
-      - model: openai/gpt-4o
-        access_key: $OPENAI_API_KEY
-
-      - model: anthropic/claude-3-5-sonnet-20241022
-        access_key: $ANTHROPIC_API_KEY
-
-    model_aliases:
-      # Model aliases - friendly names that map to actual provider names
-      fast-model:
-        target: gpt-4o-mini
-
-      reasoning-model:
-        target: gpt-4o
-
-      creative-model:
-        target: claude-3-5-sonnet-20241022
-
-Clients use semantic names:
-
-.. code-block:: python
-
-    # Using semantic aliases
-    response = client.chat.completions.create(
-        model="fast-model",  # Routes to best available fast model
-        messages=[{"role": "user", "content": "Quick summary please"}]
-    )
-
-    response = client.chat.completions.create(
-        model="reasoning-model",  # Routes to best reasoning model
-        messages=[{"role": "user", "content": "Solve this complex problem"}]
-    )
-
-**Preference-aligned Routing (Arch-Router)**
-
-To configure preference-aligned dynamic routing, you need to define routing preferences that map domains and actions to specific models:
-
-.. code-block:: yaml
-    :caption: Preference-Aligned Dynamic Routing Configuration
-
-    listeners:
-      egress_traffic:
-        address: 0.0.0.0
-        port: 12000
-        message_format: openai
-        timeout: 30s
-
-    llm_providers:
-      - model: openai/gpt-4o-mini
-        access_key: $OPENAI_API_KEY
-        default: true
-
-      - model: openai/gpt-4o
-        access_key: $OPENAI_API_KEY
-        routing_preferences:
-          - name: code understanding
-            description: understand and explain existing code snippets, functions, or libraries
-          - name: complex reasoning
-            description: deep analysis, mathematical problem solving, and logical reasoning
-
-      - model: anthropic/claude-3-5-sonnet-20241022
-        access_key: $ANTHROPIC_API_KEY
-        routing_preferences:
-          - name: creative writing
-            description: creative content generation, storytelling, and writing assistance
-          - name: code generation
-            description: generating new code snippets, functions, or boilerplate based on user prompts
-
-Clients can let the router decide or use aliases:
-
-.. code-block:: python
-
-    # Let Arch-Router choose based on content
-    response = client.chat.completions.create(
-        messages=[{"role": "user", "content": "Write a creative story about space exploration"}]
-        # No model specified - router will analyze and choose claude-3-5-sonnet-20241022
-    )
-
-
 Combining Routing Methods
 -------------------------
 
@@ -307,17 +237,17 @@ You can combine static model selection with dynamic routing preferences for maxi
     :caption: Hybrid Routing Configuration
 
     llm_providers:
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         default: true
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
         routing_preferences:
           - name: complex_reasoning
             description: deep analysis and complex problem solving
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
         routing_preferences:
           - name: creative_tasks
@@ -326,14 +256,14 @@ You can combine static model selection with dynamic routing preferences for maxi
     model_aliases:
       # Model aliases - friendly names that map to actual provider names
       fast-model:
-        target: gpt-4o-mini
+        target: gpt-5.2
 
       reasoning-model:
-        target: gpt-4o
+        target: gpt-5
 
       # Aliases that can also participate in dynamic routing
       creative-model:
-        target: claude-3-5-sonnet-20241022
+        target: claude-sonnet-4-5
 
 This configuration allows clients to:
 
@@ -341,7 +271,7 @@ This configuration allows clients to:
 2. **Let the router decide**: No model specified, router analyzes content
 
 Example Use Cases
--------------------------
+-----------------
 Here are common scenarios where Arch-Router excels:
 
 - **Coding Tasks**: Distinguish between code generation requests ("write a Python function"), debugging needs ("fix this error"), and code optimization ("make this faster"), routing each to appropriately specialized models.
@@ -352,9 +282,8 @@ Here are common scenarios where Arch-Router excels:
 
 - **Conversational Routing**: Track conversation context to identify when topics shift between domains or when the type of assistance needed changes mid-conversation.
 
-
-Best practicesm
--------------------------
+Best practices
+--------------
 - **💡Consistent Naming:**  Route names should align with their descriptions.
 
   - ❌ Bad:
@@ -379,18 +308,15 @@ Best practicesm
 
 - **💡Nouns Descriptor:** Preference-based routers perform better with noun-centric descriptors, as they offer more stable and semantically rich signals for matching.
 
-- **💡Domain Inclusion:** for best user experience, you should always include domain route. This help the router fall back to domain when action is not
+- **💡Domain Inclusion:** for best user experience, you should always include a domain route. This helps the router fall back to domain when action is not confidently inferred.
 
-.. Unsupported Features
-.. -------------------------
+Unsupported Features
+--------------------
 
-.. The following features are **not supported** by the Arch-Router model:
+The following features are **not supported** by the Arch-Router model:
 
-.. - **❌ Multi-Modality:**
-..   The model is not trained to process raw image or audio inputs. While it can handle textual queries *about* these modalities (e.g., "generate an image of a cat"), it cannot interpret encoded multimedia data directly.
+- **Multi-modality**: The model is not trained to process raw image or audio inputs. It can handle textual queries *about* these modalities (e.g., "generate an image of a cat"), but cannot interpret encoded multimedia data directly.
 
-.. - **❌ Function Calling:**
-..   This model is designed for **semantic preference matching**, not exact intent classification or tool execution. For structured function invocation, use models in the **Arch-Function-Calling** collection.
+- **Function calling**: Arch-Router is designed for **semantic preference matching**, not exact intent classification or tool execution. For structured function invocation, use models in the Plano Function Calling collection instead.
 
-.. - **❌ System Prompt Dependency:**
-..   Arch-Router routes based solely on the user’s conversation history. It does not use or rely on system prompts for routing decisions.
+- **System prompt dependency**: Arch-Router routes based solely on the user’s conversation history. It does not use or rely on system prompts for routing decisions.

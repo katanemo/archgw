@@ -21,17 +21,11 @@ cleanup() {
 
 trap cleanup EXIT
 
-# log "Starting input guards filter on port 10500..."
-# uv run python -m rag_agent --host 0.0.0.0 --port 10500 --agent input_guards &
-# WAIT_FOR_PIDS+=($!)
-
-
-log "Starting query_rewriter agent on port 10500/http..."
-uv run python -m rag_agent --rest-server --host 0.0.0.0 --rest-port 10500 --agent query_rewriter &
+log "Starting input_guards agent on port 10500/mcp..."
+uv run python -m rag_agent --host 0.0.0.0 --port 10500 --agent input_guards &
 WAIT_FOR_PIDS+=($!)
 
-
-log "Starting query_parser agent on port 10501/mcp..."
+log "Starting query_rewriter agent on port 10501/mcp..."
 uv run python -m rag_agent --host 0.0.0.0 --port 10501 --agent query_rewriter &
 WAIT_FOR_PIDS+=($!)
 

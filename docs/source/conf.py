@@ -5,6 +5,8 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+import os
+import sys
 from dataclasses import asdict
 
 from sphinx.application import Sphinx
@@ -12,10 +14,10 @@ from sphinx.util.docfields import Field
 from sphinxawesome_theme import ThemeOptions
 from sphinxawesome_theme.postprocess import Icons
 
-project = "Arch Docs"
+project = "Plano Docs"
 copyright = "2025, Katanemo Labs, Inc"
 author = "Katanemo Labs, Inc"
-release = " v0.3.22"
+release = " v0.4"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -34,6 +36,8 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_sitemap",
     "sphinx_design",
+    # Local extensions
+    "llms_txt",
 ]
 
 # Paths that contain templates, relative to this directory.
@@ -42,6 +46,9 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and directories
 # to ignore when looking for source files.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# Allow importing extensions from docs/source/_ext (robust to current working directory)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "_ext")))
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -72,7 +79,7 @@ theme_options = ThemeOptions(
     awesome_external_links=True,
     extra_header_link_icons={
         "repository on GitHub": {
-            "link": "https://github.com/katanemo/arch",
+            "link": "https://github.com/katanemo/plano",
             "icon": (
                 '<svg height="26px" style="margin-top:-2px;display:inline" '
                 'viewBox="0 0 45 44" '
@@ -107,6 +114,7 @@ html_theme_options = asdict(theme_options)
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
 
 pygments_style = "lovelace"
 pygments_style_dark = "github-dark"
@@ -115,7 +123,7 @@ sitemap_url_scheme = "{link}"
 # Add this configuration at the bottom of your conf.py
 
 html_context = {
-    "google_analytics_id": "G-K2LXXSX6HB",  # Replace with your Google Analytics tracking ID
+    "google_analytics_id": "G-EH2VW19FXE",  # Replace with your Google Analytics tracking ID
 }
 
 templates_path = ["_templates"]
@@ -142,5 +150,3 @@ def setup(app: Sphinx) -> None:
             )
         ],
     )
-
-    app.add_css_file("_static/custom.css")

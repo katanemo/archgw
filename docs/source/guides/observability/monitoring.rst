@@ -8,11 +8,11 @@ and instrumentation for generating, collecting, processing, and exporting teleme
 metrics, and logs. Its flexible design supports a wide range of backends and seamlessly integrates with
 modern application tools.
 
-Arch acts a *source* for several monitoring metrics related to **prompts** and **LLMs** natively integrated
+Plano acts a *source* for several monitoring metrics related to **agents** and **LLMs** natively integrated
 via `OpenTelemetry <https://opentelemetry.io/>`_ to help you understand three critical aspects of your application:
 latency, token usage, and error rates by an upstream LLM provider. Latency measures the speed at which your application
 is responding to users, which includes metrics like time to first token (TFT), time per output token (TOT) metrics, and
-the total latency as perceived by users. Below are some screenshots how Arch integrates natively with tools like
+the total latency as perceived by users. Below are some screenshots how Plano integrates natively with tools like
 `Grafana <https://grafana.com/grafana/dashboards/>`_ via `Promethus <https://prometheus.io/>`_
 
 
@@ -32,7 +32,7 @@ Metrics Dashboard (via Grafana)
 
 Configure Monitoring
 ~~~~~~~~~~~~~~~~~~~~
-Arch gateway publishes stats endpoint at http://localhost:19901/stats. As noted above, Arch is a source for metrics. To view and manipulate dashbaords, you will
+Plano publishes stats endpoint at http://localhost:19901/stats. As noted above, Plano is a source for metrics. To view and manipulate dashbaords, you will
 need to configiure `Promethus <https://prometheus.io/>`_ (as a metrics store) and `Grafana <https://grafana.com/grafana/dashboards/>`_ for dashboards. Below
 are some sample configuration files for both, respectively.
 
@@ -51,7 +51,7 @@ are some sample configuration files for both, respectively.
         timeout: 10s
         api_version: v2
     scrape_configs:
-    - job_name: archgw
+    - job_name: plano
         honor_timestamps: true
         scrape_interval: 15s
         scrape_timeout: 10s

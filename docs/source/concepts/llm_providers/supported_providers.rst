@@ -3,26 +3,20 @@
 Supported Providers & Configuration
 ===================================
 
-Arch provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.
+Plano provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.
 
 .. note::
-   **Model Support:** Arch supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.
+   **Model Support:** Plano supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.
+
+   Please refer to the quuickstart guide :ref:`here <llm_routing_quickstart>` to configure and use LLM providers via common client libraries like OpenAI and Anthropic Python SDKs, or via direct HTTP/cURL requests.
+
 
 Configuration Structure
 -----------------------
 
-All providers are configured in the ``llm_providers`` section of your ``arch_config.yaml`` file:
+All providers are configured in the ``llm_providers`` section of your ``plano_config.yaml`` file:
 
 .. code-block:: yaml
-
-    version: v0.1
-
-    listeners:
-      egress_traffic:
-        address: 0.0.0.0
-        port: 12000
-        message_format: openai
-        timeout: 30s
 
     llm_providers:
       # Provider configurations go here
@@ -50,7 +44,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 Supported API Endpoints
 ------------------------
 
-Arch supports the following standardized endpoints across providers:
+Plano supports the following standardized endpoints across providers:
 
 .. list-table::
    :header-rows: 1
@@ -65,6 +59,9 @@ Arch supports the following standardized endpoints across providers:
    * - ``/v1/messages``
      - Anthropic-style messages
      - Anthropic SDK, cURL, custom clients
+   * - ``/v1/responses``
+     - Unified response endpoint for agentic apps
+     - All SDKs, cURL, custom clients
 
 First-Class Providers
 ---------------------
@@ -78,7 +75,7 @@ OpenAI
 
 **Authentication:** API Key - Get your OpenAI API key from `OpenAI Platform <https://platform.openai.com/api-keys>`_.
 
-**Supported Chat Models:** All OpenAI chat models including GPT-5, GPT-4o, GPT-4, GPT-3.5-turbo, and all future releases.
+**Supported Chat Models:** All OpenAI chat models including GPT-5.2, GPT-5, GPT-4o, and all future releases.
 
 .. list-table::
    :header-rows: 1
@@ -87,21 +84,18 @@ OpenAI
    * - Model Name
      - Model ID for Config
      - Description
+   * - GPT-5.2
+     - ``openai/gpt-5.2``
+     - Next-generation model (use any model name from OpenAI's API)
    * - GPT-5
      - ``openai/gpt-5``
-     - Next-generation model (use any model name from OpenAI's API)
-   * - GPT-4o
-     - ``openai/gpt-4o``
      - Latest multimodal model
    * - GPT-4o mini
      - ``openai/gpt-4o-mini``
      - Fast, cost-effective model
-   * - GPT-4
-     - ``openai/gpt-4``
+   * - GPT-4o
+     - ``openai/gpt-4o``
      - High-capability reasoning model
-   * - GPT-3.5 Turbo
-     - ``openai/gpt-3.5-turbo``
-     - Balanced performance and cost
    * - o3-mini
      - ``openai/o3-mini``
      - Reasoning-focused model (preview)
@@ -115,15 +109,15 @@ OpenAI
 
     llm_providers:
       # Latest models (examples - use any OpenAI chat model)
-      - model: openai/gpt-4o-mini
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         default: true
 
-      - model: openai/gpt-4o
+      - model: openai/gpt-5
         access_key: $OPENAI_API_KEY
 
       # Use any model name from OpenAI's API
-      - model: openai/gpt-5
+      - model: openai/gpt-4o
         access_key: $OPENAI_API_KEY
 
 Anthropic
@@ -135,7 +129,7 @@ Anthropic
 
 **Authentication:** API Key - Get your Anthropic API key from `Anthropic Console <https://console.anthropic.com/settings/keys>`_.
 
-**Supported Chat Models:** All Anthropic Claude models including Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus, and all future releases.
+**Supported Chat Models:** All Anthropic Claude models including Claude Sonnet 4.5, Claude Opus 4.5, Claude Haiku 4.5, and all future releases.
 
 .. list-table::
    :header-rows: 1
@@ -144,24 +138,18 @@ Anthropic
    * - Model Name
      - Model ID for Config
      - Description
-   * - Claude Sonnet 4
-     - ``anthropic/claude-sonnet-4``
-     - Next-generation model (use any model name from Anthropic's API)
-   * - Claude 3.5 Sonnet
-     - ``anthropic/claude-3-5-sonnet-20241022``
-     - Latest high-performance model
-   * - Claude 3.5 Haiku
-     - ``anthropic/claude-3-5-haiku-20241022``
-     - Fast and efficient model
-   * - Claude 3 Opus
-     - ``anthropic/claude-3-opus-20240229``
+   * - Claude Opus 4.5
+     - ``anthropic/claude-opus-4-5``
      - Most capable model for complex tasks
-   * - Claude 3 Sonnet
-     - ``anthropic/claude-3-sonnet-20240229``
+   * - Claude Sonnet 4.5
+     - ``anthropic/claude-sonnet-4-5``
      - Balanced performance model
-   * - Claude 3 Haiku
-     - ``anthropic/claude-3-haiku-20240307``
-     - Fastest model
+   * - Claude Haiku 4.5
+     - ``anthropic/claude-haiku-4-5``
+     - Fast and efficient model
+   * - Claude Sonnet 3.5
+     - ``anthropic/claude-sonnet-3-5``
+     - Complex agents and coding
 
 **Configuration Examples:**
 
@@ -169,14 +157,14 @@ Anthropic
 
     llm_providers:
       # Latest models (examples - use any Anthropic chat model)
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-opus-4-5
         access_key: $ANTHROPIC_API_KEY
 
-      - model: anthropic/claude-3-5-haiku-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
 
       # Use any model name from Anthropic's API
-      - model: anthropic/claude-sonnet-4
+      - model: anthropic/claude-haiku-4-5
         access_key: $ANTHROPIC_API_KEY
 
 DeepSeek
@@ -267,7 +255,7 @@ Groq
 
 **Authentication:** API Key - Get your Groq API key from `Groq Console <https://console.groq.com/keys>`_.
 
-**Supported Chat Models:** All Groq chat models including Llama 3, Mixtral, Gemma, and all future releases.
+**Supported Chat Models:** All Groq chat models including Llama 4, GPT OSS, Mixtral, Gemma, and all future releases.
 
 .. list-table::
    :header-rows: 1
@@ -276,25 +264,28 @@ Groq
    * - Model Name
      - Model ID for Config
      - Description
-   * - Llama 3.1 8B
-     - ``groq/llama3-8b-8192``
+   * - Llama 4 Maverick 17B
+     - ``groq/llama-4-maverick-17b-128e-instruct``
      - Fast inference Llama model
-   * - Llama 3.1 70B
-     - ``groq/llama3-70b-8192``
-     - Larger Llama model
-   * - Mixtral 8x7B
-     - ``groq/mixtral-8x7b-32768``
-     - Mixture of experts model
+   * - Llama 4 Scout 8B
+     - ``groq/llama-4-scout-8b-128e-instruct``
+     - Smaller Llama model
+   * - GPT OSS 20B
+     - ``groq/gpt-oss-20b``
+     - Open source GPT model
 
 **Configuration Examples:**
 
 .. code-block:: yaml
 
     llm_providers:
-      - model: groq/llama3-8b-8192
+      - model: groq/llama-4-maverick-17b-128e-instruct
         access_key: $GROQ_API_KEY
 
-      - model: groq/mixtral-8x7b-32768
+      - model: groq/llama-4-scout-8b-128e-instruct
+        access_key: $GROQ_API_KEY
+
+      - model: groq/gpt-oss-20b
         access_key: $GROQ_API_KEY
 
 Google Gemini
@@ -306,7 +297,7 @@ Google Gemini
 
 **Authentication:** API Key - Get your Google AI API key from `Google AI Studio <https://aistudio.google.com/app/apikey>`_.
 
-**Supported Chat Models:** All Google Gemini chat models including Gemini 1.5 Pro, Gemini 1.5 Flash, and all future releases.
+**Supported Chat Models:** All Google Gemini chat models including Gemini 3 Pro, Gemini 3 Flash, and all future releases.
 
 .. list-table::
    :header-rows: 1
@@ -315,11 +306,11 @@ Google Gemini
    * - Model Name
      - Model ID for Config
      - Description
-   * - Gemini 1.5 Pro
-     - ``gemini/gemini-1.5-pro``
+   * - Gemini 3 Pro
+     - ``gemini/gemini-3-pro``
      - Advanced reasoning and creativity
-   * - Gemini 1.5 Flash
-     - ``gemini/gemini-1.5-flash``
+   * - Gemini 3 Flash
+     - ``gemini/gemini-3-flash``
      - Fast and efficient model
 
 **Configuration Examples:**
@@ -327,10 +318,10 @@ Google Gemini
 .. code-block:: yaml
 
     llm_providers:
-      - model: gemini/gemini-1.5-pro
+      - model: gemini/gemini-3-pro
         access_key: $GOOGLE_API_KEY
 
-      - model: gemini/gemini-1.5-flash
+      - model: gemini/gemini-3-flash
         access_key: $GOOGLE_API_KEY
 
 Together AI
@@ -524,7 +515,7 @@ Amazon Bedrock
 
 **Provider Prefix:** ``amazon_bedrock/``
 
-**API Endpoint:** Arch automatically constructs the endpoint as:
+**API Endpoint:** Plano automatically constructs the endpoint as:
   - Non-streaming: ``/model/{model-id}/converse``
   - Streaming: ``/model/{model-id}/converse-stream``
 
@@ -723,7 +714,7 @@ Configure routing preferences for dynamic model selection:
 .. code-block:: yaml
 
     llm_providers:
-      - model: openai/gpt-4o
+      - model: openai/gpt-5.2
         access_key: $OPENAI_API_KEY
         routing_preferences:
           - name: complex_reasoning
@@ -731,7 +722,7 @@ Configure routing preferences for dynamic model selection:
           - name: code_review
             description: reviewing and analyzing existing code for bugs and improvements
 
-      - model: anthropic/claude-3-5-sonnet-20241022
+      - model: anthropic/claude-sonnet-4-5
         access_key: $ANTHROPIC_API_KEY
         routing_preferences:
           - name: creative_writing
@@ -741,15 +732,15 @@ Model Selection Guidelines
 --------------------------
 
 **For Production Applications:**
-- **High Performance**: OpenAI GPT-4o, Anthropic Claude 3.5 Sonnet
-- **Cost-Effective**: OpenAI GPT-4o mini, Anthropic Claude 3.5 Haiku
+- **High Performance**: OpenAI GPT-5.2, Anthropic Claude Sonnet 4.5
+- **Cost-Effective**: OpenAI GPT-5, Anthropic Claude Haiku 4.5
 - **Code Tasks**: DeepSeek Coder, Together AI Code Llama
 - **Local Deployment**: Ollama with Llama 3.1 or Code Llama
 
 **For Development/Testing:**
 - **Fast Iteration**: Groq models (optimized inference)
 - **Local Testing**: Ollama models
-- **Cost Control**: Smaller models like GPT-4o mini or Mistral Small
+- **Cost Control**: Smaller models like GPT-4o or Mistral Small
 
 See Also
 --------

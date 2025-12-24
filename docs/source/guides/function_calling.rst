@@ -3,7 +3,7 @@
 Function Calling
 ================
 
-**Function Calling** is a powerful feature in Arch that allows your application to dynamically execute backend functions or services based on user prompts.
+**Function Calling** is a powerful feature in Plano that allows your application to dynamically execute backend functions or services based on user prompts.
 This enables seamless integration between natural language interactions and backend operations, turning user inputs into actionable results.
 
 
@@ -18,15 +18,15 @@ Function Calling Workflow
 
 #. **Prompt Parsing**
 
-    When a user submits a prompt, Arch analyzes it to determine the intent. Based on this intent, the system identifies whether a function needs to be invoked and which parameters should be extracted.
+    When a user submits a prompt, Plano analyzes it to determine the intent. Based on this intent, the system identifies whether a function needs to be invoked and which parameters should be extracted.
 
 #. **Parameter Extraction**
 
-    Arch’s advanced natural language processing capabilities automatically extract parameters from the prompt that are necessary for executing the function. These parameters can include text, numbers, dates, locations, or other relevant data points.
+    Plano’s advanced natural language processing capabilities automatically extract parameters from the prompt that are necessary for executing the function. These parameters can include text, numbers, dates, locations, or other relevant data points.
 
 #. **Function Invocation**
 
-    Once the necessary parameters have been extracted, Arch invokes the relevant backend function. This function could be an API, a database query, or any other form of backend logic. The function is executed with the extracted parameters to produce the desired output.
+    Once the necessary parameters have been extracted, Plano invokes the relevant backend function. This function could be an API, a database query, or any other form of backend logic. The function is executed with the extracted parameters to produce the desired output.
 
 #. **Response Handling**
 
@@ -34,7 +34,7 @@ Function Calling Workflow
 
 
 Arch-Function
--------------------------
+-------------
 The `Arch-Function <https://huggingface.co/collections/katanemo/arch-function-66f209a693ea8df14317ad68>`_ collection of large language models (LLMs) is a collection state-of-the-art (SOTA) LLMs specifically designed for **function calling** tasks.
 The models are designed to understand complex function signatures, identify required parameters, and produce accurate function call outputs based on natural language prompts.
 Achieving performance on par with GPT-4, these models set a new benchmark in the domain of function-oriented tasks, making them suitable for scenarios where automated API interaction and function execution is crucial.
@@ -64,11 +64,11 @@ Key Features
 Implementing Function Calling
 -----------------------------
 
-Here’s a step-by-step guide to configuring function calling within your Arch setup:
+Here’s a step-by-step guide to configuring function calling within your Plano setup:
 
 Step 1: Define the Function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-First, create or identify the backend function you want Arch to call. This could be an API endpoint, a script, or any other executable backend logic.
+First, create or identify the backend function you want Plano to call. This could be an API endpoint, a script, or any other executable backend logic.
 
 .. code-block:: python
 
@@ -96,8 +96,8 @@ First, create or identify the backend function you want Arch to call. This could
 
 Step 2: Configure Prompt Targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Next, map the function to a prompt target, defining the intent and parameters that Arch will extract from the user’s prompt.
-Specify the parameters your function needs and how Arch should interpret these.
+Next, map the function to a prompt target, defining the intent and parameters that Plano will extract from the user’s prompt.
+Specify the parameters your function needs and how Plano should interpret these.
 
 .. code-block:: yaml
     :caption: Prompt Target Example Configuration
@@ -121,22 +121,22 @@ Specify the parameters your function needs and how Arch should interpret these.
 .. Note::
     For a complete refernce of attributes that you can configure in a prompt target, see :ref:`here <defining_prompt_target_parameters>`.
 
-Step 3: Arch Takes Over
-~~~~~~~~~~~~~~~~~~~~~~~
-Once you have defined the functions and configured the prompt targets, Arch Gateway takes care of the remaining work.
+Step 3: Plano Takes Over
+~~~~~~~~~~~~~~~~~~~~~~~~
+Once you have defined the functions and configured the prompt targets, Plano takes care of the remaining work.
 It will automatically validate parameters, and ensure that the required parameters (e.g., location) are present in the prompt, and add validation rules if necessary.
 
-.. figure:: /_static/img/arch_network_diagram_high_level.png
+.. figure:: /_static/img/plano_network_diagram_high_level.png
    :width: 100%
    :align: center
 
-   High-level network flow of where Arch Gateway sits in your agentic stack. Managing incoming and outgoing prompt traffic
+   High-level network flow of where Plano sits in your agentic stack. Managing incoming and outgoing prompt traffic
 
 
-Once a downstream function (API) is called, Arch Gateway takes the response and sends it an upstream LLM to complete the request (for summarization, Q/A, text generation tasks).
-For more details on how Arch Gateway enables you to centralize usage of LLMs, please read :ref:`LLM providers <llm_providers>`.
+Once a downstream function (API) is called, Plano  takes the response and sends it an upstream LLM to complete the request (for summarization, Q/A, text generation tasks).
+For more details on how Plano  enables you to centralize usage of LLMs, please read :ref:`LLM providers <llm_providers>`.
 
-By completing these steps, you enable Arch to manage the process from validation to response, ensuring users receive consistent, reliable results - and that you are focused
+By completing these steps, you enable Plano to manage the process from validation to response, ensuring users receive consistent, reliable results - and that you are focused
 on the stuff that matters most.
 
 Example Use Cases
@@ -152,7 +152,7 @@ Here are some common use cases where Function Calling can be highly beneficial:
 
 Best Practices and Tips
 -----------------------
-When integrating function calling into your generative AI applications, keep these tips in mind to get the most out of our Arch-Function models:
+When integrating function calling into your generative AI applications, keep these tips in mind to get the most out of our Plano-Function models:
 
 - **Keep it clear and simple**: Your function names and parameters should be straightforward and easy to understand. Think of it like explaining a task to a smart colleague - the clearer you are, the better the results.
 

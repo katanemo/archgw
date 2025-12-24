@@ -1,7 +1,7 @@
 name: Publish docker image (release)
 
 env:
-  DOCKER_IMAGE: katanemo/archgw
+  DOCKER_IMAGE: katanemo/plano
 
 on:
   release:

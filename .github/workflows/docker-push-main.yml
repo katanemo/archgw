@@ -1,12 +1,12 @@
 name: Publish docker image (latest)
 
 env:
-  DOCKER_IMAGE: katanemo/archgw
+  DOCKER_IMAGE: katanemo/plano
 
 on:
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
 
 jobs:
   # Build ARM64 image on native ARM64 runner

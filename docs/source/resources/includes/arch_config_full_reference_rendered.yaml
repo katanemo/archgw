@@ -42,6 +42,10 @@ listeners:
   port: 12000
   type: model
 - address: 0.0.0.0
+  name: prompt_function_listener
+  port: 10000
+  type: prompt
+- address: 0.0.0.0
   model_providers:
   - access_key: $OPENAI_API_KEY
     default: true
@@ -93,6 +97,23 @@ model_providers:
 - model: Plano-Orchestrator
   name: plano-orchestrator
   provider_interface: arch
+prompt_targets:
+- description: Get current weather at a location.
+  endpoint:
+    http_method: POST
+    name: app_server
+    path: /weather
+  name: get_current_weather
+  parameters:
+  - description: The location to get the weather for
+    format: City, State
+    name: location
+    required: true
+    type: string
+  - description: the number of days for the request
+    name: days
+    required: true
+    type: int
 tracing:
   random_sampling: 100
 version: v0.3.0

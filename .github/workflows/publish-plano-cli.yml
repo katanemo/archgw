@@ -1,0 +1,102 @@
+name: Publish Plano CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: 'Target registry'
+        required: true
+        type: choice
+        options:
+          - pypi
+          - github
+          - both
+        default: 'pypi'
+      version:
+        description: 'Version to publish (leave empty to use version from pyproject.toml)'
+        required: false
+        type: string
+  release:
+    types: [published]
+  push:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: arch/tools
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      
+      - name: Update version (if specified)
+        if: ${{ github.event.inputs.version != '' }}
+        run: |
+          poetry version ${{ github.event.inputs.version }}
+          echo "Updated version to ${{ github.event.inputs.version }}"
+      
+      - name: Build package
+        run: poetry build
+      
+      - name: Publish to PyPI
+        if: ${{ github.event.inputs.registry == 'pypi' || github.event.inputs.registry == 'both' || github.event_name == 'release' }}
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: poetry publish
+      
+      - name: Publish to GitHub Packages
+        if: ${{ github.event.inputs.registry == 'github' || github.event.inputs.registry == 'both' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          poetry config repositories.github https://pypi.pkg.github.com/katanemo
+          poetry config http-basic.github __token__ $GITHUB_TOKEN
+          poetry publish --repository github
+      
+      - name: Create release summary
+        run: |
+          VERSION=$(poetry version -s)
+          echo "## 📦 Package Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event.inputs.registry }}" = "pypi" ] || [ "${{ github.event.inputs.registry }}" = "both" ] || [ "${{ github.event_name }}" = "release" ]; then
+            echo "### PyPI.org" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "pip install plano==$VERSION" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ github.event.inputs.registry }}" = "github" ] || [ "${{ github.event.inputs.registry }}" = "both" ]; then
+            echo "### GitHub Packages" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "pip install plano==$VERSION \\" >> $GITHUB_STEP_SUMMARY
+            echo "  --index-url https://pypi.pkg.github.com/katanemo/simple/" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

@@ -28,4 +28,4 @@ jobs:
 
       - name: validate arch config
         run: |
-          bash arch/validate_arch_config.sh
+          bash arch/validate_plano_config.sh

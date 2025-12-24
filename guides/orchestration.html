@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+
+<html :class="{'dark': darkMode === 'dark' || (darkMode === 'system' &amp;&amp; window.matchMedia('(prefers-color-scheme: dark)').matches)}" class="scroll-smooth" data-content_root="../" lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') || localStorage.setItem('darkMode', 'system'), activeSection: '' }" x-init="$watch('darkMode', val =&gt; localStorage.setItem('darkMode', val))">
+<head>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta charset="utf-8"/>
+<meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Orchestration | Plano Docs v0.4</title>
+<meta content="Orchestration | Plano Docs v0.4" property="og:title"/>
+<meta content="Orchestration | Plano Docs v0.4" name="twitter:title"/>
+<link href="../_static/pygments.css?v=466e7b45" rel="stylesheet" type="text/css"/>
+<link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
+<link href="../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css?v=2929376a" rel="stylesheet" type="text/css"/>
+<link href="../_static/awesome-sphinx-design.css?v=15e0fffa" rel="stylesheet" type="text/css"/>
+<link href="./docs/guides/orchestration.html" rel="canonical"/>
+<link href="../_static/favicon.ico" rel="icon"/>
+<link href="../search.html" rel="search" title="Search"/>
+<link href="llm_router.html" rel="next" title="LLM Routing"/>
+<link href="../concepts/prompt_target.html" rel="prev" title="Prompt Target"/>
+<script>
+    <!-- Prevent Flash of wrong theme -->
+      const userPreference = localStorage.getItem('darkMode');
+      let mode;
+      if (userPreference === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mode = 'dark';
+        document.documentElement.classList.add('dark');
+      } else {
+        mode = 'light';
+      }
+      if (!userPreference) {localStorage.setItem('darkMode', mode)}
+    </script>
+</head>
+<body :class="{ 'overflow-hidden': showSidebar }" class="min-h-screen font-sans antialiased bg-background text-foreground" x-data="{ showSidebar: false, showScrollTop: false }">
+<div @click.self="showSidebar = false" class="fixed inset-0 z-50 overflow-hidden bg-background/80 backdrop-blur-sm md:hidden" x-cloak="" x-show="showSidebar"></div><div class="relative flex flex-col min-h-screen" id="page"><a class="absolute top-0 left-0 z-[100] block bg-background p-4 text-xl transition -translate-x-full opacity-0 focus:translate-x-0 focus:opacity-100" href="#content">
+      Skip to content
+    </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
+<div class="hidden mr-4 md:flex">
+<a class="flex items-center mr-6" href="../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Plano Docs v0.4</span>
+</a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
+<svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
+</svg>
+<span class="sr-only">Toggle navigation menu</span>
+</button>
+<div class="flex items-center justify-between flex-1 space-x-2 sm:space-x-4 md:justify-end">
+<div class="flex-1 w-full md:w-auto md:flex-none"><form @keydown.k.window.meta="$refs.search.focus()" action="../search.html" class="relative flex items-center group" id="searchbox" method="get">
+<input aria-label="Search the docs" class="inline-flex items-center font-medium transition-colors bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background border border-input hover:bg-accent focus:bg-accent hover:text-accent-foreground focus:text-accent-foreground hover:placeholder-accent-foreground py-2 px-4 relative h-9 w-full justify-start rounded-[0.5rem] text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64" id="search-input" name="q" placeholder="Search ..." type="search" x-ref="search"/>
+<kbd class="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none text-muted-foreground items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex group-hover:bg-accent group-hover:text-accent-foreground">
+<span class="text-xs">⌘</span>
+    K
+  </kbd>
+</form>
+</div>
+<nav class="flex items-center space-x-1">
+<a href="https://github.com/katanemo/plano" rel="noopener nofollow" title="Visit repository on GitHub">
+<div class="inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md disabled:opacity-50 disabled:pointer-events-none hover:bg-accent hover:text-accent-foreground h-9 w-9">
+<svg fill="currentColor" height="26px" style="margin-top:-2px;display:inline" viewbox="0 0 45 44" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M22.477.927C10.485.927.76 10.65.76 22.647c0 9.596 6.223 17.736 14.853 20.608 1.087.2 1.483-.47 1.483-1.047 0-.516-.019-1.881-.03-3.693-6.04 1.312-7.315-2.912-7.315-2.912-.988-2.51-2.412-3.178-2.412-3.178-1.972-1.346.149-1.32.149-1.32 2.18.154 3.327 2.24 3.327 2.24 1.937 3.318 5.084 2.36 6.321 1.803.197-1.403.759-2.36 1.379-2.903-4.823-.548-9.894-2.412-9.894-10.734 0-2.37.847-4.31 2.236-5.828-.224-.55-.969-2.759.214-5.748 0 0 1.822-.584 5.972 2.226 1.732-.482 3.59-.722 5.437-.732 1.845.01 3.703.25 5.437.732 4.147-2.81 5.967-2.226 5.967-2.226 1.185 2.99.44 5.198.217 5.748 1.392 1.517 2.232 3.457 2.232 5.828 0 8.344-5.078 10.18-9.916 10.717.779.67 1.474 1.996 1.474 4.021 0 2.904-.027 5.247-.027 5.96 0 .58.392 1.256 1.493 1.044C37.981 40.375 44.2 32.24 44.2 22.647c0-11.996-9.726-21.72-21.722-21.72" fill="currentColor" fill-rule="evenodd"></path></svg>
+</div>
+</a>
+<button @click="darkMode = darkMode === 'light' ? 'dark' : 'light'" aria-label="Color theme switcher" class="relative inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md hover:bg-accent hover:text-accent-foreground h-9 w-9" type="button">
+<svg class="absolute transition-all scale-100 rotate-0 dark:-rotate-90 dark:scale-0" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 685q45.456 0 77.228-31.772Q589 621.456 589 576q0-45.456-31.772-77.228Q525.456 467 480 467q-45.456 0-77.228 31.772Q371 530.544 371 576q0 45.456 31.772 77.228Q434.544 685 480 685Zm0 91q-83 0-141.5-58.5T280 576q0-83 58.5-141.5T480 376q83 0 141.5 58.5T680 576q0 83-58.5 141.5T480 776ZM80 621.5q-19.152 0-32.326-13.174T34.5 576q0-19.152 13.174-32.326T80 530.5h80q19.152 0 32.326 13.174T205.5 576q0 19.152-13.174 32.326T160 621.5H80Zm720 0q-19.152 0-32.326-13.174T754.5 576q0-19.152 13.174-32.326T800 530.5h80q19.152 0 32.326 13.174T925.5 576q0 19.152-13.174 32.326T880 621.5h-80Zm-320-320q-19.152 0-32.326-13.174T434.5 256v-80q0-19.152 13.174-32.326T480 130.5q19.152 0 32.326 13.174T525.5 176v80q0 19.152-13.174 32.326T480 301.5Zm0 720q-19.152 0-32.326-13.17Q434.5 995.152 434.5 976v-80q0-19.152 13.174-32.326T480 850.5q19.152 0 32.326 13.174T525.5 896v80q0 19.152-13.174 32.33-13.174 13.17-32.326 13.17ZM222.174 382.065l-43-42Q165.5 327.391 166 308.239t13.174-33.065q13.435-13.674 32.587-13.674t32.065 13.674l42.239 43q12.674 13.435 12.555 31.706-.12 18.272-12.555 31.946-12.674 13.674-31.445 13.413-18.772-.261-32.446-13.174Zm494 494.761-42.239-43q-12.674-13.435-12.674-32.087t12.674-31.565Q686.609 756.5 705.38 757q18.772.5 32.446 13.174l43 41.761Q794.5 824.609 794 843.761t-13.174 33.065Q767.391 890.5 748.239 890.5t-32.065-13.674Zm-42-494.761Q660.5 369.391 661 350.62q.5-18.772 13.174-32.446l41.761-43Q728.609 261.5 747.761 262t33.065 13.174q13.674 13.435 13.674 32.587t-13.674 32.065l-43 42.239q-13.435 12.674-31.706 12.555-18.272-.12-31.946-12.555Zm-495 494.761Q165.5 863.391 165.5 844.239t13.674-32.065l43-42.239q13.435-12.674 32.087-12.674t31.565 12.674Q299.5 782.609 299 801.38q-.5 18.772-13.174 32.446l-41.761 43Q231.391 890.5 212.239 890t-33.065-13.174ZM480 576Z"></path>
+</svg>
+<svg class="absolute transition-all scale-0 rotate-90 dark:rotate-0 dark:scale-100" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 936q-151 0-255.5-104.5T120 576q0-138 90-239.5T440 218q25-3 39 18t-1 44q-17 26-25.5 55t-8.5 61q0 90 63 153t153 63q31 0 61.5-9t54.5-25q21-14 43-1.5t19 39.5q-14 138-117.5 229T480 936Zm0-80q88 0 158-48.5T740 681q-20 5-40 8t-40 3q-123 0-209.5-86.5T364 396q0-20 3-40t8-40q-78 32-126.5 102T200 576q0 116 82 198t198 82Zm-10-270Z"></path>
+</svg>
+</button>
+</nav>
+</div>
+</div>
+</header>
+<div class="flex-1"><div class="container flex-1 items-start md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full shrink-0 overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
+<a class="!justify-start text-sm md:!hidden bg-background" href="../index.html">
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Plano Docs v0.4</span>
+</a>
+<div class="relative overflow-hidden md:overflow-auto my-4 md:my-0 h-[calc(100vh-8rem)] md:h-auto">
+<div class="overflow-y-auto h-full w-full relative pr-6">
+
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EH2VW19FXE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-EH2VW19FXE');
+</script>
+<nav class="table w-full min-w-full my-6 lg:my-8">
+<p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../get_started/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../get_started/intro_to_plano.html">Intro to Plano</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../get_started/quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../get_started/quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/listeners.html">Listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/agents.html">Agents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/filter_chain.html">Filter Chains</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/llm_providers/llm_providers.html">Model (LLM) Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/prompt_target.html">Prompt Target</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Orchestration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm_router.html">LLM Routing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="function_calling.html">Function Calling</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="observability/observability.html">Observability<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="observability/tracing.html">Tracing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="observability/monitoring.html">Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="observability/access_logging.html">Access Logging</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="prompt_guard.html">Guardrails</a></li>
+<li class="toctree-l1"><a class="reference internal" href="state.html">Conversational State</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Resources</span></p>
+<ul>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../resources/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/model_serving.html">Bright Staff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/threading_model.html">Threading Model</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../resources/deployment.html">Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources/configuration_reference.html">Configuration Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources/llms_txt.html">llms.txt</a></li>
+</ul>
+</nav>
+</div>
+</div>
+<button @click="showSidebar = false" class="absolute md:hidden right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100" type="button">
+<svg class="h-4 w-4" fill="currentColor" height="24" stroke="none" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M480 632 284 828q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536 576l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480 632Z"></path>
+</svg>
+</button>
+</aside>
+<main class="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_300px]">
+<div class="w-full min-w-0 mx-auto">
+<nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
+<a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../index.html">
+<span class="hidden md:inline">Plano Docs v0.4</span>
+<svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
+<path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
+</svg>
+</a>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Orchestration</span>
+</nav>
+<div id="content" role="main">
+<section id="orchestration">
+<span id="agent-routing"></span><h1>Orchestration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#orchestration"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
+<p>Building multi-agent systems allow you to route requests across multiple specialized agents, each designed to handle specific types of tasks.
+Plano makes it easy to build and scale these systems by managing the orchestration layer—deciding which agent(s) should handle each request—while you focus on implementing individual agent logic.</p>
+<p>This guide shows you how to configure and implement multi-agent orchestration in Plano using a real-world example: a <strong>Travel Booking Assistant</strong> that routes queries to specialized agents for weather and flights.</p>
+<section id="how-it-works">
+<h2>How It Works<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-it-works" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-it-works'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Plano’s orchestration layer analyzes incoming prompts and routes them to the most appropriate agent based on user intent and conversation context. The workflow is:</p>
+<ol class="arabic simple">
+<li><p><strong>User submits a prompt</strong>: The request arrives at Plano’s agent listener.</p></li>
+<li><p><strong>Agent selection</strong>: Plano uses an LLM to analyze the prompt and determine user intent and complexity. By default, this uses <a class="reference external" href="https://huggingface.co/collections/katanemo/plano-orchestrator" rel="nofollow noopener">Plano-Orchestrator-30B-A3B<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>, which offers performance of foundation models at 1/10th the cost. The LLM routes the request to the most suitable agent configured in your system—such as a weather agent or flight agent.</p></li>
+<li><p><strong>Agent handles request</strong>: Once the selected agent receives the request object from Plano, it manages its own <a class="reference internal" href="../concepts/agents.html#agents"><span class="std std-ref">inner loop</span></a> until the task is complete. This means the agent autonomously calls models, invokes tools, processes data, and reasons about next steps—all within its specialized domain—before returning the final response.</p></li>
+<li><p><strong>Seamless handoffs</strong>: For multi-turn conversations, Plano repeats the intent analysis for each follow-up query, enabling smooth handoffs between agents as the conversation evolves.</p></li>
+</ol>
+</section>
+<section id="example-travel-booking-assistant">
+<h2>Example: Travel Booking Assistant<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#example-travel-booking-assistant" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#example-travel-booking-assistant'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Let’s walk through a complete multi-agent system: a Travel Booking Assistant that helps users plan trips by providing weather forecasts and flight information. This system uses two specialized agents:</p>
+<ul class="simple">
+<li><p><strong>Weather Agent</strong>: Provides real-time weather conditions and multi-day forecasts</p></li>
+<li><p><strong>Flight Agent</strong>: Searches for flights between airports with real-time tracking</p></li>
+</ul>
+</section>
+<section id="configuration">
+<h2>Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#configuration'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Configure your agents in the <code class="docutils literal notranslate"><span class="pre">listeners</span></code> section of your <code class="docutils literal notranslate"><span class="pre">plano_config.yaml</span></code>:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Travel Booking Multi-Agent Configuration</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id1"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.3.0</span>
+</span><span id="line-2"><span class="linenos"> 2</span>
+</span><span id="line-3"><span class="linenos"> 3</span><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-4"><span class="linenos"> 4</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather_agent</span>
+</span><span id="line-5"><span class="linenos"> 5</span><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.docker.internal:10510</span>
+</span><span id="line-6"><span class="linenos"> 6</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-7"><span class="linenos"> 7</span><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.docker.internal:10520</span>
+</span><span id="line-8"><span class="linenos"> 8</span>
+</span><span id="line-9"><span class="linenos"> 9</span><span class="nt">model_providers</span><span class="p">:</span>
+</span><span id="line-10"><span class="linenos">10</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
+</span><span id="line-11"><span class="linenos">11</span><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-12"><span class="linenos">12</span><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-13"><span class="linenos">13</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o-mini</span>
+</span><span id="line-14"><span class="linenos">14</span><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span><span class="w"> </span><span class="c1"># smaller, faster, cheaper model for extracting entities like location</span>
+</span><span id="line-15"><span class="linenos">15</span>
+</span><span id="line-16"><span class="linenos">16</span><span class="nt">listeners</span><span class="p">:</span>
+</span><span id="line-17"><span class="linenos">17</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent</span>
+</span><span id="line-18"><span class="linenos">18</span><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">travel_booking_service</span>
+</span><span id="line-19"><span class="linenos">19</span><span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8001</span>
+</span><span id="line-20"><span class="linenos">20</span><span class="w">    </span><span class="nt">router</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plano_orchestrator_v1</span>
+</span><span id="line-21"><span class="linenos">21</span><span class="w">    </span><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-22"><span class="linenos">22</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather_agent</span>
+</span><span id="line-23"><span class="linenos">23</span><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="line-24"><span class="linenos">24</span>
+</span><span id="line-25"><span class="linenos">25</span><span class="w">          </span><span class="no">WeatherAgent is a specialized AI assistant for real-time weather information and forecasts. It provides accurate weather data for any city worldwide using the Open-Meteo API, helping travelers plan their trips with up-to-date weather conditions.</span>
+</span><span id="line-26"><span class="linenos">26</span>
+</span><span id="line-27"><span class="linenos">27</span><span class="w">          </span><span class="no">Capabilities:</span>
+</span><span id="line-28"><span class="linenos">28</span><span class="w">            </span><span class="no">* Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed)</span>
+</span><span id="line-29"><span class="linenos">29</span><span class="w">            </span><span class="no">* Provides current temperature</span>
+</span><span id="line-30"><span class="linenos">30</span><span class="w">            </span><span class="no">* Provides multi-day forecasts</span>
+</span><span id="line-31"><span class="linenos">31</span><span class="w">            </span><span class="no">* Provides weather conditions</span>
+</span><span id="line-32"><span class="linenos">32</span><span class="w">            </span><span class="no">* Provides sunrise/sunset times</span>
+</span><span id="line-33"><span class="linenos">33</span><span class="w">            </span><span class="no">* Provides detailed weather information</span>
+</span><span id="line-34"><span class="linenos">34</span><span class="w">            </span><span class="no">* Understands conversation context to resolve location references from previous messages</span>
+</span><span id="line-35"><span class="linenos">35</span><span class="w">            </span><span class="no">* Handles weather-related questions including "What's the weather in [city]?", "What's the forecast for [city]?", "How's the weather in [city]?"</span>
+</span><span id="line-36"><span class="linenos">36</span><span class="w">            </span><span class="no">* When queries include both weather and other travel questions (e.g., flights, currency), this agent answers ONLY the weather part</span>
+</span><span id="line-37"><span class="linenos">37</span>
+</span><span id="line-38"><span class="linenos">38</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-39"><span class="linenos">39</span><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="line-40"><span class="linenos">40</span>
+</span><span id="line-41"><span class="linenos">41</span><span class="w">          </span><span class="no">FlightAgent is an AI-powered tool specialized in providing live flight information between airports. It leverages the FlightAware AeroAPI to deliver real-time flight status, gate information, and delay updates.</span>
+</span><span id="line-42"><span class="linenos">42</span>
+</span><span id="line-43"><span class="linenos">43</span><span class="w">          </span><span class="no">Capabilities:</span>
+</span><span id="line-44"><span class="linenos">44</span><span class="w">            </span><span class="no">* Get live flight information between airports using FlightAware AeroAPI</span>
+</span><span id="line-45"><span class="linenos">45</span><span class="w">            </span><span class="no">* Shows real-time flight status</span>
+</span><span id="line-46"><span class="linenos">46</span><span class="w">            </span><span class="no">* Shows scheduled/estimated/actual departure and arrival times</span>
+</span><span id="line-47"><span class="linenos">47</span><span class="w">            </span><span class="no">* Shows gate and terminal information</span>
+</span><span id="line-48"><span class="linenos">48</span><span class="w">            </span><span class="no">* Shows delays</span>
+</span><span id="line-49"><span class="linenos">49</span><span class="w">            </span><span class="no">* Shows aircraft type</span>
+</span><span id="line-50"><span class="linenos">50</span><span class="w">            </span><span class="no">* Shows flight status</span>
+</span><span id="line-51"><span class="linenos">51</span><span class="w">            </span><span class="no">* Automatically resolves city names to airport codes (IATA/ICAO)</span>
+</span><span id="line-52"><span class="linenos">52</span><span class="w">            </span><span class="no">* Understands conversation context to infer origin/destination from follow-up questions</span>
+</span><span id="line-53"><span class="linenos">53</span><span class="w">            </span><span class="no">* Handles flight-related questions including "What flights go from [city] to [city]?", "Do flights go to [city]?", "Are there direct flights from [city]?"</span>
+</span><span id="line-54"><span class="linenos">54</span><span class="w">            </span><span class="no">* When queries include both flight and other travel questions (e.g., weather, currency), this agent answers ONLY the flight part</span>
+</span><span id="line-55"><span class="linenos">55</span>
+</span><span id="line-56"><span class="linenos">56</span><span class="nt">tracing</span><span class="p">:</span>
+</span><span id="line-57"><span class="linenos">57</span><span class="w">  </span><span class="nt">random_sampling</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+</span></code></pre></div>
+</div>
+</div>
+<p><strong>Key Configuration Elements:</strong></p>
+<ul class="simple">
+<li><p><strong>agent listener</strong>: A listener of <code class="docutils literal notranslate"><span class="pre">type:</span> <span class="pre">agent</span></code> tells Plano to perform intent analysis and routing for incoming requests.</p></li>
+<li><p><strong>agents list</strong>: Define each agent with an <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code> (used for routing decisions)</p></li>
+<li><p><strong>router</strong>: The <code class="docutils literal notranslate"><span class="pre">plano_orchestrator_v1</span></code> router uses Plano-Orchestrator to analyze user intent and select the appropriate agent.</p></li>
+<li><p><strong>filter_chain</strong>: Optionally attach <a class="reference internal" href="../concepts/filter_chain.html#filter-chain"><span class="std std-ref">filter chains</span></a> to agents for guardrails, query rewriting, or context enrichment.</p></li>
+</ul>
+<p><strong>Writing Effective Agent Descriptions</strong></p>
+<p>Agent descriptions are critical—they’re used by Plano-Orchestrator to make routing decisions. Effective descriptions should include:</p>
+<ul class="simple">
+<li><p><strong>Clear introduction</strong>: A concise statement explaining what the agent is and its primary purpose</p></li>
+<li><p><strong>Capabilities section</strong>: A bulleted list of specific capabilities, including:</p>
+<ul>
+<li><p>What APIs or data sources it uses (e.g., “Open-Meteo API”, “FlightAware AeroAPI”)</p></li>
+<li><p>What information it provides (e.g., “current temperature”, “multi-day forecasts”, “gate information”)</p></li>
+<li><p>How it handles context (e.g., “Understands conversation context to resolve location references”)</p></li>
+<li><p>What question patterns it handles (e.g., “What’s the weather in [city]?”)</p></li>
+<li><p>How it handles multi-part queries (e.g., “When queries include both weather and flights, this agent answers ONLY the weather part”)</p></li>
+</ul>
+</li>
+</ul>
+<p>Here’s an example of a well-structured agent description:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather_agent</span>
+</span><span id="line-2"><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="line-3">
+</span><span id="line-4"><span class="w">    </span><span class="no">WeatherAgent is a specialized AI assistant for real-time weather information</span>
+</span><span id="line-5"><span class="w">    </span><span class="no">and forecasts. It provides accurate weather data for any city worldwide using</span>
+</span><span id="line-6"><span class="w">    </span><span class="no">the Open-Meteo API, helping travelers plan their trips with up-to-date weather</span>
+</span><span id="line-7"><span class="w">    </span><span class="no">conditions.</span>
+</span><span id="line-8">
+</span><span id="line-9"><span class="w">    </span><span class="no">Capabilities:</span>
+</span><span id="line-10"><span class="w">      </span><span class="no">* Get real-time weather conditions and multi-day forecasts for any city worldwide</span>
+</span><span id="line-11"><span class="w">      </span><span class="no">* Provides current temperature, weather conditions, sunrise/sunset times</span>
+</span><span id="line-12"><span class="w">      </span><span class="no">* Provides detailed weather information including multi-day forecasts</span>
+</span><span id="line-13"><span class="w">      </span><span class="no">* Understands conversation context to resolve location references from previous messages</span>
+</span><span id="line-14"><span class="w">      </span><span class="no">* Handles weather-related questions including "What's the weather in [city]?"</span>
+</span><span id="line-15"><span class="w">      </span><span class="no">* When queries include both weather and other travel questions (e.g., flights),</span>
+</span><span id="line-16"><span class="w">        </span><span class="no">this agent answers ONLY the weather part</span>
+</span></code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We will soon support “Agents as Tools” via Model Context Protocol (MCP), enabling agents to dynamically discover and invoke other agents as tools. Track progress on <a class="reference external" href="https://github.com/katanemo/archgw/issues/646" rel="nofollow noopener">GitHub Issue #646<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
+</div>
+</section>
+<section id="implementation">
+<h2>Implementation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#implementation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#implementation'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Agents are HTTP services that receive routed requests from Plano. Each agent implements the OpenAI Chat Completions API format, making them compatible with standard LLM clients.</p>
+<section id="agent-structure">
+<h3>Agent Structure<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#agent-structure" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#agent-structure'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Let’s examine the Weather Agent implementation:</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Weather Agent - Core Structure</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id2"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/v1/chat/completions"</span><span class="p">)</span>
+</span><span id="line-2"><span class="linenos"> 2</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_request</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">):</span>
+</span><span id="line-3"><span class="linenos"> 3</span><span class="w">    </span><span class="sd">"""HTTP endpoint for chat completions with streaming support."""</span>
+</span><span id="line-4"><span class="linenos"> 4</span>
+</span><span id="line-5"><span class="linenos"> 5</span>    <span class="n">request_body</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span id="line-6"><span class="linenos"> 6</span>    <span class="n">messages</span> <span class="o">=</span> <span class="n">request_body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"messages"</span><span class="p">,</span> <span class="p">[])</span>
+</span><span id="line-7"><span class="linenos"> 7</span>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+</span><span id="line-8"><span class="linenos"> 8</span>        <span class="s2">"messages detail json dumps: </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="line-9"><span class="linenos"> 9</span>        <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+</span><span id="line-10"><span class="linenos">10</span>    <span class="p">)</span>
+</span><span id="line-11"><span class="linenos">11</span>
+</span><span id="line-12"><span class="linenos">12</span>    <span class="n">traceparent_header</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"traceparent"</span><span class="p">)</span>
+</span><span id="line-13"><span class="linenos">13</span>    <span class="k">return</span> <span class="n">StreamingResponse</span><span class="p">(</span>
+</span><span id="line-14"><span class="linenos">14</span>        <span class="n">invoke_weather_agent</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">request_body</span><span class="p">,</span> <span class="n">traceparent_header</span><span class="p">),</span>
+</span><span id="line-15"><span class="linenos">15</span>        <span class="n">media_type</span><span class="o">=</span><span class="s2">"text/plain"</span><span class="p">,</span>
+</span><span id="line-16"><span class="linenos">16</span>        <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+</span><span id="line-17"><span class="linenos">17</span>            <span class="s2">"content-type"</span><span class="p">:</span> <span class="s2">"text/event-stream"</span><span class="p">,</span>
+</span><span id="line-18"><span class="linenos">18</span>        <span class="p">},</span>
+</span><span id="line-19"><span class="linenos">19</span>    <span class="p">)</span>
+</span><span id="line-20"><span class="linenos">20</span>
+</span><span id="line-21"><span class="linenos">21</span>
+</span><span id="line-22"><span class="linenos">22</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">invoke_weather_agent</span><span class="p">(</span>
+</span></code></pre></div>
+</div>
+</div>
+<p><strong>Key Points:</strong></p>
+<ul class="simple">
+<li><p>Agents expose a <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code> endpoint that matches OpenAI’s API format</p></li>
+<li><p>They use Plano’s LLM gateway (via <code class="docutils literal notranslate"><span class="pre">LLM_GATEWAY_ENDPOINT</span></code>) for all LLM calls</p></li>
+<li><p>They receive the full conversation history in <code class="docutils literal notranslate"><span class="pre">request_body.messages</span></code></p></li>
+</ul>
+</section>
+<section id="information-extraction-with-llms">
+<h3>Information Extraction with LLMs<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#information-extraction-with-llms" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#information-extraction-with-llms'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Agents use LLMs to extract structured information from natural language queries. This enables them to understand user intent and extract parameters needed for API calls.</p>
+<p>The Weather Agent extracts location information:</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">Weather Agent - Location Extraction</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id3"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span>
+</span><span id="line-2"><span class="linenos"> 2</span>    <span class="n">instructions</span> <span class="o">=</span> <span class="s2">"""Extract the location for WEATHER queries. Return just the city name.</span>
+</span><span id="line-3"><span class="linenos"> 3</span>
+</span><span id="line-4"><span class="linenos"> 4</span><span class="s2">            Rules:</span>
+</span><span id="line-5"><span class="linenos"> 5</span><span class="s2">            1. For multi-part queries, extract ONLY the location mentioned with weather keywords ("weather in [location]")</span>
+</span><span id="line-6"><span class="linenos"> 6</span><span class="s2">            2. If user says "there" or "that city", it typically refers to the DESTINATION city in travel contexts (not the origin)</span>
+</span><span id="line-7"><span class="linenos"> 7</span><span class="s2">            3. For flight queries with weather, "there" means the destination city where they're traveling TO</span>
+</span><span id="line-8"><span class="linenos"> 8</span><span class="s2">            4. Return plain text (e.g., "London", "New York", "Paris, France")</span>
+</span><span id="line-9"><span class="linenos"> 9</span><span class="s2">            5. If no weather location found, return "NOT_FOUND"</span>
+</span><span id="line-10"><span class="linenos">10</span>
+</span><span id="line-11"><span class="linenos">11</span><span class="s2">            Examples:</span>
+</span><span id="line-12"><span class="linenos">12</span><span class="s2">            - "What's the weather in London?" -&gt; "London"</span>
+</span><span id="line-13"><span class="linenos">13</span><span class="s2">            - "Flights from Seattle to Atlanta, and show me the weather there" -&gt; "Atlanta"</span>
+</span><span id="line-14"><span class="linenos">14</span><span class="s2">            - "Can you get me flights from Seattle to Atlanta tomorrow, and also please show me the weather there" -&gt; "Atlanta"</span>
+</span><span id="line-15"><span class="linenos">15</span><span class="s2">            - "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" -&gt; "Seattle"</span>
+</span><span id="line-16"><span class="linenos">16</span><span class="s2">            - User asked about flights to Atlanta, then "what's the weather like there?" -&gt; "Atlanta"</span>
+</span><span id="line-17"><span class="linenos">17</span><span class="s2">            - "I'm going to Seattle" -&gt; "Seattle"</span>
+</span><span id="line-18"><span class="linenos">18</span><span class="s2">            - "What's happening?" -&gt; "NOT_FOUND"</span>
+</span><span id="line-19"><span class="linenos">19</span>
+</span><span id="line-20"><span class="linenos">20</span><span class="s2">            Extract location:"""</span>
+</span><span id="line-21"><span class="linenos">21</span>
+</span><span id="line-22"><span class="linenos">22</span>    <span class="k">try</span><span class="p">:</span>
+</span><span id="line-23"><span class="linenos">23</span>        <span class="n">user_messages</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="line-24"><span class="linenos">24</span>            <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content"</span><span class="p">)</span> <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span> <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"role"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"user"</span>
+</span><span id="line-25"><span class="linenos">25</span>        <span class="p">]</span>
+</span><span id="line-26"><span class="linenos">26</span>
+</span><span id="line-27"><span class="linenos">27</span>        <span class="k">if</span> <span class="ow">not</span> <span class="n">user_messages</span><span class="p">:</span>
+</span><span id="line-28"><span class="linenos">28</span>            <span class="n">location</span> <span class="o">=</span> <span class="s2">"New York"</span>
+</span><span id="line-29"><span class="linenos">29</span>        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-30"><span class="linenos">30</span>            <span class="n">ctx</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+</span><span id="line-31"><span class="linenos">31</span>            <span class="n">extra_headers</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="line-32"><span class="linenos">32</span>            <span class="n">inject</span><span class="p">(</span><span class="n">extra_headers</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+</span><span id="line-33"><span class="linenos">33</span>
+</span><span id="line-34"><span class="linenos">34</span>            <span class="c1"># For location extraction, pass full conversation for context (e.g., "there" = previous destination)</span>
+</span><span id="line-35"><span class="linenos">35</span>            <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">openai_client_via_plano</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="line-36"><span class="linenos">36</span>                <span class="n">model</span><span class="o">=</span><span class="n">LOCATION_MODEL</span><span class="p">,</span>
+</span><span id="line-37"><span class="linenos">37</span>                <span class="n">messages</span><span class="o">=</span><span class="p">[</span>
+</span><span id="line-38"><span class="linenos">38</span>                    <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"system"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">instructions</span><span class="p">},</span>
+</span><span id="line-39"><span class="linenos">39</span>                    <span class="o">*</span><span class="p">[</span>
+</span><span id="line-40"><span class="linenos">40</span>                        <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"role"</span><span class="p">),</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content"</span><span class="p">)}</span>
+</span><span id="line-41"><span class="linenos">41</span>                        <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span>
+</span><span id="line-42"><span class="linenos">42</span>                    <span class="p">],</span>
+</span><span id="line-43"><span class="linenos">43</span>                <span class="p">],</span>
+</span><span id="line-44"><span class="linenos">44</span>                <span class="n">temperature</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+</span><span id="line-45"><span class="linenos">45</span>                <span class="n">max_tokens</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+</span><span id="line-46"><span class="linenos">46</span>                <span class="n">extra_headers</span><span class="o">=</span><span class="n">extra_headers</span> <span class="k">if</span> <span class="n">extra_headers</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-47"><span class="linenos">47</span>            <span class="p">)</span>
+</span></code></pre></div>
+</div>
+</div>
+<p>The Flight Agent extracts more complex information—origin, destination, and dates:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Flight Agent - Flight Information Extraction</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id4"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">extract_flight_route</span><span class="p">(</span><span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="line-2"><span class="linenos"> 2</span><span class="w">    </span><span class="sd">"""Extract origin, destination, and date from conversation using LLM."""</span>
+</span><span id="line-3"><span class="linenos"> 3</span>
+</span><span id="line-4"><span class="linenos"> 4</span>    <span class="n">extraction_prompt</span> <span class="o">=</span> <span class="s2">"""Extract flight origin, destination cities, and travel date from the conversation.</span>
+</span><span id="line-5"><span class="linenos"> 5</span>
+</span><span id="line-6"><span class="linenos"> 6</span><span class="s2">    Rules:</span>
+</span><span id="line-7"><span class="linenos"> 7</span><span class="s2">    1. Look for patterns: "flight from X to Y", "flights to Y", "fly from X"</span>
+</span><span id="line-8"><span class="linenos"> 8</span><span class="s2">    2. Extract dates like "tomorrow", "next week", "December 25", "12/25", "on Monday"</span>
+</span><span id="line-9"><span class="linenos"> 9</span><span class="s2">    3. Use conversation context to fill in missing details</span>
+</span><span id="line-10"><span class="linenos">10</span><span class="s2">    4. Return JSON: {"origin": "City" or null, "destination": "City" or null, "date": "YYYY-MM-DD" or null}</span>
+</span><span id="line-11"><span class="linenos">11</span>
+</span><span id="line-12"><span class="linenos">12</span><span class="s2">    Examples:</span>
+</span><span id="line-13"><span class="linenos">13</span><span class="s2">    - "Flight from Seattle to Atlanta tomorrow" -&gt; {"origin": "Seattle", "destination": "Atlanta", "date": "2025-12-24"}</span>
+</span><span id="line-14"><span class="linenos">14</span><span class="s2">    - "What flights go to New York?" -&gt; {"origin": null, "destination": "New York", "date": null}</span>
+</span><span id="line-15"><span class="linenos">15</span><span class="s2">    - "Flights to Miami on Christmas" -&gt; {"origin": null, "destination": "Miami", "date": "2025-12-25"}</span>
+</span><span id="line-16"><span class="linenos">16</span><span class="s2">    - "Show me flights from LA to NYC next Monday" -&gt; {"origin": "LA", "destination": "NYC", "date": "2025-12-30"}</span>
+</span><span id="line-17"><span class="linenos">17</span>
+</span><span id="line-18"><span class="linenos">18</span><span class="s2">    Today is December 23, 2025. Extract flight route and date:"""</span>
+</span><span id="line-19"><span class="linenos">19</span>
+</span><span id="line-20"><span class="linenos">20</span>    <span class="k">try</span><span class="p">:</span>
+</span><span id="line-21"><span class="linenos">21</span>        <span class="n">ctx</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+</span><span id="line-22"><span class="linenos">22</span>        <span class="n">extra_headers</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="line-23"><span class="linenos">23</span>        <span class="n">inject</span><span class="p">(</span><span class="n">extra_headers</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+</span><span id="line-24"><span class="linenos">24</span>
+</span><span id="line-25"><span class="linenos">25</span>        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">openai_client_via_plano</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="line-26"><span class="linenos">26</span>            <span class="n">model</span><span class="o">=</span><span class="n">EXTRACTION_MODEL</span><span class="p">,</span>
+</span><span id="line-27"><span class="linenos">27</span>            <span class="n">messages</span><span class="o">=</span><span class="p">[</span>
+</span><span id="line-28"><span class="linenos">28</span>                <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"system"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">extraction_prompt</span><span class="p">},</span>
+</span><span id="line-29"><span class="linenos">29</span>                <span class="o">*</span><span class="p">[</span>
+</span><span id="line-30"><span class="linenos">30</span>                    <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"role"</span><span class="p">),</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content"</span><span class="p">)}</span>
+</span><span id="line-31"><span class="linenos">31</span>                    <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">[</span><span class="o">-</span><span class="mi">5</span><span class="p">:]</span>
+</span><span id="line-32"><span class="linenos">32</span>                <span class="p">],</span>
+</span><span id="line-33"><span class="linenos">33</span>            <span class="p">],</span>
+</span><span id="line-34"><span class="linenos">34</span>            <span class="n">temperature</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+</span><span id="line-35"><span class="linenos">35</span>            <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+</span><span id="line-36"><span class="linenos">36</span>            <span class="n">extra_headers</span><span class="o">=</span><span class="n">extra_headers</span> <span class="k">if</span> <span class="n">extra_headers</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-37"><span class="linenos">37</span>        <span class="p">)</span>
+</span><span id="line-38"><span class="linenos">38</span>
+</span><span id="line-39"><span class="linenos">39</span>        <span class="n">result</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span id="line-40"><span class="linenos">40</span>        <span class="k">if</span> <span class="s2">"```json"</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+</span><span id="line-41"><span class="linenos">41</span>            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"```json"</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"```"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span id="line-42"><span class="linenos">42</span>        <span class="k">elif</span> <span class="s2">"```"</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+</span><span id="line-43"><span class="linenos">43</span>            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"```"</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"```"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span id="line-44"><span class="linenos">44</span>
+</span><span id="line-45"><span class="linenos">45</span>        <span class="n">route</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</span><span id="line-46"><span class="linenos">46</span>        <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-47"><span class="linenos">47</span>            <span class="s2">"origin"</span><span class="p">:</span> <span class="n">route</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"origin"</span><span class="p">),</span>
+</span><span id="line-48"><span class="linenos">48</span>            <span class="s2">"destination"</span><span class="p">:</span> <span class="n">route</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"destination"</span><span class="p">),</span>
+</span><span id="line-49"><span class="linenos">49</span>            <span class="s2">"date"</span><span class="p">:</span> <span class="n">route</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"date"</span><span class="p">),</span>
+</span><span id="line-50"><span class="linenos">50</span>        <span class="p">}</span>
+</span><span id="line-51"><span class="linenos">51</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="line-52"><span class="linenos">52</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error extracting flight route: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+</div>
+<p><strong>Key Points:</strong></p>
+<ul class="simple">
+<li><p>Use smaller, faster models (like <code class="docutils literal notranslate"><span class="pre">gpt-4o-mini</span></code>) for extraction tasks</p></li>
+<li><p>Include conversation context to handle follow-up questions and pronouns</p></li>
+<li><p>Use structured prompts with clear output formats (JSON)</p></li>
+<li><p>Handle edge cases with fallback values</p></li>
+</ul>
+</section>
+<section id="calling-external-apis">
+<h3>Calling External APIs<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#calling-external-apis" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#calling-external-apis'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>After extracting information, agents call external APIs to fetch real-time data:</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Weather Agent - External API Call</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id5"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span>        <span class="c1"># Geocode city to get coordinates</span>
+</span><span id="line-2"><span class="linenos"> 2</span>        <span class="n">geocode_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"https://geocoding-api.open-meteo.com/v1/search?name=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">location</span><span class="p">)</span><span class="si">}</span><span class="s2">&amp;count=1&amp;language=en&amp;format=json"</span>
+</span><span id="line-3"><span class="linenos"> 3</span>        <span class="n">geocode_response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">http_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geocode_url</span><span class="p">)</span>
+</span><span id="line-4"><span class="linenos"> 4</span>
+</span><span id="line-5"><span class="linenos"> 5</span>        <span class="k">if</span> <span class="n">geocode_response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">geocode_response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+</span><span id="line-6"><span class="linenos"> 6</span>            <span class="s2">"results"</span>
+</span><span id="line-7"><span class="linenos"> 7</span>        <span class="p">):</span>
+</span><span id="line-8"><span class="linenos"> 8</span>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Could not geocode </span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2">, using New York"</span><span class="p">)</span>
+</span><span id="line-9"><span class="linenos"> 9</span>            <span class="n">location</span> <span class="o">=</span> <span class="s2">"New York"</span>
+</span><span id="line-10"><span class="linenos">10</span>            <span class="n">geocode_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"https://geocoding-api.open-meteo.com/v1/search?name=</span><span class="si">{</span><span class="n">quote</span><span class="p">(</span><span class="n">location</span><span class="p">)</span><span class="si">}</span><span class="s2">&amp;count=1&amp;language=en&amp;format=json"</span>
+</span><span id="line-11"><span class="linenos">11</span>            <span class="n">geocode_response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">http_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">geocode_url</span><span class="p">)</span>
+</span><span id="line-12"><span class="linenos">12</span>
+</span><span id="line-13"><span class="linenos">13</span>        <span class="n">geocode_data</span> <span class="o">=</span> <span class="n">geocode_response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span id="line-14"><span class="linenos">14</span>        <span class="k">if</span> <span class="ow">not</span> <span class="n">geocode_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"results"</span><span class="p">):</span>
+</span><span id="line-15"><span class="linenos">15</span>            <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-16"><span class="linenos">16</span>                <span class="s2">"location"</span><span class="p">:</span> <span class="n">location</span><span class="p">,</span>
+</span><span id="line-17"><span class="linenos">17</span>                <span class="s2">"weather"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-18"><span class="linenos">18</span>                    <span class="s2">"date"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">),</span>
+</span><span id="line-19"><span class="linenos">19</span>                    <span class="s2">"day_name"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%A"</span><span class="p">),</span>
+</span><span id="line-20"><span class="linenos">20</span>                    <span class="s2">"temperature_c"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-21"><span class="linenos">21</span>                    <span class="s2">"temperature_f"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-22"><span class="linenos">22</span>                    <span class="s2">"weather_code"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-23"><span class="linenos">23</span>                    <span class="s2">"error"</span><span class="p">:</span> <span class="s2">"Could not retrieve weather data"</span><span class="p">,</span>
+</span><span id="line-24"><span class="linenos">24</span>                <span class="p">},</span>
+</span><span id="line-25"><span class="linenos">25</span>            <span class="p">}</span>
+</span><span id="line-26"><span class="linenos">26</span>
+</span><span id="line-27"><span class="linenos">27</span>        <span class="n">result</span> <span class="o">=</span> <span class="n">geocode_data</span><span class="p">[</span><span class="s2">"results"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="line-28"><span class="linenos">28</span>        <span class="n">location_name</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">,</span> <span class="n">location</span><span class="p">)</span>
+</span><span id="line-29"><span class="linenos">29</span>        <span class="n">latitude</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">"latitude"</span><span class="p">]</span>
+</span><span id="line-30"><span class="linenos">30</span>        <span class="n">longitude</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">"longitude"</span><span class="p">]</span>
+</span><span id="line-31"><span class="linenos">31</span>
+</span><span id="line-32"><span class="linenos">32</span>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+</span><span id="line-33"><span class="linenos">33</span>            <span class="sa">f</span><span class="s2">"Geocoded '</span><span class="si">{</span><span class="n">location</span><span class="si">}</span><span class="s2">' to </span><span class="si">{</span><span class="n">location_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">latitude</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">longitude</span><span class="si">}</span><span class="s2">)"</span>
+</span><span id="line-34"><span class="linenos">34</span>        <span class="p">)</span>
+</span><span id="line-35"><span class="linenos">35</span>
+</span><span id="line-36"><span class="linenos">36</span>        <span class="c1"># Get weather forecast</span>
+</span><span id="line-37"><span class="linenos">37</span>        <span class="n">weather_url</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="line-38"><span class="linenos">38</span>            <span class="sa">f</span><span class="s2">"https://api.open-meteo.com/v1/forecast?"</span>
+</span><span id="line-39"><span class="linenos">39</span>            <span class="sa">f</span><span class="s2">"latitude=</span><span class="si">{</span><span class="n">latitude</span><span class="si">}</span><span class="s2">&amp;longitude=</span><span class="si">{</span><span class="n">longitude</span><span class="si">}</span><span class="s2">&amp;"</span>
+</span><span id="line-40"><span class="linenos">40</span>            <span class="sa">f</span><span class="s2">"current=temperature_2m&amp;"</span>
+</span><span id="line-41"><span class="linenos">41</span>            <span class="sa">f</span><span class="s2">"daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code&amp;"</span>
+</span><span id="line-42"><span class="linenos">42</span>            <span class="sa">f</span><span class="s2">"forecast_days=</span><span class="si">{</span><span class="n">days</span><span class="si">}</span><span class="s2">&amp;timezone=auto"</span>
+</span><span id="line-43"><span class="linenos">43</span>        <span class="p">)</span>
+</span><span id="line-44"><span class="linenos">44</span>
+</span><span id="line-45"><span class="linenos">45</span>        <span class="n">weather_response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">http_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">weather_url</span><span class="p">)</span>
+</span><span id="line-46"><span class="linenos">46</span>        <span class="k">if</span> <span class="n">weather_response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+</span><span id="line-47"><span class="linenos">47</span>            <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-48"><span class="linenos">48</span>                <span class="s2">"location"</span><span class="p">:</span> <span class="n">location_name</span><span class="p">,</span>
+</span><span id="line-49"><span class="linenos">49</span>                <span class="s2">"weather"</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="line-50"><span class="linenos">50</span>                    <span class="s2">"date"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">),</span>
+</span><span id="line-51"><span class="linenos">51</span>                    <span class="s2">"day_name"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%A"</span><span class="p">),</span>
+</span><span id="line-52"><span class="linenos">52</span>                    <span class="s2">"temperature_c"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-53"><span class="linenos">53</span>                    <span class="s2">"temperature_f"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-54"><span class="linenos">54</span>                    <span class="s2">"weather_code"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="line-55"><span class="linenos">55</span>                    <span class="s2">"error"</span><span class="p">:</span> <span class="s2">"Could not retrieve weather data"</span><span class="p">,</span>
+</span><span id="line-56"><span class="linenos">56</span>                <span class="p">},</span>
+</span><span id="line-57"><span class="linenos">57</span>            <span class="p">}</span>
+</span><span id="line-58"><span class="linenos">58</span>
+</span><span id="line-59"><span class="linenos">59</span>        <span class="n">weather_data</span> <span class="o">=</span> <span class="n">weather_response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span id="line-60"><span class="linenos">60</span>        <span class="n">current_temp</span> <span class="o">=</span> <span class="n">weather_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"current"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"temperature_2m"</span><span class="p">)</span>
+</span><span id="line-61"><span class="linenos">61</span>        <span class="n">daily</span> <span class="o">=</span> <span class="n">weather_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"daily"</span><span class="p">,</span> <span class="p">{})</span>
+</span><span id="line-62"><span class="linenos">62</span>
+</span></code></pre></div>
+</div>
+</div>
+<p>The Flight Agent calls FlightAware’s AeroAPI:</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">Flight Agent - External API Call</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id6"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos">  1</span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_flights</span><span class="p">(</span>
+</span><span id="line-2"><span class="linenos">  2</span>    <span class="n">origin_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dest_code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">travel_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-3"><span class="linenos">  3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+</span><span id="line-4"><span class="linenos">  4</span><span class="w">    </span><span class="sd">"""Get flights between two airports using FlightAware API.</span>
+</span><span id="line-5"><span class="linenos">  5</span>
+</span><span id="line-6"><span class="linenos">  6</span><span class="sd">    Args:</span>
+</span><span id="line-7"><span class="linenos">  7</span><span class="sd">        origin_code: Origin airport IATA code</span>
+</span><span id="line-8"><span class="linenos">  8</span><span class="sd">        dest_code: Destination airport IATA code</span>
+</span><span id="line-9"><span class="linenos">  9</span><span class="sd">        travel_date: Travel date in YYYY-MM-DD format, defaults to today</span>
+</span><span id="line-10"><span class="linenos"> 10</span>
+</span><span id="line-11"><span class="linenos"> 11</span><span class="sd">    Note: FlightAware API limits searches to 2 days in the future.</span>
+</span><span id="line-12"><span class="linenos"> 12</span><span class="sd">    """</span>
+</span><span id="line-13"><span class="linenos"> 13</span>    <span class="k">try</span><span class="p">:</span>
+</span><span id="line-14"><span class="linenos"> 14</span>        <span class="c1"># Use provided date or default to today</span>
+</span><span id="line-15"><span class="linenos"> 15</span>        <span class="k">if</span> <span class="n">travel_date</span><span class="p">:</span>
+</span><span id="line-16"><span class="linenos"> 16</span>            <span class="n">search_date</span> <span class="o">=</span> <span class="n">travel_date</span>
+</span><span id="line-17"><span class="linenos"> 17</span>        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-18"><span class="linenos"> 18</span>            <span class="n">search_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-19"><span class="linenos"> 19</span>
+</span><span id="line-20"><span class="linenos"> 20</span>        <span class="c1"># Validate date is not too far in the future (FlightAware limit: 2 days)</span>
+</span><span id="line-21"><span class="linenos"> 21</span>        <span class="n">search_date_obj</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">search_date</span><span class="p">,</span> <span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-22"><span class="linenos"> 22</span>        <span class="n">today</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">hour</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">minute</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</span><span id="line-23"><span class="linenos"> 23</span>        <span class="n">days_ahead</span> <span class="o">=</span> <span class="p">(</span><span class="n">search_date_obj</span> <span class="o">-</span> <span class="n">today</span><span class="p">)</span><span class="o">.</span><span class="n">days</span>
+</span><span id="line-24"><span class="linenos"> 24</span>
+</span><span id="line-25"><span class="linenos"> 25</span>        <span class="k">if</span> <span class="n">days_ahead</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+</span><span id="line-26"><span class="linenos"> 26</span>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+</span><span id="line-27"><span class="linenos"> 27</span>                <span class="sa">f</span><span class="s2">"Requested date </span><span class="si">{</span><span class="n">search_date</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="n">days_ahead</span><span class="si">}</span><span class="s2"> days ahead, exceeds FlightAware 2-day limit"</span>
+</span><span id="line-28"><span class="linenos"> 28</span>            <span class="p">)</span>
+</span><span id="line-29"><span class="linenos"> 29</span>            <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-30"><span class="linenos"> 30</span>                <span class="s2">"origin_code"</span><span class="p">:</span> <span class="n">origin_code</span><span class="p">,</span>
+</span><span id="line-31"><span class="linenos"> 31</span>                <span class="s2">"destination_code"</span><span class="p">:</span> <span class="n">dest_code</span><span class="p">,</span>
+</span><span id="line-32"><span class="linenos"> 32</span>                <span class="s2">"flights"</span><span class="p">:</span> <span class="p">[],</span>
+</span><span id="line-33"><span class="linenos"> 33</span>                <span class="s2">"count"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+</span><span id="line-34"><span class="linenos"> 34</span>                <span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"FlightAware API only provides flight data up to 2 days in the future. The requested date (</span><span class="si">{</span><span class="n">search_date</span><span class="si">}</span><span class="s2">) is </span><span class="si">{</span><span class="n">days_ahead</span><span class="si">}</span><span class="s2"> days ahead. Please search for today, tomorrow, or the day after."</span><span class="p">,</span>
+</span><span id="line-35"><span class="linenos"> 35</span>            <span class="p">}</span>
+</span><span id="line-36"><span class="linenos"> 36</span>
+</span><span id="line-37"><span class="linenos"> 37</span>        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">AEROAPI_BASE_URL</span><span class="si">}</span><span class="s2">/airports/</span><span class="si">{</span><span class="n">origin_code</span><span class="si">}</span><span class="s2">/flights/to/</span><span class="si">{</span><span class="n">dest_code</span><span class="si">}</span><span class="s2">"</span>
+</span><span id="line-38"><span class="linenos"> 38</span>        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"x-apikey"</span><span class="p">:</span> <span class="n">AEROAPI_KEY</span><span class="p">}</span>
+</span><span id="line-39"><span class="linenos"> 39</span>        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="line-40"><span class="linenos"> 40</span>            <span class="s2">"start"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">search_date</span><span class="si">}</span><span class="s2">T00:00:00Z"</span><span class="p">,</span>
+</span><span id="line-41"><span class="linenos"> 41</span>            <span class="s2">"end"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">search_date</span><span class="si">}</span><span class="s2">T23:59:59Z"</span><span class="p">,</span>
+</span><span id="line-42"><span class="linenos"> 42</span>            <span class="s2">"connection"</span><span class="p">:</span> <span class="s2">"nonstop"</span><span class="p">,</span>
+</span><span id="line-43"><span class="linenos"> 43</span>            <span class="s2">"max_pages"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="line-44"><span class="linenos"> 44</span>        <span class="p">}</span>
+</span><span id="line-45"><span class="linenos"> 45</span>
+</span><span id="line-46"><span class="linenos"> 46</span>        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">http_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</span><span id="line-47"><span class="linenos"> 47</span>
+</span><span id="line-48"><span class="linenos"> 48</span>        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+</span><span id="line-49"><span class="linenos"> 49</span>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+</span><span id="line-50"><span class="linenos"> 50</span>                <span class="sa">f</span><span class="s2">"FlightAware API error </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">"</span>
+</span><span id="line-51"><span class="linenos"> 51</span>            <span class="p">)</span>
+</span><span id="line-52"><span class="linenos"> 52</span>            <span class="k">return</span> <span class="kc">None</span>
+</span><span id="line-53"><span class="linenos"> 53</span>
+</span><span id="line-54"><span class="linenos"> 54</span>        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span id="line-55"><span class="linenos"> 55</span>        <span class="n">flights</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="line-56"><span class="linenos"> 56</span>
+</span><span id="line-57"><span class="linenos"> 57</span>        <span class="c1"># Log raw API response for debugging</span>
+</span><span id="line-58"><span class="linenos"> 58</span>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"FlightAware API returned </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'flights'</span><span class="p">,</span><span class="w"> </span><span class="p">[]))</span><span class="si">}</span><span class="s2"> flights"</span><span class="p">)</span>
+</span><span id="line-59"><span class="linenos"> 59</span>
+</span><span id="line-60"><span class="linenos"> 60</span>        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">flight_group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+</span><span id="line-61"><span class="linenos"> 61</span>            <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"flights"</span><span class="p">,</span> <span class="p">[])[:</span><span class="mi">5</span><span class="p">]</span>
+</span><span id="line-62"><span class="linenos"> 62</span>        <span class="p">):</span>  <span class="c1"># Limit to 5 flights</span>
+</span><span id="line-63"><span class="linenos"> 63</span>            <span class="c1"># FlightAware API nests data in segments array</span>
+</span><span id="line-64"><span class="linenos"> 64</span>            <span class="n">segments</span> <span class="o">=</span> <span class="n">flight_group</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"segments"</span><span class="p">,</span> <span class="p">[])</span>
+</span><span id="line-65"><span class="linenos"> 65</span>            <span class="k">if</span> <span class="ow">not</span> <span class="n">segments</span><span class="p">:</span>
+</span><span id="line-66"><span class="linenos"> 66</span>                <span class="k">continue</span>
+</span><span id="line-67"><span class="linenos"> 67</span>
+</span><span id="line-68"><span class="linenos"> 68</span>            <span class="n">flight</span> <span class="o">=</span> <span class="n">segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Get first segment (direct flights only have one)</span>
+</span><span id="line-69"><span class="linenos"> 69</span>
+</span><span id="line-70"><span class="linenos"> 70</span>            <span class="c1"># Extract airport codes from nested objects</span>
+</span><span id="line-71"><span class="linenos"> 71</span>            <span class="n">flight_origin</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-72"><span class="linenos"> 72</span>            <span class="n">flight_dest</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="line-73"><span class="linenos"> 73</span>
+</span><span id="line-74"><span class="linenos"> 74</span>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"origin"</span><span class="p">),</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span id="line-75"><span class="linenos"> 75</span>                <span class="n">flight_origin</span> <span class="o">=</span> <span class="n">flight</span><span class="p">[</span><span class="s2">"origin"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"code_iata"</span><span class="p">)</span>
+</span><span id="line-76"><span class="linenos"> 76</span>
+</span><span id="line-77"><span class="linenos"> 77</span>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"destination"</span><span class="p">),</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span id="line-78"><span class="linenos"> 78</span>                <span class="n">flight_dest</span> <span class="o">=</span> <span class="n">flight</span><span class="p">[</span><span class="s2">"destination"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"code_iata"</span><span class="p">)</span>
+</span><span id="line-79"><span class="linenos"> 79</span>
+</span><span id="line-80"><span class="linenos"> 80</span>            <span class="c1"># Build flight object</span>
+</span><span id="line-81"><span class="linenos"> 81</span>            <span class="n">flights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span id="line-82"><span class="linenos"> 82</span>                <span class="p">{</span>
+</span><span id="line-83"><span class="linenos"> 83</span>                    <span class="s2">"airline"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"operator"</span><span class="p">),</span>
+</span><span id="line-84"><span class="linenos"> 84</span>                    <span class="s2">"flight_number"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ident_iata"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ident"</span><span class="p">),</span>
+</span><span id="line-85"><span class="linenos"> 85</span>                    <span class="s2">"departure_time"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"scheduled_out"</span><span class="p">),</span>
+</span><span id="line-86"><span class="linenos"> 86</span>                    <span class="s2">"arrival_time"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"scheduled_in"</span><span class="p">),</span>
+</span><span id="line-87"><span class="linenos"> 87</span>                    <span class="s2">"origin"</span><span class="p">:</span> <span class="n">flight_origin</span><span class="p">,</span>
+</span><span id="line-88"><span class="linenos"> 88</span>                    <span class="s2">"destination"</span><span class="p">:</span> <span class="n">flight_dest</span><span class="p">,</span>
+</span><span id="line-89"><span class="linenos"> 89</span>                    <span class="s2">"aircraft_type"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"aircraft_type"</span><span class="p">),</span>
+</span><span id="line-90"><span class="linenos"> 90</span>                    <span class="s2">"status"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">),</span>
+</span><span id="line-91"><span class="linenos"> 91</span>                    <span class="s2">"terminal_origin"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"terminal_origin"</span><span class="p">),</span>
+</span><span id="line-92"><span class="linenos"> 92</span>                    <span class="s2">"gate_origin"</span><span class="p">:</span> <span class="n">flight</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"gate_origin"</span><span class="p">),</span>
+</span><span id="line-93"><span class="linenos"> 93</span>                <span class="p">}</span>
+</span><span id="line-94"><span class="linenos"> 94</span>            <span class="p">)</span>
+</span><span id="line-95"><span class="linenos"> 95</span>
+</span><span id="line-96"><span class="linenos"> 96</span>        <span class="k">return</span> <span class="p">{</span>
+</span><span id="line-97"><span class="linenos"> 97</span>            <span class="s2">"origin_code"</span><span class="p">:</span> <span class="n">origin_code</span><span class="p">,</span>
+</span><span id="line-98"><span class="linenos"> 98</span>            <span class="s2">"destination_code"</span><span class="p">:</span> <span class="n">dest_code</span><span class="p">,</span>
+</span><span id="line-99"><span class="linenos"> 99</span>            <span class="s2">"flights"</span><span class="p">:</span> <span class="n">flights</span><span class="p">,</span>
+</span><span id="line-100"><span class="linenos">100</span>            <span class="s2">"count"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">flights</span><span class="p">),</span>
+</span><span id="line-101"><span class="linenos">101</span>        <span class="p">}</span>
+</span><span id="line-102"><span class="linenos">102</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="line-103"><span class="linenos">103</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error fetching flights: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-104"><span class="linenos">104</span>        <span class="k">return</span> <span class="kc">None</span>
+</span><span id="line-105"><span class="linenos">105</span>
+</span></code></pre></div>
+</div>
+</div>
+<p><strong>Key Points:</strong></p>
+<ul class="simple">
+<li><p>Use async HTTP clients (like <code class="docutils literal notranslate"><span class="pre">httpx.AsyncClient</span></code>) for non-blocking API calls</p></li>
+<li><p>Transform external API responses into consistent, structured formats</p></li>
+<li><p>Handle errors gracefully with fallback values</p></li>
+<li><p>Cache or validate data when appropriate (e.g., airport code validation)</p></li>
+</ul>
+</section>
+<section id="preparing-context-and-generating-responses">
+<h3>Preparing Context and Generating Responses<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#preparing-context-and-generating-responses" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#preparing-context-and-generating-responses'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Agents combine extracted information, API data, and conversation history to generate responses:</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">Weather Agent - Context Preparation and Response Generation</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id7"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos"> 1</span>    <span class="n">last_user_msg</span> <span class="o">=</span> <span class="n">get_last_user_content</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+</span><span id="line-2"><span class="linenos"> 2</span>    <span class="n">days</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span id="line-3"><span class="linenos"> 3</span>
+</span><span id="line-4"><span class="linenos"> 4</span>    <span class="k">if</span> <span class="s2">"forecast"</span> <span class="ow">in</span> <span class="n">last_user_msg</span> <span class="ow">or</span> <span class="s2">"week"</span> <span class="ow">in</span> <span class="n">last_user_msg</span><span class="p">:</span>
+</span><span id="line-5"><span class="linenos"> 5</span>        <span class="n">days</span> <span class="o">=</span> <span class="mi">7</span>
+</span><span id="line-6"><span class="linenos"> 6</span>    <span class="k">elif</span> <span class="s2">"tomorrow"</span> <span class="ow">in</span> <span class="n">last_user_msg</span><span class="p">:</span>
+</span><span id="line-7"><span class="linenos"> 7</span>        <span class="n">days</span> <span class="o">=</span> <span class="mi">2</span>
+</span><span id="line-8"><span class="linenos"> 8</span>
+</span><span id="line-9"><span class="linenos"> 9</span>    <span class="c1"># Extract specific number of days if mentioned (e.g., "5 day forecast")</span>
+</span><span id="line-10"><span class="linenos">10</span>    <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+</span><span id="line-11"><span class="linenos">11</span>
+</span><span id="line-12"><span class="linenos">12</span>    <span class="n">day_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"(\d{1,2})\s+day"</span><span class="p">,</span> <span class="n">last_user_msg</span><span class="p">)</span>
+</span><span id="line-13"><span class="linenos">13</span>    <span class="k">if</span> <span class="n">day_match</span><span class="p">:</span>
+</span><span id="line-14"><span class="linenos">14</span>        <span class="n">requested_days</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">day_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+</span><span id="line-15"><span class="linenos">15</span>        <span class="n">days</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">requested_days</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>  <span class="c1"># API supports max 16 days</span>
+</span><span id="line-16"><span class="linenos">16</span>
+</span><span id="line-17"><span class="linenos">17</span>    <span class="c1"># Get live weather data (location extraction happens inside this function)</span>
+</span><span id="line-18"><span class="linenos">18</span>    <span class="n">weather_data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">get_weather_data</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">days</span><span class="p">)</span>
+</span><span id="line-19"><span class="linenos">19</span>
+</span><span id="line-20"><span class="linenos">20</span>    <span class="c1"># Create weather context to append to user message</span>
+</span><span id="line-21"><span class="linenos">21</span>    <span class="n">forecast_type</span> <span class="o">=</span> <span class="s2">"forecast"</span> <span class="k">if</span> <span class="n">days</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">"current weather"</span>
+</span><span id="line-22"><span class="linenos">22</span>    <span class="n">weather_context</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"""</span>
+</span><span id="line-23"><span class="linenos">23</span>
+</span><span id="line-24"><span class="linenos">24</span><span class="s2">Weather data for </span><span class="si">{</span><span class="n">weather_data</span><span class="p">[</span><span class="s1">'location'</span><span class="p">]</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">forecast_type</span><span class="si">}</span><span class="s2">):</span>
+</span><span id="line-25"><span class="linenos">25</span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">weather_data</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">"""</span>
+</span><span id="line-26"><span class="linenos">26</span>
+</span><span id="line-27"><span class="linenos">27</span>    <span class="c1"># System prompt for weather agent</span>
+</span><span id="line-28"><span class="linenos">28</span>    <span class="n">instructions</span> <span class="o">=</span> <span class="s2">"""You are a weather assistant in a multi-agent system. You will receive weather data in JSON format with these fields:</span>
+</span><span id="line-29"><span class="linenos">29</span>
+</span><span id="line-30"><span class="linenos">30</span><span class="s2">    - "location": City name</span>
+</span><span id="line-31"><span class="linenos">31</span><span class="s2">    - "forecast": Array of weather objects, each with date, day_name, temperature_c, temperature_f, temperature_max_c, temperature_min_c, weather_code, sunrise, sunset</span>
+</span><span id="line-32"><span class="linenos">32</span><span class="s2">    - weather_code: WMO code (0=clear, 1-3=partly cloudy, 45-48=fog, 51-67=rain, 71-86=snow, 95-99=thunderstorm)</span>
+</span><span id="line-33"><span class="linenos">33</span>
+</span><span id="line-34"><span class="linenos">34</span><span class="s2">    Your task:</span>
+</span><span id="line-35"><span class="linenos">35</span><span class="s2">    1. Present the weather/forecast clearly for the location</span>
+</span><span id="line-36"><span class="linenos">36</span><span class="s2">    2. For single day: show current conditions</span>
+</span><span id="line-37"><span class="linenos">37</span><span class="s2">    3. For multi-day: show each day with date and conditions</span>
+</span><span id="line-38"><span class="linenos">38</span><span class="s2">    4. Include temperature in both Celsius and Fahrenheit</span>
+</span><span id="line-39"><span class="linenos">39</span><span class="s2">    5. Describe conditions naturally based on weather_code</span>
+</span><span id="line-40"><span class="linenos">40</span><span class="s2">    6. Use conversational language</span>
+</span><span id="line-41"><span class="linenos">41</span>
+</span><span id="line-42"><span class="linenos">42</span><span class="s2">    Important: If the conversation includes information from other agents (like flight details), acknowledge and build upon that context naturally. Your primary focus is weather, but maintain awareness of the full conversation.</span>
+</span><span id="line-43"><span class="linenos">43</span>
+</span><span id="line-44"><span class="linenos">44</span><span class="s2">    Remember: Only use the provided data. If fields are null, mention data is unavailable."""</span>
+</span><span id="line-45"><span class="linenos">45</span>
+</span><span id="line-46"><span class="linenos">46</span>    <span class="c1"># Build message history with weather data appended to the last user message</span>
+</span><span id="line-47"><span class="linenos">47</span>    <span class="n">response_messages</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"system"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">instructions</span><span class="p">}]</span>
+</span><span id="line-48"><span class="linenos">48</span>
+</span><span id="line-49"><span class="linenos">49</span>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">msg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">messages</span><span class="p">):</span>
+</span><span id="line-50"><span class="linenos">50</span>        <span class="c1"># Append weather data to the last user message</span>
+</span><span id="line-51"><span class="linenos">51</span>        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"role"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"user"</span><span class="p">:</span>
+</span><span id="line-52"><span class="linenos">52</span>            <span class="n">response_messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span id="line-53"><span class="linenos">53</span>                <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"user"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content"</span><span class="p">)</span> <span class="o">+</span> <span class="n">weather_context</span><span class="p">}</span>
+</span><span id="line-54"><span class="linenos">54</span>            <span class="p">)</span>
+</span><span id="line-55"><span class="linenos">55</span>        <span class="k">else</span><span class="p">:</span>
+</span><span id="line-56"><span class="linenos">56</span>            <span class="n">response_messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span id="line-57"><span class="linenos">57</span>                <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"role"</span><span class="p">),</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content"</span><span class="p">)}</span>
+</span><span id="line-58"><span class="linenos">58</span>            <span class="p">)</span>
+</span><span id="line-59"><span class="linenos">59</span>
+</span><span id="line-60"><span class="linenos">60</span>    <span class="k">try</span><span class="p">:</span>
+</span><span id="line-61"><span class="linenos">61</span>        <span class="n">ctx</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+</span><span id="line-62"><span class="linenos">62</span>        <span class="n">extra_headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"x-envoy-max-retries"</span><span class="p">:</span> <span class="s2">"3"</span><span class="p">}</span>
+</span><span id="line-63"><span class="linenos">63</span>        <span class="n">inject</span><span class="p">(</span><span class="n">extra_headers</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+</span><span id="line-64"><span class="linenos">64</span>
+</span><span id="line-65"><span class="linenos">65</span>        <span class="n">stream</span> <span class="o">=</span> <span class="k">await</span> <span class="n">openai_client_via_plano</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="line-66"><span class="linenos">66</span>            <span class="n">model</span><span class="o">=</span><span class="n">WEATHER_MODEL</span><span class="p">,</span>
+</span><span id="line-67"><span class="linenos">67</span>            <span class="n">messages</span><span class="o">=</span><span class="n">response_messages</span><span class="p">,</span>
+</span><span id="line-68"><span class="linenos">68</span>            <span class="n">temperature</span><span class="o">=</span><span class="n">request_body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"temperature"</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">),</span>
+</span><span id="line-69"><span class="linenos">69</span>            <span class="n">max_tokens</span><span class="o">=</span><span class="n">request_body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"max_tokens"</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span>
+</span><span id="line-70"><span class="linenos">70</span>            <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="line-71"><span class="linenos">71</span>            <span class="n">extra_headers</span><span class="o">=</span><span class="n">extra_headers</span><span class="p">,</span>
+</span><span id="line-72"><span class="linenos">72</span>        <span class="p">)</span>
+</span><span id="line-73"><span class="linenos">73</span>
+</span><span id="line-74"><span class="linenos">74</span>        <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+</span><span id="line-75"><span class="linenos">75</span>            <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
+</span><span id="line-76"><span class="linenos">76</span>                <span class="k">yield</span> <span class="sa">f</span><span class="s2">"data: </span><span class="si">{</span><span class="n">chunk</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">()</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">"</span>
+</span><span id="line-77"><span class="linenos">77</span>
+</span><span id="line-78"><span class="linenos">78</span>        <span class="k">yield</span> <span class="s2">"data: [DONE]</span><span class="se">\n\n</span><span class="s2">"</span>
+</span><span id="line-79"><span class="linenos">79</span>
+</span><span id="line-80"><span class="linenos">80</span>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="line-81"><span class="linenos">81</span>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error generating weather response: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+</div>
+<p><strong>Key Points:</strong></p>
+<ul class="simple">
+<li><p>Use system messages to provide structured data to the LLM</p></li>
+<li><p>Include full conversation history for context-aware responses</p></li>
+<li><p>Stream responses for better user experience</p></li>
+<li><p>Route all LLM calls through Plano’s gateway for consistent behavior and observability</p></li>
+</ul>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#best-practices" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#best-practices'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p><strong>Write Clear Agent Descriptions</strong></p>
+<p>Agent descriptions are used by Plano-Orchestrator to make routing decisions. Be specific about what each agent handles:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="c1"># Good - specific and actionable</span>
+</span><span id="line-2"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-3"><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get live flight information between airports using FlightAware AeroAPI. Shows real-time flight status, scheduled/estimated/actual departure and arrival times, gate and terminal information, delays, aircraft type, and flight status. Automatically resolves city names to airport codes (IATA/ICAO). Understands conversation context to infer origin/destination from follow-up questions.</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="c1"># Less ideal - too vague</span>
+</span><span id="line-6"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-7"><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Handles flight queries</span>
+</span></code></pre></div>
+</div>
+<p><strong>Use Conversation Context Effectively</strong></p>
+<p>Include conversation history in your extraction and response generation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="c1"># Include conversation context for extraction</span>
+</span><span id="line-2"><span class="n">conversation_context</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span id="line-3"><span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">:</span>
+</span><span id="line-4">    <span class="n">conversation_context</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"role"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">role</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="n">msg</span><span class="o">.</span><span class="n">content</span><span class="p">})</span>
+</span><span id="line-5">
+</span><span id="line-6"><span class="c1"># Use recent context (last 10 messages)</span>
+</span><span id="line-7"><span class="n">context_messages</span> <span class="o">=</span> <span class="n">conversation_context</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conversation_context</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="n">conversation_context</span>
+</span></code></pre></div>
+</div>
+<p><strong>Route LLM Calls Through Plano’s Model Proxy</strong></p>
+<p>Always route LLM calls through Plano’s <a class="reference internal" href="../concepts/llm_providers/llm_providers.html#llm-providers"><span class="std std-ref">Model Proxy</span></a> for consistent responses, smart routing, and rich observability:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="n">openai_client_via_plano</span> <span class="o">=</span> <span class="n">AsyncOpenAI</span><span class="p">(</span>
+</span><span id="line-2">    <span class="n">base_url</span><span class="o">=</span><span class="n">LLM_GATEWAY_ENDPOINT</span><span class="p">,</span>  <span class="c1"># Plano's LLM gateway</span>
+</span><span id="line-3">    <span class="n">api_key</span><span class="o">=</span><span class="s2">"EMPTY"</span><span class="p">,</span>
+</span><span id="line-4"><span class="p">)</span>
+</span><span id="line-5">
+</span><span id="line-6"><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">openai_client_via_plano</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="line-7">    <span class="n">model</span><span class="o">=</span><span class="s2">"openai/gpt-4o"</span><span class="p">,</span>
+</span><span id="line-8">    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+</span><span id="line-9">    <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="line-10"><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<p><strong>Handle Errors Gracefully</strong></p>
+<p>Provide fallback values and clear error messages:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_weather_data</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">days</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+</span><span id="line-2">    <span class="k">try</span><span class="p">:</span>
+</span><span id="line-3">        <span class="c1"># ... extraction and API logic ...</span>
+</span><span id="line-4">        <span class="n">location</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"</span><span class="se">\"</span><span class="s2">'`.,!?"</span><span class="p">)</span>
+</span><span id="line-5">        <span class="k">if</span> <span class="ow">not</span> <span class="n">location</span> <span class="ow">or</span> <span class="n">location</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"NOT_FOUND"</span><span class="p">:</span>
+</span><span id="line-6">            <span class="n">location</span> <span class="o">=</span> <span class="s2">"New York"</span>  <span class="c1"># Fallback to default</span>
+</span><span id="line-7">        <span class="k">return</span> <span class="n">weather_data</span>
+</span><span id="line-8">    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="line-9">        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error getting weather data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="line-10">        <span class="k">return</span> <span class="p">{</span><span class="s2">"location"</span><span class="p">:</span> <span class="s2">"New York"</span><span class="p">,</span> <span class="s2">"weather"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="s2">"Could not retrieve weather data"</span><span class="p">}}</span>
+</span></code></pre></div>
+</div>
+<p><strong>Use Appropriate Models for Tasks</strong></p>
+<p>Use smaller, faster models for extraction tasks and larger models for final responses:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="c1"># Extraction: Use smaller, faster model</span>
+</span><span id="line-2"><span class="n">LOCATION_MODEL</span> <span class="o">=</span> <span class="s2">"openai/gpt-4o-mini"</span>
+</span><span id="line-3">
+</span><span id="line-4"><span class="c1"># Final response: Use larger, more capable model</span>
+</span><span id="line-5"><span class="n">WEATHER_MODEL</span> <span class="o">=</span> <span class="s2">"openai/gpt-4o"</span>
+</span></code></pre></div>
+</div>
+<p><strong>Stream Responses</strong></p>
+<p>Stream responses for better user experience:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">invoke_weather_agent</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">request_body</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">traceparent_header</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+</span><span id="line-2">    <span class="c1"># ... prepare messages with weather data ...</span>
+</span><span id="line-3">
+</span><span id="line-4">    <span class="n">stream</span> <span class="o">=</span> <span class="k">await</span> <span class="n">openai_client_via_plano</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+</span><span id="line-5">        <span class="n">model</span><span class="o">=</span><span class="n">WEATHER_MODEL</span><span class="p">,</span>
+</span><span id="line-6">        <span class="n">messages</span><span class="o">=</span><span class="n">response_messages</span><span class="p">,</span>
+</span><span id="line-7">        <span class="n">temperature</span><span class="o">=</span><span class="n">request_body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"temperature"</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">),</span>
+</span><span id="line-8">        <span class="n">max_tokens</span><span class="o">=</span><span class="n">request_body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"max_tokens"</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span>
+</span><span id="line-9">        <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="line-10">        <span class="n">extra_headers</span><span class="o">=</span><span class="n">extra_headers</span><span class="p">,</span>
+</span><span id="line-11">    <span class="p">)</span>
+</span><span id="line-12">
+</span><span id="line-13">    <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+</span><span id="line-14">        <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
+</span><span id="line-15">            <span class="k">yield</span> <span class="sa">f</span><span class="s2">"data: </span><span class="si">{</span><span class="n">chunk</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">()</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">"</span>
+</span><span id="line-16">
+</span><span id="line-17">    <span class="k">yield</span> <span class="s2">"data: [DONE]</span><span class="se">\n\n</span><span class="s2">"</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="common-use-cases">
+<h2>Common Use Cases<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#common-use-cases" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#common-use-cases'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Multi-agent orchestration is particularly powerful for:</p>
+<p><strong>Travel and Booking Systems</strong></p>
+<p>Route queries to specialized agents for weather and flights:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather_agent</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get real-time weather conditions and forecasts</span>
+</span><span id="line-4"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Search for flights and provide flight status</span>
+</span></code></pre></div>
+</div>
+<p><strong>Customer Support</strong></p>
+<p>Route common queries to automated support agents while escalating complex issues:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tier1_support</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Handles common FAQs, password resets, and basic troubleshooting</span>
+</span><span id="line-4"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tier2_support</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Handles complex technical issues requiring deep product knowledge</span>
+</span><span id="line-6"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">human_escalation</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Escalates sensitive issues or unresolved problems to human agents</span>
+</span></code></pre></div>
+</div>
+<p><strong>Sales and Marketing</strong></p>
+<p>Direct leads and inquiries to specialized sales agents:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">product_recommendation</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Recommends products based on user needs and preferences</span>
+</span><span id="line-4"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pricing_agent</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Provides pricing information and quotes</span>
+</span><span id="line-6"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sales_closer</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Handles final negotiations and closes deals</span>
+</span></code></pre></div>
+</div>
+<p><strong>Technical Documentation and Support</strong></p>
+<p>Combine RAG agents for documentation lookup with specialized troubleshooting agents:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docs_agent</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Retrieves relevant documentation and guides</span>
+</span><span id="line-4"><span class="w">    </span><span class="nt">filter_chain</span><span class="p">:</span>
+</span><span id="line-5"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">query_rewriter</span>
+</span><span id="line-6"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">context_builder</span>
+</span><span id="line-7"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">troubleshoot_agent</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Diagnoses and resolves technical issues step by step</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#next-steps" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#next-steps'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<ul class="simple">
+<li><p>Learn more about <a class="reference internal" href="../concepts/agents.html#agents"><span class="std std-ref">agents</span></a> and the inner vs. outer loop model</p></li>
+<li><p>Explore <a class="reference internal" href="../concepts/filter_chain.html#filter-chain"><span class="std std-ref">filter chains</span></a> for adding guardrails and context enrichment</p></li>
+<li><p>See <a class="reference internal" href="observability/observability.html#observability"><span class="std std-ref">observability</span></a> for monitoring multi-agent workflows</p></li>
+<li><p>Review the <a class="reference internal" href="../concepts/llm_providers/llm_providers.html#llm-providers"><span class="std std-ref">LLM Providers</span></a> guide for model routing within agents</p></li>
+<li><p>Check out the complete <a class="reference external" href="https://github.com/katanemo/plano/tree/main/demos/use_cases/travel_booking" rel="nofollow noopener">Travel Booking demo<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> on GitHub</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To observe traffic to and from agents, please read more about <a class="reference internal" href="observability/observability.html#observability"><span class="std std-ref">observability</span></a> in Plano.</p>
+</div>
+<p>By carefully configuring and managing your Agent routing and hand off, you can significantly improve your application’s responsiveness, performance, and overall user satisfaction.</p>
+</section>
+</section>
+</div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
+<div class="mr-auto">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../concepts/prompt_target.html">
+<svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<polyline points="15 18 9 12 15 6"></polyline>
+</svg>
+        Prompt Target
+      </a>
+</div>
+<div class="ml-auto">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="llm_router.html">
+        LLM Routing
+        <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</a>
+</div>
+</div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
+<div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
+<ul>
+<li><a :data-current="activeSection === '#how-it-works'" class="reference internal" href="#how-it-works">How It Works</a></li>
+<li><a :data-current="activeSection === '#example-travel-booking-assistant'" class="reference internal" href="#example-travel-booking-assistant">Example: Travel Booking Assistant</a></li>
+<li><a :data-current="activeSection === '#configuration'" class="reference internal" href="#configuration">Configuration</a></li>
+<li><a :data-current="activeSection === '#implementation'" class="reference internal" href="#implementation">Implementation</a><ul>
+<li><a :data-current="activeSection === '#agent-structure'" class="reference internal" href="#agent-structure">Agent Structure</a></li>
+<li><a :data-current="activeSection === '#information-extraction-with-llms'" class="reference internal" href="#information-extraction-with-llms">Information Extraction with LLMs</a></li>
+<li><a :data-current="activeSection === '#calling-external-apis'" class="reference internal" href="#calling-external-apis">Calling External APIs</a></li>
+<li><a :data-current="activeSection === '#preparing-context-and-generating-responses'" class="reference internal" href="#preparing-context-and-generating-responses">Preparing Context and Generating Responses</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#best-practices'" class="reference internal" href="#best-practices">Best Practices</a></li>
+<li><a :data-current="activeSection === '#common-use-cases'" class="reference internal" href="#common-use-cases">Common Use Cases</a></li>
+<li><a :data-current="activeSection === '#next-steps'" class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+</aside>
+</main>
+</div>
+</div><footer class="py-6 border-t border-border md:py-0">
+<div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
+<div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 24, 2025. </p>
+</div>
+</div>
+</footer>
+</div>
+<script src="../_static/documentation_options.js?v=8cf1ab6b"></script>
+<script src="../_static/doctools.js?v=9bcbadda"></script>
+<script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+<script defer="defer" src="../_static/theme.js?v=073f68d9"></script>
+<script src="../_static/design-tabs.js?v=f930bc37"></script>
+</body>
+</html>

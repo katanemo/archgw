@@ -7,19 +7,19 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Prompt Guard | Arch Docs v0.3.22</title>
-<meta content="Prompt Guard | Arch Docs v0.3.22" property="og:title"/>
-<meta content="Prompt Guard | Arch Docs v0.3.22" name="twitter:title"/>
+<title>Guardrails | Plano Docs v0.4</title>
+<meta content="Guardrails | Plano Docs v0.4" property="og:title"/>
+<meta content="Guardrails | Plano Docs v0.4" name="twitter:title"/>
 <link href="../_static/pygments.css?v=466e7b45" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
-<link href="../_static/_static/custom.css" rel="stylesheet" type="text/css"/>
 <link href="../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css?v=2929376a" rel="stylesheet" type="text/css"/>
 <link href="../_static/awesome-sphinx-design.css?v=15e0fffa" rel="stylesheet" type="text/css"/>
 <link href="./docs/guides/prompt_guard.html" rel="canonical"/>
 <link href="../_static/favicon.ico" rel="icon"/>
 <link href="../search.html" rel="search" title="Search"/>
-<link href="agent_routing.html" rel="next" title="Agent Routing and Hand Off"/>
-<link href="../concepts/prompt_target.html" rel="prev" title="Prompt Target"/>
+<link href="state.html" rel="next" title="Conversational State"/>
+<link href="observability/access_logging.html" rel="prev" title="Access Logging"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -39,7 +39,7 @@
     </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
 <div class="hidden mr-4 md:flex">
 <a class="flex items-center mr-6" href="../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
 <svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
 <path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
@@ -56,7 +56,7 @@
 </form>
 </div>
 <nav class="flex items-center space-x-1">
-<a href="https://github.com/katanemo/arch" rel="noopener nofollow" title="Visit repository on GitHub">
+<a href="https://github.com/katanemo/plano" rel="noopener nofollow" title="Visit repository on GitHub">
 <div class="inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md disabled:opacity-50 disabled:pointer-events-none hover:bg-accent hover:text-accent-foreground h-9 w-9">
 <svg fill="currentColor" height="26px" style="margin-top:-2px;display:inline" viewbox="0 0 45 44" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M22.477.927C10.485.927.76 10.65.76 22.647c0 9.596 6.223 17.736 14.853 20.608 1.087.2 1.483-.47 1.483-1.047 0-.516-.019-1.881-.03-3.693-6.04 1.312-7.315-2.912-7.315-2.912-.988-2.51-2.412-3.178-2.412-3.178-1.972-1.346.149-1.32.149-1.32 2.18.154 3.327 2.24 3.327 2.24 1.937 3.318 5.084 2.36 6.321 1.803.197-1.403.759-2.36 1.379-2.903-4.823-.548-9.894-2.412-9.894-10.734 0-2.37.847-4.31 2.236-5.828-.224-.55-.969-2.759.214-5.748 0 0 1.822-.584 5.972 2.226 1.732-.482 3.59-.722 5.437-.732 1.845.01 3.703.25 5.437.732 4.147-2.81 5.967-2.226 5.967-2.226 1.185 2.99.44 5.198.217 5.748 1.392 1.517 2.232 3.457 2.232 5.828 0 8.344-5.078 10.18-9.916 10.717.779.67 1.474 1.996 1.474 4.021 0 2.904-.027 5.247-.027 5.96 0 .58.392 1.256 1.493 1.044C37.981 40.375 44.2 32.24 44.2 22.647c0-11.996-9.726-21.72-21.722-21.72" fill="currentColor" fill-rule="evenodd"></path></svg>
 </div>
@@ -75,40 +75,33 @@
 </header>
 <div class="flex-1"><div class="container flex-1 items-start md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full shrink-0 overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
 <a class="!justify-start text-sm md:!hidden bg-background" href="../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a>
 <div class="relative overflow-hidden md:overflow-auto my-4 md:my-0 h-[calc(100vh-8rem)] md:h-auto">
 <div class="overflow-y-auto h-full w-full relative pr-6">
 
-<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-K2LXXSX6HB"></script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EH2VW19FXE"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'G-K2LXXSX6HB');
+  gtag('config', 'G-EH2VW19FXE');
 </script>
 <nav class="table w-full min-w-full my-6 lg:my-8">
 <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../get_started/overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../get_started/intro_to_arch.html">Intro to Arch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../get_started/intro_to_plano.html">Intro to Plano</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../get_started/quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../get_started/quickstart.html#next-steps">Next Steps</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/terminology.html">Terminology</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/threading_model.html">Threading Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/listener.html">Listener</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/prompt.html">Prompts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/model_serving.html">Model Serving</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/error_target.html">Error Target</a></li>
-</ul>
-</li>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1"><a class="reference internal" href="../concepts/listeners.html">Listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/agents.html">Agents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/filter_chain.html">Filter Chains</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/llm_providers/llm_providers.html">Model (LLM) Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
@@ -118,27 +111,29 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Prompt Guard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="agent_routing.html">Agent Routing and Hand Off</a></li>
-<li class="toctree-l1"><a class="reference internal" href="function_calling.html">Function Calling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="orchestration.html">Orchestration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llm_router.html">LLM Routing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="function_calling.html">Function Calling</a></li>
 <li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="observability/observability.html">Observability<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="observability/tracing.html">Tracing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="observability/monitoring.html">Monitoring</a></li>
 <li class="toctree-l2"><a class="reference internal" href="observability/access_logging.html">Access Logging</a></li>
 </ul>
 </li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Build with Arch</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/agent.html">Agentic Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/rag.html">RAG Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/multi_turn.html">Multi-Turn</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Guardrails</a></li>
+<li class="toctree-l1"><a class="reference internal" href="state.html">Conversational State</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Resources</span></p>
 <ul>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../resources/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/model_serving.html">Bright Staff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/threading_model.html">Threading Model</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../resources/deployment.html">Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../resources/configuration_reference.html">Configuration Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources/llms_txt.html">llms.txt</a></li>
 </ul>
 </nav>
 </div>
@@ -153,103 +148,133 @@
 <div class="w-full min-w-0 mx-auto">
 <nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
 <a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../index.html">
-<span class="hidden md:inline">Arch Docs v0.3.22</span>
+<span class="hidden md:inline">Plano Docs v0.4</span>
 <svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
 </a>
-<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Prompt Guard</span>
+<div class="mr-1">/</div><span aria-current="page" class="font-medium text-foreground overflow-hidden text-ellipsis whitespace-nowrap">Guardrails</span>
 </nav>
 <div id="content" role="main">
-<section id="prompt-guard">
-<span id="id1"></span><h1>Prompt Guard<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#prompt-guard"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
-<p><strong>Prompt guard</strong> is a security and validation feature offered in Arch to protect agents, by filtering and analyzing prompts before they reach your application logic.
-In applications where prompts generate responses or execute specific actions based on user inputs, prompt guard minimizes risks like malicious inputs (or misaligned outputs).
-By adding a layer of input scrutiny, prompt guards ensures safer, more reliable, and accurate interactions with agents.</p>
-<section id="why-prompt-guard">
-<h2>Why Prompt Guard<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#why-prompt-guard" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#why-prompt-guard'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<section id="guardrails">
+<span id="prompt-guard"></span><h1>Guardrails<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#guardrails"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
+<p><strong>Guardrails</strong> are Plano’s way of applying safety and validation checks to prompts before they reach your application logic. They are typically implemented as
+filters in a <a class="reference internal" href="../concepts/filter_chain.html#filter-chain"><span class="std std-ref">Filter Chain</span></a> attached to an agent, so every request passes through a consistent processing layer.</p>
+<section id="why-guardrails">
+<h2>Why Guardrails<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#why-guardrails" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#why-guardrails'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Guardrails are essential for maintaining control over AI-driven applications. They help enforce organizational policies, ensure compliance with regulations
+(like GDPR or HIPAA), and protect users from harmful or inappropriate content. In applications where prompts generate responses or trigger actions, guardrails
+minimize risks like malicious inputs, off-topic queries, or misaligned outputs—adding a consistent layer of input scrutiny that makes interactions safer,
+more reliable, and easier to reason about.</p>
 <ul class="simple">
-<li><dl class="simple">
-<dt><strong>Prompt Sanitization via Arch-Guard</strong></dt><dd><ul>
-<li><p><strong>Jailbreak Prevention</strong>: Detects and filters inputs that might attempt jailbreak attacks, like alternating LLM intended behavior, exposing the system prompt, or bypassing ethnics safety.</p></li>
+<li><p><strong>Jailbreak Prevention</strong>: Detect and filter inputs that attempt to change LLM behavior, expose system prompts, or bypass safety policies.</p></li>
+<li><p><strong>Domain and Topicality Enforcement</strong>: Ensure that agents only respond to prompts within an approved domain (for example, finance-only or healthcare-only use cases) and reject unrelated queries.</p></li>
+<li><p><strong>Dynamic Error Handling</strong>: Provide clear error messages when requests violate policy, helping users correct their inputs.</p></li>
 </ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt><strong>Dynamic Error Handling</strong></dt><dd><ul>
-<li><p><strong>Automatic Correction</strong>: Applies error-handling techniques to suggest corrections for minor input errors, such as typos or misformatted data.</p></li>
-<li><p><strong>Feedback Mechanism</strong>: Provides informative error messages to users, helping them understand how to correct input mistakes or adhere to guidelines.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-</ul>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Today, Arch offers support for jailbreak via Arch-Guard. We will be adding support for additional guards in Q1, 2025 (including response guardrails)</p>
-</div>
-<section id="what-is-arch-guard">
-<h3>What Is Arch-Guard<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#what-is-arch-guard" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#what-is-arch-guard'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p><a class="reference external" href="https://huggingface.co/collections/katanemo/arch-guard-6702bdc08b889e4bce8f446d" rel="nofollow noopener">Arch-Guard<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> is a robust classifier model specifically trained on a diverse corpus of prompt attacks.
-It excels at detecting explicitly malicious prompts, providing an essential layer of security for LLM applications.</p>
-<p>By embedding Arch-Guard within the Arch architecture, we empower developers to build robust, LLM-powered applications while prioritizing security and safety. With Arch-Guard, you can navigate the complexities of prompt management with confidence, knowing you have a reliable defense against malicious input.</p>
 </section>
-<section id="example-configuration">
-<h3>Example Configuration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#example-configuration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#example-configuration'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p>Here is an example of using Arch-Guard in Arch:</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Arch-Guard Example Configuration</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id2"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="linenos">1</span><span class="w">      </span><span class="nt">on_exception</span><span class="p">:</span>
-</span><span id="line-2"><span class="linenos">2</span><span class="w">        </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Looks like you're curious about my abilities, but I can only provide assistance within my programmed parameters.</span>
-</span><span id="line-3"><span class="linenos">3</span>
-</span><span id="line-4"><span class="linenos">4</span><span class="nt">prompt_targets</span><span class="p">:</span>
-</span><span id="line-5"><span class="linenos">5</span><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">information_extraction</span>
+<section id="how-guardrails-work">
+<h2>How Guardrails Work<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-guardrails-work" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-guardrails-work'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Guardrails can be implemented as either in-process MCP filters or as HTTP-based filters. HTTP filters are external services that receive the request over HTTP, validate it, and return a response to allow or reject the request. This makes it easy to use filters written in any language or run them as independent services.</p>
+<p>Each filter receives the chat messages, evaluates them against policy, and either lets the request continue or raises a <code class="docutils literal notranslate"><span class="pre">ToolError</span></code> (or returns an error response) to reject it with a helpful error message.</p>
+<p>The example below shows an input guard for TechCorp’s customer support system that validates queries are within the company’s domain:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Example domain validation guard using FastMCP</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id1"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+</span><span id="line-2"><span class="kn">from</span><span class="w"> </span><span class="nn">fastmcp.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ToolError</span>
+</span><span id="line-3"><span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">mcp</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="nd">@mcp</span><span class="o">.</span><span class="n">tool</span>
+</span><span id="line-6"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">input_guards</span><span class="p">(</span><span class="n">messages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ChatMessage</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ChatMessage</span><span class="p">]:</span>
+</span><span id="line-7"><span class="w">    </span><span class="sd">"""Validates queries are within TechCorp's domain."""</span>
+</span><span id="line-8">
+</span><span id="line-9">    <span class="c1"># Get the user's query</span>
+</span><span id="line-10">    <span class="n">user_query</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+</span><span id="line-11">        <span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">content</span> <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s2">"user"</span><span class="p">),</span>
+</span><span id="line-12">        <span class="s2">""</span>
+</span><span id="line-13">    <span class="p">)</span>
+</span><span id="line-14">
+</span><span id="line-15">    <span class="c1"># Use an LLM to validate the query scope (simplified)</span>
+</span><span id="line-16">    <span class="n">is_valid</span> <span class="o">=</span> <span class="k">await</span> <span class="n">validate_with_llm</span><span class="p">(</span><span class="n">user_query</span><span class="p">)</span>
+</span><span id="line-17">
+</span><span id="line-18">    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
+</span><span id="line-19">        <span class="k">raise</span> <span class="n">ToolError</span><span class="p">(</span>
+</span><span id="line-20">            <span class="s2">"I can only assist with questions related to TechCorp and its services. "</span>
+</span><span id="line-21">            <span class="s2">"Please ask about TechCorp's products, pricing, SLAs, or technical support."</span>
+</span><span id="line-22">        <span class="p">)</span>
+</span><span id="line-23">
+</span><span id="line-24">    <span class="k">return</span> <span class="n">messages</span>
 </span></code></pre></div>
 </div>
 </div>
+<p>To wire this guardrail into Plano, define the filter and add it to your agent’s filter chain:</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Plano configuration with input guard filter</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id2"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">filters</span><span class="p">:</span>
+</span><span id="line-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input_guards</span>
+</span><span id="line-3"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:10500</span>
+</span><span id="line-4">
+</span><span id="line-5"><span class="nt">listeners</span><span class="p">:</span>
+</span><span id="line-6"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_1</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8001</span>
+</span><span id="line-9"><span class="w">    </span><span class="nt">router</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plano_orchestrator_v1</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-11"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rag_agent</span>
+</span><span id="line-12"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">virtual assistant for retrieval augmented generation tasks</span>
+</span><span id="line-13"><span class="w">        </span><span class="nt">filter_chain</span><span class="p">:</span>
+</span><span id="line-14"><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input_guards</span>
+</span></code></pre></div>
+</div>
+</div>
+<p>When a request arrives at <code class="docutils literal notranslate"><span class="pre">agent_1</span></code>, Plano invokes the <code class="docutils literal notranslate"><span class="pre">input_guards</span></code> filter first. If validation passes, the request continues to
+the agent. If validation fails (<code class="docutils literal notranslate"><span class="pre">ToolError</span></code> raised), Plano returns an error response to the caller.</p>
 </section>
-</section>
-<section id="how-arch-guard-works">
-<h2>How Arch-Guard Works<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-arch-guard-works" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-arch-guard-works'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<ol class="arabic">
-<li><p><strong>Pre-Processing Stage</strong></p>
-<blockquote>
-<div><p>As a request or prompt is received, Arch Guard first performs validation. If any violations are detected, the input is flagged, and a tailored error message may be returned.</p>
-</div></blockquote>
-</li>
-<li><p><strong>Error Handling and Feedback</strong></p>
-<blockquote>
-<div><p>If the prompt contains errors or does not meet certain criteria, the user receives immediate feedback or correction suggestions, enhancing usability and reducing the chance of repeated input mistakes.</p>
-</div></blockquote>
-</li>
-</ol>
-</section>
-<section id="benefits-of-using-arch-guard">
-<h2>Benefits of Using Arch Guard<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#benefits-of-using-arch-guard" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#benefits-of-using-arch-guard'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<ul class="simple">
-<li><p><strong>Enhanced Security</strong>: Protects against injection attacks, harmful content, and misuse, securing both system and user data.</p></li>
-<li><p><strong>Better User Experience</strong>: Clear feedback and error correction improve user interactions by guiding them to correct input formats and constraints.</p></li>
-</ul>
-</section>
-<section id="summary">
-<h2>Summary<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#summary" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#summary'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<p>Prompt guard is an essential tool for any prompt-based system that values security, accuracy, and compliance.
-By implementing Prompt Guard, developers can provide a robust layer of input validation and security, leading to better-performing, reliable, and safer applications.</p>
+<section id="testing-the-guardrail">
+<h2>Testing the Guardrail<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#testing-the-guardrail" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#testing-the-guardrail'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Here’s an example of the guardrail in action, rejecting a query about Apple Corporation (outside TechCorp’s domain):</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">Request that violates the guardrail policy</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id3"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8001/v1/chat/completions<span class="w"> </span><span class="se">\</span>
+</span><span id="line-2"><span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="line-3"><span class="w">  </span>-d<span class="w"> </span><span class="s1">'{</span>
+</span><span id="line-4"><span class="s1">    "model": "gpt-4",</span>
+</span><span id="line-5"><span class="s1">    "messages": [</span>
+</span><span id="line-6"><span class="s1">      {</span>
+</span><span id="line-7"><span class="s1">        "role": "user",</span>
+</span><span id="line-8"><span class="s1">        "content": "what is sla for apple corporation?"</span>
+</span><span id="line-9"><span class="s1">      }</span>
+</span><span id="line-10"><span class="s1">    ],</span>
+</span><span id="line-11"><span class="s1">    "stream": false</span>
+</span><span id="line-12"><span class="s1">  }'</span>
+</span></code></pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Error response from the guardrail</span><a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id4"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></div>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="p">{</span>
+</span><span id="line-2"><span class="w">  </span><span class="nt">"error"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ClientError"</span><span class="p">,</span>
+</span><span id="line-3"><span class="w">  </span><span class="nt">"agent"</span><span class="p">:</span><span class="w"> </span><span class="s2">"input_guards"</span><span class="p">,</span>
+</span><span id="line-4"><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span>
+</span><span id="line-5"><span class="w">  </span><span class="nt">"agent_response"</span><span class="p">:</span><span class="w"> </span><span class="s2">"I apologize, but I can only assist with questions related to TechCorp and its services. Your query appears to be outside this scope. The query is about SLA for Apple Corporation, which is unrelated to TechCorp.\n\nPlease ask me about TechCorp's products, services, pricing, SLAs, or technical support."</span>
+</span><span id="line-6"><span class="p">}</span>
+</span></code></pre></div>
+</div>
+</div>
+<p>This prevents out-of-scope queries from reaching your agent while providing clear feedback to users about why their request was rejected.</p>
 </section>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../concepts/prompt_target.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="observability/access_logging.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        Prompt Target
+        Access Logging
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="agent_routing.html">
-        Agent Routing and Hand Off
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="state.html">
+        Conversational State
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -258,14 +283,9 @@ By implementing Prompt Guard, developers can provide a robust layer of input val
 </div></div><aside class="hidden text-sm xl:block" id="right-sidebar">
 <div class="sticky top-16 -mt-10 max-h-[calc(100vh-5rem)] overflow-y-auto pt-6 space-y-2"><p class="font-medium">On this page</p>
 <ul>
-<li><a :data-current="activeSection === '#why-prompt-guard'" class="reference internal" href="#why-prompt-guard">Why Prompt Guard</a><ul>
-<li><a :data-current="activeSection === '#what-is-arch-guard'" class="reference internal" href="#what-is-arch-guard">What Is Arch-Guard</a></li>
-<li><a :data-current="activeSection === '#example-configuration'" class="reference internal" href="#example-configuration">Example Configuration</a></li>
-</ul>
-</li>
-<li><a :data-current="activeSection === '#how-arch-guard-works'" class="reference internal" href="#how-arch-guard-works">How Arch-Guard Works</a></li>
-<li><a :data-current="activeSection === '#benefits-of-using-arch-guard'" class="reference internal" href="#benefits-of-using-arch-guard">Benefits of Using Arch Guard</a></li>
-<li><a :data-current="activeSection === '#summary'" class="reference internal" href="#summary">Summary</a></li>
+<li><a :data-current="activeSection === '#why-guardrails'" class="reference internal" href="#why-guardrails">Why Guardrails</a></li>
+<li><a :data-current="activeSection === '#how-guardrails-work'" class="reference internal" href="#how-guardrails-work">How Guardrails Work</a></li>
+<li><a :data-current="activeSection === '#testing-the-guardrail'" class="reference internal" href="#testing-the-guardrail">Testing the Guardrail</a></li>
 </ul>
 </div>
 </aside>
@@ -274,12 +294,12 @@ By implementing Prompt Guard, developers can provide a robust layer of input val
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 23, 2025. </p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 24, 2025. </p>
 </div>
 </div>
 </footer>
 </div>
-<script src="../_static/documentation_options.js?v=3bad885e"></script>
+<script src="../_static/documentation_options.js?v=8cf1ab6b"></script>
 <script src="../_static/doctools.js?v=9bcbadda"></script>
 <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
 <script defer="defer" src="../_static/theme.js?v=073f68d9"></script>

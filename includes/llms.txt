@@ -1,0 +1,5327 @@
+Plano Docs v0.4
+llms.txt (auto-generated)
+Generated (UTC): 2025-12-24T01:15:17.250485+00:00
+
+Table of contents
+- Agents (concepts/agents)
+- Filter Chains (concepts/filter_chain)
+- Listeners (concepts/listeners)
+- Client Libraries (concepts/llm_providers/client_libraries)
+- Model (LLM) Providers (concepts/llm_providers/llm_providers)
+- Model Aliases (concepts/llm_providers/model_aliases)
+- Supported Providers & Configuration (concepts/llm_providers/supported_providers)
+- Prompt Target (concepts/prompt_target)
+- Intro to Plano (get_started/intro_to_plano)
+- Overview (get_started/overview)
+- Quickstart (get_started/quickstart)
+- Function Calling (guides/function_calling)
+- LLM Routing (guides/llm_router)
+- Access Logging (guides/observability/access_logging)
+- Monitoring (guides/observability/monitoring)
+- Observability (guides/observability/observability)
+- Tracing (guides/observability/tracing)
+- Orchestration (guides/orchestration)
+- Guardrails (guides/prompt_guard)
+- Conversational State (guides/state)
+- Welcome to Plano! (index)
+- Configuration Reference (resources/configuration_reference)
+- Deployment (resources/deployment)
+- llms.txt (resources/llms_txt)
+- Bright Staff (resources/tech_overview/model_serving)
+- Request Lifecycle (resources/tech_overview/request_lifecycle)
+- Tech Overview (resources/tech_overview/tech_overview)
+- Threading Model (resources/tech_overview/threading_model)
+
+Agents
+------
+Doc: concepts/agents
+
+Agents
+
+Agents are autonomous systems that handle wide-ranging, open-ended tasks by calling models in a loop until the work is complete. Unlike deterministic prompt targets, agents have access to tools, reason about which actions to take, and adapt their behavior based on intermediate results—making them ideal for complex workflows that require multi-step reasoning, external API calls, and dynamic decision-making.
+
+Plano helps developers build and scale multi-agent systems by managing the orchestration layer—deciding which agent(s) or LLM(s) should handle each request, and in what sequence—while developers focus on implementing agent logic in any language or framework they choose.
+
+Agent Orchestration
+
+Plano-Orchestrator is a family of state-of-the-art routing and orchestration models that decide which agent(s) should handle each request, and in what sequence. Built for real-world multi-agent deployments, it analyzes user intent and conversation context to make precise routing and orchestration decisions while remaining efficient enough for low-latency production use across general chat, coding, and long-context multi-turn conversations.
+
+This allows development teams to:
+
+Scale multi-agent systems: Route requests across multiple specialized agents without hardcoding routing logic in application code.
+
+Improve performance: Direct requests to the most appropriate agent based on intent, reducing unnecessary handoffs and improving response quality.
+
+Enhance debuggability: Centralized routing decisions are observable through Plano’s tracing and logging, making it easier to understand why a particular agent was selected.
+
+Inner Loop vs. Outer Loop
+
+Plano distinguishes between the inner loop (agent implementation logic) and the outer loop (orchestration and routing):
+
+Inner Loop (Agent Logic)
+
+The inner loop is where your agent lives—the business logic that decides which tools to call, how to interpret results, and when the task is complete. You implement this in any language or framework:
+
+Python agents: Using frameworks like LangChain, LlamaIndex, CrewAI, or custom Python code.
+
+JavaScript/TypeScript agents: Using frameworks like LangChain.js or custom Node.js implementations.
+
+Any other AI famreowkr: Agents are just HTTP services that Plano can route to.
+
+Your agent controls:
+
+Which tools or APIs to call in response to a prompt.
+
+How to interpret tool results and decide next steps.
+
+When to call the LLM for reasoning or summarization.
+
+When the task is complete and what response to return.
+
+Making LLM Calls from Agents
+
+When your agent needs to call an LLM for reasoning, summarization, or completion, you should route those calls through Plano’s Model Proxy rather than calling LLM providers directly. This gives you:
+
+Consistent responses: Normalized response formats across all LLM providers, whether you’re using OpenAI, Anthropic, Azure OpenAI, or any OpenAI-compatible provider.
+
+Rich agentic signals: Automatic capture of function calls, tool usage, reasoning steps, and model behavior—surfaced through traces and metrics without instrumenting your agent code.
+
+Smart model routing: Leverage model-based, alias-based, or preference-aligned routing to dynamically select the best model for each task based on cost, performance, or custom policies.
+
+By routing LLM calls through the Model Proxy, your agents remain decoupled from specific providers and can benefit from centralized policy enforcement, observability, and intelligent routing—all managed in the outer loop. For a step-by-step guide, see llm_router in the LLM Router guide.
+
+Outer Loop (Orchestration)
+
+The outer loop is Plano’s orchestration layer—it manages the lifecycle of requests across agents and LLMs:
+
+Intent analysis: Plano-Orchestrator analyzes incoming prompts to determine user intent and conversation context.
+
+Routing decisions: Routes requests to the appropriate agent(s) or LLM(s) based on capabilities, context, and availability.
+
+Sequencing: Determines whether multiple agents need to collaborate and in what order.
+
+Lifecycle management: Handles retries, failover, circuit breaking, and load balancing across agent instances.
+
+By managing the outer loop, Plano allows you to:
+
+Add new agents without changing routing logic in existing agents.
+
+Run multiple versions or variants of agents for A/B testing or canary deployments.
+
+Apply consistent filter chains (guardrails, context enrichment) before requests reach agents.
+
+Monitor and debug multi-agent workflows through centralized observability.
+
+Key Benefits
+
+Language and framework agnostic: Write agents in any language; Plano orchestrates them via HTTP.
+
+Reduced complexity: Agents focus on task logic; Plano handles routing, retries, and cross-cutting concerns.
+
+Better observability: Centralized tracing shows which agents were called, in what sequence, and why.
+
+Easier scaling: Add more agent instances or new agent types without refactoring existing code.
+
+---
+
+Filter Chains
+-------------
+Doc: concepts/filter_chain
+
+Filter Chains
+
+Filter chains are Plano’s way of capturing reusable workflow steps in the dataplane, without duplication and coupling logic into application code. A filter chain is an ordered list of mutations that a request flows through before reaching its final destination —such as an agent, an LLM, or a tool backend. Each filter is a network-addressable service/path that can:
+
+Inspect the incoming prompt, metadata, and conversation state.
+
+Mutate or enrich the request (for example, rewrite queries or build context).
+
+Short-circuit the flow and return a response early (for example, block a request on a compliance failure).
+
+Emit structured logs and traces so you can debug and continuously improve your agents.
+
+In other words, filter chains provide a lightweight programming model over HTTP for building reusable steps
+in your agent architectures.
+
+Typical Use Cases
+
+Without a dataplane programming model, teams tend to spread logic like query rewriting, compliance checks,
+context building, and routing decisions across many agents and frameworks. This quickly becomes hard to reason
+about and even harder to evolve.
+
+Filter chains show up most often in patterns like:
+
+Guardrails and Compliance: Enforcing content policies, stripping or masking sensitive data, and blocking obviously unsafe or off-topic requests before they reach an agent.
+
+Query rewriting, RAG, and Memory: Rewriting user queries for retrieval, normalizing entities, and assembling RAG context envelopes while pulling in relevant memory (for example, conversation history, user profiles, or prior tool results) before calling a model or tool.
+
+Cross-cutting Observability: Injecting correlation IDs, sampling traces, or logging enriched request metadata at consistent points in the request path.
+
+Because these behaviors live in the dataplane rather than inside individual agents, you define them once, attach them to many agents and prompt targets, and can add, remove, or reorder them without changing application code.
+
+Configuration example
+
+The example below shows a configuration where an agent uses a filter chain with two filters: a query rewriter,
+and a context builder that prepares retrieval context before the agent runs.
+
+Example Configuration
+
+version: v0.3.0
+
+agents:
+  - id: rag_agent
+    url: http://host.docker.internal:10505
+
+filters:
+  - id: query_rewriter
+    url: http://host.docker.internal:10501
+    # type: mcp # default is mcp
+    # transport: streamable-http # default is streamable-http
+    # tool: query_rewriter # default name is the filter id
+  - id: context_builder
+    url: http://host.docker.internal:10502
+
+model_providers:
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    default: true
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+
+model_aliases:
+  fast-llm:
+    target: gpt-4o-mini
+  smart-llm:
+    target: gpt-4o
+
+listeners:
+  - type: agent
+    name: agent_1
+    port: 8001
+    router: arch_agent_router
+    agents:
+      - id: rag_agent
+        description: virtual assistant for retrieval augmented generation tasks
+        filter_chain:
+          - query_rewriter
+          - context_builder
+tracing:
+  random_sampling: 100
+
+
+In this setup:
+
+The filters section defines the reusable filters, each running as its own HTTP/MCP service.
+
+The listeners section wires the rag_agent behind an agent listener and attaches a filter_chain with query_rewriter followed by context_builder.
+
+When a request arrives at agent_1, Plano executes the filters in order before handing control to rag_agent.
+
+Filter Chain Programming Model (HTTP and MCP)
+
+Filters are implemented as simple RESTful endpoints reachable via HTTP. If you want to use the Model Context Protocol (MCP), you can configure that as well, which makes it easy to write filters in any language. However, you can also write a filter as a plain HTTP service.
+
+When defining a filter in Plano configuration, the following fields are optional:
+
+type: Controls the filter runtime. Use mcp for Model Context Protocol filters, or http for plain HTTP filters. Defaults to mcp.
+
+transport: Controls how Plano talks to the filter (defaults to streamable-http for efficient streaming interactions over HTTP). You can omit this for standard HTTP transport.
+
+tool: Names the MCP tool Plano will invoke (by default, the filter id). You can omit this if the tool name matches your filter id.
+
+In practice, you typically only need to specify id and url to get started. Plano’s sensible defaults mean a filter can be as simple as an HTTP endpoint. If you want to customize the runtime or protocol, those fields are there, but they’re optional.
+
+Filters communicate the outcome of their work via HTTP status codes:
+
+HTTP 200 (Success): The filter successfully processed the request. If the filter mutated the request (e.g., rewrote a query or enriched context), those mutations are passed downstream.
+
+HTTP 4xx (User Error): The request violates a filter’s rules or constraints—for example, content moderation policies or compliance checks. The request is terminated, and the error is returned to the caller. This is not a fatal error; it represents expected user-facing policy enforcement.
+
+HTTP 5xx (Fatal Error): An unexpected failure in the filter itself (for example, a crash or misconfiguration). Plano will surface the error back to the caller and record it in logs and traces.
+
+This semantics allows filters to enforce guardrails and policies (4xx) without blocking the entire system, while still surfacing critical failures (5xx) for investigation.
+
+If any filter fails or decides to terminate the request early (for example, after a policy violation), Plano will
+surface that outcome back to the caller and record it in logs and traces. This makes filter chains a safe and
+powerful abstraction for evolving your agent workflows over time.
+
+---
+
+Listeners
+---------
+Doc: concepts/listeners
+
+Listeners
+
+Listeners are a top-level primitive in Plano that bind network traffic to the dataplane. They simplify the
+configuration required to accept incoming connections from downstream clients (edge) and to expose a unified egress
+endpoint for calls from your applications to upstream LLMs.
+
+Plano builds on Envoy’s Listener subsystem to streamline connection management for developers. It hides most of
+Envoy’s complexity behind sensible defaults and a focused configuration surface, so you can bind listeners without
+deep knowledge of Envoy’s configuration model while still getting secure, reliable, and performant connections.
+
+Listeners are modular building blocks: you can configure only inbound listeners (for edge proxying and guardrails),
+only outbound/model-proxy listeners (for LLM routing from your services), or both together. This lets you fit Plano
+cleanly into existing architectures, whether you need it at the edge, behind the firewall, or across the full
+request path.
+
+Network Topology
+
+The diagram below shows how inbound and outbound traffic flow through Plano and how listeners relate to agents,
+prompt targets, and upstream LLMs:
+
+
+
+Inbound (Agent & Prompt Target)
+
+Developers configure inbound listeners to accept connections from clients such as web frontends, backend
+services, or other gateways. An inbound listener acts as the primary entry point for prompt traffic, handling
+initial connection setup, TLS termination, guardrails, and forwarding incoming traffic to the appropriate prompt
+targets or agents.
+
+There are two primary types of inbound connections exposed via listeners:
+
+Agent Inbound (Edge): Clients (web/mobile apps or other services) connect to Plano, send prompts, and receive
+responses. This is typically your public/edge listener where Plano applies guardrails, routing, and orchestration
+before returning results to the caller.
+
+Prompt Target Inbound (Edge): Your application server calls Plano’s internal listener targeting
+prompt targets that can invoke tools and LLMs directly on its behalf.
+
+Inbound listeners are where you attach Filter Chains so that safety and context-building happen
+consistently at the edge.
+
+Outbound (Model Proxy & Egress)
+
+Plano also exposes an egress listener that your applications call when sending requests to upstream LLM providers
+or self-hosted models. From your application’s perspective this looks like a single OpenAI-compatible HTTP endpoint
+(for example, http://127.0.0.1:12000/v1), while Plano handles provider selection, retries, and failover behind
+the scenes.
+
+Under the hood, Plano opens outbound HTTP(S) connections to upstream LLM providers using its unified API surface and
+smart model routing. For more details on how Plano talks to models and how providers are configured, see
+LLM providers.
+
+Configure Listeners
+
+Listeners are configured via the listeners block in your Plano configuration. You can define one or more inbound
+listeners (for example, type:edge) or one or more outbound/model listeners (for example, type:model), or both
+in the same deployment.
+
+To configure an inbound (edge) listener, add a listeners block to your configuration file and define at least one
+listener with address, port, and protocol details:
+
+Example Configuration
+
+version: v0.2.0
+
+listeners:
+  ingress_traffic:
+    address: 0.0.0.0
+    port: 10000
+
+# Centralized way to manage LLMs, manage keys, retry logic, failover and limits in a central way
+model_providers:
+  - access_key: $OPENAI_API_KEY
+    model: openai/gpt-4o
+    default: true
+
+
+
+When you start Plano, you specify a listener address/port that you want to bind downstream. Plano also exposes a
+predefined internal listener (127.0.0.1:12000) that you can use to proxy egress calls originating from your
+application to LLMs (API-based or hosted) via prompt targets.
+
+---
+
+Client Libraries
+----------------
+Doc: concepts/llm_providers/client_libraries
+
+Client Libraries
+
+Plano provides a unified interface that works seamlessly with multiple client libraries and tools. You can use your preferred client library without changing your existing code - just point it to Plano’s gateway endpoints.
+
+Supported Clients
+
+OpenAI SDK - Full compatibility with OpenAI’s official client
+
+Anthropic SDK - Native support for Anthropic’s client library
+
+cURL - Direct HTTP requests for any programming language
+
+Custom HTTP Clients - Any HTTP client that supports REST APIs
+
+Gateway Endpoints
+
+Plano exposes three main endpoints:
+
+
+
+
+
+Endpoint
+
+Purpose
+
+http://127.0.0.1:12000/v1/chat/completions
+
+OpenAI-compatible chat completions (LLM Gateway)
+
+http://127.0.0.1:12000/v1/responses
+
+OpenAI Responses API with conversational state management (LLM Gateway)
+
+http://127.0.0.1:12000/v1/messages
+
+Anthropic-compatible messages (LLM Gateway)
+
+OpenAI (Python) SDK
+
+The OpenAI SDK works with any provider through Plano’s OpenAI-compatible endpoint.
+
+Installation:
+
+pip install openai
+
+Basic Usage:
+
+from openai import OpenAI
+
+# Point to Plano's LLM Gateway
+client = OpenAI(
+    api_key="test-key",  # Can be any value for local testing
+    base_url="http://127.0.0.1:12000/v1"
+)
+
+# Use any model configured in your arch_config.yaml
+completion = client.chat.completions.create(
+    model="gpt-4o-mini",  # Or use :ref:`model aliases <model_aliases>` like "fast-model"
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Hello, how are you?"
+        }
+    ]
+)
+
+print(completion.choices[0].message.content)
+
+Streaming Responses:
+
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="test-key",
+    base_url="http://127.0.0.1:12000/v1"
+)
+
+stream = client.chat.completions.create(
+    model="gpt-4o-mini",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Tell me a short story"
+        }
+    ],
+    stream=True
+)
+
+# Collect streaming chunks
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+
+Using with Non-OpenAI Models:
+
+The OpenAI SDK can be used with any provider configured in Plano:
+
+# Using Claude model through OpenAI SDK
+completion = client.chat.completions.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain quantum computing briefly"
+        }
+    ]
+)
+
+# Using Ollama model through OpenAI SDK
+completion = client.chat.completions.create(
+    model="llama3.1",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "What's the capital of France?"
+        }
+    ]
+)
+
+OpenAI Responses API (Conversational State)
+
+The OpenAI Responses API (v1/responses) enables multi-turn conversations with automatic state management. Plano handles conversation history for you, so you don’t need to manually include previous messages in each request.
+
+See managing_conversational_state for detailed configuration and storage backend options.
+
+Installation:
+
+pip install openai
+
+Basic Multi-Turn Conversation:
+
+from openai import OpenAI
+
+# Point to Plano's LLM Gateway
+client = OpenAI(
+    api_key="test-key",
+    base_url="http://127.0.0.1:12000/v1"
+)
+
+# First turn - creates a new conversation
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "user", "content": "My name is Alice"}
+    ]
+)
+
+# Extract response_id for conversation continuity
+response_id = response.id
+print(f"Assistant: {response.choices[0].message.content}")
+
+# Second turn - continues the conversation
+# Plano automatically retrieves and merges previous context
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "user", "content": "What's my name?"}
+    ],
+    metadata={"response_id": response_id}  # Reference previous conversation
+)
+
+print(f"Assistant: {response.choices[0].message.content}")
+# Output: "Your name is Alice"
+
+Using with Any Provider:
+
+The Responses API works with any LLM provider configured in Plano:
+
+# Multi-turn conversation with Claude
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet-20241022",
+    messages=[
+        {"role": "user", "content": "Let's discuss quantum physics"}
+    ]
+)
+
+response_id = response.id
+
+# Continue conversation - Plano manages state regardless of provider
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet-20241022",
+    messages=[
+        {"role": "user", "content": "Tell me more about entanglement"}
+    ],
+    metadata={"response_id": response_id}
+)
+
+Key Benefits:
+
+Reduced payload size: No need to send full conversation history in each request
+
+Provider flexibility: Use any configured LLM provider with state management
+
+Automatic context merging: Plano handles conversation continuity behind the scenes
+
+Production-ready storage: Configure PostgreSQL or memory storage based on your needs
+
+Anthropic (Python) SDK
+
+The Anthropic SDK works with any provider through Plano’s Anthropic-compatible endpoint.
+
+Installation:
+
+pip install anthropic
+
+Basic Usage:
+
+import anthropic
+
+# Point to Plano's LLM Gateway
+client = anthropic.Anthropic(
+    api_key="test-key",  # Can be any value for local testing
+    base_url="http://127.0.0.1:12000"
+)
+
+# Use any model configured in your arch_config.yaml
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Hello, please respond briefly!"
+        }
+    ]
+)
+
+print(message.content[0].text)
+
+Streaming Responses:
+
+import anthropic
+
+client = anthropic.Anthropic(
+    api_key="test-key",
+    base_url="http://127.0.0.1:12000"
+)
+
+with client.messages.stream(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Tell me about artificial intelligence"
+        }
+    ]
+) as stream:
+    # Collect text deltas
+    for text in stream.text_stream:
+        print(text, end="")
+
+    # Get final assembled message
+    final_message = stream.get_final_message()
+    final_text = "".join(block.text for block in final_message.content if block.type == "text")
+
+Using with Non-Anthropic Models:
+
+The Anthropic SDK can be used with any provider configured in Plano:
+
+# Using OpenAI model through Anthropic SDK
+message = client.messages.create(
+    model="gpt-4o-mini",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain machine learning in simple terms"
+        }
+    ]
+)
+
+# Using Ollama model through Anthropic SDK
+message = client.messages.create(
+    model="llama3.1",
+    max_tokens=50,
+    messages=[
+        {
+            "role": "user",
+            "content": "What is Python programming?"
+        }
+    ]
+)
+
+cURL Examples
+
+For direct HTTP requests or integration with any programming language:
+
+OpenAI-Compatible Endpoint:
+
+# Basic request
+curl -X POST http://127.0.0.1:12000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test-key" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ],
+    "max_tokens": 50
+  }'
+
+# Using :ref:`model aliases <model_aliases>`
+curl -X POST http://127.0.0.1:12000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "fast-model",
+    "messages": [
+      {"role": "user", "content": "Summarize this text..."}
+    ],
+    "max_tokens": 100
+  }'
+
+# Streaming request
+curl -X POST http://127.0.0.1:12000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Tell me a story"}
+    ],
+    "stream": true,
+    "max_tokens": 200
+  }'
+
+Anthropic-Compatible Endpoint:
+
+# Basic request
+curl -X POST http://127.0.0.1:12000/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: test-key" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "max_tokens": 50,
+    "messages": [
+      {"role": "user", "content": "Hello Claude!"}
+    ]
+  }'
+
+Cross-Client Compatibility
+
+One of Plano’s key features is cross-client compatibility. You can:
+
+Use OpenAI SDK with Claude Models:
+
+# OpenAI client calling Claude model
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:12000/v1", api_key="test")
+
+response = client.chat.completions.create(
+    model="claude-3-5-sonnet-20241022",  # Claude model
+    messages=[{"role": "user", "content": "Hello"}]
+)
+
+Use Anthropic SDK with OpenAI Models:
+
+# Anthropic client calling OpenAI model
+import anthropic
+
+client = anthropic.Anthropic(base_url="http://127.0.0.1:12000", api_key="test")
+
+response = client.messages.create(
+    model="gpt-4o-mini",  # OpenAI model
+    max_tokens=50,
+    messages=[{"role": "user", "content": "Hello"}]
+)
+
+Mix and Match with Model Aliases:
+
+# Same code works with different underlying models
+def ask_question(client, question):
+    return client.chat.completions.create(
+        model="reasoning-model",  # Alias could point to any provider
+        messages=[{"role": "user", "content": question}]
+    )
+
+# Works regardless of what "reasoning-model" actually points to
+openai_client = OpenAI(base_url="http://127.0.0.1:12000/v1", api_key="test")
+response = ask_question(openai_client, "Solve this math problem...")
+
+Error Handling
+
+OpenAI SDK Error Handling:
+
+from openai import OpenAI
+import openai
+
+client = OpenAI(base_url="http://127.0.0.1:12000/v1", api_key="test")
+
+try:
+    completion = client.chat.completions.create(
+        model="nonexistent-model",
+        messages=[{"role": "user", "content": "Hello"}]
+    )
+except openai.NotFoundError as e:
+    print(f"Model not found: {e}")
+except openai.APIError as e:
+    print(f"API error: {e}")
+
+Anthropic SDK Error Handling:
+
+import anthropic
+
+client = anthropic.Anthropic(base_url="http://127.0.0.1:12000", api_key="test")
+
+try:
+    message = client.messages.create(
+        model="nonexistent-model",
+        max_tokens=50,
+        messages=[{"role": "user", "content": "Hello"}]
+    )
+except anthropic.NotFoundError as e:
+    print(f"Model not found: {e}")
+except anthropic.APIError as e:
+    print(f"API error: {e}")
+
+Best Practices
+
+Use Model Aliases:
+Instead of hardcoding provider-specific model names, use semantic aliases:
+
+# Good - uses semantic alias
+model = "fast-model"
+
+# Less ideal - hardcoded provider model
+model = "openai/gpt-4o-mini"
+
+Environment-Based Configuration:
+Use different model aliases for different environments:
+
+import os
+
+# Development uses cheaper/faster models
+model = os.getenv("MODEL_ALIAS", "dev.chat.v1")
+
+response = client.chat.completions.create(
+    model=model,
+    messages=[{"role": "user", "content": "Hello"}]
+)
+
+Graceful Fallbacks:
+Implement fallback logic for better reliability:
+
+def chat_with_fallback(client, messages, primary_model="smart-model", fallback_model="fast-model"):
+    try:
+        return client.chat.completions.create(model=primary_model, messages=messages)
+    except Exception as e:
+        print(f"Primary model failed, trying fallback: {e}")
+        return client.chat.completions.create(model=fallback_model, messages=messages)
+
+See Also
+
+supported_providers - Configure your providers and see available models
+
+model_aliases - Create semantic model names
+
+llm_router - Intelligent routing capabilities
+
+---
+
+Model (LLM) Providers
+---------------------
+Doc: concepts/llm_providers/llm_providers
+
+Model (LLM) Providers
+
+Model Providers are a top-level primitive in Plano, helping developers centrally define, secure, observe,
+and manage the usage of their models. Plano builds on Envoy’s reliable cluster subsystem to manage egress traffic to models, which includes intelligent routing, retry and fail-over mechanisms,
+ensuring high availability and fault tolerance. This abstraction also enables developers to seamlessly switch between model providers or upgrade model versions, simplifying the integration and scaling of models across applications.
+
+Today, we are enable you to connect to 15+ different AI providers through a unified interface with advanced routing and management capabilities.
+Whether you’re using OpenAI, Anthropic, Azure OpenAI, local Ollama models, or any OpenAI-compatible provider, Plano provides seamless integration with enterprise-grade features.
+
+Please refer to the quickstart guide here to configure and use LLM providers via common client libraries like OpenAI and Anthropic Python SDKs, or via direct HTTP/cURL requests.
+
+Core Capabilities
+
+Multi-Provider Support
+Connect to any combination of providers simultaneously (see supported_providers for full details):
+
+First-Class Providers: Native integrations with OpenAI, Anthropic, DeepSeek, Mistral, Groq, Google Gemini, Together AI, xAI, Azure OpenAI, and Ollama
+
+OpenAI-Compatible Providers: Any provider implementing the OpenAI Chat Completions API standard
+
+Intelligent Routing
+Three powerful routing approaches to optimize model selection:
+
+Model-based Routing: Direct routing to specific models using provider/model names (see supported_providers)
+
+Alias-based Routing: Semantic routing using custom aliases (see model_aliases)
+
+Preference-aligned Routing: Intelligent routing using the Plano-Router model (see preference_aligned_routing)
+
+Unified Client Interface
+Use your preferred client library without changing existing code (see client_libraries for details):
+
+OpenAI Python SDK: Full compatibility with all providers
+
+Anthropic Python SDK: Native support with cross-provider capabilities
+
+cURL & HTTP Clients: Direct REST API access for any programming language
+
+Custom Integrations: Standard HTTP interfaces for seamless integration
+
+Key Benefits
+
+Provider Flexibility: Switch between providers without changing client code
+
+Three Routing Methods: Choose from model-based, alias-based, or preference-aligned routing (using Plano-Router-1.5B) strategies
+
+Cost Optimization: Route requests to cost-effective models based on complexity
+
+Performance Optimization: Use fast models for simple tasks, powerful models for complex reasoning
+
+Environment Management: Configure different models for different environments
+
+Future-Proof: Easy to add new providers and upgrade models
+
+Common Use Cases
+
+Development Teams
+- Use aliases like dev.chat.v1 and prod.chat.v1 for environment-specific models
+- Route simple queries to fast/cheap models, complex tasks to powerful models
+- Test new models safely using canary deployments (coming soon)
+
+Production Applications
+- Implement fallback strategies across multiple providers for reliability
+- Use intelligent routing to optimize cost and performance automatically
+- Monitor usage patterns and model performance across providers
+
+Enterprise Deployments
+- Connect to both cloud providers and on-premises models (Ollama, custom deployments)
+- Apply consistent security and governance policies across all providers
+- Scale across regions using different provider endpoints
+
+Advanced Features
+
+preference_aligned_routing - Learn about preference-aligned dynamic routing and intelligent model selection
+
+Getting Started
+
+Dive into specific areas based on your needs:
+
+---
+
+Model Aliases
+-------------
+Doc: concepts/llm_providers/model_aliases
+
+Model Aliases
+
+Model aliases provide semantic, version-controlled names for your models, enabling cleaner client code, easier model management, and advanced routing capabilities. Instead of using provider-specific model names like gpt-4o-mini or claude-3-5-sonnet-20241022, you can create meaningful aliases like fast-model or arch.summarize.v1.
+
+Benefits of Model Aliases:
+
+Semantic Naming: Use descriptive names that reflect the model’s purpose
+
+Version Control: Implement versioning schemes (e.g., v1, v2) for model upgrades
+
+Environment Management: Different aliases can point to different models across environments
+
+Client Simplification: Clients use consistent, meaningful names regardless of underlying provider
+
+Advanced Routing (Coming Soon): Enable guardrails, fallbacks, and traffic splitting at the alias level
+
+Basic Configuration
+
+Simple Alias Mapping
+
+Basic Model Aliases
+
+llm_providers:
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+
+  - model: anthropic/claude-3-5-sonnet-20241022
+    access_key: $ANTHROPIC_API_KEY
+
+  - model: ollama/llama3.1
+    base_url: http://host.docker.internal:11434
+
+# Define aliases that map to the models above
+model_aliases:
+  # Semantic versioning approach
+  arch.summarize.v1:
+    target: gpt-4o-mini
+
+  arch.reasoning.v1:
+    target: gpt-4o
+
+  arch.creative.v1:
+    target: claude-3-5-sonnet-20241022
+
+  # Functional aliases
+  fast-model:
+    target: gpt-4o-mini
+
+  smart-model:
+    target: gpt-4o
+
+  creative-model:
+    target: claude-3-5-sonnet-20241022
+
+  # Local model alias
+  local-chat:
+    target: llama3.1
+
+Using Aliases
+
+Client Code Examples
+
+Once aliases are configured, clients can use semantic names instead of provider-specific model names:
+
+Python Client Usage
+
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:12000/")
+
+# Use semantic alias instead of provider model name
+response = client.chat.completions.create(
+    model="arch.summarize.v1",  # Points to gpt-4o-mini
+    messages=[{"role": "user", "content": "Summarize this document..."}]
+)
+
+# Switch to a different capability
+response = client.chat.completions.create(
+    model="arch.reasoning.v1",  # Points to gpt-4o
+    messages=[{"role": "user", "content": "Solve this complex problem..."}]
+)
+
+cURL Example
+
+curl -X POST http://127.0.0.1:12000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "fast-model",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+
+Naming Best Practices
+
+Semantic Versioning
+
+Use version numbers for backward compatibility and gradual model upgrades:
+
+model_aliases:
+  # Current production version
+  arch.summarize.v1:
+    target: gpt-4o-mini
+
+  # Beta version for testing
+  arch.summarize.v2:
+    target: gpt-4o
+
+  # Stable alias that always points to latest
+  arch.summarize.latest:
+    target: gpt-4o-mini
+
+Purpose-Based Naming
+
+Create aliases that reflect the intended use case:
+
+model_aliases:
+  # Task-specific
+  code-reviewer:
+    target: gpt-4o
+
+  document-summarizer:
+    target: gpt-4o-mini
+
+  creative-writer:
+    target: claude-3-5-sonnet-20241022
+
+  data-analyst:
+    target: gpt-4o
+
+Environment-Specific Aliases
+
+Different environments can use different underlying models:
+
+model_aliases:
+  # Development environment - use faster/cheaper models
+  dev.chat.v1:
+    target: gpt-4o-mini
+
+  # Production environment - use more capable models
+  prod.chat.v1:
+    target: gpt-4o
+
+  # Staging environment - test new models
+  staging.chat.v1:
+    target: claude-3-5-sonnet-20241022
+
+Advanced Features (Coming Soon)
+
+The following features are planned for future releases of model aliases:
+
+Guardrails Integration
+
+Apply safety, cost, or latency rules at the alias level:
+
+Future Feature - Guardrails
+
+model_aliases:
+  arch.reasoning.v1:
+    target: gpt-oss-120b
+    guardrails:
+      max_latency: 5s
+      max_cost_per_request: 0.10
+      block_categories: ["jailbreak", "PII"]
+      content_filters:
+        - type: "profanity"
+        - type: "sensitive_data"
+
+Fallback Chains
+
+Provide a chain of models if the primary target fails or hits quota limits:
+
+Future Feature - Fallbacks
+
+model_aliases:
+  arch.summarize.v1:
+    target: gpt-4o-mini
+    fallbacks:
+      - target: llama3.1
+        conditions: ["quota_exceeded", "timeout"]
+      - target: claude-3-haiku-20240307
+        conditions: ["primary_and_first_fallback_failed"]
+
+Traffic Splitting & Canary Deployments
+
+Distribute traffic across multiple models for A/B testing or gradual rollouts:
+
+Future Feature - Traffic Splitting
+
+model_aliases:
+  arch.v1:
+    targets:
+      - model: llama3.1
+        weight: 80
+      - model: gpt-4o-mini
+        weight: 20
+
+  # Canary deployment
+  arch.experimental.v1:
+    targets:
+      - model: gpt-4o      # Current stable
+        weight: 95
+      - model: o1-preview  # New model being tested
+        weight: 5
+
+Load Balancing
+
+Distribute requests across multiple instances of the same model:
+
+Future Feature - Load Balancing
+
+model_aliases:
+  high-throughput-chat:
+    load_balance:
+      algorithm: "round_robin"  # or "least_connections", "weighted"
+    targets:
+      - model: gpt-4o-mini
+        endpoint: "https://api-1.example.com"
+      - model: gpt-4o-mini
+        endpoint: "https://api-2.example.com"
+      - model: gpt-4o-mini
+        endpoint: "https://api-3.example.com"
+
+Validation Rules
+
+Alias names must be valid identifiers (alphanumeric, dots, hyphens, underscores)
+
+Target models must be defined in the llm_providers section
+
+Circular references between aliases are not allowed
+
+Weights in traffic splitting must sum to 100
+
+See Also
+
+llm_providers - Learn about configuring LLM providers
+
+llm_router - Understand how aliases work with intelligent routing
+
+---
+
+Supported Providers & Configuration
+-----------------------------------
+Doc: concepts/llm_providers/supported_providers
+
+Supported Providers & Configuration
+
+Plano provides first-class support for multiple LLM providers through native integrations and OpenAI-compatible interfaces. This comprehensive guide covers all supported providers, their available chat models, and detailed configuration instructions.
+
+Model Support: Plano supports all chat models from each provider, not just the examples shown in this guide. The configurations below demonstrate common models for reference, but you can use any chat model available from your chosen provider.
+
+Please refer to the quuickstart guide here to configure and use LLM providers via common client libraries like OpenAI and Anthropic Python SDKs, or via direct HTTP/cURL requests.
+
+Configuration Structure
+
+All providers are configured in the llm_providers section of your plano_config.yaml file:
+
+llm_providers:
+  # Provider configurations go here
+  - model: provider/model-name
+    access_key: $API_KEY
+    # Additional provider-specific options
+
+Common Configuration Fields:
+
+model: Provider prefix and model name (format: provider/model-name)
+
+access_key: API key for authentication (supports environment variables)
+
+default: Mark a model as the default (optional, boolean)
+
+name: Custom name for the provider instance (optional)
+
+base_url: Custom endpoint URL (required for some providers, optional for others - see base_url_details)
+
+Provider Categories
+
+First-Class Providers
+Native integrations with built-in support for provider-specific features and authentication.
+
+OpenAI-Compatible Providers
+Any provider that implements the OpenAI API interface can be configured using custom endpoints.
+
+Supported API Endpoints
+
+Plano supports the following standardized endpoints across providers:
+
+
+
+
+
+
+
+Endpoint
+
+Purpose
+
+Supported Clients
+
+/v1/chat/completions
+
+OpenAI-style chat completions
+
+OpenAI SDK, cURL, custom clients
+
+/v1/messages
+
+Anthropic-style messages
+
+Anthropic SDK, cURL, custom clients
+
+/v1/responses
+
+Unified response endpoint for agentic apps
+
+All SDKs, cURL, custom clients
+
+First-Class Providers
+
+OpenAI
+
+Provider Prefix: openai/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your OpenAI API key from OpenAI Platform.
+
+Supported Chat Models: All OpenAI chat models including GPT-5.2, GPT-5, GPT-4o, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+GPT-5.2
+
+openai/gpt-5.2
+
+Next-generation model (use any model name from OpenAI’s API)
+
+GPT-5
+
+openai/gpt-5
+
+Latest multimodal model
+
+GPT-4o mini
+
+openai/gpt-4o-mini
+
+Fast, cost-effective model
+
+GPT-4o
+
+openai/gpt-4o
+
+High-capability reasoning model
+
+o3-mini
+
+openai/o3-mini
+
+Reasoning-focused model (preview)
+
+o3
+
+openai/o3
+
+Advanced reasoning model (preview)
+
+Configuration Examples:
+
+llm_providers:
+  # Latest models (examples - use any OpenAI chat model)
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-5
+    access_key: $OPENAI_API_KEY
+
+  # Use any model name from OpenAI's API
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+
+Anthropic
+
+Provider Prefix: anthropic/
+
+API Endpoint: /v1/messages
+
+Authentication: API Key - Get your Anthropic API key from Anthropic Console.
+
+Supported Chat Models: All Anthropic Claude models including Claude Sonnet 4.5, Claude Opus 4.5, Claude Haiku 4.5, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Claude Opus 4.5
+
+anthropic/claude-opus-4-5
+
+Most capable model for complex tasks
+
+Claude Sonnet 4.5
+
+anthropic/claude-sonnet-4-5
+
+Balanced performance model
+
+Claude Haiku 4.5
+
+anthropic/claude-haiku-4-5
+
+Fast and efficient model
+
+Claude Sonnet 3.5
+
+anthropic/claude-sonnet-3-5
+
+Complex agents and coding
+
+Configuration Examples:
+
+llm_providers:
+  # Latest models (examples - use any Anthropic chat model)
+  - model: anthropic/claude-opus-4-5
+    access_key: $ANTHROPIC_API_KEY
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+
+  # Use any model name from Anthropic's API
+  - model: anthropic/claude-haiku-4-5
+    access_key: $ANTHROPIC_API_KEY
+
+DeepSeek
+
+Provider Prefix: deepseek/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your DeepSeek API key from DeepSeek Platform.
+
+Supported Chat Models: All DeepSeek chat models including DeepSeek-Chat, DeepSeek-Coder, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+DeepSeek Chat
+
+deepseek/deepseek-chat
+
+General purpose chat model
+
+DeepSeek Coder
+
+deepseek/deepseek-coder
+
+Code-specialized model
+
+Configuration Examples:
+
+llm_providers:
+  - model: deepseek/deepseek-chat
+    access_key: $DEEPSEEK_API_KEY
+
+  - model: deepseek/deepseek-coder
+    access_key: $DEEPSEEK_API_KEY
+
+Mistral AI
+
+Provider Prefix: mistral/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your Mistral API key from Mistral AI Console.
+
+Supported Chat Models: All Mistral chat models including Mistral Large, Mistral Small, Ministral, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Mistral Large
+
+mistral/mistral-large-latest
+
+Most capable model
+
+Mistral Medium
+
+mistral/mistral-medium-latest
+
+Balanced performance
+
+Mistral Small
+
+mistral/mistral-small-latest
+
+Fast and efficient
+
+Ministral 3B
+
+mistral/ministral-3b-latest
+
+Compact model
+
+Configuration Examples:
+Configuration Examples:
+
+llm_providers:
+  - model: mistral/mistral-large-latest
+    access_key: $MISTRAL_API_KEY
+
+  - model: mistral/mistral-small-latest
+    access_key: $MISTRAL_API_KEY
+
+Groq
+
+Provider Prefix: groq/
+
+API Endpoint: /openai/v1/chat/completions (transformed internally)
+
+Authentication: API Key - Get your Groq API key from Groq Console.
+
+Supported Chat Models: All Groq chat models including Llama 4, GPT OSS, Mixtral, Gemma, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Llama 4 Maverick 17B
+
+groq/llama-4-maverick-17b-128e-instruct
+
+Fast inference Llama model
+
+Llama 4 Scout 8B
+
+groq/llama-4-scout-8b-128e-instruct
+
+Smaller Llama model
+
+GPT OSS 20B
+
+groq/gpt-oss-20b
+
+Open source GPT model
+
+Configuration Examples:
+
+llm_providers:
+  - model: groq/llama-4-maverick-17b-128e-instruct
+    access_key: $GROQ_API_KEY
+
+  - model: groq/llama-4-scout-8b-128e-instruct
+    access_key: $GROQ_API_KEY
+
+  - model: groq/gpt-oss-20b
+    access_key: $GROQ_API_KEY
+
+Google Gemini
+
+Provider Prefix: gemini/
+
+API Endpoint: /v1beta/openai/chat/completions (transformed internally)
+
+Authentication: API Key - Get your Google AI API key from Google AI Studio.
+
+Supported Chat Models: All Google Gemini chat models including Gemini 3 Pro, Gemini 3 Flash, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Gemini 3 Pro
+
+gemini/gemini-3-pro
+
+Advanced reasoning and creativity
+
+Gemini 3 Flash
+
+gemini/gemini-3-flash
+
+Fast and efficient model
+
+Configuration Examples:
+
+llm_providers:
+  - model: gemini/gemini-3-pro
+    access_key: $GOOGLE_API_KEY
+
+  - model: gemini/gemini-3-flash
+    access_key: $GOOGLE_API_KEY
+
+Together AI
+
+Provider Prefix: together_ai/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your Together AI API key from Together AI Settings.
+
+Supported Chat Models: All Together AI chat models including Llama, CodeLlama, Mixtral, Qwen, and hundreds of other open-source models.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Meta Llama 2 7B
+
+together_ai/meta-llama/Llama-2-7b-chat-hf
+
+Open source chat model
+
+Meta Llama 2 13B
+
+together_ai/meta-llama/Llama-2-13b-chat-hf
+
+Larger open source model
+
+Code Llama 34B
+
+together_ai/codellama/CodeLlama-34b-Instruct-hf
+
+Code-specialized model
+
+Configuration Examples:
+
+llm_providers:
+  - model: together_ai/meta-llama/Llama-2-7b-chat-hf
+    access_key: $TOGETHER_API_KEY
+
+  - model: together_ai/codellama/CodeLlama-34b-Instruct-hf
+    access_key: $TOGETHER_API_KEY
+
+xAI
+
+Provider Prefix: xai/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your xAI API key from xAI Console.
+
+Supported Chat Models: All xAI chat models including Grok Beta and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Grok Beta
+
+xai/grok-beta
+
+Conversational AI model
+
+Configuration Examples:
+
+llm_providers:
+  - model: xai/grok-beta
+    access_key: $XAI_API_KEY
+
+Moonshot AI
+
+Provider Prefix: moonshotai/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key - Get your Moonshot AI API key from Moonshot AI Platform.
+
+Supported Chat Models: All Moonshot AI chat models including Kimi K2, Moonshot v1, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+Kimi K2 Preview
+
+moonshotai/kimi-k2-0905-preview
+
+Foundation model optimized for agentic tasks with 32B activated parameters
+
+Moonshot v1 32K
+
+moonshotai/moonshot-v1-32k
+
+Extended context model with 32K tokens
+
+Moonshot v1 128K
+
+moonshotai/moonshot-v1-128k
+
+Long context model with 128K tokens
+
+Configuration Examples:
+
+llm_providers:
+  # Latest K2 models for agentic tasks
+  - model: moonshotai/kimi-k2-0905-preview
+    access_key: $MOONSHOTAI_API_KEY
+
+  # V1 models with different context lengths
+  - model: moonshotai/moonshot-v1-32k
+    access_key: $MOONSHOTAI_API_KEY
+
+  - model: moonshotai/moonshot-v1-128k
+    access_key: $MOONSHOTAI_API_KEY
+
+Zhipu AI
+
+Provider Prefix: zhipu/
+
+API Endpoint: /api/paas/v4/chat/completions
+
+Authentication: API Key - Get your Zhipu AI API key from Zhipu AI Platform.
+
+Supported Chat Models: All Zhipu AI GLM models including GLM-4, GLM-4 Flash, and all future releases.
+
+
+
+
+
+
+
+Model Name
+
+Model ID for Config
+
+Description
+
+GLM-4.6
+
+zhipu/glm-4.6
+
+Latest and most capable GLM model with enhanced reasoning abilities
+
+GLM-4.5
+
+zhipu/glm-4.5
+
+High-performance model with multimodal capabilities
+
+GLM-4.5 Air
+
+zhipu/glm-4.5-air
+
+Lightweight and fast model optimized for efficiency
+
+Configuration Examples:
+
+llm_providers:
+  # Latest GLM models
+  - model: zhipu/glm-4.6
+    access_key: $ZHIPU_API_KEY
+
+  - model: zhipu/glm-4.5
+    access_key: $ZHIPU_API_KEY
+
+  - model: zhipu/glm-4.5-air
+    access_key: $ZHIPU_API_KEY
+
+Providers Requiring Base URL
+
+The following providers require a base_url parameter to be configured. For detailed information on base URL configuration including path prefix behavior and examples, see base_url_details.
+
+Azure OpenAI
+
+Provider Prefix: azure_openai/
+
+API Endpoint: /openai/deployments/{deployment-name}/chat/completions (constructed automatically)
+
+Authentication: API Key + Base URL - Get your Azure OpenAI API key from Azure Portal → Your OpenAI Resource → Keys and Endpoint.
+
+Supported Chat Models: All Azure OpenAI chat models including GPT-4o, GPT-4, GPT-3.5-turbo deployed in your Azure subscription.
+
+llm_providers:
+  # Single deployment
+  - model: azure_openai/gpt-4o
+    access_key: $AZURE_OPENAI_API_KEY
+    base_url: https://your-resource.openai.azure.com
+
+  # Multiple deployments
+  - model: azure_openai/gpt-4o-mini
+    access_key: $AZURE_OPENAI_API_KEY
+    base_url: https://your-resource.openai.azure.com
+
+Amazon Bedrock
+
+Provider Prefix: amazon_bedrock/
+
+API Endpoint: Plano automatically constructs the endpoint as:
+
+Non-streaming: /model/{model-id}/converse
+
+Streaming: /model/{model-id}/converse-stream
+
+Authentication: AWS Bearer Token + Base URL - Get your API Keys from AWS Bedrock Console → Discover → API Keys.
+
+Supported Chat Models: All Amazon Bedrock foundation models including Claude (Anthropic), Nova (Amazon), Llama (Meta), Mistral AI, and Cohere Command models.
+
+llm_providers:
+  # Amazon Nova models
+  - model: amazon_bedrock/us.amazon.nova-premier-v1:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+    default: true
+
+  - model: amazon_bedrock/us.amazon.nova-pro-v1:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+
+  # Claude on Bedrock
+  - model: amazon_bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    access_key: $AWS_BEARER_TOKEN_BEDROCK
+    base_url: https://bedrock-runtime.us-west-2.amazonaws.com
+
+Qwen (Alibaba)
+
+Provider Prefix: qwen/
+
+API Endpoint: /v1/chat/completions
+
+Authentication: API Key + Base URL - Get your Qwen API key from Qwen Portal → Your Qwen Resource → Keys and Endpoint.
+
+Supported Chat Models: All Qwen chat models including Qwen3, Qwen3-Coder and all future releases.
+
+llm_providers:
+  # Single deployment
+  - model: qwen/qwen3
+    access_key: $DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com
+
+  # Multiple deployments
+  - model: qwen/qwen3-coder
+    access_key: $DASHSCOPE_API_KEY
+    base_url: "https://dashscope-intl.aliyuncs.com"
+
+Ollama
+
+Provider Prefix: ollama/
+
+API Endpoint: /v1/chat/completions (Ollama’s OpenAI-compatible endpoint)
+
+Authentication: None (Base URL only) - Install Ollama from Ollama.com and pull your desired models.
+
+Supported Chat Models: All chat models available in your local Ollama installation. Use ollama list to see installed models.
+
+llm_providers:
+  # Local Ollama installation
+  - model: ollama/llama3.1
+    base_url: http://localhost:11434
+
+  # Ollama in Docker (from host)
+  - model: ollama/codellama
+    base_url: http://host.docker.internal:11434
+
+OpenAI-Compatible Providers
+
+Supported Models: Any chat models from providers that implement the OpenAI Chat Completions API standard.
+
+For providers that implement the OpenAI API but aren’t natively supported:
+
+llm_providers:
+  # Generic OpenAI-compatible provider
+  - model: custom-provider/custom-model
+    base_url: https://api.customprovider.com
+    provider_interface: openai
+    access_key: $CUSTOM_API_KEY
+
+  # Local deployment
+  - model: local/llama2-7b
+    base_url: http://localhost:8000
+    provider_interface: openai
+
+
+
+Base URL Configuration
+
+The base_url parameter allows you to specify custom endpoints for model providers. It supports both hostname and path components, enabling flexible routing to different API endpoints.
+
+Format: <scheme>://<hostname>[:<port>][/<path>]
+
+Components:
+
+scheme: http or https
+
+hostname: API server hostname or IP address
+
+port: Optional, defaults to 80 for http, 443 for https
+
+path: Optional path prefix that replaces the provider’s default API path
+
+How Path Prefixes Work:
+
+When you include a path in base_url, it replaces the provider’s default path prefix while preserving the endpoint suffix:
+
+Without path prefix: Uses the provider’s default path structure
+
+With path prefix: Your custom path replaces the provider’s default prefix, then the endpoint suffix is appended
+
+Configuration Examples:
+
+llm_providers:
+  # Simple hostname only - uses provider's default path
+  - model: zhipu/glm-4.6
+    access_key: $ZHIPU_API_KEY
+    base_url: https://api.z.ai
+    # Results in: https://api.z.ai/api/paas/v4/chat/completions
+
+  # With custom path prefix - replaces provider's default path
+  - model: zhipu/glm-4.6
+    access_key: $ZHIPU_API_KEY
+    base_url: https://api.z.ai/api/coding/paas/v4
+    # Results in: https://api.z.ai/api/coding/paas/v4/chat/completions
+
+  # Azure with custom path
+  - model: azure_openai/gpt-4
+    access_key: $AZURE_API_KEY
+    base_url: https://mycompany.openai.azure.com/custom/deployment/path
+    # Results in: https://mycompany.openai.azure.com/custom/deployment/path/chat/completions
+
+  # Behind a proxy or API gateway
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+    base_url: https://proxy.company.com/ai-gateway/openai
+    # Results in: https://proxy.company.com/ai-gateway/openai/chat/completions
+
+  # Local endpoint with custom port
+  - model: ollama/llama3.1
+    base_url: http://localhost:8080
+    # Results in: http://localhost:8080/v1/chat/completions
+
+  # Custom provider with path prefix
+  - model: vllm/custom-model
+    access_key: $VLLM_API_KEY
+    base_url: https://vllm.example.com/models/v2
+    provider_interface: openai
+    # Results in: https://vllm.example.com/models/v2/chat/completions
+
+Advanced Configuration
+
+Multiple Provider Instances
+
+Configure multiple instances of the same provider:
+
+llm_providers:
+  # Production OpenAI
+  - model: openai/gpt-4o
+    access_key: $OPENAI_PROD_KEY
+    name: openai-prod
+
+  # Development OpenAI (different key/quota)
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_DEV_KEY
+    name: openai-dev
+
+Default Model Configuration
+
+Mark one model as the default for fallback scenarios:
+
+llm_providers:
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+    default: true  # Used when no specific model is requested
+
+Routing Preferences
+
+Configure routing preferences for dynamic model selection:
+
+llm_providers:
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: complex_reasoning
+        description: deep analysis, mathematical problem solving, and logical reasoning
+      - name: code_review
+        description: reviewing and analyzing existing code for bugs and improvements
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+    routing_preferences:
+      - name: creative_writing
+        description: creative content generation, storytelling, and writing assistance
+
+Model Selection Guidelines
+
+For Production Applications:
+- High Performance: OpenAI GPT-5.2, Anthropic Claude Sonnet 4.5
+- Cost-Effective: OpenAI GPT-5, Anthropic Claude Haiku 4.5
+- Code Tasks: DeepSeek Coder, Together AI Code Llama
+- Local Deployment: Ollama with Llama 3.1 or Code Llama
+
+For Development/Testing:
+- Fast Iteration: Groq models (optimized inference)
+- Local Testing: Ollama models
+- Cost Control: Smaller models like GPT-4o or Mistral Small
+
+See Also
+
+client_libraries - Using different client libraries with providers
+
+model_aliases - Creating semantic model names
+
+llm_router - Setting up intelligent routing
+
+client_libraries - Using different client libraries
+
+model_aliases - Creating semantic model names
+
+---
+
+Prompt Target
+-------------
+Doc: concepts/prompt_target
+
+Prompt Target
+
+A Prompt Target is a deterministic, task-specific backend function or API endpoint that your application calls via Plano.
+Unlike agents (which handle wide-ranging, open-ended tasks), prompt targets are designed for focused, specific workloads where Plano can add value through input clarification and validation.
+
+Plano helps by:
+
+Clarifying and validating input: Plano enriches incoming prompts with metadata (e.g., detecting follow-ups or clarifying requests) and can extract structured parameters from natural language before passing them to your backend.
+
+Enabling high determinism: Since the task is specific and well-defined, Plano can reliably extract the information your backend needs without ambiguity.
+
+Reducing backend work: Your backend receives clean, validated, structured inputs—so you can focus on business logic instead of parsing and validation.
+
+For example, a prompt target might be “schedule a meeting” (specific task, deterministic inputs like date, time, attendees) or “retrieve documents” (well-defined RAG query with clear intent). Prompt targets are typically called from your application code via Plano’s internal listener.
+
+
+
+
+
+Capability
+
+Description
+
+Intent Recognition
+
+Identify the purpose of a user prompt.
+
+Parameter Extraction
+
+Extract necessary data from the prompt.
+
+Invocation
+
+Call relevant backend agents or tools (APIs).
+
+Response Handling
+
+Process and return responses to the user.
+
+Key Features
+
+Below are the key features of prompt targets that empower developers to build efficient, scalable, and personalized GenAI solutions:
+
+Design Scenarios: Define prompt targets to effectively handle specific agentic scenarios.
+
+Input Management: Specify required and optional parameters for each target.
+
+Tools Integration: Seamlessly connect prompts to backend APIs or functions.
+
+Error Handling: Direct errors to designated handlers for streamlined troubleshooting.
+
+Multi-Turn Support: Manage follow-up prompts and clarifications in conversational flows.
+
+Basic Configuration
+
+Configuring prompt targets involves defining them in Plano’s configuration file. Each Prompt target specifies how a particular type of prompt should be handled, including the endpoint to invoke and any parameters required. A prompt target configuration includes the following elements:
+
+vale Vale.Spelling = NO
+
+name: A unique identifier for the prompt target.
+
+description: A brief explanation of what the prompt target does.
+
+endpoint: Required if you want to call a tool or specific API. name and path http_method are the three attributes of the endpoint.
+
+parameters (Optional): A list of parameters to extract from the prompt.
+
+
+
+Defining Parameters
+
+Parameters are the pieces of information that Plano needs to extract from the user’s prompt to perform the desired action.
+Each parameter can be marked as required or optional. Here is a full list of parameter attributes that Plano can support:
+
+
+
+
+
+Attribute
+
+Description
+
+name (req.)
+
+Specifies name of the parameter.
+
+description (req.)
+
+Provides a human-readable explanation of the parameter’s purpose.
+
+type (req.)
+
+Specifies the data type. Supported types include: int, str, float, bool, list, set, dict, tuple
+
+in_path
+
+Indicates whether the parameter is part of the path in the endpoint url. Valid values: true or false
+
+default
+
+Specifies a default value for the parameter if not provided by the user.
+
+format
+
+Specifies a format for the parameter value. For example: 2019-12-31 for a date value.
+
+enum
+
+Lists of allowable values for the parameter with data type matching the type attribute. Usage Example: enum: ["celsius`", "fahrenheit"]
+
+items
+
+Specifies the attribute of the elements when type equals list, set, dict, tuple. Usage Example: items: {"type": "str"}
+
+required
+
+Indicates whether the parameter is mandatory or optional. Valid values: true or false
+
+Example Configuration For Tools
+
+Tools and Function Calling Configuration Example
+
+prompt_targets:
+  - name: get_weather
+    description: Get the current weather for a location
+    parameters:
+      - name: location
+        description: The city and state, e.g. San Francisco, New York
+        type: str
+        required: true
+      - name: unit
+        description: The unit of temperature
+        type: str
+        default: fahrenheit
+        enum: [celsius, fahrenheit]
+    endpoint:
+      name: api_server
+      path: /weather
+
+
+
+Multi-Turn
+
+Developers often struggle to efficiently handle
+follow-up or clarification questions. Specifically, when users ask for changes or additions to previous responses, it requires developers to
+re-write prompts using LLMs with precise prompt engineering techniques. This process is slow, manual, error prone and adds latency and token cost for
+common scenarios that can be managed more efficiently.
+
+Plano is highly capable of accurately detecting and processing prompts in multi-turn scenarios so that you can buil fast and accurate agents in minutes.
+Below are some cnversational examples that you can build via Plano. Each example is enriched with annotations (via ** [Plano] ** ) that illustrates how Plano
+processess conversational messages on your behalf.
+
+Example 1: Adjusting Retrieval
+
+User: What are the benefits of renewable energy?
+**[Plano]**: Check if there is an available <prompt_target> that can handle this user query.
+**[Plano]**: Found "get_info_for_energy_source" prompt_target in arch_config.yaml. Forward prompt to the endpoint configured in "get_info_for_energy_source"
+...
+Assistant: Renewable energy reduces greenhouse gas emissions, lowers air pollution, and provides sustainable power sources like solar and wind.
+
+User: Include cost considerations in the response.
+**[Plano]**: Follow-up detected. Forward prompt history to the "get_info_for_energy_source" prompt_target and post the following parameters consideration="cost"
+...
+Assistant: Renewable energy reduces greenhouse gas emissions, lowers air pollution, and provides sustainable power sources like solar and wind. While the initial setup costs can be high, long-term savings from reduced fuel expenses and government incentives make it cost-effective.
+
+Example 2: Switching Intent
+
+User: What are the symptoms of diabetes?
+**[Plano]**: Check if there is an available <prompt_target> that can handle this user query.
+**[Plano]**: Found "diseases_symptoms" prompt_target in arch_config.yaml. Forward disease=diabeteres to "diseases_symptoms" prompt target
+...
+Assistant: Common symptoms include frequent urination, excessive thirst, fatigue, and blurry vision.
+
+User: How is it diagnosed?
+**[Plano]**: New intent detected.
+**[Plano]**: Found "disease_diagnoses" prompt_target in arch_config.yaml. Forward disease=diabeteres to "disease_diagnoses" prompt target
+...
+Assistant: Diabetes is diagnosed through blood tests like fasting blood sugar, A1C, or an oral glucose tolerance test.
+
+Build Multi-Turn RAG Apps
+
+The following section describes how you can easilly add support for multi-turn scenarios via Plano. You process and manage multi-turn prompts
+just like you manage single-turn ones. Plano handles the conpleixity of detecting the correct intent based on the last user prompt and
+the covnersational history, extracts relevant parameters needed by downstream APIs, and dipatches calls to any upstream LLMs to summarize the
+response from your APIs.
+
+
+
+Step 1: Define Plano Config
+
+Plano Config
+
+version: v0.1
+listener:
+  address: 127.0.0.1
+  port: 8080 #If you configure port 443, you'll need to update the listener with tls_certificates
+  message_format: huggingface
+
+# Centralized way to manage LLMs, manage keys, retry logic, failover and limits in a central way
+llm_providers:
+  - name: OpenAI
+    provider: openai
+    access_key: $OPENAI_API_KEY
+    model: gpt-3.5-turbo
+    default: true
+
+# default system prompt used by all prompt targets
+system_prompt: |
+   You are a helpful assistant and can offer information about energy sources. You will get a JSON object with energy_source and consideration fields. Focus on answering using those fields
+
+prompt_targets:
+  - name: get_info_for_energy_source
+    description: get information about an energy source
+    parameters:
+      - name: energy_source
+        type: str
+        description: a source of energy
+        required: true
+        enum: [renewable, fossil]
+      - name: consideration
+        type: str
+        description: a specific type of consideration for an energy source
+        enum: [cost, economic, technology]
+    endpoint:
+      name: rag_energy_source_agent
+      path: /agent/energy_source_info
+      http_method: POST
+
+
+Step 2: Process Request in Flask
+
+Once the prompt targets are configured as above, handle parameters across multi-turn as if its a single-turn request
+
+Parameter handling with Flask
+
+import os
+import gradio as gr
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from openai import OpenAI
+from common import create_gradio_app
+
+app = FastAPI()
+
+
+# Define the request model
+class EnergySourceRequest(BaseModel):
+    energy_source: str
+    consideration: Optional[str] = None
+
+
+class EnergySourceResponse(BaseModel):
+    energy_source: str
+    consideration: Optional[str] = None
+
+
+# Post method for device summary
+@app.post("/agent/energy_source_info")
+def get_workforce(request: EnergySourceRequest):
+    """
+    Endpoint to get details about energy source
+    """
+    considertion = "You don't have any specific consideration. Feel free to talk in a more open ended fashion"
+
+    if request.consideration is not None:
+        considertion = f"Add specific focus on the following consideration when you summarize the content for the energy source: {request.consideration}"
+
+    response = {
+        "energy_source": request.energy_source,
+        "consideration": considertion,
+    }
+    return response
+
+
+Demo App
+
+For your convenience, we’ve built a demo app
+that you can test and modify locally for multi-turn RAG scenarios.
+
+
+
+Example multi-turn user conversation showing adjusting retrieval
+
+Summary
+
+By carefully designing prompt targets as deterministic, task-specific entry points, you ensure that prompts are routed to the right workload, necessary parameters are cleanly extracted and validated, and backend services are invoked with structured inputs. This clear separation between prompt handling and business logic simplifies your architecture, makes behavior more predictable and testable, and improves the scalability and maintainability of your agentic applications.
+
+---
+
+Intro to Plano
+--------------
+Doc: get_started/intro_to_plano
+
+Intro to Plano
+
+Building agentic demos is easy. Delivering agentic applications safely, reliably, and repeatably to production is hard. After a quick hack, you end up building the “hidden AI middleware” to reach production: routing logic to reach the right agent, guardrail hooks for safety and moderation, evaluation and observability glue for continuous learning, and model/provider quirks — scattered across frameworks and application code.
+
+Plano solves this by moving core delivery concerns into a unified, out-of-process dataplane. Core capabilities:
+
+🚦 Orchestration: Low-latency orchestration between agents, and add new agents without changing app code. When routing lives inside app code, it becomes hard to evolve and easy to duplicate. Moving orchestration into a centrally managed dataplane lets you change strategies without touching your agents, improving performance and reducing maintenance burden while avoiding tight coupling.
+
+🛡️ Guardrails & Memory Hooks: Apply jailbreak protection, content policies, and context workflows (e.g., rewriting, retrieval, redaction) once via Filter Chains at the dataplane. Instead of re-implementing these in every agentic service, you get centralized governance, reduced code duplication, and consistent behavior across your stack.
+
+🔗 Model Agility: Route by model, alias (semantic names), or automatically via preferences so agents stay decoupled from specific providers. Swap or add models without refactoring prompts, tool-calling, or streaming handlers throughout your codebase by using Plano’s smart routing and unified API.
+
+🕵 Agentic Signals™: Zero-code capture of behavior signals, traces, and metrics consistently across every agent. Rather than stitching together logging and metrics per framework, Plano surfaces traces, token usage, and learning signals in one place so you can iterate safely.
+
+Built by core contributors to the widely adopted Envoy Proxy <https://www.envoyproxy.io/>_, Plano gives you a production‑grade foundation for agentic applications. It helps developers stay focused on the core logic of their agents, helps product teams shorten feedback loops for learning, and helps engineering teams  standardize policy and safety across agents and LLMs. Plano is grounded in open protocols (de facto: OpenAI‑style v1/responses, de jure: MCP) and proven patterns like sidecar deployments, so it plugs in cleanly while remaining robust, scalable, and flexible.
+
+In practice, achieving the above goal is incredibly difficult. Plano attempts to do so by providing the following high level features:
+
+
+
+High-level network flow of where Plano sits in your agentic stack. Designed for both ingress and egress prompt traffic.
+
+Engineered with Task-Specific LLMs (TLMs): Plano is engineered with specialized LLMs that are designed for fast, cost-effective and accurate handling of prompts.
+These LLMs are designed to be best-in-class for critical tasks like:
+
+Agent Orchestration: Plano-Orchestrator is a family of state-of-the-art routing and orchestration models that decide which agent(s) or LLM(s) should handle each request, and in what sequence. Built for real-world multi-agent deployments, it analyzes user intent and conversation context to make precise routing and orchestration decisions while remaining efficient enough for low-latency production use across general chat, coding, and long-context multi-turn conversations.
+
+Function Calling: Plano lets you expose application-specific (API) operations as tools so that your agents can update records, fetch data, or trigger determininistic workflows via prompts. Under the hood this is backed by Arch-Function-Chat; for more details, read Function Calling.
+
+Guardrails: Plano helps you improve the safety of your application by applying prompt guardrails in a centralized way for better governance hygiene.
+With prompt guardrails you can prevent jailbreak attempts present in user’s prompts without having to write a single line of code.
+To learn more about how to configure guardrails available in Plano, read Prompt Guard.
+
+Model Proxy: Plano offers several capabilities for LLM calls originating from your applications, including smart retries on errors from upstream LLMs and automatic cut-over to other LLMs configured in Plano for continuous availability and disaster recovery scenarios. From your application’s perspective you keep using an OpenAI-compatible API, while Plano owns resiliency and failover policies in one place.
+Plano extends Envoy’s cluster subsystem to manage upstream connections to LLMs so that you can build resilient, provider-agnostic AI applications.
+
+Edge Proxy: There is substantial benefit in using the same software at the edge (observability, traffic shaping algorithms, applying guardrails, etc.) as for outbound LLM inference use cases. Plano has the feature set that makes it exceptionally well suited as an edge gateway for AI applications.
+This includes TLS termination, applying guardrails early in the request flow, and intelligently deciding which agent(s) or LLM(s) should handle each request and in what sequence. In practice, you configure listeners and policies once, and every inbound and outbound call flows through the same hardened gateway.
+
+Zero-Code Agent Signals™ & Tracing: Zero-code capture of behavior signals, traces, and metrics consistently across every agent. Plano propagates trace context using the W3C Trace Context standard, specifically through the traceparent header. This allows each component in the system to record its part of the request flow, enabling end-to-end tracing across the entire application. By using OpenTelemetry, Plano ensures that developers can capture this trace data consistently and in a format compatible with various observability tools.
+
+Best-In Class Monitoring: Plano offers several monitoring metrics that help you understand three critical aspects of your application: latency, token usage, and error rates by an upstream LLM provider. Latency measures the speed at which your application is responding to users, which includes metrics like time to first token (TFT), time per output token (TOT) metrics, and the total latency as perceived by users.
+
+Out-of-process architecture, built on Envoy:
+Plano takes a dependency on Envoy and is a self-contained process that is designed to run alongside your application servers. Plano uses Envoy’s HTTP connection management subsystem, HTTP L7 filtering and telemetry capabilities to extend the functionality exclusively for prompts and LLMs.
+This gives Plano several advantages:
+
+Plano builds on Envoy’s proven success. Envoy is used at massive scale by the leading technology companies of our time including AirBnB, Dropbox, Google, Reddit, Stripe, etc. Its battle tested and scales linearly with usage and enables developers to focus on what really matters: application features and business logic.
+
+Plano works with any application language. A single Plano deployment can act as gateway for AI applications written in Python, Java, C++, Go, Php, etc.
+
+Plano can be deployed and upgraded quickly across your infrastructure transparently without the horrid pain of deploying library upgrades in your applications.
+
+---
+
+Overview
+--------
+Doc: get_started/overview
+
+Overview
+
+Plano is delivery infrastructure for agentic apps. A models-native proxy server and data plane designed to help you build agents faster, and deliver them reliably to production.
+
+Plano pulls out the rote plumbing work (the “hidden AI middleware”) and decouples you from brittle, ever‑changing framework abstractions. It centralizes what shouldn’t be bespoke in every codebase like agent routing and orchestration, rich agentic signals and traces for continuous improvement, guardrail filters for safety and moderation, and smart LLM routing APIs for UX and DX agility. Use any language or AI framework, and ship agents to production faster with Plano.
+
+Built by core contributors to the widely adopted Envoy Proxy, Plano gives you a production‑grade foundation for agentic applications. It helps developers stay focused on the core logic of their agents, helps product teams shorten feedback loops for learning, and helps engineering teams  standardize policy and safety across agents and LLMs. Plano is grounded in open protocols (de facto: OpenAI‑style v1/responses, de jure: MCP) and proven patterns like sidecar deployments, so it plugs in cleanly while remaining robust, scalable, and flexible.
+
+In this documentation, you’ll learn how to set up Plano quickly, trigger API calls via prompts, apply guardrails without tight coupling with application code, simplify model and provider integration, and improve observability — so that you can focus on what matters most: the core product logic of your agents.
+
+
+
+High-level network flow of where Plano sits in your agentic stack. Designed for both ingress and egress traffic.
+
+Get Started
+
+This section introduces you to Plano and helps you get set up quickly:
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-apps" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.25c0-.966.784-1.75 1.75-1.75h2.5c.966 0 1.75.784 1.75 1.75v2.5A1.75 1.75 0 0 1 5.75 7.5h-2.5A1.75 1.75 0 0 1 1.5 5.75Zm7 0c0-.966.784-1.75 1.75-1.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a1.75 1.75 0 0 1-1.75 1.75h-2.5A1.75 1.75 0 0 1 8.5 5.75Zm-7 7c0-.966.784-1.75 1.75-1.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a1.75 1.75 0 0 1-1.75 1.75h-2.5a1.75 1.75 0 0 1-1.75-1.75Zm7 0c0-.966.784-1.75 1.75-1.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a1.75 1.75 0 0 1-1.75 1.75h-2.5a1.75 1.75 0 0 1-1.75-1.75ZM3.25 3a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5A.25.25 0 0 0 6 5.75v-2.5A.25.25 0 0 0 5.75 3Zm7 0a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25Zm-7 7a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25Zm7 0a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25Z"></path></svg> Overview
+
+Overview of Plano and Doc navigation
+
+overview.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-book" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"></path></svg> Intro to Plano
+
+Explore Plano’s features and developer workflow
+
+intro_to_plano.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-rocket" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.064 0h.186C15.216 0 16 .784 16 1.75v.186a8.752 8.752 0 0 1-2.564 6.186l-.458.459c-.314.314-.641.616-.979.904v3.207c0 .608-.315 1.172-.833 1.49l-2.774 1.707a.749.749 0 0 1-1.11-.418l-.954-3.102a1.214 1.214 0 0 1-.145-.125L3.754 9.816a1.218 1.218 0 0 1-.124-.145L.528 8.717a.749.749 0 0 1-.418-1.11l1.71-2.774A1.748 1.748 0 0 1 3.31 4h3.204c.288-.338.59-.665.904-.979l.459-.458A8.749 8.749 0 0 1 14.064 0ZM8.938 3.623h-.002l-.458.458c-.76.76-1.437 1.598-2.02 2.5l-1.5 2.317 2.143 2.143 2.317-1.5c.902-.583 1.74-1.26 2.499-2.02l.459-.458a7.25 7.25 0 0 0 2.123-5.127V1.75a.25.25 0 0 0-.25-.25h-.186a7.249 7.249 0 0 0-5.125 2.123ZM3.56 14.56c-.732.732-2.334 1.045-3.005 1.148a.234.234 0 0 1-.201-.064.234.234 0 0 1-.064-.201c.103-.671.416-2.273 1.15-3.003a1.502 1.502 0 1 1 2.12 2.12Zm6.94-3.935c-.088.06-.177.118-.266.175l-2.35 1.521.548 1.783 1.949-1.2a.25.25 0 0 0 .119-.213ZM3.678 8.116 5.2 5.766c.058-.09.117-.178.176-.266H3.309a.25.25 0 0 0-.213.119l-1.2 1.95ZM12 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg> Quickstart
+
+Learn how to quickly set up and integrate
+
+quickstart.html
+
+Concepts
+
+Deep dive into essential ideas and mechanisms behind Plano:
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-package" viewBox="0 0 16 16" aria-hidden="true"><path d="m8.878.392 5.25 3.045c.54.314.872.89.872 1.514v6.098a1.75 1.75 0 0 1-.872 1.514l-5.25 3.045a1.75 1.75 0 0 1-1.756 0l-5.25-3.045A1.75 1.75 0 0 1 1 11.049V4.951c0-.624.332-1.201.872-1.514L7.122.392a1.75 1.75 0 0 1 1.756 0ZM7.875 1.69l-4.63 2.685L8 7.133l4.755-2.758-4.63-2.685a.248.248 0 0 0-.25 0ZM2.5 5.677v5.372c0 .09.047.171.125.216l4.625 2.683V8.432Zm6.25 8.271 4.625-2.683a.25.25 0 0 0 .125-.216V5.677L8.75 8.432Z"></path></svg> Agents
+
+Learn about how to build and scale agents with Plano
+
+../concepts/agents.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-webhook" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 4.25a2.25 2.25 0 0 1 4.5 0 .75.75 0 0 0 1.5 0 3.75 3.75 0 1 0-6.14 2.889l-2.272 4.258a.75.75 0 0 0 1.324.706L7 7.25a.75.75 0 0 0-.309-1.015A2.25 2.25 0 0 1 5.5 4.25Z"></path><path d="M7.364 3.607a.75.75 0 0 1 1.03.257l2.608 4.349a3.75 3.75 0 1 1-.628 6.785.75.75 0 0 1 .752-1.299 2.25 2.25 0 1 0-.033-3.88.75.75 0 0 1-1.03-.256L7.107 4.636a.75.75 0 0 1 .257-1.03Z"></path><path d="M2.9 8.776A.75.75 0 0 1 2.625 9.8 2.25 2.25 0 1 0 6 11.75a.75.75 0 0 1 .75-.751h5.5a.75.75 0 0 1 0 1.5H7.425a3.751 3.751 0 1 1-5.55-3.998.75.75 0 0 1 1.024.274Z"></path></svg> Model Providers
+
+Explore Plano’s LLM integration options
+
+../concepts/llm_providers/llm_providers.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-workflow" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h3.5C6.216 0 7 .784 7 1.75v3.5A1.75 1.75 0 0 1 5.25 7H4v4a1 1 0 0 0 1 1h4v-1.25C9 9.784 9.784 9 10.75 9h3.5c.966 0 1.75.784 1.75 1.75v3.5A1.75 1.75 0 0 1 14.25 16h-3.5A1.75 1.75 0 0 1 9 14.25v-.75H5A2.5 2.5 0 0 1 2.5 11V7h-.75A1.75 1.75 0 0 1 0 5.25Zm1.75-.25a.25.25 0 0 0-.25.25v3.5c0 .138.112.25.25.25h3.5a.25.25 0 0 0 .25-.25v-3.5a.25.25 0 0 0-.25-.25Zm9 9a.25.25 0 0 0-.25.25v3.5c0 .138.112.25.25.25h3.5a.25.25 0 0 0 .25-.25v-3.5a.25.25 0 0 0-.25-.25Z"></path></svg> Prompt Target
+
+Understand how Plano handles prompts
+
+../concepts/prompt_target.html
+
+Guides
+
+Step-by-step tutorials for practical Plano use cases and scenarios:
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-shield-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM11.28 6.28l-3.5 3.5a.75.75 0 0 1-1.06 0l-1.5-1.5a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l.97.97 2.97-2.97a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path></svg> Guardrails
+
+Instructions on securing and validating prompts
+
+../guides/prompt_guard.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-code-square" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25Zm7.47 3.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L10.69 8 9.22 6.53a.75.75 0 0 1 0-1.06ZM6.78 6.53 5.31 8l1.47 1.47a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215l-2-2a.75.75 0 0 1 0-1.06l2-2a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path></svg> LLM Routing
+
+A guide to effective model selection strategies
+
+../guides/llm_router.html
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-issue-opened" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"></path></svg> State Management
+
+Learn to manage conversation and application state
+
+../guides/state.html
+
+Build with Plano
+
+End to end examples demonstrating how to build agentic applications using Plano:
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-dependabot" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.75 7.5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Zm5.25.75a.75.75 0 0 0-1.5 0v1.5a.75.75 0 0 0 1.5 0v-1.5Z"></path><path d="M6.25 0h2A.75.75 0 0 1 9 .75V3.5h3.25a2.25 2.25 0 0 1 2.25 2.25V8h.75a.75.75 0 0 1 0 1.5h-.75v2.75a2.25 2.25 0 0 1-2.25 2.25h-8.5a2.25 2.25 0 0 1-2.25-2.25V9.5H.75a.75.75 0 0 1 0-1.5h.75V5.75A2.25 2.25 0 0 1 3.75 3.5H7.5v-2H6.25a.75.75 0 0 1 0-1.5ZM3 5.75v6.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75h-8.5a.75.75 0 0 0-.75.75Z"></path></svg> Build Agentic Apps
+
+Discover how to create and manage custom agents within Plano
+
+../get_started/quickstart.html#build-agentic-apps-with-plano
+
+<svg version="1.1" width="1.0em" height="1.0em" class="sd-octicon sd-octicon-stack" viewBox="0 0 16 16" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg> Build Multi-LLM Apps
+
+Learn how to route LLM calls through Plano for enhanced control and observability
+
+../get_started/quickstart.html#use-plano-as-a-model-proxy-gateway
+
+---
+
+Quickstart
+----------
+Doc: get_started/quickstart
+
+Quickstart
+
+Follow this guide to learn how to quickly set up Plano and integrate it into your generative AI applications. You can:
+
+Build agents for multi-step workflows (e.g., travel assistants with flights and hotels).
+
+Call deterministic APIs via prompt targets to turn instructions directly into function calls.
+
+Use Plano as a model proxy (Gateway) to standardize access to multiple LLM providers.
+
+This quickstart assumes basic familiarity with agents and prompt targets from the Concepts section. For background, see Agents and Prompt Target.
+
+The full agent and backend API implementations used here are available in the plano-quickstart repository. This guide focuses on wiring and configuring Plano (orchestration, prompt targets, and the model proxy), not application code.
+
+Prerequisites
+
+Before you begin, ensure you have the following:
+
+Docker System (v24)
+
+Docker Compose (v2.29)
+
+Python (v3.10+)
+
+Plano’s CLI allows you to manage and interact with the Plano efficiently. To install the CLI, simply run the following command:
+
+We recommend that developers create a new Python virtual environment to isolate dependencies before installing Plano. This ensures that plano and its dependencies do not interfere with other packages on your system.
+
+$ python -m venv venv
+$ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
+$ pip install plano==0.4.0
+
+Build Agentic Apps with Plano
+
+Plano helps you build agentic applications in two complementary ways:
+
+Orchestrate agents: Let Plano decide which agent or LLM should handle each request and in what sequence.
+
+Call deterministic backends: Use prompt targets to turn natural-language prompts into structured, validated API calls.
+
+
+
+Building agents with Plano orchestration
+
+Agents are where your business logic lives (the “inner loop”). Plano takes care of the “outer loop”—routing, sequencing, and managing calls across agents and LLMs.
+
+At a high level, building agents with Plano looks like this:
+
+Implement your agent in your framework of choice (Python, JS/TS, etc.), exposing it as an HTTP service.
+
+Route LLM calls through Plano’s Model Proxy, so all models share a consistent interface and observability.
+
+Configure Plano to orchestrate: define which agent(s) can handle which kinds of prompts, and let Plano decide when to call an agent vs. an LLM.
+
+This quickstart uses a simplified version of the Travel Booking Assistant; for the full multi-agent walkthrough, see Orchestration.
+
+Step 1. Minimal orchestration config
+
+Here is a minimal configuration that wires Plano-Orchestrator to two HTTP services: one for flights and one for hotels.
+
+version: v0.1.0
+
+agents:
+  - id: flight_agent
+    url: http://host.docker.internal:10520  # your flights service
+  - id: hotel_agent
+    url: http://host.docker.internal:10530  # your hotels service
+
+model_providers:
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+
+listeners:
+  - type: agent
+    name: travel_assistant
+    port: 8001
+    router: plano_orchestrator_v1
+    agents:
+      - id: flight_agent
+        description: Search for flights and provide flight status.
+      - id: hotel_agent
+        description: Find hotels and check availability.
+
+tracing:
+  random_sampling: 100
+
+Step 2. Start your agents and Plano
+
+Run your flight_agent and hotel_agent services (see Orchestration for a full Travel Booking example), then start Plano with the config above:
+
+$ plano up plano_config.yaml
+
+Plano will start the orchestrator and expose an agent listener on port 8001.
+
+Step 3. Send a prompt and let Plano route
+
+Now send a request to Plano using the OpenAI-compatible chat completions API—the orchestrator will analyze the prompt and route it to the right agent based on intent:
+
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "Find me flights from SFO to JFK tomorrow"}], "model": "openai/gpt-4o"}' \
+  http://localhost:8001/v1/chat/completions
+
+You can then ask a follow-up like “Also book me a hotel near JFK” and Plano-Orchestrator will route to hotel_agent—your agents stay focused on business logic while Plano handles routing.
+
+
+
+Deterministic API calls with prompt targets
+
+Next, we’ll show Plano’s deterministic API calling using a single prompt target. We’ll build a currency exchange backend powered by https://api.frankfurter.dev/, assuming USD as the base currency.
+
+Step 1. Create plano config file
+
+Create plano_config.yaml file with the following content:
+
+version: v0.1.0
+
+listeners:
+  ingress_traffic:
+    address: 0.0.0.0
+    port: 10000
+    message_format: openai
+    timeout: 30s
+
+ model_providers:
+   - access_key: $OPENAI_API_KEY
+     model: openai/gpt-4o
+
+ system_prompt: |
+   You are a helpful assistant.
+
+ prompt_targets:
+   - name: currency_exchange
+     description: Get currency exchange rate from USD to other currencies
+     parameters:
+       - name: currency_symbol
+         description: the currency that needs conversion
+         required: true
+         type: str
+         in_path: true
+     endpoint:
+       name: frankfurther_api
+       path: /v1/latest?base=USD&symbols={currency_symbol}
+     system_prompt: |
+       You are a helpful assistant. Show me the currency symbol you want to convert from USD.
+
+   - name: get_supported_currencies
+     description: Get list of supported currencies for conversion
+     endpoint:
+       name: frankfurther_api
+       path: /v1/currencies
+
+ endpoints:
+   frankfurther_api:
+     endpoint: api.frankfurter.dev:443
+     protocol: https
+
+Step 2. Start plano with currency conversion config
+
+$ plano up plano_config.yaml
+2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.1.5
+...
+2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
+2024-12-05 16:56:28,485 - cli.main - INFO - Starting plano model server and plano gateway
+...
+2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!
+
+Once the gateway is up, you can start interacting with it at port 10000 using the OpenAI chat completion API.
+
+Some sample queries you can ask include: what is currency rate for gbp? or show me list of currencies for conversion.
+
+Step 3. Interacting with gateway using curl command
+
+Here is a sample curl command you can use to interact:
+
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "what is exchange rate for gbp"}], "model": "none"}' \
+  http://localhost:10000/v1/chat/completions | jq ".choices[0].message.content"
+
+"As of the date provided in your context, December 5, 2024, the exchange rate for GBP (British Pound) from USD (United States Dollar) is 0.78558. This means that 1 USD is equivalent to 0.78558 GBP."
+
+And to get the list of supported currencies:
+
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "show me list of currencies that are supported for conversion"}], "model": "none"}' \
+  http://localhost:10000/v1/chat/completions | jq ".choices[0].message.content"
+
+"Here is a list of the currencies that are supported for conversion from USD, along with their symbols:\n\n1. AUD - Australian Dollar\n2. BGN - Bulgarian Lev\n3. BRL - Brazilian Real\n4. CAD - Canadian Dollar\n5. CHF - Swiss Franc\n6. CNY - Chinese Renminbi Yuan\n7. CZK - Czech Koruna\n8. DKK - Danish Krone\n9. EUR - Euro\n10. GBP - British Pound\n11. HKD - Hong Kong Dollar\n12. HUF - Hungarian Forint\n13. IDR - Indonesian Rupiah\n14. ILS - Israeli New Sheqel\n15. INR - Indian Rupee\n16. ISK - Icelandic Króna\n17. JPY - Japanese Yen\n18. KRW - South Korean Won\n19. MXN - Mexican Peso\n20. MYR - Malaysian Ringgit\n21. NOK - Norwegian Krone\n22. NZD - New Zealand Dollar\n23. PHP - Philippine Peso\n24. PLN - Polish Złoty\n25. RON - Romanian Leu\n26. SEK - Swedish Krona\n27. SGD - Singapore Dollar\n28. THB - Thai Baht\n29. TRY - Turkish Lira\n30. USD - United States Dollar\n31. ZAR - South African Rand\n\nIf you want to convert USD to any of these currencies, you can select the one you are interested in."
+
+
+
+Use Plano as a Model Proxy (Gateway)
+
+Step 1. Create plano config file
+
+Plano operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.
+
+Create plano_config.yaml file with the following content:
+
+ version: v0.1.0
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+ model_providers:
+   - access_key: $OPENAI_API_KEY
+     model: openai/gpt-4o
+     default: true
+
+   - access_key: $MISTRAL_API_KEY
+     model: mistralministral-3b-latest
+
+Step 2. Start plano
+
+Once the config file is created, ensure that you have environment variables set up for MISTRAL_API_KEY and OPENAI_API_KEY (or these are defined in a .env file).
+
+Start Plano:
+
+$ plano up plano_config.yaml
+2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5
+2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!
+2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano
+...
+2024-12-05 11:25:16,131 - cli.core - INFO - Container is healthy!
+
+Step 3: Interact with LLM
+
+Step 3.1: Using OpenAI Python client
+
+Make outbound calls via the Plano gateway:
+
+from openai import OpenAI
+
+# Use the OpenAI client as usual
+client = OpenAI(
+  # No need to set a specific openai.api_key since it's configured in Plano's gateway
+  api_key='--',
+  # Set the OpenAI API base URL to the Plano gateway endpoint
+  base_url="http://127.0.0.1:12000/v1"
+)
+
+response = client.chat.completions.create(
+    # we select model from plano_config file
+    model="--",
+    messages=[{"role": "user", "content": "What is the capital of France?"}],
+)
+
+print("OpenAI Response:", response.choices[0].message.content)
+
+Step 3.2: Using curl command
+
+$ curl --header 'Content-Type: application/json' \
+  --data '{"messages": [{"role": "user","content": "What is the capital of France?"}], "model": "none"}' \
+  http://localhost:12000/v1/chat/completions
+
+{
+  ...
+  "model": "gpt-4o-2024-08-06",
+  "choices": [
+    {
+      ...
+      "messages": {
+        "role": "assistant",
+        "content": "The capital of France is Paris.",
+      },
+    }
+  ],
+}
+
+Next Steps
+
+Congratulations! You’ve successfully set up Plano and made your first prompt-based request. To further enhance your GenAI applications, explore the following resources:
+
+Full Documentation: Comprehensive guides and references.
+
+GitHub Repository: Access the source code, contribute, and track updates.
+
+Support: Get help and connect with the Plano community .
+
+With Plano, building scalable, fast, and personalized GenAI applications has never been easier. Dive deeper into Plano’s capabilities and start creating innovative AI-driven experiences today!
+
+---
+
+Function Calling
+----------------
+Doc: guides/function_calling
+
+Function Calling
+
+Function Calling is a powerful feature in Plano that allows your application to dynamically execute backend functions or services based on user prompts.
+This enables seamless integration between natural language interactions and backend operations, turning user inputs into actionable results.
+
+What is Function Calling?
+
+Function Calling refers to the mechanism where the user’s prompt is parsed, relevant parameters are extracted, and a designated backend function (or API) is triggered to execute a particular task.
+This feature bridges the gap between generative AI systems and functional business logic, allowing users to interact with the system through natural language while the backend performs the necessary operations.
+
+Function Calling Workflow
+
+Prompt Parsing
+
+When a user submits a prompt, Plano analyzes it to determine the intent. Based on this intent, the system identifies whether a function needs to be invoked and which parameters should be extracted.
+
+Parameter Extraction
+
+Plano’s advanced natural language processing capabilities automatically extract parameters from the prompt that are necessary for executing the function. These parameters can include text, numbers, dates, locations, or other relevant data points.
+
+Function Invocation
+
+Once the necessary parameters have been extracted, Plano invokes the relevant backend function. This function could be an API, a database query, or any other form of backend logic. The function is executed with the extracted parameters to produce the desired output.
+
+Response Handling
+
+After the function has been called and executed, the result is processed and a response is generated. This response is typically delivered in a user-friendly format, which can include text explanations, data summaries, or even a confirmation message for critical actions.
+
+Arch-Function
+
+The Arch-Function collection of large language models (LLMs) is a collection state-of-the-art (SOTA) LLMs specifically designed for function calling tasks.
+The models are designed to understand complex function signatures, identify required parameters, and produce accurate function call outputs based on natural language prompts.
+Achieving performance on par with GPT-4, these models set a new benchmark in the domain of function-oriented tasks, making them suitable for scenarios where automated API interaction and function execution is crucial.
+
+In summary, the Arch-Function collection demonstrates:
+
+State-of-the-art performance in function calling
+
+Accurate parameter identification and suggestion, even in ambiguous or incomplete inputs
+
+High generalization across multiple function calling use cases, from API interactions to automated backend tasks.
+
+Optimized low-latency, high-throughput performance, making it suitable for real-time, production environments.
+
+Key Features
+
+
+
+
+
+Functionality
+
+Definition
+
+Single Function Calling
+
+Call only one function per user prompt
+
+Parallel Function Calling
+
+Call the same function multiple times but with parameter values
+
+Multiple Function Calling
+
+Call different functions per user prompt
+
+Parallel & Multiple
+
+Perform both parallel and multiple function calling
+
+Implementing Function Calling
+
+Here’s a step-by-step guide to configuring function calling within your Plano setup:
+
+Step 1: Define the Function
+
+First, create or identify the backend function you want Plano to call. This could be an API endpoint, a script, or any other executable backend logic.
+
+import requests
+
+def get_weather(location: str, unit: str = "fahrenheit"):
+    if unit not in ["celsius", "fahrenheit"]:
+        raise ValueError("Invalid unit. Choose either 'celsius' or 'fahrenheit'.")
+
+    api_server = "https://api.yourweatherapp.com"
+    endpoint = f"{api_server}/weather"
+
+    params = {
+        "location": location,
+        "unit": unit
+    }
+
+    response = requests.get(endpoint, params=params)
+    return response.json()
+
+# Example usage
+weather_info = get_weather("Seattle, WA", "celsius")
+print(weather_info)
+
+Step 2: Configure Prompt Targets
+
+Next, map the function to a prompt target, defining the intent and parameters that Plano will extract from the user’s prompt.
+Specify the parameters your function needs and how Plano should interpret these.
+
+Prompt Target Example Configuration
+
+prompt_targets:
+  - name: get_weather
+    description: Get the current weather for a location
+    parameters:
+      - name: location
+        description: The city and state, e.g. San Francisco, New York
+        type: str
+        required: true
+      - name: unit
+        description: The unit of temperature to return
+        type: str
+        enum: ["celsius", "fahrenheit"]
+    endpoint:
+      name: api_server
+      path: /weather
+
+For a complete refernce of attributes that you can configure in a prompt target, see here.
+
+Step 3: Plano Takes Over
+
+Once you have defined the functions and configured the prompt targets, Plano takes care of the remaining work.
+It will automatically validate parameters, and ensure that the required parameters (e.g., location) are present in the prompt, and add validation rules if necessary.
+
+
+
+High-level network flow of where Plano sits in your agentic stack. Managing incoming and outgoing prompt traffic
+
+Once a downstream function (API) is called, Plano  takes the response and sends it an upstream LLM to complete the request (for summarization, Q/A, text generation tasks).
+For more details on how Plano  enables you to centralize usage of LLMs, please read LLM providers.
+
+By completing these steps, you enable Plano to manage the process from validation to response, ensuring users receive consistent, reliable results - and that you are focused
+on the stuff that matters most.
+
+Example Use Cases
+
+Here are some common use cases where Function Calling can be highly beneficial:
+
+Data Retrieval: Extracting information from databases or APIs based on user inputs (e.g., checking account balances, retrieving order status).
+
+Transactional Operations: Executing business logic such as placing an order, processing payments, or updating user profiles.
+
+Information Aggregation: Fetching and combining data from multiple sources (e.g., displaying travel itineraries or combining analytics from various dashboards).
+
+Task Automation: Automating routine tasks like setting reminders, scheduling meetings, or sending emails.
+
+User Personalization: Tailoring responses based on user history, preferences, or ongoing interactions.
+
+Best Practices and Tips
+
+When integrating function calling into your generative AI applications, keep these tips in mind to get the most out of our Plano-Function models:
+
+Keep it clear and simple: Your function names and parameters should be straightforward and easy to understand. Think of it like explaining a task to a smart colleague - the clearer you are, the better the results.
+
+Context is king: Don’t skimp on the descriptions for your functions and parameters. The more context you provide, the better the LLM can understand when and how to use each function.
+
+Be specific with your parameters: Instead of using generic types, get specific. If you’re asking for a date, say it’s a date. If you need a number between 1 and 10, spell that out. The more precise you are, the more accurate the LLM’s responses will be.
+
+Expect the unexpected: Test your functions thoroughly, including edge cases. LLMs can be creative in their interpretations, so it’s crucial to ensure your setup is robust and can handle unexpected inputs.
+
+Watch and learn: Pay attention to how the LLM uses your functions. Which ones does it call often? In what contexts? This information can help you optimize your setup over time.
+
+Remember, working with LLMs is part science, part art. Don’t be afraid to experiment and iterate to find what works best for your specific use case.
+
+---
+
+LLM Routing
+-----------
+Doc: guides/llm_router
+
+LLM Routing
+
+With the rapid proliferation of large language models (LLMs) — each optimized for different strengths, style, or latency/cost profile — routing has become an essential technique to operationalize the use of different models. Plano provides three distinct routing approaches to meet different use cases: Model-based routing, Alias-based routing, and Preference-aligned routing. This enables optimal performance, cost efficiency, and response quality by matching requests with the most suitable model from your available LLM fleet.
+
+For details on supported model providers, configuration options, and client libraries, see LLM Providers.
+
+Routing Methods
+
+
+
+Model-based routing
+
+Direct routing allows you to specify exact provider and model combinations using the format provider/model-name:
+
+Use provider-specific names like openai/gpt-5.2 or anthropic/claude-sonnet-4-5
+
+Provides full control and transparency over which model handles each request
+
+Ideal for production workloads where you want predictable routing behavior
+
+Configuration
+
+Configure your LLM providers with specific provider/model names:
+
+Model-based Routing Configuration
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-5
+    access_key: $OPENAI_API_KEY
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+
+Client usage
+
+Clients specify exact models:
+
+# Direct provider/model specification
+response = client.chat.completions.create(
+    model="openai/gpt-5.2",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+response = client.chat.completions.create(
+    model="anthropic/claude-sonnet-4-5",
+    messages=[{"role": "user", "content": "Write a story"}]
+)
+
+
+
+Alias-based routing
+
+Alias-based routing lets you create semantic model names that decouple your application from specific providers:
+
+Use meaningful names like fast-model, reasoning-model, or plano.summarize.v1 (see model_aliases)
+
+Maps semantic names to underlying provider models for easier experimentation and provider switching
+
+Ideal for applications that want abstraction from specific model names while maintaining control
+
+Configuration
+
+Configure semantic aliases that map to underlying models:
+
+Alias-based Routing Configuration
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+
+  - model: openai/gpt-5
+    access_key: $OPENAI_API_KEY
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+
+model_aliases:
+  # Model aliases - friendly names that map to actual provider names
+  fast-model:
+    target: gpt-5.2
+
+  reasoning-model:
+    target: gpt-5
+
+  creative-model:
+    target: claude-sonnet-4-5
+
+Client usage
+
+Clients use semantic names:
+
+# Using semantic aliases
+response = client.chat.completions.create(
+    model="fast-model",  # Routes to best available fast model
+    messages=[{"role": "user", "content": "Quick summary please"}]
+)
+
+response = client.chat.completions.create(
+    model="reasoning-model",  # Routes to best reasoning model
+    messages=[{"role": "user", "content": "Solve this complex problem"}]
+)
+
+
+
+Preference-aligned routing (Arch-Router)
+
+Preference-aligned routing uses the Arch-Router model to pick the best LLM based on domain, action, and your configured preferences instead of hard-coding a model.
+
+Domain: High-level topic of the request (e.g., legal, healthcare, programming).
+
+Action: What the user wants to do (e.g., summarize, generate code, translate).
+
+Routing preferences: Your mapping from (domain, action) to preferred models.
+
+Arch-Router analyzes each prompt to infer domain and action, then applies your preferences to select a model. This decouples routing policy (how to choose) from model assignment (what to run), making routing transparent, controllable, and easy to extend as you add or swap models.
+
+Configuration
+
+To configure preference-aligned dynamic routing, define routing preferences that map domains and actions to specific models:
+
+Preference-Aligned Dynamic Routing Configuration
+
+listeners:
+  egress_traffic:
+    address: 0.0.0.0
+    port: 12000
+    message_format: openai
+    timeout: 30s
+
+llm_providers:
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-5
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: code understanding
+        description: understand and explain existing code snippets, functions, or libraries
+      - name: complex reasoning
+        description: deep analysis, mathematical problem solving, and logical reasoning
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+    routing_preferences:
+      - name: creative writing
+        description: creative content generation, storytelling, and writing assistance
+      - name: code generation
+        description: generating new code snippets, functions, or boilerplate based on user prompts
+
+Client usage
+
+Clients can let the router decide or still specify aliases:
+
+# Let Arch-Router choose based on content
+response = client.chat.completions.create(
+    messages=[{"role": "user", "content": "Write a creative story about space exploration"}]
+    # No model specified - router will analyze and choose claude-sonnet-4-5
+)
+
+Arch-Router
+
+The Arch-Router is a state-of-the-art preference-based routing model specifically designed to address the limitations of traditional LLM routing. This compact 1.5B model delivers production-ready performance with low latency and high accuracy while solving key routing challenges.
+
+Addressing Traditional Routing Limitations:
+
+Human Preference Alignment
+Unlike benchmark-driven approaches, Arch-Router learns to match queries with human preferences by using domain-action mappings that capture subjective evaluation criteria, ensuring routing decisions align with real-world user needs.
+
+Flexible Model Integration
+The system supports seamlessly adding new models for routing without requiring retraining or architectural modifications, enabling dynamic adaptation to evolving model landscapes.
+
+Preference-Encoded Routing
+Provides a practical mechanism to encode user preferences through domain-action mappings, offering transparent and controllable routing decisions that can be customized for specific use cases.
+
+To support effective routing, Arch-Router introduces two key concepts:
+
+Domain – the high-level thematic category or subject matter of a request (e.g., legal, healthcare, programming).
+
+Action – the specific type of operation the user wants performed (e.g., summarization, code generation, booking appointment, translation).
+
+Both domain and action configs are associated with preferred models or model variants. At inference time, Arch-Router analyzes the incoming prompt to infer its domain and action using semantic similarity, task indicators, and contextual cues. It then applies the user-defined routing preferences to select the model best suited to handle the request.
+
+In summary, Arch-Router demonstrates:
+
+Structured Preference Routing: Aligns prompt request with model strengths using explicit domain–action mappings.
+
+Transparent and Controllable: Makes routing decisions transparent and configurable, empowering users to customize system behavior.
+
+Flexible and Adaptive: Supports evolving user needs, model updates, and new domains/actions without retraining the router.
+
+Production-Ready Performance: Optimized for low-latency, high-throughput applications in multi-model environments.
+
+Combining Routing Methods
+
+You can combine static model selection with dynamic routing preferences for maximum flexibility:
+
+Hybrid Routing Configuration
+
+llm_providers:
+  - model: openai/gpt-5.2
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-5
+    access_key: $OPENAI_API_KEY
+    routing_preferences:
+      - name: complex_reasoning
+        description: deep analysis and complex problem solving
+
+  - model: anthropic/claude-sonnet-4-5
+    access_key: $ANTHROPIC_API_KEY
+    routing_preferences:
+      - name: creative_tasks
+        description: creative writing and content generation
+
+model_aliases:
+  # Model aliases - friendly names that map to actual provider names
+  fast-model:
+    target: gpt-5.2
+
+  reasoning-model:
+    target: gpt-5
+
+  # Aliases that can also participate in dynamic routing
+  creative-model:
+    target: claude-sonnet-4-5
+
+This configuration allows clients to:
+
+Use direct model selection: model="fast-model"
+
+Let the router decide: No model specified, router analyzes content
+
+Example Use Cases
+
+Here are common scenarios where Arch-Router excels:
+
+Coding Tasks: Distinguish between code generation requests (“write a Python function”), debugging needs (“fix this error”), and code optimization (“make this faster”), routing each to appropriately specialized models.
+
+Content Processing Workflows: Classify requests as summarization (“summarize this document”), translation (“translate to Spanish”), or analysis (“what are the key themes”), enabling targeted model selection.
+
+Multi-Domain Applications: Accurately identify whether requests fall into legal, healthcare, technical, or general domains, even when the subject matter isn’t explicitly stated in the prompt.
+
+Conversational Routing: Track conversation context to identify when topics shift between domains or when the type of assistance needed changes mid-conversation.
+
+Best practices
+
+💡Consistent Naming:  Route names should align with their descriptions.
+
+❌ Bad:
+`
+{"name": "math", "description": "handle solving quadratic equations"}
+`
+
+✅ Good:
+`
+{"name": "quadratic_equation", "description": "solving quadratic equations"}
+`
+
+💡 Clear Usage Description:  Make your route names and descriptions specific, unambiguous, and minimizing overlap between routes. The Router performs better when it can clearly distinguish between different types of requests.
+
+❌ Bad:
+`
+{"name": "math", "description": "anything closely related to mathematics"}
+`
+
+✅ Good:
+`
+{"name": "math", "description": "solving, explaining math problems, concepts"}
+`
+
+💡Nouns Descriptor: Preference-based routers perform better with noun-centric descriptors, as they offer more stable and semantically rich signals for matching.
+
+💡Domain Inclusion: for best user experience, you should always include a domain route. This helps the router fall back to domain when action is not confidently inferred.
+
+Unsupported Features
+
+The following features are not supported by the Arch-Router model:
+
+Multi-modality: The model is not trained to process raw image or audio inputs. It can handle textual queries about these modalities (e.g., “generate an image of a cat”), but cannot interpret encoded multimedia data directly.
+
+Function calling: Arch-Router is designed for semantic preference matching, not exact intent classification or tool execution. For structured function invocation, use models in the Plano Function Calling collection instead.
+
+System prompt dependency: Arch-Router routes based solely on the user’s conversation history. It does not use or rely on system prompts for routing decisions.
+
+---
+
+Access Logging
+--------------
+Doc: guides/observability/access_logging
+
+Access Logging
+
+Access logging in Plano refers to the logging of detailed information about each request and response that flows through Plano.
+It provides visibility into the traffic passing through Plano, which is crucial for monitoring, debugging, and analyzing the
+behavior of AI applications and their interactions.
+
+Key Features
+
+Per-Request Logging:
+Each request that passes through Plano is logged. This includes important metadata such as HTTP method,
+path, response status code, request duration, upstream host, and more.
+
+Integration with Monitoring Tools:
+Access logs can be exported to centralized logging systems (e.g., ELK stack or Fluentd) or used to feed monitoring and alerting systems.
+
+Structured Logging: where each request is logged as a object, making it easier to parse and analyze using tools like Elasticsearch and Kibana.
+
+How It Works
+
+Plano exposes access logs for every call it manages on your behalf. By default these access logs can be found under ~/plano_logs. For example:
+
+$ tail -F ~/plano_logs/access_*.log
+
+==> /Users/username/plano_logs/access_llm.log <==
+[2024-10-10T03:55:49.537Z] "POST /v1/chat/completions HTTP/1.1" 0 DC 0 0 770 - "-" "OpenAI/Python 1.51.0" "469793af-b25f-9b57-b265-f376e8d8c586" "api.openai.com" "162.159.140.245:443"
+
+==> /Users/username/plano_logs/access_internal.log <==
+[2024-10-10T03:56:03.906Z] "POST /embeddings HTTP/1.1" 200 - 52 21797 54 53 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
+[2024-10-10T03:56:03.961Z] "POST /zeroshot HTTP/1.1" 200 - 106 218 87 87 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
+[2024-10-10T03:56:04.050Z] "POST /v1/chat/completions HTTP/1.1" 200 - 1301 614 441 441 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
+[2024-10-10T03:56:04.492Z] "POST /hallucination HTTP/1.1" 200 - 556 127 104 104 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "model_server" "192.168.65.254:51000"
+[2024-10-10T03:56:04.598Z] "POST /insurance_claim_details HTTP/1.1" 200 - 447 125 17 17 "-" "-" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "api_server" "192.168.65.254:18083"
+
+==> /Users/username/plano_logs/access_ingress.log <==
+[2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "plano_llm_listener" "0.0.0.0:12000"
+
+Log Format
+
+What do these logs mean? Let’s break down the log format:
+
+START_TIME METHOD ORIGINAL-PATH PROTOCOL RESPONSE_CODE RESPONSE_FLAGS
+BYTES_RECEIVED BYTES_SENT DURATION UPSTREAM-SERVICE-TIME X-FORWARDED-FOR
+USER-AGENT X-REQUEST-ID  AUTHORITY UPSTREAM_HOST
+
+Most of these fields are self-explanatory, but here are a few key fields to note:
+
+UPSTREAM-SERVICE-TIME: The time taken by the upstream service to process the request.
+
+DURATION: The total time taken to process the request.
+
+For example for following request:
+
+[2024-10-10T03:56:03.905Z] "POST /v1/chat/completions HTTP/1.1" 200 - 463 1022 1695 984 "-" "OpenAI/Python 1.51.0" "604197fe-2a5b-95a2-9367-1d6b30cfc845" "plano_llm_listener" "0.0.0.0:12000"
+
+Total duration was 1695ms, and the upstream service took 984ms to process the request. Bytes received and sent were 463 and 1022 respectively.
+
+---
+
+Monitoring
+----------
+Doc: guides/observability/monitoring
+
+Monitoring
+
+OpenTelemetry is an open-source observability framework providing APIs
+and instrumentation for generating, collecting, processing, and exporting telemetry data, such as traces,
+metrics, and logs. Its flexible design supports a wide range of backends and seamlessly integrates with
+modern application tools.
+
+Plano acts a source for several monitoring metrics related to agents and LLMs natively integrated
+via OpenTelemetry to help you understand three critical aspects of your application:
+latency, token usage, and error rates by an upstream LLM provider. Latency measures the speed at which your application
+is responding to users, which includes metrics like time to first token (TFT), time per output token (TOT) metrics, and
+the total latency as perceived by users. Below are some screenshots how Plano integrates natively with tools like
+Grafana via Promethus
+
+Metrics Dashboard (via Grafana)
+
+
+
+
+
+
+
+Configure Monitoring
+
+Plano publishes stats endpoint at http://localhost:19901/stats. As noted above, Plano is a source for metrics. To view and manipulate dashbaords, you will
+need to configiure Promethus (as a metrics store) and Grafana for dashboards. Below
+are some sample configuration files for both, respectively.
+
+Sample prometheus.yaml config file
+
+global:
+scrape_interval: 15s
+scrape_timeout: 10s
+evaluation_interval: 15s
+alerting:
+alertmanagers:
+    - static_configs:
+        - targets: []
+    scheme: http
+    timeout: 10s
+    api_version: v2
+scrape_configs:
+- job_name: plano
+    honor_timestamps: true
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: /stats
+    scheme: http
+    static_configs:
+    - targets:
+        - host.docker.internal:19901
+    params:
+    format: ["prometheus"]
+
+Sample grafana datasource.yaml config file
+
+apiVersion: 1
+datasources:
+- name: Prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    access: proxy
+    editable: true
+
+---
+
+Observability
+-------------
+Doc: guides/observability/observability
+
+Observability
+
+---
+
+Tracing
+-------
+Doc: guides/observability/tracing
+
+Tracing
+
+Overview
+
+OpenTelemetry is an open-source observability framework providing APIs
+and instrumentation for generating, collecting, processing, and exporting telemetry data, such as traces,
+metrics, and logs. Its flexible design supports a wide range of backends and seamlessly integrates with
+modern application tools. A key feature of OpenTelemetry is its commitment to standards like the
+W3C Trace Context
+
+Tracing is a critical tool that allows developers to visualize and understand the flow of
+requests in an AI application. With tracing, you can capture a detailed view of how requests propagate
+through various services and components, which is crucial for debugging, performance optimization,
+and understanding complex AI agent architectures like Co-pilots.
+
+Plano propagates trace context using the W3C Trace Context standard, specifically through the
+traceparent header. This allows each component in the system to record its part of the request
+flow, enabling end-to-end tracing across the entire application. By using OpenTelemetry, Plano ensures
+that developers can capture this trace data consistently and in a format compatible with various observability
+tools.
+
+
+
+Benefits of Using Traceparent Headers
+
+Standardization: The W3C Trace Context standard ensures compatibility across ecosystem tools, allowing
+traces to be propagated uniformly through different layers of the system.
+
+Ease of Integration: OpenTelemetry’s design allows developers to easily integrate tracing with minimal
+changes to their codebase, enabling quick adoption of end-to-end observability.
+
+Interoperability: Works seamlessly with popular tracing tools like AWS X-Ray, Datadog, Jaeger, and many others,
+making it easy to visualize traces in the tools you’re already usi
+
+How to Initiate A Trace
+
+Enable Tracing Configuration: Simply add the random_sampling in tracing section to 100`` flag to in the listener config
+
+Trace Context Propagation: Plano automatically propagates the traceparent header. When a request is received, Plano will:
+
+Generate a new traceparent header if one is not present.
+
+Extract the trace context from the traceparent header if it exists.
+
+Start a new span representing its processing of the request.
+
+Forward the traceparent header to downstream services.
+
+Sampling Policy: The 100 in random_sampling: 100 means that all the requests as sampled for tracing.
+You can adjust this value from 0-100.
+
+Trace Propagation
+
+Plano uses the W3C Trace Context standard for trace propagation, which relies on the traceparent header.
+This header carries tracing information in a standardized format, enabling interoperability between different
+tracing systems.
+
+Header Format
+
+The traceparent header has the following format:
+
+traceparent: {version}-{trace-id}-{parent-id}-{trace-flags}
+
+{version}: The version of the Trace Context specification (e.g., 00).
+
+{trace-id}: A 16-byte (32-character hexadecimal) unique identifier for the trace.
+
+{parent-id}: An 8-byte (16-character hexadecimal) identifier for the parent span.
+
+{trace-flags}: Flags indicating trace options (e.g., sampling).
+
+Instrumentation
+
+To integrate AI tracing, your application needs to follow a few simple steps. The steps
+below are very common practice, and not unique to Plano, when you reading tracing headers and export
+spans for distributed tracing.
+
+Read the traceparent header from incoming requests.
+
+Start new spans as children of the extracted context.
+
+Include the traceparent header in outbound requests to propagate trace context.
+
+Send tracing data to a collector or tracing backend to export spans
+
+Example with OpenTelemetry in Python
+
+Install OpenTelemetry packages:
+
+$ pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
+$ pip install opentelemetry-instrumentation-requests
+
+Set up the tracer and exporter:
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+# Define the service name
+resource = Resource(attributes={
+    "service.name": "customer-support-agent"
+})
+
+# Set up the tracer provider and exporter
+tracer_provider = TracerProvider(resource=resource)
+otlp_exporter = OTLPSpanExporter(endpoint="otel-collector:4317", insecure=True)
+span_processor = BatchSpanProcessor(otlp_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace.set_tracer_provider(tracer_provider)
+
+# Instrument HTTP requests
+RequestsInstrumentor().instrument()
+
+Handle incoming requests:
+
+from opentelemetry import trace
+from opentelemetry.propagate import extract, inject
+import requests
+
+def handle_request(request):
+    # Extract the trace context
+    context = extract(request.headers)
+    tracer = trace.get_tracer(__name__)
+
+    with tracer.start_as_current_span("process_customer_request", context=context):
+        # Example of processing a customer request
+        print("Processing customer request...")
+
+        # Prepare headers for outgoing request to payment service
+        headers = {}
+        inject(headers)
+
+        # Make outgoing request to external service (e.g., payment gateway)
+        response = requests.get("http://payment-service/api", headers=headers)
+
+        print(f"Payment service response: {response.content}")
+
+Integrating with Tracing Tools
+
+AWS X-Ray
+
+To send tracing data to AWS X-Ray :
+
+Configure OpenTelemetry Collector: Set up the collector to export traces to AWS X-Ray.
+
+Collector configuration (otel-collector-config.yaml):
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+processors:
+  batch:
+
+exporters:
+  awsxray:
+    region: <Your-Aws-Region>
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+
+Deploy the Collector: Run the collector as a Docker container, Kubernetes pod, or standalone service.
+
+Ensure AWS Credentials: Provide AWS credentials to the collector, preferably via IAM roles.
+
+Verify Traces: Access the AWS X-Ray console to view your traces.
+
+Datadog
+
+Datadog
+
+To send tracing data to Datadog:
+
+Configure OpenTelemetry Collector: Set up the collector to export traces to Datadog.
+
+Collector configuration (otel-collector-config.yaml):
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+processors:
+  batch:
+
+exporters:
+  datadog:
+    api:
+      key: "${<Your-Datadog-Api-Key>}"
+    site: "${DD_SITE}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog]
+
+Set Environment Variables: Provide your Datadog API key and site.
+
+$ export <Your-Datadog-Api-Key>=<Your-Datadog-Api-Key>
+$ export DD_SITE=datadoghq.com  # Or datadoghq.eu
+
+Deploy the Collector: Run the collector in your environment.
+
+Verify Traces: Access the Datadog APM dashboard to view your traces.
+
+Langtrace
+
+Langtrace is an observability tool designed specifically for large language models (LLMs). It helps you capture, analyze, and understand how LLMs are used in your applications including those built using Plano.
+
+To send tracing data to Langtrace:
+
+Configure Plano: Make sure Plano is installed and setup correctly. For more information, refer to the installation guide.
+
+Install Langtrace: Install the Langtrace SDK.:
+
+$ pip install langtrace-python-sdk
+
+Set Environment Variables: Provide your Langtrace API key.
+
+$ export LANGTRACE_API_KEY=<Your-Langtrace-Api-Key>
+
+Trace Requests: Once you have Langtrace set up, you can start tracing requests.
+
+Here’s an example of how to trace a request using the Langtrace Python SDK:
+
+import os
+from langtrace_python_sdk import langtrace  # Must precede any llm module imports
+from openai import OpenAI
+
+langtrace.init(api_key=os.environ['LANGTRACE_API_KEY'])
+
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'], base_url="http://localhost:12000/v1")
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant"},
+        {"role": "user", "content": "Hello"},
+    ]
+)
+
+print(chat_completion.choices[0].message.content)
+
+Verify Traces: Access the Langtrace dashboard to view your traces.
+
+Best Practices
+
+Consistent Instrumentation: Ensure all services propagate the traceparent header.
+
+Secure Configuration: Protect sensitive data and secure communication between services.
+
+Performance Monitoring: Be mindful of the performance impact and adjust sampling rates accordingly.
+
+Error Handling: Implement proper error handling to prevent tracing issues from affecting your application.
+
+Summary
+
+By leveraging the traceparent header for trace context propagation, Plano enables developers to implement
+tracing efficiently. This approach simplifies the process of collecting and analyzing tracing data in common
+tools like AWS X-Ray and Datadog, enhancing observability and facilitating faster debugging and optimization.
+
+Additional Resources
+
+OpenTelemetry Documentation
+
+W3C Trace Context Specification
+
+AWS X-Ray Exporter
+
+Datadog Exporter
+
+Langtrace Documentation
+
+Replace placeholders such as <Your-Aws-Region> and <Your-Datadog-Api-Key> with your actual configurations.
+
+---
+
+Orchestration
+-------------
+Doc: guides/orchestration
+
+Orchestration
+
+Building multi-agent systems allow you to route requests across multiple specialized agents, each designed to handle specific types of tasks.
+Plano makes it easy to build and scale these systems by managing the orchestration layer—deciding which agent(s) should handle each request—while you focus on implementing individual agent logic.
+
+This guide shows you how to configure and implement multi-agent orchestration in Plano using a real-world example: a Travel Booking Assistant that routes queries to specialized agents for weather and flights.
+
+How It Works
+
+Plano’s orchestration layer analyzes incoming prompts and routes them to the most appropriate agent based on user intent and conversation context. The workflow is:
+
+User submits a prompt: The request arrives at Plano’s agent listener.
+
+Agent selection: Plano uses an LLM to analyze the prompt and determine user intent and complexity. By default, this uses Plano-Orchestrator-30B-A3B, which offers performance of foundation models at 1/10th the cost. The LLM routes the request to the most suitable agent configured in your system—such as a weather agent or flight agent.
+
+Agent handles request: Once the selected agent receives the request object from Plano, it manages its own inner loop until the task is complete. This means the agent autonomously calls models, invokes tools, processes data, and reasons about next steps—all within its specialized domain—before returning the final response.
+
+Seamless handoffs: For multi-turn conversations, Plano repeats the intent analysis for each follow-up query, enabling smooth handoffs between agents as the conversation evolves.
+
+Example: Travel Booking Assistant
+
+Let’s walk through a complete multi-agent system: a Travel Booking Assistant that helps users plan trips by providing weather forecasts and flight information. This system uses two specialized agents:
+
+Weather Agent: Provides real-time weather conditions and multi-day forecasts
+
+Flight Agent: Searches for flights between airports with real-time tracking
+
+Configuration
+
+Configure your agents in the listeners section of your plano_config.yaml:
+
+Travel Booking Multi-Agent Configuration
+
+version: v0.3.0
+
+agents:
+  - id: weather_agent
+    url: http://host.docker.internal:10510
+  - id: flight_agent
+    url: http://host.docker.internal:10520
+
+model_providers:
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+    default: true
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY # smaller, faster, cheaper model for extracting entities like location
+
+listeners:
+  - type: agent
+    name: travel_booking_service
+    port: 8001
+    router: plano_orchestrator_v1
+    agents:
+      - id: weather_agent
+        description: |
+
+          WeatherAgent is a specialized AI assistant for real-time weather information and forecasts. It provides accurate weather data for any city worldwide using the Open-Meteo API, helping travelers plan their trips with up-to-date weather conditions.
+
+          Capabilities:
+            * Get real-time weather conditions and multi-day forecasts for any city worldwide using Open-Meteo API (free, no API key needed)
+            * Provides current temperature
+            * Provides multi-day forecasts
+            * Provides weather conditions
+            * Provides sunrise/sunset times
+            * Provides detailed weather information
+            * Understands conversation context to resolve location references from previous messages
+            * Handles weather-related questions including "What's the weather in [city]?", "What's the forecast for [city]?", "How's the weather in [city]?"
+            * When queries include both weather and other travel questions (e.g., flights, currency), this agent answers ONLY the weather part
+
+      - id: flight_agent
+        description: |
+
+          FlightAgent is an AI-powered tool specialized in providing live flight information between airports. It leverages the FlightAware AeroAPI to deliver real-time flight status, gate information, and delay updates.
+
+          Capabilities:
+            * Get live flight information between airports using FlightAware AeroAPI
+            * Shows real-time flight status
+            * Shows scheduled/estimated/actual departure and arrival times
+            * Shows gate and terminal information
+            * Shows delays
+            * Shows aircraft type
+            * Shows flight status
+            * Automatically resolves city names to airport codes (IATA/ICAO)
+            * Understands conversation context to infer origin/destination from follow-up questions
+            * Handles flight-related questions including "What flights go from [city] to [city]?", "Do flights go to [city]?", "Are there direct flights from [city]?"
+            * When queries include both flight and other travel questions (e.g., weather, currency), this agent answers ONLY the flight part
+
+tracing:
+  random_sampling: 100
+
+
+Key Configuration Elements:
+
+agent listener: A listener of type: agent tells Plano to perform intent analysis and routing for incoming requests.
+
+agents list: Define each agent with an id, description (used for routing decisions)
+
+router: The plano_orchestrator_v1 router uses Plano-Orchestrator to analyze user intent and select the appropriate agent.
+
+filter_chain: Optionally attach filter chains to agents for guardrails, query rewriting, or context enrichment.
+
+Writing Effective Agent Descriptions
+
+Agent descriptions are critical—they’re used by Plano-Orchestrator to make routing decisions. Effective descriptions should include:
+
+Clear introduction: A concise statement explaining what the agent is and its primary purpose
+
+Capabilities section: A bulleted list of specific capabilities, including:
+
+What APIs or data sources it uses (e.g., “Open-Meteo API”, “FlightAware AeroAPI”)
+
+What information it provides (e.g., “current temperature”, “multi-day forecasts”, “gate information”)
+
+How it handles context (e.g., “Understands conversation context to resolve location references”)
+
+What question patterns it handles (e.g., “What’s the weather in [city]?”)
+
+How it handles multi-part queries (e.g., “When queries include both weather and flights, this agent answers ONLY the weather part”)
+
+Here’s an example of a well-structured agent description:
+
+- id: weather_agent
+  description: |
+
+    WeatherAgent is a specialized AI assistant for real-time weather information
+    and forecasts. It provides accurate weather data for any city worldwide using
+    the Open-Meteo API, helping travelers plan their trips with up-to-date weather
+    conditions.
+
+    Capabilities:
+      * Get real-time weather conditions and multi-day forecasts for any city worldwide
+      * Provides current temperature, weather conditions, sunrise/sunset times
+      * Provides detailed weather information including multi-day forecasts
+      * Understands conversation context to resolve location references from previous messages
+      * Handles weather-related questions including "What's the weather in [city]?"
+      * When queries include both weather and other travel questions (e.g., flights),
+        this agent answers ONLY the weather part
+
+We will soon support “Agents as Tools” via Model Context Protocol (MCP), enabling agents to dynamically discover and invoke other agents as tools. Track progress on GitHub Issue #646.
+
+Implementation
+
+Agents are HTTP services that receive routed requests from Plano. Each agent implements the OpenAI Chat Completions API format, making them compatible with standard LLM clients.
+
+Agent Structure
+
+Let’s examine the Weather Agent implementation:
+
+Weather Agent - Core Structure
+
+@app.post("/v1/chat/completions")
+async def handle_request(request: Request):
+    """HTTP endpoint for chat completions with streaming support."""
+
+    request_body = await request.json()
+    messages = request_body.get("messages", [])
+    logger.info(
+        "messages detail json dumps: %s",
+        json.dumps(messages, indent=2),
+    )
+
+    traceparent_header = request.headers.get("traceparent")
+    return StreamingResponse(
+        invoke_weather_agent(request, request_body, traceparent_header),
+        media_type="text/plain",
+        headers={
+            "content-type": "text/event-stream",
+        },
+    )
+
+
+async def invoke_weather_agent(
+
+
+Key Points:
+
+Agents expose a /v1/chat/completions endpoint that matches OpenAI’s API format
+
+They use Plano’s LLM gateway (via LLM_GATEWAY_ENDPOINT) for all LLM calls
+
+They receive the full conversation history in request_body.messages
+
+Information Extraction with LLMs
+
+Agents use LLMs to extract structured information from natural language queries. This enables them to understand user intent and extract parameters needed for API calls.
+
+The Weather Agent extracts location information:
+
+Weather Agent - Location Extraction
+
+
+    instructions = """Extract the location for WEATHER queries. Return just the city name.
+
+            Rules:
+            1. For multi-part queries, extract ONLY the location mentioned with weather keywords ("weather in [location]")
+            2. If user says "there" or "that city", it typically refers to the DESTINATION city in travel contexts (not the origin)
+            3. For flight queries with weather, "there" means the destination city where they're traveling TO
+            4. Return plain text (e.g., "London", "New York", "Paris, France")
+            5. If no weather location found, return "NOT_FOUND"
+
+            Examples:
+            - "What's the weather in London?" -> "London"
+            - "Flights from Seattle to Atlanta, and show me the weather there" -> "Atlanta"
+            - "Can you get me flights from Seattle to Atlanta tomorrow, and also please show me the weather there" -> "Atlanta"
+            - "What's the weather in Seattle, and what is one flight that goes direct to Atlanta?" -> "Seattle"
+            - User asked about flights to Atlanta, then "what's the weather like there?" -> "Atlanta"
+            - "I'm going to Seattle" -> "Seattle"
+            - "What's happening?" -> "NOT_FOUND"
+
+            Extract location:"""
+
+    try:
+        user_messages = [
+            msg.get("content") for msg in messages if msg.get("role") == "user"
+        ]
+
+        if not user_messages:
+            location = "New York"
+        else:
+            ctx = extract(request.headers)
+            extra_headers = {}
+            inject(extra_headers, context=ctx)
+
+            # For location extraction, pass full conversation for context (e.g., "there" = previous destination)
+            response = await openai_client_via_plano.chat.completions.create(
+                model=LOCATION_MODEL,
+                messages=[
+                    {"role": "system", "content": instructions},
+                    *[
+                        {"role": msg.get("role"), "content": msg.get("content")}
+                        for msg in messages
+                    ],
+                ],
+                temperature=0.1,
+                max_tokens=50,
+                extra_headers=extra_headers if extra_headers else None,
+            )
+
+
+The Flight Agent extracts more complex information—origin, destination, and dates:
+
+Flight Agent - Flight Information Extraction
+
+async def extract_flight_route(messages: list, request: Request) -> dict:
+    """Extract origin, destination, and date from conversation using LLM."""
+
+    extraction_prompt = """Extract flight origin, destination cities, and travel date from the conversation.
+
+    Rules:
+    1. Look for patterns: "flight from X to Y", "flights to Y", "fly from X"
+    2. Extract dates like "tomorrow", "next week", "December 25", "12/25", "on Monday"
+    3. Use conversation context to fill in missing details
+    4. Return JSON: {"origin": "City" or null, "destination": "City" or null, "date": "YYYY-MM-DD" or null}
+
+    Examples:
+    - "Flight from Seattle to Atlanta tomorrow" -> {"origin": "Seattle", "destination": "Atlanta", "date": "2025-12-24"}
+    - "What flights go to New York?" -> {"origin": null, "destination": "New York", "date": null}
+    - "Flights to Miami on Christmas" -> {"origin": null, "destination": "Miami", "date": "2025-12-25"}
+    - "Show me flights from LA to NYC next Monday" -> {"origin": "LA", "destination": "NYC", "date": "2025-12-30"}
+
+    Today is December 23, 2025. Extract flight route and date:"""
+
+    try:
+        ctx = extract(request.headers)
+        extra_headers = {}
+        inject(extra_headers, context=ctx)
+
+        response = await openai_client_via_plano.chat.completions.create(
+            model=EXTRACTION_MODEL,
+            messages=[
+                {"role": "system", "content": extraction_prompt},
+                *[
+                    {"role": msg.get("role"), "content": msg.get("content")}
+                    for msg in messages[-5:]
+                ],
+            ],
+            temperature=0.1,
+            max_tokens=100,
+            extra_headers=extra_headers if extra_headers else None,
+        )
+
+        result = response.choices[0].message.content.strip()
+        if "```json" in result:
+            result = result.split("```json")[1].split("```")[0].strip()
+        elif "```" in result:
+            result = result.split("```")[1].split("```")[0].strip()
+
+        route = json.loads(result)
+        return {
+            "origin": route.get("origin"),
+            "destination": route.get("destination"),
+            "date": route.get("date"),
+        }
+    except Exception as e:
+        logger.error(f"Error extracting flight route: {e}")
+
+
+Key Points:
+
+Use smaller, faster models (like gpt-4o-mini) for extraction tasks
+
+Include conversation context to handle follow-up questions and pronouns
+
+Use structured prompts with clear output formats (JSON)
+
+Handle edge cases with fallback values
+
+Calling External APIs
+
+After extracting information, agents call external APIs to fetch real-time data:
+
+Weather Agent - External API Call
+
+        # Geocode city to get coordinates
+        geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={quote(location)}&count=1&language=en&format=json"
+        geocode_response = await http_client.get(geocode_url)
+
+        if geocode_response.status_code != 200 or not geocode_response.json().get(
+            "results"
+        ):
+            logger.warning(f"Could not geocode {location}, using New York")
+            location = "New York"
+            geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={quote(location)}&count=1&language=en&format=json"
+            geocode_response = await http_client.get(geocode_url)
+
+        geocode_data = geocode_response.json()
+        if not geocode_data.get("results"):
+            return {
+                "location": location,
+                "weather": {
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "day_name": datetime.now().strftime("%A"),
+                    "temperature_c": None,
+                    "temperature_f": None,
+                    "weather_code": None,
+                    "error": "Could not retrieve weather data",
+                },
+            }
+
+        result = geocode_data["results"][0]
+        location_name = result.get("name", location)
+        latitude = result["latitude"]
+        longitude = result["longitude"]
+
+        logger.info(
+            f"Geocoded '{location}' to {location_name} ({latitude}, {longitude})"
+        )
+
+        # Get weather forecast
+        weather_url = (
+            f"https://api.open-meteo.com/v1/forecast?"
+            f"latitude={latitude}&longitude={longitude}&"
+            f"current=temperature_2m&"
+            f"daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code&"
+            f"forecast_days={days}&timezone=auto"
+        )
+
+        weather_response = await http_client.get(weather_url)
+        if weather_response.status_code != 200:
+            return {
+                "location": location_name,
+                "weather": {
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "day_name": datetime.now().strftime("%A"),
+                    "temperature_c": None,
+                    "temperature_f": None,
+                    "weather_code": None,
+                    "error": "Could not retrieve weather data",
+                },
+            }
+
+        weather_data = weather_response.json()
+        current_temp = weather_data.get("current", {}).get("temperature_2m")
+        daily = weather_data.get("daily", {})
+
+
+
+The Flight Agent calls FlightAware’s AeroAPI:
+
+Flight Agent - External API Call
+
+async def get_flights(
+    origin_code: str, dest_code: str, travel_date: Optional[str] = None
+) -> Optional[dict]:
+    """Get flights between two airports using FlightAware API.
+
+    Args:
+        origin_code: Origin airport IATA code
+        dest_code: Destination airport IATA code
+        travel_date: Travel date in YYYY-MM-DD format, defaults to today
+
+    Note: FlightAware API limits searches to 2 days in the future.
+    """
+    try:
+        # Use provided date or default to today
+        if travel_date:
+            search_date = travel_date
+        else:
+            search_date = datetime.now().strftime("%Y-%m-%d")
+
+        # Validate date is not too far in the future (FlightAware limit: 2 days)
+        search_date_obj = datetime.strptime(search_date, "%Y-%m-%d")
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        days_ahead = (search_date_obj - today).days
+
+        if days_ahead > 2:
+            logger.warning(
+                f"Requested date {search_date} is {days_ahead} days ahead, exceeds FlightAware 2-day limit"
+            )
+            return {
+                "origin_code": origin_code,
+                "destination_code": dest_code,
+                "flights": [],
+                "count": 0,
+                "error": f"FlightAware API only provides flight data up to 2 days in the future. The requested date ({search_date}) is {days_ahead} days ahead. Please search for today, tomorrow, or the day after.",
+            }
+
+        url = f"{AEROAPI_BASE_URL}/airports/{origin_code}/flights/to/{dest_code}"
+        headers = {"x-apikey": AEROAPI_KEY}
+        params = {
+            "start": f"{search_date}T00:00:00Z",
+            "end": f"{search_date}T23:59:59Z",
+            "connection": "nonstop",
+            "max_pages": 1,
+        }
+
+        response = await http_client.get(url, headers=headers, params=params)
+
+        if response.status_code != 200:
+            logger.error(
+                f"FlightAware API error {response.status_code}: {response.text}"
+            )
+            return None
+
+        data = response.json()
+        flights = []
+
+        # Log raw API response for debugging
+        logger.info(f"FlightAware API returned {len(data.get('flights', []))} flights")
+
+        for idx, flight_group in enumerate(
+            data.get("flights", [])[:5]
+        ):  # Limit to 5 flights
+            # FlightAware API nests data in segments array
+            segments = flight_group.get("segments", [])
+            if not segments:
+                continue
+
+            flight = segments[0]  # Get first segment (direct flights only have one)
+
+            # Extract airport codes from nested objects
+            flight_origin = None
+            flight_dest = None
+
+            if isinstance(flight.get("origin"), dict):
+                flight_origin = flight["origin"].get("code_iata")
+
+            if isinstance(flight.get("destination"), dict):
+                flight_dest = flight["destination"].get("code_iata")
+
+            # Build flight object
+            flights.append(
+                {
+                    "airline": flight.get("operator"),
+                    "flight_number": flight.get("ident_iata") or flight.get("ident"),
+                    "departure_time": flight.get("scheduled_out"),
+                    "arrival_time": flight.get("scheduled_in"),
+                    "origin": flight_origin,
+                    "destination": flight_dest,
+                    "aircraft_type": flight.get("aircraft_type"),
+                    "status": flight.get("status"),
+                    "terminal_origin": flight.get("terminal_origin"),
+                    "gate_origin": flight.get("gate_origin"),
+                }
+            )
+
+        return {
+            "origin_code": origin_code,
+            "destination_code": dest_code,
+            "flights": flights,
+            "count": len(flights),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching flights: {e}")
+        return None
+
+
+
+Key Points:
+
+Use async HTTP clients (like httpx.AsyncClient) for non-blocking API calls
+
+Transform external API responses into consistent, structured formats
+
+Handle errors gracefully with fallback values
+
+Cache or validate data when appropriate (e.g., airport code validation)
+
+Preparing Context and Generating Responses
+
+Agents combine extracted information, API data, and conversation history to generate responses:
+
+Weather Agent - Context Preparation and Response Generation
+
+    last_user_msg = get_last_user_content(messages)
+    days = 1
+
+    if "forecast" in last_user_msg or "week" in last_user_msg:
+        days = 7
+    elif "tomorrow" in last_user_msg:
+        days = 2
+
+    # Extract specific number of days if mentioned (e.g., "5 day forecast")
+    import re
+
+    day_match = re.search(r"(\d{1,2})\s+day", last_user_msg)
+    if day_match:
+        requested_days = int(day_match.group(1))
+        days = min(requested_days, 16)  # API supports max 16 days
+
+    # Get live weather data (location extraction happens inside this function)
+    weather_data = await get_weather_data(request, messages, days)
+
+    # Create weather context to append to user message
+    forecast_type = "forecast" if days > 1 else "current weather"
+    weather_context = f"""
+
+Weather data for {weather_data['location']} ({forecast_type}):
+{json.dumps(weather_data, indent=2)}"""
+
+    # System prompt for weather agent
+    instructions = """You are a weather assistant in a multi-agent system. You will receive weather data in JSON format with these fields:
+
+    - "location": City name
+    - "forecast": Array of weather objects, each with date, day_name, temperature_c, temperature_f, temperature_max_c, temperature_min_c, weather_code, sunrise, sunset
+    - weather_code: WMO code (0=clear, 1-3=partly cloudy, 45-48=fog, 51-67=rain, 71-86=snow, 95-99=thunderstorm)
+
+    Your task:
+    1. Present the weather/forecast clearly for the location
+    2. For single day: show current conditions
+    3. For multi-day: show each day with date and conditions
+    4. Include temperature in both Celsius and Fahrenheit
+    5. Describe conditions naturally based on weather_code
+    6. Use conversational language
+
+    Important: If the conversation includes information from other agents (like flight details), acknowledge and build upon that context naturally. Your primary focus is weather, but maintain awareness of the full conversation.
+
+    Remember: Only use the provided data. If fields are null, mention data is unavailable."""
+
+    # Build message history with weather data appended to the last user message
+    response_messages = [{"role": "system", "content": instructions}]
+
+    for i, msg in enumerate(messages):
+        # Append weather data to the last user message
+        if i == len(messages) - 1 and msg.get("role") == "user":
+            response_messages.append(
+                {"role": "user", "content": msg.get("content") + weather_context}
+            )
+        else:
+            response_messages.append(
+                {"role": msg.get("role"), "content": msg.get("content")}
+            )
+
+    try:
+        ctx = extract(request.headers)
+        extra_headers = {"x-envoy-max-retries": "3"}
+        inject(extra_headers, context=ctx)
+
+        stream = await openai_client_via_plano.chat.completions.create(
+            model=WEATHER_MODEL,
+            messages=response_messages,
+            temperature=request_body.get("temperature", 0.7),
+            max_tokens=request_body.get("max_tokens", 1000),
+            stream=True,
+            extra_headers=extra_headers,
+        )
+
+        async for chunk in stream:
+            if chunk.choices:
+                yield f"data: {chunk.model_dump_json()}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    except Exception as e:
+        logger.error(f"Error generating weather response: {e}")
+
+
+Key Points:
+
+Use system messages to provide structured data to the LLM
+
+Include full conversation history for context-aware responses
+
+Stream responses for better user experience
+
+Route all LLM calls through Plano’s gateway for consistent behavior and observability
+
+Best Practices
+
+Write Clear Agent Descriptions
+
+Agent descriptions are used by Plano-Orchestrator to make routing decisions. Be specific about what each agent handles:
+
+# Good - specific and actionable
+- id: flight_agent
+  description: Get live flight information between airports using FlightAware AeroAPI. Shows real-time flight status, scheduled/estimated/actual departure and arrival times, gate and terminal information, delays, aircraft type, and flight status. Automatically resolves city names to airport codes (IATA/ICAO). Understands conversation context to infer origin/destination from follow-up questions.
+
+# Less ideal - too vague
+- id: flight_agent
+  description: Handles flight queries
+
+Use Conversation Context Effectively
+
+Include conversation history in your extraction and response generation:
+
+# Include conversation context for extraction
+conversation_context = []
+for msg in messages:
+    conversation_context.append({"role": msg.role, "content": msg.content})
+
+# Use recent context (last 10 messages)
+context_messages = conversation_context[-10:] if len(conversation_context) > 10 else conversation_context
+
+Route LLM Calls Through Plano’s Model Proxy
+
+Always route LLM calls through Plano’s Model Proxy for consistent responses, smart routing, and rich observability:
+
+openai_client_via_plano = AsyncOpenAI(
+    base_url=LLM_GATEWAY_ENDPOINT,  # Plano's LLM gateway
+    api_key="EMPTY",
+)
+
+response = await openai_client_via_plano.chat.completions.create(
+    model="openai/gpt-4o",
+    messages=messages,
+    stream=True,
+)
+
+Handle Errors Gracefully
+
+Provide fallback values and clear error messages:
+
+async def get_weather_data(request: Request, messages: list, days: int = 1):
+    try:
+        # ... extraction and API logic ...
+        location = response.choices[0].message.content.strip().strip("\"'`.,!?")
+        if not location or location.upper() == "NOT_FOUND":
+            location = "New York"  # Fallback to default
+        return weather_data
+    except Exception as e:
+        logger.error(f"Error getting weather data: {e}")
+        return {"location": "New York", "weather": {"error": "Could not retrieve weather data"}}
+
+Use Appropriate Models for Tasks
+
+Use smaller, faster models for extraction tasks and larger models for final responses:
+
+# Extraction: Use smaller, faster model
+LOCATION_MODEL = "openai/gpt-4o-mini"
+
+# Final response: Use larger, more capable model
+WEATHER_MODEL = "openai/gpt-4o"
+
+Stream Responses
+
+Stream responses for better user experience:
+
+async def invoke_weather_agent(request: Request, request_body: dict, traceparent_header: str = None):
+    # ... prepare messages with weather data ...
+
+    stream = await openai_client_via_plano.chat.completions.create(
+        model=WEATHER_MODEL,
+        messages=response_messages,
+        temperature=request_body.get("temperature", 0.7),
+        max_tokens=request_body.get("max_tokens", 1000),
+        stream=True,
+        extra_headers=extra_headers,
+    )
+
+    async for chunk in stream:
+        if chunk.choices:
+            yield f"data: {chunk.model_dump_json()}\n\n"
+
+    yield "data: [DONE]\n\n"
+
+Common Use Cases
+
+Multi-agent orchestration is particularly powerful for:
+
+Travel and Booking Systems
+
+Route queries to specialized agents for weather and flights:
+
+agents:
+  - id: weather_agent
+    description: Get real-time weather conditions and forecasts
+  - id: flight_agent
+    description: Search for flights and provide flight status
+
+Customer Support
+
+Route common queries to automated support agents while escalating complex issues:
+
+agents:
+  - id: tier1_support
+    description: Handles common FAQs, password resets, and basic troubleshooting
+  - id: tier2_support
+    description: Handles complex technical issues requiring deep product knowledge
+  - id: human_escalation
+    description: Escalates sensitive issues or unresolved problems to human agents
+
+Sales and Marketing
+
+Direct leads and inquiries to specialized sales agents:
+
+agents:
+  - id: product_recommendation
+    description: Recommends products based on user needs and preferences
+  - id: pricing_agent
+    description: Provides pricing information and quotes
+  - id: sales_closer
+    description: Handles final negotiations and closes deals
+
+Technical Documentation and Support
+
+Combine RAG agents for documentation lookup with specialized troubleshooting agents:
+
+agents:
+  - id: docs_agent
+    description: Retrieves relevant documentation and guides
+    filter_chain:
+      - query_rewriter
+      - context_builder
+  - id: troubleshoot_agent
+    description: Diagnoses and resolves technical issues step by step
+
+Next Steps
+
+Learn more about agents and the inner vs. outer loop model
+
+Explore filter chains for adding guardrails and context enrichment
+
+See observability for monitoring multi-agent workflows
+
+Review the LLM Providers guide for model routing within agents
+
+Check out the complete Travel Booking demo on GitHub
+
+To observe traffic to and from agents, please read more about observability in Plano.
+
+By carefully configuring and managing your Agent routing and hand off, you can significantly improve your application’s responsiveness, performance, and overall user satisfaction.
+
+---
+
+Guardrails
+----------
+Doc: guides/prompt_guard
+
+Guardrails
+
+Guardrails are Plano’s way of applying safety and validation checks to prompts before they reach your application logic. They are typically implemented as
+filters in a Filter Chain attached to an agent, so every request passes through a consistent processing layer.
+
+Why Guardrails
+
+Guardrails are essential for maintaining control over AI-driven applications. They help enforce organizational policies, ensure compliance with regulations
+(like GDPR or HIPAA), and protect users from harmful or inappropriate content. In applications where prompts generate responses or trigger actions, guardrails
+minimize risks like malicious inputs, off-topic queries, or misaligned outputs—adding a consistent layer of input scrutiny that makes interactions safer,
+more reliable, and easier to reason about.
+
+vale Vale.Spelling = NO
+
+Jailbreak Prevention: Detect and filter inputs that attempt to change LLM behavior, expose system prompts, or bypass safety policies.
+
+Domain and Topicality Enforcement: Ensure that agents only respond to prompts within an approved domain (for example, finance-only or healthcare-only use cases) and reject unrelated queries.
+
+Dynamic Error Handling: Provide clear error messages when requests violate policy, helping users correct their inputs.
+
+How Guardrails Work
+
+Guardrails can be implemented as either in-process MCP filters or as HTTP-based filters. HTTP filters are external services that receive the request over HTTP, validate it, and return a response to allow or reject the request. This makes it easy to use filters written in any language or run them as independent services.
+
+Each filter receives the chat messages, evaluates them against policy, and either lets the request continue or raises a ToolError (or returns an error response) to reject it with a helpful error message.
+
+The example below shows an input guard for TechCorp’s customer support system that validates queries are within the company’s domain:
+
+Example domain validation guard using FastMCP
+
+from typing import List
+from fastmcp.exceptions import ToolError
+from . import mcp
+
+@mcp.tool
+async def input_guards(messages: List[ChatMessage]) -> List[ChatMessage]:
+    """Validates queries are within TechCorp's domain."""
+
+    # Get the user's query
+    user_query = next(
+        (msg.content for msg in reversed(messages) if msg.role == "user"),
+        ""
+    )
+
+    # Use an LLM to validate the query scope (simplified)
+    is_valid = await validate_with_llm(user_query)
+
+    if not is_valid:
+        raise ToolError(
+            "I can only assist with questions related to TechCorp and its services. "
+            "Please ask about TechCorp's products, pricing, SLAs, or technical support."
+        )
+
+    return messages
+
+To wire this guardrail into Plano, define the filter and add it to your agent’s filter chain:
+
+Plano configuration with input guard filter
+
+filters:
+  - id: input_guards
+    url: http://localhost:10500
+
+listeners:
+  - type: agent
+    name: agent_1
+    port: 8001
+    router: plano_orchestrator_v1
+    agents:
+      - id: rag_agent
+        description: virtual assistant for retrieval augmented generation tasks
+        filter_chain:
+          - input_guards
+
+When a request arrives at agent_1, Plano invokes the input_guards filter first. If validation passes, the request continues to
+the agent. If validation fails (ToolError raised), Plano returns an error response to the caller.
+
+Testing the Guardrail
+
+Here’s an example of the guardrail in action, rejecting a query about Apple Corporation (outside TechCorp’s domain):
+
+Request that violates the guardrail policy
+
+curl -X POST http://localhost:8001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is sla for apple corporation?"
+      }
+    ],
+    "stream": false
+  }'
+
+Error response from the guardrail
+
+{
+  "error": "ClientError",
+  "agent": "input_guards",
+  "status": 400,
+  "agent_response": "I apologize, but I can only assist with questions related to TechCorp and its services. Your query appears to be outside this scope. The query is about SLA for Apple Corporation, which is unrelated to TechCorp.\n\nPlease ask me about TechCorp's products, services, pricing, SLAs, or technical support."
+}
+
+This prevents out-of-scope queries from reaching your agent while providing clear feedback to users about why their request was rejected.
+
+---
+
+Conversational State
+--------------------
+Doc: guides/state
+
+Conversational State
+
+The OpenAI Responses API (v1/responses) is designed for multi-turn conversations where context needs to persist across requests. Plano provides a unified v1/responses API that works with any LLM provider—OpenAI, Anthropic, Azure OpenAI, DeepSeek, or any OpenAI-compatible provider—while automatically managing conversational state for you.
+
+Unlike the traditional Chat Completions API where you manually manage conversation history by including all previous messages in each request, Plano handles state management behind the scenes. This means you can use the Responses API with any model provider, and Plano will persist conversation context across requests—making it ideal for building conversational agents that remember context without bloating every request with full message history.
+
+How It Works
+
+When a client calls the Responses API:
+
+First request: Plano generates a unique resp_id and stores the conversation state (messages, model, provider, timestamp).
+
+Subsequent requests: The client includes the previous_resp_id from the previous response. Plano retrieves the stored conversation state, merges it with the new input, and sends the combined context to the LLM.
+
+Response: The LLM sees the full conversation history without the client needing to resend all previous messages.
+
+This pattern dramatically reduces bandwidth and makes it easier to build multi-turn agents—Plano handles the state plumbing so you can focus on agent logic.
+
+Example Using OpenAI Python SDK:
+
+from openai import OpenAI
+
+# Point to Plano's Model Proxy endpoint
+client = OpenAI(
+    api_key="test-key",
+    base_url="http://127.0.0.1:12000/v1"
+)
+
+# First turn - Plano creates a new conversation state
+response = client.responses.create(
+    model="claude-sonnet-4-5",  # Works with any configured provider
+    input="My name is Alice and I like Python"
+)
+
+# Save the response_id for conversation continuity
+resp_id = response.id
+print(f"Assistant: {response.output_text}")
+
+# Second turn - Plano automatically retrieves previous context
+resp2 = client.responses.create(
+    model="claude-sonnet-4-5", # Make sure its configured in plano_config.yaml
+    input="Please list all the messages you have received in our conversation, numbering each one.",
+    previous_response_id=resp_id,
+)
+
+print(f"Assistant: {resp2.output_text}")
+# Output: "Your name is Alice and your favorite language is Python"
+
+Notice how the second request only includes the new user message—Plano automatically merges it with the stored conversation history before sending to the LLM.
+
+Configuration Overview
+
+State storage is configured in the state_storage section of your plano_config.yaml:
+
+state_storage:
+  # Type: memory | postgres
+  type: postgres
+
+  # Connection string for postgres type
+  # Environment variables are supported using $VAR_NAME or ${VAR_NAME} syntax
+  # Replace [USER] and [HOST] with your actual database credentials
+  # Variables like $DB_PASSWORD MUST be set before running config validation/rendering
+  # Example: Replace [USER] with 'myuser' and [HOST] with 'db.example.com:5432'
+  connection_string: "postgresql://[USER]:$DB_PASSWORD@[HOST]:5432/postgres"
+
+
+Plano supports two storage backends:
+
+Memory: Fast, ephemeral storage for development and testing. State is lost when Plano restarts.
+
+PostgreSQL: Durable, production-ready storage with support for Supabase and self-hosted PostgreSQL instances.
+
+If you don’t configure state_storage, conversation state management is disabled. The Responses API will still work, but clients must manually include full conversation history in each request (similar to the Chat Completions API behavior).
+
+Memory Storage (Development)
+
+Memory storage keeps conversation state in-memory using a thread-safe HashMap. It’s perfect for local development, demos, and testing, but all state is lost when Plano restarts.
+
+Configuration
+
+Add this to your plano_config.yaml:
+
+state_storage:
+  type: memory
+
+That’s it. No additional setup required.
+
+When to Use Memory Storage
+
+Local development and debugging
+
+Demos and proof-of-concepts
+
+Automated testing environments
+
+Single-instance deployments where persistence isn’t critical
+
+Limitations
+
+State is lost on restart
+
+Not suitable for production workloads
+
+Cannot scale across multiple Plano instances
+
+PostgreSQL Storage (Production)
+
+PostgreSQL storage provides durable, production-grade conversation state management. It works with both self-hosted PostgreSQL and Supabase (PostgreSQL-as-a-service), making it ideal for scaling multi-agent systems in production.
+
+Prerequisites
+
+Before configuring PostgreSQL storage, you need:
+
+A PostgreSQL database (version 12 or later)
+
+Database credentials (host, user, password)
+
+The conversation_states table created in your database
+
+Setting Up the Database
+
+Run the SQL schema to create the required table:
+
+-- Conversation State Storage Table
+-- This table stores conversational context for the OpenAI Responses API
+-- Run this SQL against your PostgreSQL/Supabase database before enabling conversation state storage
+
+CREATE TABLE IF NOT EXISTS conversation_states (
+    response_id TEXT PRIMARY KEY,
+    input_items JSONB NOT NULL,
+    created_at BIGINT NOT NULL,
+    model TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_conversation_states_created_at
+    ON conversation_states(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_states_provider
+    ON conversation_states(provider);
+
+-- Optional: Add a policy for automatic cleanup of old conversations
+-- Uncomment and adjust the retention period as needed
+-- CREATE INDEX IF NOT EXISTS idx_conversation_states_updated_at
+--     ON conversation_states(updated_at);
+
+COMMENT ON TABLE conversation_states IS 'Stores conversation history for OpenAI Responses API continuity';
+COMMENT ON COLUMN conversation_states.response_id IS 'Unique identifier for the conversation state';
+COMMENT ON COLUMN conversation_states.input_items IS 'JSONB array of conversation messages and context';
+COMMENT ON COLUMN conversation_states.created_at IS 'Unix timestamp (seconds) when the conversation started';
+COMMENT ON COLUMN conversation_states.model IS 'Model name used for this conversation';
+COMMENT ON COLUMN conversation_states.provider IS 'LLM provider (e.g., openai, anthropic, bedrock)';
+
+
+Using psql:
+
+psql $DATABASE_URL -f docs/db_setup/conversation_states.sql
+
+Using Supabase Dashboard:
+
+Log in to your Supabase project
+
+Navigate to the SQL Editor
+
+Copy and paste the SQL from docs/db_setup/conversation_states.sql
+
+Run the query
+
+Configuration
+
+Once the database table is created, configure Plano to use PostgreSQL storage:
+
+state_storage:
+  type: postgres
+  connection_string: "postgresql://user:password@host:5432/database"
+
+Using Environment Variables
+
+You should never hardcode credentials. Use environment variables instead:
+
+state_storage:
+  type: postgres
+  connection_string: "postgresql://myuser:$DB_PASSWORD@db.example.com:5432/postgres"
+
+Then set the environment variable before running Plano:
+
+export DB_PASSWORD="your-secure-password"
+# Run Plano or config validation
+./plano
+
+Special Characters in Passwords: If your password contains special characters like #, @, or &, you must URL-encode them in the connection string. For example, MyPass#123 becomes MyPass%23123.
+
+Supabase Connection Strings
+
+Supabase requires different connection strings depending on your network setup. Most users should use the Session Pooler connection string.
+
+IPv4 Networks (Most Common)
+
+Use the Session Pooler connection string (port 5432):
+
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+
+IPv6 Networks
+
+Use the direct connection (port 5432):
+
+postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+
+Finding Your Connection String
+
+Go to your Supabase project dashboard
+
+Navigate to Settings → Database → Connection Pooling
+
+Copy the Session mode connection string
+
+Replace [YOUR-PASSWORD] with your actual database password
+
+URL-encode special characters in the password
+
+Example Configuration
+
+state_storage:
+  type: postgres
+  connection_string: "postgresql://postgres.myproject:$DB_PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
+
+Then set the environment variable:
+
+# If your password is "MyPass#123", encode it as "MyPass%23123"
+export DB_PASSWORD="MyPass%23123"
+
+Troubleshooting
+
+“Table ‘conversation_states’ does not exist”
+
+Run the SQL schema from docs/db_setup/conversation_states.sql against your database.
+
+Connection errors with Supabase
+
+Verify you’re using the correct connection string format (Session Pooler for IPv4)
+
+Check that your password is URL-encoded if it contains special characters
+
+Ensure your Supabase project hasn’t paused due to inactivity (free tier)
+
+Permission errors
+
+Ensure your database user has the following permissions:
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON conversation_states TO your_user;
+
+State not persisting across requests
+
+Verify state_storage is configured in your plano_config.yaml
+
+Check Plano logs for state storage initialization messages
+
+Ensure the client is sending the prev_response_id={$response_id} from previous responses
+
+Best Practices
+
+Use environment variables for credentials: Never hardcode database passwords in configuration files.
+
+Start with memory storage for development: Switch to PostgreSQL when moving to production.
+
+Implement cleanup policies: Prevent unbounded growth by regularly archiving or deleting old conversations.
+
+Monitor storage usage: Track conversation state table size and query performance in production.
+
+Test failover scenarios: Ensure your application handles storage backend failures gracefully.
+
+Next Steps
+
+Learn more about building agents that leverage conversational state
+
+Explore filter chains for enriching conversation context
+
+See the LLM Providers guide for configuring model routing
+
+---
+
+Welcome to Plano!
+-----------------
+Doc: index
+
+Welcome to Plano!
+
+
+
+Plano is delivery infrastructure for agentic apps. A models-native proxy server and data plane designed to help you build agents faster, and deliver them reliably to production.
+
+Plano pulls out the rote plumbing work (aka “hidden AI middleware”) and decouples you from brittle, ever‑changing framework abstractions. It centralizes what shouldn’t be bespoke in every codebase like agent routing and orchestration, rich agentic signals and traces for continuous improvement, guardrail filters for safety and moderation, and smart LLM routing APIs for UX and DX agility. Use any language or AI framework, and ship agents to production faster with Plano.
+
+Built by contributors to the widely adopted Envoy Proxy, Plano helps developers focus more on the core product logic of agents, product teams accelerate feedback loops for reinforcement learning, and engineering teams standardize policies and access controls across every agent and LLM for safer, more reliable scaling.
+
+Get Started
+
+
+
+Concepts
+
+
+
+Guides
+
+
+
+Resources
+
+---
+
+Configuration Reference
+-----------------------
+Doc: resources/configuration_reference
+
+Configuration Reference
+
+The following is a complete reference of the plano_config.yml that controls the behavior of a single instance of
+the Arch gateway. This where you enable capabilities like routing to upstream LLm providers, defining prompt_targets
+where prompts get routed to, apply guardrails, and enable critical agent observability features.
+
+Plano Configuration - Full Reference
+
+
+# Arch Gateway configuration version
+version: v0.3.0
+
+
+# External HTTP agents - API type is controlled by request path (/v1/responses, /v1/messages, /v1/chat/completions)
+agents:
+  - id: weather_agent  # Example agent for weather
+    url: http://host.docker.internal:10510
+
+  - id: flight_agent   # Example agent for flights
+    url: http://host.docker.internal:10520
+
+
+# MCP filters applied to requests/responses (e.g., input validation, query rewriting)
+filters:
+  - id: input_guards  # Example filter for input validation
+    url: http://host.docker.internal:10500
+    # type: mcp (default)
+    # transport: streamable-http (default)
+    # tool: input_guards (default - same as filter id)
+
+
+# LLM provider configurations with API keys and model routing
+model_providers:
+  - model: openai/gpt-4o
+    access_key: $OPENAI_API_KEY
+    default: true
+
+  - model: openai/gpt-4o-mini
+    access_key: $OPENAI_API_KEY
+
+  - model: anthropic/claude-sonnet-4-0
+    access_key: $ANTHROPIC_API_KEY
+
+  - model: mistral/ministral-3b-latest
+    access_key: $MISTRAL_API_KEY
+
+
+# Model aliases - use friendly names instead of full provider model names
+model_aliases:
+  fast-llm:
+    target: gpt-4o-mini
+
+  smart-llm:
+    target: gpt-4o
+
+
+# HTTP listeners - entry points for agent routing, prompt targets, and direct LLM access
+listeners:
+  # Agent listener for routing requests to multiple agents
+  - type: agent
+    name: travel_booking_service
+    port: 8001
+    router: plano_orchestrator_v1
+    address: 0.0.0.0
+    agents:
+      - id: rag_agent
+        description: virtual assistant for retrieval augmented generation tasks
+        filter_chain:
+          - input_guards
+
+  # Model listener for direct LLM access
+  - type: model
+    name: model_1
+    address: 0.0.0.0
+    port: 12000
+
+  # Prompt listener for function calling (for prompt_targets)
+  - type: prompt
+    name: prompt_function_listener
+    address: 0.0.0.0
+    port: 10000
+    # This listener is used for prompt_targets and function calling
+
+
+# Reusable service endpoints
+endpoints:
+  app_server:
+    endpoint: 127.0.0.1:80
+    connect_timeout: 0.005s
+
+  mistral_local:
+    endpoint: 127.0.0.1:8001
+
+
+# Prompt targets for function calling and API orchestration
+prompt_targets:
+  - name: get_current_weather
+    description: Get current weather at a location.
+    parameters:
+      - name: location
+        description: The location to get the weather for
+        required: true
+        type: string
+        format: City, State
+      - name: days
+        description: the number of days for the request
+        required: true
+        type: int
+    endpoint:
+      name: app_server
+      path: /weather
+      http_method: POST
+
+
+# OpenTelemetry tracing configuration
+tracing:
+  # Random sampling percentage (1-100)
+  random_sampling: 100
+
+---
+
+Deployment
+----------
+Doc: resources/deployment
+
+Deployment
+
+This guide shows how to deploy Plano directly using Docker without the plano CLI, including basic runtime checks for routing and health monitoring.
+
+Docker Deployment
+
+Below is a minimal, production-ready example showing how to deploy the Plano  Docker image directly and run basic runtime checks. Adjust image names, tags, and the plano_config.yaml path to match your environment.
+
+You will need to pass all required environment variables that are referenced in your plano_config.yaml file.
+
+For plano_config.yaml, you can use any sample configuration defined earlier in the documentation. For example, you can try the LLM Routing sample config.
+
+Docker Compose Setup
+
+Create a docker-compose.yml file with the following configuration:
+
+# docker-compose.yml
+services:
+  plano:
+    image: katanemo/plano:0.4.0
+    container_name: plano
+    ports:
+      - "10000:10000" # ingress (client -> plano)
+      - "12000:12000" # egress (plano -> upstream/llm proxy)
+    volumes:
+      - ./plano_config.yaml:/app/plano_config.yaml:ro
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?error}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?error}
+
+Starting the Stack
+
+Start the services from the directory containing docker-compose.yml and plano_config.yaml:
+
+# Set required environment variables and start services
+OPENAI_API_KEY=xxx ANTHROPIC_API_KEY=yyy docker compose up -d
+
+Check container health and logs:
+
+docker compose ps
+docker compose logs -f plano
+
+Runtime Tests
+
+Perform basic runtime tests to verify routing and functionality.
+
+Gateway Smoke Test
+
+Test the chat completion endpoint with automatic routing:
+
+# Request handled by the gateway. 'model: "none"' lets Plano  decide routing
+curl --header 'Content-Type: application/json' \
+  --data '{"messages":[{"role":"user","content":"tell me a joke"}], "model":"none"}' \
+  http://localhost:12000/v1/chat/completions | jq .model
+
+Expected output:
+
+"gpt-5.2"
+
+Model-Based Routing
+
+Test explicit provider and model routing:
+
+curl -s -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Explain quantum computing"}], "model":"anthropic/claude-sonnet-4-5"}' \
+  http://localhost:12000/v1/chat/completions | jq .model
+
+Expected output:
+
+"claude-sonnet-4-5"
+
+Troubleshooting
+
+Common Issues and Solutions
+
+Environment Variables
+
+Ensure all environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) used by plano_config.yaml are set before starting services.
+
+TLS/Connection Errors
+
+If you encounter TLS or connection errors to upstream providers:
+
+Check DNS resolution
+
+Verify proxy settings
+
+Confirm correct protocol and port in your plano_config endpoints
+
+Verbose Logging
+
+To enable more detailed logs for debugging:
+
+Run plano with a higher component log level
+
+See the Observability guide for logging and monitoring details
+
+Rebuild the image if required with updated log configuration
+
+CI/Automated Checks
+
+For continuous integration or automated testing, you can use the curl commands above as health checks in your deployment pipeline.
+
+---
+
+llms.txt
+--------
+Doc: resources/llms_txt
+
+llms.txt
+
+This project generates a single plaintext file containing the compiled text of all documentation pages, useful for large context models to reference Plano documentation.
+
+Open it here: llms.txt
+
+---
+
+Bright Staff
+------------
+Doc: resources/tech_overview/model_serving
+
+Bright Staff
+
+Bright Staff is Plano’s memory-efficient, lightweight controller for agentic traffic. It sits inside the Plano
+data plane and makes real-time decisions about how prompts are handled, forwarded, and processed.
+
+Rather than running a separate “model server” subsystem, Plano relies on Envoy’s HTTP connection management
+and cluster subsystem to talk to different models and backends over HTTP(S). Bright Staff uses these primitives to:
+* Inspect prompts, conversation state, and metadata.
+* Decide which upstream model(s), tool backends, or APIs to call, and in what order.
+* Coordinate retries, fallbacks, and traffic splitting across providers and models.
+
+Plano is designed to run alongside your application servers in your cloud VPC, on-premises, or in local
+development. It does not require a GPU itself; GPUs live where your models are hosted (third-party APIs or your
+own deployments), and Plano reaches them via HTTP.
+
+---
+
+Request Lifecycle
+-----------------
+Doc: resources/tech_overview/request_lifecycle
+
+Request Lifecycle
+
+Below we describe the events in the lifecycle of a request passing through a Plano instance. We first
+describe how Plano fits into the request path and then the internal events that take place following
+the arrival of a request at Plano from downstream clients. We follow the request until the corresponding
+dispatch upstream and the response path.
+
+
+
+Network topology
+
+How a request flows through the components in a network (including Plano) depends on the network’s topology.
+Plano can be used in a wide variety of networking topologies. We focus on the inner operations of Plano below,
+but briefly we address how Plano relates to the rest of the network in this section.
+
+Downstream(Ingress) listeners take requests from upstream clients like a web UI or clients that forward
+prompts to you local application responses from the application flow back through Plano to the downstream.
+
+Upstream(Egress) listeners take requests from the application and forward them to LLMs.
+
+High level architecture
+
+Plano is a set of two self-contained processes that are designed to run alongside your application servers
+(or on a separate server connected to your application servers via a network).
+
+The first process is designated to manage HTTP-level networking and connection management concerns (protocol management, request id generation, header sanitization, etc.), and the other process is a controller, which helps Plano make intelligent decisions about the incoming prompts. The controller hosts the purpose-built LLMs to manage several critical, but undifferentiated, prompt related tasks on behalf of developers.
+
+The request processing path in Plano has three main parts:
+
+Listener subsystem which handles downstream and upstream request
+processing. It is responsible for managing the inbound(edge) and outbound(egress) request lifecycle. The downstream and upstream HTTP/2 codec lives here. This also includes the lifecycle of any upstream connection to an LLM provider or tool backend. The listenser subsystmem manages connection pools, load balancing, retries, and failover.
+
+Bright Staff controller subsystem is Plano’s memory-efficient, lightweight controller for agentic traffic. It sits inside the Plano data plane and makes real-time decisions about how prompts are handled, forwarded, and processed.
+
+These two subsystems are bridged with either the HTTP router filter, and the cluster manager subsystems of Envoy.
+
+Also, Plano utilizes Envoy event-based thread model. A main thread is responsible for the server lifecycle, configuration processing, stats, etc. and some number of worker threads process requests. All threads operate around an event loop (libevent) and any given downstream TCP connection will be handled by exactly one worker thread for its lifetime. Each worker thread maintains its own pool of TCP connections to upstream endpoints.
+
+Worker threads rarely share state and operate in a trivially parallel fashion. This threading model
+enables scaling to very high core count CPUs.
+
+Request Flow (Ingress)
+
+A brief outline of the lifecycle of a request and response using the example configuration above:
+
+TCP Connection Establishment:
+A TCP connection from downstream is accepted by an Plano listener running on a worker thread.
+The listener filter chain provides SNI and other pre-TLS information. The transport socket, typically TLS,
+decrypts incoming data for processing.
+
+Routing Decision (Agent vs Prompt Target):
+The decrypted data stream is de-framed by the HTTP/2 codec in Plano’s HTTP connection manager. Plano performs
+intent matching (via the Bright Staff controller and prompt-handling logic) using the configured agents and
+prompt targets, determining whether this request should be handled by an agent workflow
+(with optional Filter Chains) or by a deterministic prompt target.
+
+4a. Agent Path: Orchestration and Filter Chains
+
+If the request is routed to an agent, Plano executes any attached Filter Chains first. These filters can apply guardrails, rewrite prompts, or enrich context (for example, RAG retrieval) before the agent runs. Once filters complete, the Bright Staff controller orchestrates which downstream tools, APIs, or LLMs the agent should call and in what sequence.
+
+Plano may call one or more backend APIs or tools on behalf of the agent.
+
+If an endpoint cluster is identified, load balancing is performed, circuit breakers are checked, and the request is proxied to the appropriate upstream endpoint.
+
+If no specific endpoint is required, the prompt is sent to an upstream LLM using Plano’s model proxy for
+completion or summarization.
+
+For more on agent workflows and orchestration, see Prompt Targets and Agents and
+Agent Filter Chains.
+
+4b. Prompt Target Path: Deterministic Tool/API Calls
+
+If the request is routed to a prompt target, Plano treats it as a deterministic, task-specific call.
+Plano engages its function-calling and parameter-gathering capabilities to extract the necessary details
+from the incoming prompt(s) and produce the structured inputs your backend expects.
+
+Parameter Gathering: Plano extracts and validates parameters defined on the prompt target (for example,
+currency symbols, dates, or entity identifiers) so your backend does not need to parse natural language.
+
+API Call Execution: Plano then routes the call to the configured backend endpoint. If an endpoint cluster is identified, load balancing and circuit-breaker checks are applied before proxying the request upstream.
+
+For more on how to design and configure prompt targets, see Prompt Target.
+
+Error Handling and Forwarding:
+Errors encountered during processing, such as failed function calls or guardrail detections, are forwarded to
+designated error targets. Error details are communicated through specific headers to the application:
+
+X-Function-Error-Code: Code indicating the type of function call error.
+
+X-Prompt-Guard-Error-Code: Code specifying violations detected by prompt guardrails.
+
+Additional headers carry messages and timestamps to aid in debugging and logging.
+
+Response Handling:
+The upstream endpoint’s TLS transport socket encrypts the response, which is then proxied back downstream.
+Responses pass through HTTP filters in reverse order, ensuring any necessary processing or modification before final delivery.
+
+Request Flow (Egress)
+
+A brief outline of the lifecycle of a request and response in the context of egress traffic from an application to Large Language Models (LLMs) via Plano:
+
+HTTP Connection Establishment to LLM:
+Plano initiates an HTTP connection to the upstream LLM service. This connection is handled by Plano’s egress listener running on a worker thread. The connection typically uses a secure transport protocol such as HTTPS, ensuring the prompt data is encrypted before being sent to the LLM service.
+
+Rate Limiting:
+Before sending the request to the LLM, Plano applies rate-limiting policies to ensure that the upstream LLM service is not overwhelmed by excessive traffic. Rate limits are enforced per client or service, ensuring fair usage and preventing accidental or malicious overload. If the rate limit is exceeded, Plano may return an appropriate HTTP error (e.g., 429 Too Many Requests) without sending the prompt to the LLM.
+
+Seamless Request Transformation and Smart Routing:
+After rate limiting, Plano normalizes the outgoing request into a provider-agnostic shape and applies smart routing decisions using the configured LLM Providers. This includes translating client-specific conventions into a unified OpenAI-style contract, enriching or overriding parameters (for example, temperature or max tokens) based on policy, and choosing the best target model or provider using model-based, alias-based, or preference-aligned routing.
+
+Load Balancing to (hosted) LLM Endpoints:
+After smart routing selects the target provider/model, Plano routes the prompt to the appropriate LLM endpoint.
+If multiple LLM provider instances are available, load balancing is performed to distribute traffic evenly
+across the instances. Plano checks the health of the LLM endpoints using circuit breakers and health checks,
+ensuring that the prompt is only routed to a healthy, responsive instance.
+
+Response Reception and Forwarding:
+Once the LLM processes the prompt, Plano receives the response from the LLM service. The response is typically a generated text, completion, or summarization. Upon reception, Plano decrypts (if necessary) and handles the response, passing it through any egress processing pipeline defined by the application, such as logging or additional response filtering.
+
+Post-request processing
+
+Once a request completes, the stream is destroyed. The following also takes places:
+
+The post-request monitoring are updated (e.g. timing, active requests, upgrades, health checks).
+Some statistics are updated earlier however, during request processing. Stats are batched and written by the main
+thread periodically.
+
+Access logs are written to the access log
+
+Trace spans are finalized. If our example request was traced, a
+trace span, describing the duration and details of the request would be created by the HCM when
+processing request headers and then finalized by the HCM during post-request processing.
+
+Configuration
+
+Today, only support a static bootstrap configuration file for simplicity today:
+
+version: v0.2.0
+
+listeners:
+  ingress_traffic:
+    address: 0.0.0.0
+    port: 10000
+
+# Centralized way to manage LLMs, manage keys, retry logic, failover and limits in a central way
+model_providers:
+  - access_key: $OPENAI_API_KEY
+    model: openai/gpt-4o
+    default: true
+
+prompt_targets:
+  - name: information_extraction
+    default: true
+    description: handel all scenarios that are question and answer in nature. Like summarization, information extraction, etc.
+    endpoint:
+      name: app_server
+      path: /agent/summary
+    # Arch uses the default LLM and treats the response from the endpoint as the prompt to send to the LLM
+    auto_llm_dispatch_on_response: true
+    # override system prompt for this prompt target
+    system_prompt: You are a helpful information extraction assistant. Use the information that is provided to you.
+
+  - name: reboot_network_device
+    description: Reboot a specific network device
+    endpoint:
+      name: app_server
+      path: /agent/action
+    parameters:
+      - name: device_id
+        type: str
+        description: Identifier of the network device to reboot.
+        required: true
+      - name: confirmation
+        type: bool
+        description: Confirmation flag to proceed with reboot.
+        default: false
+        enum: [true, false]
+
+# Arch creates a round-robin load balancing between different endpoints, managed via the cluster subsystem.
+endpoints:
+  app_server:
+    # value could be ip address or a hostname with port
+    # this could also be a list of endpoints for load balancing
+    # for example endpoint: [ ip1:port, ip2:port ]
+    endpoint: 127.0.0.1:80
+    # max time to wait for a connection to be established
+    connect_timeout: 0.005s
+
+---
+
+Tech Overview
+-------------
+Doc: resources/tech_overview/tech_overview
+
+Tech Overview
+
+---
+
+Threading Model
+---------------
+Doc: resources/tech_overview/threading_model
+
+Threading Model
+
+Plano builds on top of Envoy’s single process with multiple threads architecture.
+
+A single primary thread controls various sporadic coordination tasks while some number of worker
+threads perform filtering, and forwarding.
+
+Once a connection is accepted, the connection spends the rest of its lifetime bound to a single worker
+thread. All the functionality around prompt handling from a downstream client is handled in a separate worker thread.
+This allows the majority of Plano to be largely single threaded (embarrassingly parallel) with a small amount
+of more complex code handling coordination between the worker threads.
+
+Generally, Plano is written to be 100% non-blocking.
+
+For most workloads we recommend configuring the number of worker threads to be equal to the number of
+hardware threads on the machine.
+
+---

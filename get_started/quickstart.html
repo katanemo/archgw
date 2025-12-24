@@ -7,19 +7,19 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Quickstart | Arch Docs v0.3.22</title>
-<meta content="Quickstart | Arch Docs v0.3.22" property="og:title"/>
-<meta content="Quickstart | Arch Docs v0.3.22" name="twitter:title"/>
+<title>Quickstart | Plano Docs v0.4</title>
+<meta content="Quickstart | Plano Docs v0.4" property="og:title"/>
+<meta content="Quickstart | Plano Docs v0.4" name="twitter:title"/>
 <link href="../_static/pygments.css?v=466e7b45" rel="stylesheet" type="text/css"/>
 <link href="../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
-<link href="../_static/_static/custom.css" rel="stylesheet" type="text/css"/>
 <link href="../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../_static/css/custom.css?v=2929376a" rel="stylesheet" type="text/css"/>
 <link href="../_static/awesome-sphinx-design.css?v=15e0fffa" rel="stylesheet" type="text/css"/>
 <link href="./docs/get_started/quickstart.html" rel="canonical"/>
 <link href="../_static/favicon.ico" rel="icon"/>
 <link href="../search.html" rel="search" title="Search"/>
-<link href="../concepts/tech_overview/tech_overview.html" rel="next" title="Tech Overview"/>
-<link href="intro_to_arch.html" rel="prev" title="Intro to Arch"/>
+<link href="../concepts/listeners.html" rel="next" title="Listeners"/>
+<link href="intro_to_plano.html" rel="prev" title="Intro to Plano"/>
 <script>
     <!-- Prevent Flash of wrong theme -->
       const userPreference = localStorage.getItem('darkMode');
@@ -39,7 +39,7 @@
     </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
 <div class="hidden mr-4 md:flex">
 <a class="flex items-center mr-6" href="../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
 <svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
 <path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
@@ -56,7 +56,7 @@
 </form>
 </div>
 <nav class="flex items-center space-x-1">
-<a href="https://github.com/katanemo/arch" rel="noopener nofollow" title="Visit repository on GitHub">
+<a href="https://github.com/katanemo/plano" rel="noopener nofollow" title="Visit repository on GitHub">
 <div class="inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md disabled:opacity-50 disabled:pointer-events-none hover:bg-accent hover:text-accent-foreground h-9 w-9">
 <svg fill="currentColor" height="26px" style="margin-top:-2px;display:inline" viewbox="0 0 45 44" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M22.477.927C10.485.927.76 10.65.76 22.647c0 9.596 6.223 17.736 14.853 20.608 1.087.2 1.483-.47 1.483-1.047 0-.516-.019-1.881-.03-3.693-6.04 1.312-7.315-2.912-7.315-2.912-.988-2.51-2.412-3.178-2.412-3.178-1.972-1.346.149-1.32.149-1.32 2.18.154 3.327 2.24 3.327 2.24 1.937 3.318 5.084 2.36 6.321 1.803.197-1.403.759-2.36 1.379-2.903-4.823-.548-9.894-2.412-9.894-10.734 0-2.37.847-4.31 2.236-5.828-.224-.55-.969-2.759.214-5.748 0 0 1.822-.584 5.972 2.226 1.732-.482 3.59-.722 5.437-.732 1.845.01 3.703.25 5.437.732 4.147-2.81 5.967-2.226 5.967-2.226 1.185 2.99.44 5.198.217 5.748 1.392 1.517 2.232 3.457 2.232 5.828 0 8.344-5.078 10.18-9.916 10.717.779.67 1.474 1.996 1.474 4.021 0 2.904-.027 5.247-.027 5.96 0 .58.392 1.256 1.493 1.044C37.981 40.375 44.2 32.24 44.2 22.647c0-11.996-9.726-21.72-21.722-21.72" fill="currentColor" fill-rule="evenodd"></path></svg>
 </div>
@@ -75,40 +75,33 @@
 </header>
 <div class="flex-1"><div class="container flex-1 items-start md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full shrink-0 overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
 <a class="!justify-start text-sm md:!hidden bg-background" href="../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a>
 <div class="relative overflow-hidden md:overflow-auto my-4 md:my-0 h-[calc(100vh-8rem)] md:h-auto">
 <div class="overflow-y-auto h-full w-full relative pr-6">
 
-<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-K2LXXSX6HB"></script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EH2VW19FXE"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'G-K2LXXSX6HB');
+  gtag('config', 'G-EH2VW19FXE');
 </script>
 <nav class="table w-full min-w-full my-6 lg:my-8">
 <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="intro_to_arch.html">Intro to Arch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="intro_to_plano.html">Intro to Plano</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#next-steps">Next Steps</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/terminology.html">Terminology</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/threading_model.html">Threading Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/listener.html">Listener</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/prompt.html">Prompts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/model_serving.html">Model Serving</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../concepts/tech_overview/error_target.html">Error Target</a></li>
-</ul>
-</li>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1"><a class="reference internal" href="../concepts/listeners.html">Listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/agents.html">Agents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/filter_chain.html">Filter Chains</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../concepts/llm_providers/llm_providers.html">Model (LLM) Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
@@ -118,27 +111,29 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../guides/prompt_guard.html">Prompt Guard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../guides/agent_routing.html">Agent Routing and Hand Off</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../guides/function_calling.html">Function Calling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/orchestration.html">Orchestration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/llm_router.html">LLM Routing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/function_calling.html">Function Calling</a></li>
 <li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../guides/observability/observability.html">Observability<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="../guides/observability/tracing.html">Tracing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../guides/observability/monitoring.html">Monitoring</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../guides/observability/access_logging.html">Access Logging</a></li>
 </ul>
 </li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Build with Arch</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/agent.html">Agentic Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/rag.html">RAG Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../build_with_arch/multi_turn.html">Multi-Turn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/prompt_guard.html">Guardrails</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/state.html">Conversational State</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Resources</span></p>
 <ul>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../resources/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/model_serving.html">Bright Staff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../resources/tech_overview/threading_model.html">Threading Model</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../resources/deployment.html">Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../resources/configuration_reference.html">Configuration Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources/llms_txt.html">llms.txt</a></li>
 </ul>
 </nav>
 </div>
@@ -153,7 +148,7 @@
 <div class="w-full min-w-0 mx-auto">
 <nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
 <a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../index.html">
-<span class="hidden md:inline">Arch Docs v0.3.22</span>
+<span class="hidden md:inline">Plano Docs v0.4</span>
 <svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
@@ -163,7 +158,17 @@
 <div id="content" role="main">
 <section id="quickstart">
 <span id="id1"></span><h1>Quickstart<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#quickstart"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
-<p>Follow this guide to learn how to quickly set up Arch and integrate it into your generative AI applications.</p>
+<p>Follow this guide to learn how to quickly set up Plano and integrate it into your generative AI applications. You can:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#quickstart-agents"><span class="std std-ref">Build agents</span></a> for multi-step workflows (e.g., travel assistants with flights and hotels).</p></li>
+<li><p><a class="reference internal" href="#quickstart-prompt-targets"><span class="std std-ref">Call deterministic APIs via prompt targets</span></a> to turn instructions directly into function calls.</p></li>
+<li><p><a class="reference internal" href="#llm-routing-quickstart"><span class="std std-ref">Use Plano as a model proxy (Gateway)</span></a> to standardize access to multiple LLM providers.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This quickstart assumes basic familiarity with agents and prompt targets from the Concepts section. For background, see <a class="reference internal" href="../concepts/agents.html#agents"><span class="std std-ref">Agents</span></a> and <a class="reference internal" href="../concepts/prompt_target.html#prompt-target"><span class="std std-ref">Prompt Target</span></a>.</p>
+<p>The full agent and backend API implementations used here are available in the <a class="reference external" href="https://github.com/plano-ai/plano-quickstart" rel="nofollow noopener">plano-quickstart repository<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>. This guide focuses on wiring and configuring Plano (orchestration, prompt targets, and the model proxy), not application code.</p>
+</div>
 <section id="prerequisites">
 <h2>Prerequisites<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#prerequisites" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#prerequisites'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
 <p>Before you begin, ensure you have the following:</p>
@@ -172,24 +177,91 @@
 <li><p><a class="reference external" href="https://docs.docker.com/compose/install/" rel="nofollow noopener">Docker Compose<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> (v2.29)</p></li>
 <li><p><a class="reference external" href="https://www.python.org/downloads/" rel="nofollow noopener">Python<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> (v3.10+)</p></li>
 </ol>
-<p>Arch’s CLI allows you to manage and interact with the Arch gateway efficiently. To install the CLI, simply run the following command:</p>
+<p>Plano’s CLI allows you to manage and interact with the Plano efficiently. To install the CLI, simply run the following command:</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>We recommend that developers create a new Python virtual environment to isolate dependencies before installing Arch. This ensures that <code class="docutils literal notranslate"><span class="pre">archgw</span></code> and its dependencies do not interfere with other packages on your system.</p>
+<p>We recommend that developers create a new Python virtual environment to isolate dependencies before installing Plano. This ensures that <code class="docutils literal notranslate"><span class="pre">plano</span></code> and its dependencies do not interfere with other packages on your system.</p>
 </div>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
 </span><span id="line-2"><span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w">   </span><span class="c1"># On Windows, use: venv\Scripts\activate</span>
-</span><span id="line-3"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">archgw</span><span class="o">==</span><span class="m">0</span>.3.22
+</span><span id="line-3"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">plano</span><span class="o">==</span><span class="m">0</span>.4.0
 </span></code></pre></div>
 </div>
 </section>
-<section id="build-ai-agent-with-arch-gateway">
-<h2>Build AI Agent with Arch Gateway<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#build-ai-agent-with-arch-gateway" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#build-ai-agent-with-arch-gateway'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<p>In the following quickstart, we will show you how easy it is to build an AI agent with the Arch gateway. We will build a currency exchange agent using the following simple steps. For this demo, we will use <cite>https://api.frankfurter.dev/</cite> to fetch the latest prices for currencies and assume USD as the base currency.</p>
-<section id="step-1-create-arch-config-file">
-<h3>Step 1. Create arch config file<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-1-create-arch-config-file" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-1-create-arch-config-file'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p>Create <code class="docutils literal notranslate"><span class="pre">arch_config.yaml</span></code> file with the following content:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="w"> </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1.0</span>
+<section id="build-agentic-apps-with-plano">
+<h2>Build Agentic Apps with Plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#build-agentic-apps-with-plano" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#build-agentic-apps-with-plano'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+<p>Plano helps you build agentic applications in two complementary ways:</p>
+<ul class="simple">
+<li><p><strong>Orchestrate agents</strong>: Let Plano decide which agent or LLM should handle each request and in what sequence.</p></li>
+<li><p><strong>Call deterministic backends</strong>: Use prompt targets to turn natural-language prompts into structured, validated API calls.</p></li>
+</ul>
+<section id="building-agents-with-plano-orchestration">
+<span id="quickstart-agents"></span><h3>Building agents with Plano orchestration<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#building-agents-with-plano-orchestration" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#building-agents-with-plano-orchestration'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Agents are where your business logic lives (the “inner loop”). Plano takes care of the “outer loop”—routing, sequencing, and managing calls across agents and LLMs.</p>
+<p>At a high level, building agents with Plano looks like this:</p>
+<ol class="arabic simple">
+<li><p><strong>Implement your agent</strong> in your framework of choice (Python, JS/TS, etc.), exposing it as an HTTP service.</p></li>
+<li><p><strong>Route LLM calls through Plano’s Model Proxy</strong>, so all models share a consistent interface and observability.</p></li>
+<li><p><strong>Configure Plano to orchestrate</strong>: define which agent(s) can handle which kinds of prompts, and let Plano decide when to call an agent vs. an LLM.</p></li>
+</ol>
+<p>This quickstart uses a simplified version of the Travel Booking Assistant; for the full multi-agent walkthrough, see <a class="reference internal" href="../guides/orchestration.html#agent-routing"><span class="std std-ref">Orchestration</span></a>.</p>
+<section id="step-1-minimal-orchestration-config">
+<h4>Step 1. Minimal orchestration config<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-1-minimal-orchestration-config"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
+<p>Here is a minimal configuration that wires Plano-Orchestrator to two HTTP services: one for flights and one for hotels.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1.0</span>
+</span><span id="line-2">
+</span><span id="line-3"><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-4"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-5"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.docker.internal:10520</span><span class="w">  </span><span class="c1"># your flights service</span>
+</span><span id="line-6"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hotel_agent</span>
+</span><span id="line-7"><span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.docker.internal:10530</span><span class="w">  </span><span class="c1"># your hotels service</span>
+</span><span id="line-8">
+</span><span id="line-9"><span class="nt">model_providers</span><span class="p">:</span>
+</span><span id="line-10"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
+</span><span id="line-11"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
+</span><span id="line-12">
+</span><span id="line-13"><span class="nt">listeners</span><span class="p">:</span>
+</span><span id="line-14"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent</span>
+</span><span id="line-15"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">travel_assistant</span>
+</span><span id="line-16"><span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8001</span>
+</span><span id="line-17"><span class="w">    </span><span class="nt">router</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plano_orchestrator_v1</span>
+</span><span id="line-18"><span class="w">    </span><span class="nt">agents</span><span class="p">:</span>
+</span><span id="line-19"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flight_agent</span>
+</span><span id="line-20"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Search for flights and provide flight status.</span>
+</span><span id="line-21"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hotel_agent</span>
+</span><span id="line-22"><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Find hotels and check availability.</span>
+</span><span id="line-23">
+</span><span id="line-24"><span class="nt">tracing</span><span class="p">:</span>
+</span><span id="line-25"><span class="w">  </span><span class="nt">random_sampling</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+</span></code></pre></div>
+</div>
+</section>
+<section id="step-2-start-your-agents-and-plano">
+<h4>Step 2. Start your agents and Plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-your-agents-and-plano"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
+<p>Run your <code class="docutils literal notranslate"><span class="pre">flight_agent</span></code> and <code class="docutils literal notranslate"><span class="pre">hotel_agent</span></code> services (see <a class="reference internal" href="../guides/orchestration.html#agent-routing"><span class="std std-ref">Orchestration</span></a> for a full Travel Booking example), then start Plano with the config above:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+</span></code></pre></div>
+</div>
+<p>Plano will start the orchestrator and expose an agent listener on port <code class="docutils literal notranslate"><span class="pre">8001</span></code>.</p>
+</section>
+<section id="step-3-send-a-prompt-and-let-plano-route">
+<h4>Step 3. Send a prompt and let Plano route<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-3-send-a-prompt-and-let-plano-route"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
+<p>Now send a request to Plano using the OpenAI-compatible chat completions API—the orchestrator will analyze the prompt and route it to the right agent based on intent:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>curl<span class="w"> </span>--header<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+</span><span id="line-2"><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"messages": [{"role": "user","content": "Find me flights from SFO to JFK tomorrow"}], "model": "openai/gpt-4o"}'</span><span class="w"> </span><span class="se">\</span>
+</span><span id="line-3"><span class="w">  </span>http://localhost:8001/v1/chat/completions
+</span></code></pre></div>
+</div>
+<p>You can then ask a follow-up like “Also book me a hotel near JFK” and Plano-Orchestrator will route to <code class="docutils literal notranslate"><span class="pre">hotel_agent</span></code>—your agents stay focused on business logic while Plano handles routing.</p>
+</section>
+</section>
+<section id="deterministic-api-calls-with-prompt-targets">
+<span id="quickstart-prompt-targets"></span><h3>Deterministic API calls with prompt targets<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#deterministic-api-calls-with-prompt-targets" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#deterministic-api-calls-with-prompt-targets'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Next, we’ll show Plano’s deterministic API calling using a single prompt target. We’ll build a currency exchange backend powered by <cite>https://api.frankfurter.dev/</cite>, assuming USD as the base currency.</p>
+<section id="step-1-create-plano-config-file">
+<h4>Step 1. Create plano config file<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-1-create-plano-config-file"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
+<p>Create <code class="docutils literal notranslate"><span class="pre">plano_config.yaml</span></code> file with the following content:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1.0</span>
 </span><span id="line-2">
 </span><span id="line-3"><span class="nt">listeners</span><span class="p">:</span>
 </span><span id="line-4"><span class="w">  </span><span class="nt">ingress_traffic</span><span class="p">:</span>
@@ -198,54 +270,48 @@
 </span><span id="line-7"><span class="w">    </span><span class="nt">message_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai</span>
 </span><span id="line-8"><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
 </span><span id="line-9">
-</span><span id="line-10"><span class="w w-Error"> </span><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-10"><span class="w w-Error"> </span><span class="nt">model_providers</span><span class="p">:</span>
 </span><span id="line-11"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
 </span><span id="line-12"><span class="w">     </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
 </span><span id="line-13">
 </span><span id="line-14"><span class="w"> </span><span class="nt">system_prompt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 </span><span id="line-15"><span class="w">   </span><span class="no">You are a helpful assistant.</span>
 </span><span id="line-16">
-</span><span id="line-17"><span class="w"> </span><span class="nt">prompt_guards</span><span class="p">:</span>
-</span><span id="line-18"><span class="w">   </span><span class="nt">input_guards</span><span class="p">:</span>
-</span><span id="line-19"><span class="w">     </span><span class="nt">jailbreak</span><span class="p">:</span>
-</span><span id="line-20"><span class="w">       </span><span class="nt">on_exception</span><span class="p">:</span>
-</span><span id="line-21"><span class="w">         </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Looks like you're curious about my abilities, but I can only provide assistance for currency exchange.</span>
-</span><span id="line-22">
-</span><span id="line-23"><span class="w"> </span><span class="nt">prompt_targets</span><span class="p">:</span>
-</span><span id="line-24"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">currency_exchange</span>
-</span><span id="line-25"><span class="w">     </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get currency exchange rate from USD to other currencies</span>
-</span><span id="line-26"><span class="w">     </span><span class="nt">parameters</span><span class="p">:</span>
-</span><span id="line-27"><span class="w">       </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">currency_symbol</span>
-</span><span id="line-28"><span class="w">         </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">the currency that needs conversion</span>
-</span><span id="line-29"><span class="w">         </span><span class="nt">required</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="line-30"><span class="w">         </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">str</span>
-</span><span id="line-31"><span class="w">         </span><span class="nt">in_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="line-32"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span>
-</span><span id="line-33"><span class="w">       </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frankfurther_api</span>
-</span><span id="line-34"><span class="w">       </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/v1/latest?base=USD&amp;symbols={currency_symbol}</span>
-</span><span id="line-35"><span class="w">     </span><span class="nt">system_prompt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-</span><span id="line-36"><span class="w">       </span><span class="no">You are a helpful assistant. Show me the currency symbol you want to convert from USD.</span>
+</span><span id="line-17"><span class="w"> </span><span class="nt">prompt_targets</span><span class="p">:</span>
+</span><span id="line-18"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">currency_exchange</span>
+</span><span id="line-19"><span class="w">     </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get currency exchange rate from USD to other currencies</span>
+</span><span id="line-20"><span class="w">     </span><span class="nt">parameters</span><span class="p">:</span>
+</span><span id="line-21"><span class="w">       </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">currency_symbol</span>
+</span><span id="line-22"><span class="w">         </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">the currency that needs conversion</span>
+</span><span id="line-23"><span class="w">         </span><span class="nt">required</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-24"><span class="w">         </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">str</span>
+</span><span id="line-25"><span class="w">         </span><span class="nt">in_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="line-26"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span>
+</span><span id="line-27"><span class="w">       </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frankfurther_api</span>
+</span><span id="line-28"><span class="w">       </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/v1/latest?base=USD&amp;symbols={currency_symbol}</span>
+</span><span id="line-29"><span class="w">     </span><span class="nt">system_prompt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="line-30"><span class="w">       </span><span class="no">You are a helpful assistant. Show me the currency symbol you want to convert from USD.</span>
+</span><span id="line-31">
+</span><span id="line-32"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get_supported_currencies</span>
+</span><span id="line-33"><span class="w">     </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get list of supported currencies for conversion</span>
+</span><span id="line-34"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span>
+</span><span id="line-35"><span class="w">       </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frankfurther_api</span>
+</span><span id="line-36"><span class="w">       </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/v1/currencies</span>
 </span><span id="line-37">
-</span><span id="line-38"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get_supported_currencies</span>
-</span><span id="line-39"><span class="w">     </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Get list of supported currencies for conversion</span>
-</span><span id="line-40"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span>
-</span><span id="line-41"><span class="w">       </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frankfurther_api</span>
-</span><span id="line-42"><span class="w">       </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/v1/currencies</span>
-</span><span id="line-43">
-</span><span id="line-44"><span class="w"> </span><span class="nt">endpoints</span><span class="p">:</span>
-</span><span id="line-45"><span class="w">   </span><span class="nt">frankfurther_api</span><span class="p">:</span>
-</span><span id="line-46"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api.frankfurter.dev:443</span>
-</span><span id="line-47"><span class="w">     </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
+</span><span id="line-38"><span class="w"> </span><span class="nt">endpoints</span><span class="p">:</span>
+</span><span id="line-39"><span class="w">   </span><span class="nt">frankfurther_api</span><span class="p">:</span>
+</span><span id="line-40"><span class="w">     </span><span class="nt">endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api.frankfurter.dev:443</span>
+</span><span id="line-41"><span class="w">     </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https</span>
 </span></code></pre></div>
 </div>
 </section>
-<section id="step-2-start-arch-gateway-with-currency-conversion-config">
-<h3>Step 2. Start arch gateway with currency conversion config<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-arch-gateway-with-currency-conversion-config" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-2-start-arch-gateway-with-currency-conversion-config'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>archgw<span class="w"> </span>up<span class="w"> </span>arch_config.yaml
-</span><span id="line-2"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:27,979<span class="w"> </span>-<span class="w"> </span>cli.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>archgw<span class="w"> </span>cli<span class="w"> </span>version:<span class="w"> </span><span class="m">0</span>.1.5
+<section id="step-2-start-plano-with-currency-conversion-config">
+<h4>Step 2. Start plano with currency conversion config<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-plano-with-currency-conversion-config"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+</span><span id="line-2"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:27,979<span class="w"> </span>-<span class="w"> </span>cli.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>cli<span class="w"> </span>version:<span class="w"> </span><span class="m">0</span>.1.5
 </span><span id="line-3">...
 </span><span id="line-4"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>cli.utils<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Schema<span class="w"> </span>validation<span class="w"> </span>successful!
-</span><span id="line-5"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>cli.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>arch<span class="w"> </span>model<span class="w"> </span>server<span class="w"> </span>and<span class="w"> </span>arch<span class="w"> </span>gateway
+</span><span id="line-5"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>cli.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>model<span class="w"> </span>server<span class="w"> </span>and<span class="w"> </span>plano<span class="w"> </span>gateway
 </span><span id="line-6">...
 </span><span id="line-7"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:51,647<span class="w"> </span>-<span class="w"> </span>cli.core<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Container<span class="w"> </span>is<span class="w"> </span>healthy!
 </span></code></pre></div>
@@ -254,7 +320,7 @@
 <p>Some sample queries you can ask include: <code class="docutils literal notranslate"><span class="pre">what</span> <span class="pre">is</span> <span class="pre">currency</span> <span class="pre">rate</span> <span class="pre">for</span> <span class="pre">gbp?</span></code> or <code class="docutils literal notranslate"><span class="pre">show</span> <span class="pre">me</span> <span class="pre">list</span> <span class="pre">of</span> <span class="pre">currencies</span> <span class="pre">for</span> <span class="pre">conversion</span></code>.</p>
 </section>
 <section id="step-3-interacting-with-gateway-using-curl-command">
-<h3>Step 3. Interacting with gateway using curl command<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-3-interacting-with-gateway-using-curl-command" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-3-interacting-with-gateway-using-curl-command'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<h4>Step 3. Interacting with gateway using curl command<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-3-interacting-with-gateway-using-curl-command"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
 <p>Here is a sample curl command you can use to interact:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>curl<span class="w"> </span>--header<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
 </span><span id="line-2"><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"messages": [{"role": "user","content": "what is exchange rate for gbp"}], "model": "none"}'</span><span class="w"> </span><span class="se">\</span>
@@ -273,12 +339,13 @@
 </div>
 </section>
 </section>
-<section id="use-arch-gateway-as-llm-router">
-<h2>Use Arch Gateway as LLM Router<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#use-arch-gateway-as-llm-router" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#use-arch-gateway-as-llm-router'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
+</section>
+<section id="use-plano-as-a-model-proxy-gateway">
+<span id="llm-routing-quickstart"></span><h2>Use Plano as a Model Proxy (Gateway)<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#use-plano-as-a-model-proxy-gateway" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#use-plano-as-a-model-proxy-gateway'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
 <section id="id2">
-<h3>Step 1. Create arch config file<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id2" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#id2'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p>Arch operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.</p>
-<p>Create <code class="docutils literal notranslate"><span class="pre">arch_config.yaml</span></code> file with the following content:</p>
+<h3>Step 1. Create plano config file<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#id2" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#id2'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<p>Plano operates based on a configuration file where you can define LLM providers, prompt targets, guardrails, etc. Below is an example configuration that defines OpenAI and Mistral LLM providers.</p>
+<p>Create <code class="docutils literal notranslate"><span class="pre">plano_config.yaml</span></code> file with the following content:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="w"> </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1.0</span>
 </span><span id="line-2">
 </span><span id="line-3"><span class="nt">listeners</span><span class="p">:</span>
@@ -288,7 +355,7 @@
 </span><span id="line-7"><span class="w">    </span><span class="nt">message_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai</span>
 </span><span id="line-8"><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
 </span><span id="line-9">
-</span><span id="line-10"><span class="w w-Error"> </span><span class="nt">llm_providers</span><span class="p">:</span>
+</span><span id="line-10"><span class="w w-Error"> </span><span class="nt">model_providers</span><span class="p">:</span>
 </span><span id="line-11"><span class="w">   </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OPENAI_API_KEY</span>
 </span><span id="line-12"><span class="w">     </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openai/gpt-4o</span>
 </span><span id="line-13"><span class="w">     </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -298,14 +365,14 @@
 </span></code></pre></div>
 </div>
 </section>
-<section id="step-2-start-arch-gateway">
-<h3>Step 2. Start arch gateway<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-arch-gateway" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-2-start-arch-gateway'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
+<section id="step-2-start-plano">
+<h3>Step 2. Start plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-plano" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-2-start-plano'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
 <p>Once the config file is created, ensure that you have environment variables set up for <code class="docutils literal notranslate"><span class="pre">MISTRAL_API_KEY</span></code> and <code class="docutils literal notranslate"><span class="pre">OPENAI_API_KEY</span></code> (or these are defined in a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file).</p>
-<p>Start the Arch gateway:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>archgw<span class="w"> </span>up<span class="w"> </span>arch_config.yaml
-</span><span id="line-2"><span class="go">2024-12-05 11:24:51,288 - cli.main - INFO - Starting archgw cli version: 0.1.5</span>
+<p>Start Plano:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>plano<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+</span><span id="line-2"><span class="go">2024-12-05 11:24:51,288 - cli.main - INFO - Starting plano cli version: 0.1.5</span>
 </span><span id="line-3"><span class="go">2024-12-05 11:24:51,825 - cli.utils - INFO - Schema validation successful!</span>
-</span><span id="line-4"><span class="go">2024-12-05 11:24:51,825 - cli.main - INFO - Starting arch model server and arch gateway</span>
+</span><span id="line-4"><span class="go">2024-12-05 11:24:51,825 - cli.main - INFO - Starting plano</span>
 </span><span id="line-5"><span class="go">...</span>
 </span><span id="line-6"><span class="go">2024-12-05 11:25:16,131 - cli.core - INFO - Container is healthy!</span>
 </span></code></pre></div>
@@ -315,19 +382,19 @@
 <h3>Step 3: Interact with LLM<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-3-interact-with-llm" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#step-3-interact-with-llm'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
 <section id="step-3-1-using-openai-python-client">
 <h4>Step 3.1: Using OpenAI Python client<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-3-1-using-openai-python-client"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
-<p>Make outbound calls via the Arch gateway:</p>
+<p>Make outbound calls via the Plano gateway:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
 </span><span id="line-2">
 </span><span id="line-3"><span class="c1"># Use the OpenAI client as usual</span>
 </span><span id="line-4"><span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span>
-</span><span id="line-5">  <span class="c1"># No need to set a specific openai.api_key since it's configured in Arch's gateway</span>
+</span><span id="line-5">  <span class="c1"># No need to set a specific openai.api_key since it's configured in Plano's gateway</span>
 </span><span id="line-6">  <span class="n">api_key</span><span class="o">=</span><span class="s1">'--'</span><span class="p">,</span>
-</span><span id="line-7">  <span class="c1"># Set the OpenAI API base URL to the Arch gateway endpoint</span>
+</span><span id="line-7">  <span class="c1"># Set the OpenAI API base URL to the Plano gateway endpoint</span>
 </span><span id="line-8">  <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://127.0.0.1:12000/v1"</span>
 </span><span id="line-9"><span class="p">)</span>
 </span><span id="line-10">
 </span><span id="line-11"><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-</span><span id="line-12">    <span class="c1"># we select model from arch_config file</span>
+</span><span id="line-12">    <span class="c1"># we select model from plano_config file</span>
 </span><span id="line-13">    <span class="n">model</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span>
 </span><span id="line-14">    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"user"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="s2">"What is the capital of France?"</span><span class="p">}],</span>
 </span><span id="line-15"><span class="p">)</span>
@@ -357,54 +424,32 @@
 </span><span id="line-17"><span class="o">}</span>
 </span></code></pre></div>
 </div>
-<p>You can override model selection using the <code class="docutils literal notranslate"><span class="pre">x-arch-llm-provider-hint</span></code> header. For example, to use Mistral, use the following curl command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>curl<span class="w"> </span>--header<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="line-2"><span class="w">  </span>--header<span class="w"> </span><span class="s1">'x-arch-llm-provider-hint: ministral-3b'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="line-3"><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"messages": [{"role": "user","content": "What is the capital of France?"}], "model": "none"}'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="line-4"><span class="w">  </span>http://localhost:12000/v1/chat/completions
-</span><span id="line-5">
-</span><span id="line-6"><span class="o">{</span>
-</span><span id="line-7"><span class="w">  </span>...
-</span><span id="line-8"><span class="w">  </span><span class="s2">"model"</span>:<span class="w"> </span><span class="s2">"ministral-3b-latest"</span>,
-</span><span id="line-9"><span class="w">  </span><span class="s2">"choices"</span>:<span class="w"> </span><span class="o">[</span>
-</span><span id="line-10"><span class="w">    </span><span class="o">{</span>
-</span><span id="line-11"><span class="w">      </span><span class="s2">"messages"</span>:<span class="w"> </span><span class="o">{</span>
-</span><span id="line-12"><span class="w">        </span><span class="s2">"role"</span>:<span class="w"> </span><span class="s2">"assistant"</span>,
-</span><span id="line-13"><span class="w">        </span><span class="s2">"content"</span>:<span class="w"> </span><span class="s2">"The capital of France is Paris. It is the most populous city in France and is known for its iconic landmarks such as the Eiffel Tower, the Louvre Museum, and Notre-Dame Cathedral. Paris is also a major global center for art, fashion, gastronomy, and culture."</span>,
-</span><span id="line-14"><span class="w">      </span><span class="o">}</span>,
-</span><span id="line-15"><span class="w">      </span>...
-</span><span id="line-16"><span class="w">    </span><span class="o">}</span>
-</span><span id="line-17"><span class="w">  </span><span class="o">]</span>,
-</span><span id="line-18"><span class="w">  </span>...
-</span><span id="line-19"><span class="o">}</span>
-</span></code></pre></div>
-</div>
 </section>
 </section>
 </section>
 </section>
 <section id="next-steps">
 <h1>Next Steps<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#next-steps"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h1>
-<p>Congratulations! You’ve successfully set up Arch and made your first prompt-based request. To further enhance your GenAI applications, explore the following resources:</p>
+<p>Congratulations! You’ve successfully set up Plano and made your first prompt-based request. To further enhance your GenAI applications, explore the following resources:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="overview.html#overview"><span class="std std-ref">Full Documentation</span></a>: Comprehensive guides and references.</p></li>
-<li><p><a class="reference external" href="https://github.com/katanemo/arch" rel="nofollow noopener">GitHub Repository<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>: Access the source code, contribute, and track updates.</p></li>
-<li><p><a class="reference external" href="https://github.com/katanemo/arch#contact" rel="nofollow noopener">Support<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>: Get help and connect with the Arch community .</p></li>
+<li><p><a class="reference external" href="https://github.com/katanemo/plano" rel="nofollow noopener">GitHub Repository<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>: Access the source code, contribute, and track updates.</p></li>
+<li><p><a class="reference external" href="https://github.com/katanemo/plano#contact" rel="nofollow noopener">Support<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>: Get help and connect with the Plano community .</p></li>
 </ul>
-<p>With Arch, building scalable, fast, and personalized GenAI applications has never been easier. Dive deeper into Arch’s capabilities and start creating innovative AI-driven experiences today!</p>
+<p>With Plano, building scalable, fast, and personalized GenAI applications has never been easier. Dive deeper into Plano’s capabilities and start creating innovative AI-driven experiences today!</p>
 </section>
 </div><div class="flex justify-between items-center pt-6 mt-12 border-t border-border gap-4">
 <div class="mr-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="intro_to_arch.html">
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="intro_to_plano.html">
 <svg class="mr-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="15 18 9 12 15 6"></polyline>
 </svg>
-        Intro to Arch
+        Intro to Plano
       </a>
 </div>
 <div class="ml-auto">
-<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../concepts/tech_overview/tech_overview.html">
-        Tech Overview
+<a class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input hover:bg-accent hover:text-accent-foreground py-2 px-4" href="../concepts/listeners.html">
+        Listeners
         <svg class="ml-2 h-4 w-4" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
 <polyline points="9 18 15 12 9 6"></polyline>
 </svg>
@@ -415,15 +460,24 @@
 <ul>
 <li><ul>
 <li><a :data-current="activeSection === '#prerequisites'" class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li><a :data-current="activeSection === '#build-ai-agent-with-arch-gateway'" class="reference internal" href="#build-ai-agent-with-arch-gateway">Build AI Agent with Arch Gateway</a><ul>
-<li><a :data-current="activeSection === '#step-1-create-arch-config-file'" class="reference internal" href="#step-1-create-arch-config-file">Step 1. Create arch config file</a></li>
-<li><a :data-current="activeSection === '#step-2-start-arch-gateway-with-currency-conversion-config'" class="reference internal" href="#step-2-start-arch-gateway-with-currency-conversion-config">Step 2. Start arch gateway with currency conversion config</a></li>
+<li><a :data-current="activeSection === '#build-agentic-apps-with-plano'" class="reference internal" href="#build-agentic-apps-with-plano">Build Agentic Apps with Plano</a><ul>
+<li><a :data-current="activeSection === '#building-agents-with-plano-orchestration'" class="reference internal" href="#building-agents-with-plano-orchestration">Building agents with Plano orchestration</a><ul>
+<li><a :data-current="activeSection === '#step-1-minimal-orchestration-config'" class="reference internal" href="#step-1-minimal-orchestration-config">Step 1. Minimal orchestration config</a></li>
+<li><a :data-current="activeSection === '#step-2-start-your-agents-and-plano'" class="reference internal" href="#step-2-start-your-agents-and-plano">Step 2. Start your agents and Plano</a></li>
+<li><a :data-current="activeSection === '#step-3-send-a-prompt-and-let-plano-route'" class="reference internal" href="#step-3-send-a-prompt-and-let-plano-route">Step 3. Send a prompt and let Plano route</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#deterministic-api-calls-with-prompt-targets'" class="reference internal" href="#deterministic-api-calls-with-prompt-targets">Deterministic API calls with prompt targets</a><ul>
+<li><a :data-current="activeSection === '#step-1-create-plano-config-file'" class="reference internal" href="#step-1-create-plano-config-file">Step 1. Create plano config file</a></li>
+<li><a :data-current="activeSection === '#step-2-start-plano-with-currency-conversion-config'" class="reference internal" href="#step-2-start-plano-with-currency-conversion-config">Step 2. Start plano with currency conversion config</a></li>
 <li><a :data-current="activeSection === '#step-3-interacting-with-gateway-using-curl-command'" class="reference internal" href="#step-3-interacting-with-gateway-using-curl-command">Step 3. Interacting with gateway using curl command</a></li>
 </ul>
 </li>
-<li><a :data-current="activeSection === '#use-arch-gateway-as-llm-router'" class="reference internal" href="#use-arch-gateway-as-llm-router">Use Arch Gateway as LLM Router</a><ul>
-<li><a :data-current="activeSection === '#id2'" class="reference internal" href="#id2">Step 1. Create arch config file</a></li>
-<li><a :data-current="activeSection === '#step-2-start-arch-gateway'" class="reference internal" href="#step-2-start-arch-gateway">Step 2. Start arch gateway</a></li>
+</ul>
+</li>
+<li><a :data-current="activeSection === '#use-plano-as-a-model-proxy-gateway'" class="reference internal" href="#use-plano-as-a-model-proxy-gateway">Use Plano as a Model Proxy (Gateway)</a><ul>
+<li><a :data-current="activeSection === '#id2'" class="reference internal" href="#id2">Step 1. Create plano config file</a></li>
+<li><a :data-current="activeSection === '#step-2-start-plano'" class="reference internal" href="#step-2-start-plano">Step 2. Start plano</a></li>
 <li><a :data-current="activeSection === '#step-3-interact-with-llm'" class="reference internal" href="#step-3-interact-with-llm">Step 3: Interact with LLM</a><ul>
 <li><a :data-current="activeSection === '#step-3-1-using-openai-python-client'" class="reference internal" href="#step-3-1-using-openai-python-client">Step 3.1: Using OpenAI Python client</a></li>
 <li><a :data-current="activeSection === '#step-3-2-using-curl-command'" class="reference internal" href="#step-3-2-using-curl-command">Step 3.2: Using curl command</a></li>
@@ -442,12 +496,12 @@
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 23, 2025. </p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 24, 2025. </p>
 </div>
 </div>
 </footer>
 </div>
-<script src="../_static/documentation_options.js?v=3bad885e"></script>
+<script src="../_static/documentation_options.js?v=8cf1ab6b"></script>
 <script src="../_static/doctools.js?v=9bcbadda"></script>
 <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
 <script defer="defer" src="../_static/theme.js?v=073f68d9"></script>

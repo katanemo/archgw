@@ -7,13 +7,13 @@
 <meta content="white" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="black" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Tracing | Arch Docs v0.3.22</title>
-<meta content="Tracing | Arch Docs v0.3.22" property="og:title"/>
-<meta content="Tracing | Arch Docs v0.3.22" name="twitter:title"/>
+<title>Tracing | Plano Docs v0.4</title>
+<meta content="Tracing | Plano Docs v0.4" property="og:title"/>
+<meta content="Tracing | Plano Docs v0.4" name="twitter:title"/>
 <link href="../../_static/pygments.css?v=466e7b45" rel="stylesheet" type="text/css"/>
 <link href="../../_static/theme.css?v=42baaae4" rel="stylesheet" type="text/css"/>
-<link href="../../_static/_static/custom.css" rel="stylesheet" type="text/css"/>
 <link href="../../_static/sphinx-design.min.css?v=95c83b7e" rel="stylesheet" type="text/css"/>
+<link href="../../_static/css/custom.css?v=2929376a" rel="stylesheet" type="text/css"/>
 <link href="../../_static/awesome-sphinx-design.css?v=15e0fffa" rel="stylesheet" type="text/css"/>
 <link href="./docs/guides/observability/tracing.html" rel="canonical"/>
 <link href="../../_static/favicon.ico" rel="icon"/>
@@ -39,7 +39,7 @@
     </a><header class="sticky top-0 z-40 w-full border-b shadow-sm border-border supports-backdrop-blur:bg-background/60 bg-background/95 backdrop-blur"><div class="container flex items-center h-14">
 <div class="hidden mr-4 md:flex">
 <a class="flex items-center mr-6" href="../../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="24" src="../../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="24" src="../../_static/favicon.ico" width="24"/><span class="hidden font-bold sm:inline-block text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a></div><button @click="showSidebar = true" class="inline-flex items-center justify-center h-10 px-0 py-2 mr-2 text-base font-medium transition-colors rounded-md hover:text-accent-foreground hover:bg-transparent md:hidden" type="button">
 <svg aria-hidden="true" fill="currentColor" height="24" viewbox="0 96 960 960" width="24" xmlns="http://www.w3.org/2000/svg">
 <path d="M152.587 825.087q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440Zm0-203.587q-19.152 0-32.326-13.174T107.087 576q0-19.152 13.174-32.326t32.326-13.174h320q19.152 0 32.326 13.174T518.087 576q0 19.152-13.174 32.326T472.587 621.5h-320Zm0-203.587q-19.152 0-32.326-13.174t-13.174-32.326q0-19.152 13.174-32.326t32.326-13.174h440q19.152 0 32.326 13.174t13.174 32.326q0 19.152-13.174 32.326t-32.326 13.174h-440ZM708.913 576l112.174 112.174q12.674 12.674 12.674 31.826t-12.674 31.826Q808.413 764.5 789.261 764.5t-31.826-12.674l-144-144Q600 594.391 600 576t13.435-31.826l144-144q12.674-12.674 31.826-12.674t31.826 12.674q12.674 12.674 12.674 31.826t-12.674 31.826L708.913 576Z"></path>
@@ -56,7 +56,7 @@
 </form>
 </div>
 <nav class="flex items-center space-x-1">
-<a href="https://github.com/katanemo/arch" rel="noopener nofollow" title="Visit repository on GitHub">
+<a href="https://github.com/katanemo/plano" rel="noopener nofollow" title="Visit repository on GitHub">
 <div class="inline-flex items-center justify-center px-0 text-sm font-medium transition-colors rounded-md disabled:opacity-50 disabled:pointer-events-none hover:bg-accent hover:text-accent-foreground h-9 w-9">
 <svg fill="currentColor" height="26px" style="margin-top:-2px;display:inline" viewbox="0 0 45 44" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M22.477.927C10.485.927.76 10.65.76 22.647c0 9.596 6.223 17.736 14.853 20.608 1.087.2 1.483-.47 1.483-1.047 0-.516-.019-1.881-.03-3.693-6.04 1.312-7.315-2.912-7.315-2.912-.988-2.51-2.412-3.178-2.412-3.178-1.972-1.346.149-1.32.149-1.32 2.18.154 3.327 2.24 3.327 2.24 1.937 3.318 5.084 2.36 6.321 1.803.197-1.403.759-2.36 1.379-2.903-4.823-.548-9.894-2.412-9.894-10.734 0-2.37.847-4.31 2.236-5.828-.224-.55-.969-2.759.214-5.748 0 0 1.822-.584 5.972 2.226 1.732-.482 3.59-.722 5.437-.732 1.845.01 3.703.25 5.437.732 4.147-2.81 5.967-2.226 5.967-2.226 1.185 2.99.44 5.198.217 5.748 1.392 1.517 2.232 3.457 2.232 5.828 0 8.344-5.078 10.18-9.916 10.717.779.67 1.474 1.996 1.474 4.021 0 2.904-.027 5.247-.027 5.96 0 .58.392 1.256 1.493 1.044C37.981 40.375 44.2 32.24 44.2 22.647c0-11.996-9.726-21.72-21.722-21.72" fill="currentColor" fill-rule="evenodd"></path></svg>
 </div>
@@ -75,40 +75,33 @@
 </header>
 <div class="flex-1"><div class="container flex-1 items-start md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10"><aside :aria-hidden="!showSidebar" :class="{ 'translate-x-0': showSidebar }" class="fixed inset-y-0 left-0 md:top-14 z-50 md:z-30 bg-background md:bg-transparent transition-all duration-100 -translate-x-full md:translate-x-0 ml-0 p-6 md:p-0 md:-ml-2 md:h-[calc(100vh-3.5rem)] w-5/6 md:w-full shrink-0 overflow-y-auto border-r border-border md:sticky" id="left-sidebar">
 <a class="!justify-start text-sm md:!hidden bg-background" href="../../index.html">
-<img alt="Logo" class="mr-2 dark:invert" height="16" src="../../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Arch Docs v0.3.22</span>
+<img alt="Logo" class="mr-2 dark:invert" height="16" src="../../_static/favicon.ico" width="16"/><span class="font-bold text-clip whitespace-nowrap">Plano Docs v0.4</span>
 </a>
 <div class="relative overflow-hidden md:overflow-auto my-4 md:my-0 h-[calc(100vh-8rem)] md:h-auto">
 <div class="overflow-y-auto h-full w-full relative pr-6">
 
-<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-K2LXXSX6HB"></script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EH2VW19FXE"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'G-K2LXXSX6HB');
+  gtag('config', 'G-EH2VW19FXE');
 </script>
 <nav class="table w-full min-w-full my-6 lg:my-8">
 <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../get_started/overview.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../get_started/intro_to_arch.html">Intro to Arch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/intro_to_plano.html">Intro to Plano</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../get_started/quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../get_started/quickstart.html#next-steps">Next Steps</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
 <ul>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../../concepts/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/terminology.html">Terminology</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/threading_model.html">Threading Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/listener.html">Listener</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/prompt.html">Prompts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/model_serving.html">Model Serving</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../concepts/tech_overview/error_target.html">Error Target</a></li>
-</ul>
-</li>
-<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../../concepts/llm_providers/llm_providers.html">LLM Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/listeners.html">Listeners</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/agents.html">Agents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/filter_chain.html">Filter Chains</a></li>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../../concepts/llm_providers/llm_providers.html">Model (LLM) Providers<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
 <li class="toctree-l2"><a class="reference internal" href="../../concepts/llm_providers/supported_providers.html">Supported Providers &amp; Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../concepts/llm_providers/client_libraries.html">Client Libraries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../concepts/llm_providers/model_aliases.html">Model Aliases</a></li>
@@ -118,27 +111,29 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../prompt_guard.html">Prompt Guard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../agent_routing.html">Agent Routing and Hand Off</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../function_calling.html">Function Calling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../orchestration.html">Orchestration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../llm_router.html">LLM Routing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../function_calling.html">Function Calling</a></li>
 <li class="toctree-l1 current" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="observability.html">Observability<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul class="current" x-show="expanded">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Tracing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="monitoring.html">Monitoring</a></li>
 <li class="toctree-l2"><a class="reference internal" href="access_logging.html">Access Logging</a></li>
 </ul>
 </li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Build with Arch</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/agent.html">Agentic Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/rag.html">RAG Apps</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../build_with_arch/multi_turn.html">Multi-Turn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../prompt_guard.html">Guardrails</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../state.html">Conversational State</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Resources</span></p>
 <ul>
+<li class="toctree-l1" x-data="{ expanded: $el.classList.contains('current') ? true : false }"><a :class="{ 'expanded' : expanded }" @click="expanded = !expanded" class="reference internal expandable" href="../../resources/tech_overview/tech_overview.html">Tech Overview<button @click.prevent.stop="expanded = !expanded" type="button"><span class="sr-only"></span><svg fill="currentColor" height="18px" stroke="none" viewbox="0 0 24 24" width="18px" xmlns="http://www.w3.org/2000/svg"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg></button></a><ul x-show="expanded">
+<li class="toctree-l2"><a class="reference internal" href="../../resources/tech_overview/request_lifecycle.html">Request Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../resources/tech_overview/model_serving.html">Bright Staff</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../resources/tech_overview/threading_model.html">Threading Model</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../resources/deployment.html">Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../resources/configuration_reference.html">Configuration Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources/llms_txt.html">llms.txt</a></li>
 </ul>
 </nav>
 </div>
@@ -153,7 +148,7 @@
 <div class="w-full min-w-0 mx-auto">
 <nav aria-label="breadcrumbs" class="flex items-center mb-4 space-x-1 text-sm text-muted-foreground">
 <a class="overflow-hidden text-ellipsis whitespace-nowrap hover:text-foreground" href="../../index.html">
-<span class="hidden md:inline">Arch Docs v0.3.22</span>
+<span class="hidden md:inline">Plano Docs v0.4</span>
 <svg aria-label="Home" class="md:hidden" fill="currentColor" height="18" stroke="none" viewbox="0 96 960 960" width="18" xmlns="http://www.w3.org/2000/svg">
 <path d="M240 856h120V616h240v240h120V496L480 316 240 496v360Zm-80 80V456l320-240 320 240v480H520V696h-80v240H160Zm320-350Z"></path>
 </svg>
@@ -175,9 +170,9 @@ modern application tools. A key feature of OpenTelemetry is its commitment to st
 requests in an AI application. With tracing, you can capture a detailed view of how requests propagate
 through various services and components, which is crucial for <strong>debugging</strong>, <strong>performance optimization</strong>,
 and understanding complex AI agent architectures like Co-pilots.</p>
-<p><strong>Arch</strong> propagates trace context using the W3C Trace Context standard, specifically through the
+<p><strong>Plano</strong> propagates trace context using the W3C Trace Context standard, specifically through the
 <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header. This allows each component in the system to record its part of the request
-flow, enabling <strong>end-to-end tracing</strong> across the entire application. By using OpenTelemetry, Arch ensures
+flow, enabling <strong>end-to-end tracing</strong> across the entire application. By using OpenTelemetry, Plano ensures
 that developers can capture this trace data consistently and in a format compatible with various observability
 tools.</p>
 <a class="reference internal image-reference" href="../../_images/tracing.png"><img alt="../../_images/tracing.png" class="align-center" src="../../_images/tracing.png" style="width: 100%;"/>
@@ -197,8 +192,8 @@ making it easy to visualize traces in the tools you’re already usi</p></li>
 <section id="how-to-initiate-a-trace">
 <h2>How to Initiate A Trace<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#how-to-initiate-a-trace" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#how-to-initiate-a-trace'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
 <ol class="arabic simple">
-<li><p><strong>Enable Tracing Configuration</strong>: Simply add the <code class="docutils literal notranslate"><span class="pre">random_sampling</span></code> in <code class="docutils literal notranslate"><span class="pre">tracing</span></code> section to 100`` flag to in the <a class="reference internal" href="../../concepts/tech_overview/listener.html#arch-overview-listeners"><span class="std std-ref">listener</span></a> config</p></li>
-<li><p><strong>Trace Context Propagation</strong>: Arch automatically propagates the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header. When a request is received, Arch will:</p>
+<li><p><strong>Enable Tracing Configuration</strong>: Simply add the <code class="docutils literal notranslate"><span class="pre">random_sampling</span></code> in <code class="docutils literal notranslate"><span class="pre">tracing</span></code> section to 100`` flag to in the <a class="reference internal" href="../../concepts/listeners.html#plano-overview-listeners"><span class="std std-ref">listener</span></a> config</p></li>
+<li><p><strong>Trace Context Propagation</strong>: Plano automatically propagates the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header. When a request is received, Plano will:</p>
 <ul class="simple">
 <li><p>Generate a new <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header if one is not present.</p></li>
 <li><p>Extract the trace context from the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header if it exists.</p></li>
@@ -212,7 +207,7 @@ You can adjust this value from 0-100.</p></li>
 </section>
 <section id="trace-propagation">
 <h2>Trace Propagation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#trace-propagation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#trace-propagation'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<p>Arch uses the W3C Trace Context standard for trace propagation, which relies on the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header.
+<p>Plano uses the W3C Trace Context standard for trace propagation, which relies on the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header.
 This header carries tracing information in a standardized format, enabling interoperability between different
 tracing systems.</p>
 <section id="header-format">
@@ -231,7 +226,7 @@ tracing systems.</p>
 <section id="instrumentation">
 <h3>Instrumentation<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#instrumentation" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#instrumentation'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
 <p>To integrate AI tracing, your application needs to follow a few simple steps. The steps
-below are very common practice, and not unique to Arch, when you reading tracing headers and export
+below are very common practice, and not unique to Plano, when you reading tracing headers and export
 <a class="reference external" href="https://docs.lightstep.com/docs/understand-distributed-tracing" rel="nofollow noopener">spans<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a> for distributed tracing.</p>
 <ul class="simple">
 <li><p>Read the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header from incoming requests.</p></li>
@@ -294,94 +289,6 @@ below are very common practice, and not unique to Arch, when you reading tracing
 </span><span id="line-21">        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Payment service response: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span></code></pre></div>
 </div>
-</section>
-</section>
-<section id="ai-agent-tracing-visualization-example">
-<h3>AI Agent Tracing Visualization Example<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#ai-agent-tracing-visualization-example" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#ai-agent-tracing-visualization-example'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p>The following is an example of tracing for an AI-powered customer support system.
-A customer interacts with AI agents, which forward their requests through different
-specialized services and external systems.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="o">+--------------------------+</span>
-</span><span id="line-2"><span class="o">|</span>   <span class="n">Customer</span> <span class="n">Interaction</span>   <span class="o">|</span>
-</span><span id="line-3"><span class="o">+--------------------------+</span>
-</span><span id="line-4">           <span class="o">|</span>
-</span><span id="line-5">           <span class="n">v</span>
-</span><span id="line-6"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span><span id="line-7"><span class="o">|</span>  <span class="n">Agent</span> <span class="mi">1</span> <span class="p">(</span><span class="n">Main</span> <span class="o">-</span> <span class="n">Arch</span><span class="p">)</span>   <span class="o">|</span> <span class="o">----&gt;</span>  <span class="o">|</span> <span class="n">External</span> <span class="n">Payment</span> <span class="n">Service</span> <span class="o">|</span>
-</span><span id="line-8"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span><span id="line-9">           <span class="o">|</span>                                  <span class="o">|</span>
-</span><span id="line-10">           <span class="n">v</span>                                  <span class="n">v</span>
-</span><span id="line-11"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span><span id="line-12"><span class="o">|</span>  <span class="n">Agent</span> <span class="mi">2</span> <span class="p">(</span><span class="n">Support</span> <span class="o">-</span> <span class="n">Arch</span><span class="p">)</span><span class="o">|</span> <span class="o">----&gt;</span>  <span class="o">|</span>   <span class="n">Internal</span> <span class="n">Tech</span> <span class="n">Support</span>  <span class="o">|</span>
-</span><span id="line-13"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span><span id="line-14">           <span class="o">|</span>                                  <span class="o">|</span>
-</span><span id="line-15">           <span class="n">v</span>                                  <span class="n">v</span>
-</span><span id="line-16"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span><span id="line-17"><span class="o">|</span> <span class="n">Agent</span> <span class="mi">3</span> <span class="p">(</span><span class="n">Orders</span><span class="o">-</span> <span class="n">Arch</span><span class="p">)</span>   <span class="o">|</span> <span class="o">----&gt;</span>  <span class="o">|</span>   <span class="n">Inventory</span> <span class="n">Management</span>   <span class="o">|</span>
-</span><span id="line-18"><span class="o">+--------------------------+</span>        <span class="o">+--------------------------+</span>
-</span></code></pre></div>
-</div>
-<section id="trace-breakdown">
-<h4>Trace Breakdown:<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#trace-breakdown"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
-<ul class="simple">
-<li><dl class="simple">
-<dt>Customer Interaction:</dt><dd><ul>
-<li><p>Span 1: Customer initiates a request via the AI-powered chatbot for billing support (e.g., asking for payment details).</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>AI Agent 1 (Main - Arch):</dt><dd><ul>
-<li><p>Span 2: AI Agent 1 (Main) processes the request and identifies it as related to billing, forwarding the request
-to an external payment service.</p></li>
-<li><p>Span 3: AI Agent 1 determines that additional technical support is needed for processing and forwards the request
-to AI Agent 2.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>External Payment Service:</dt><dd><ul>
-<li><p>Span 4: The external payment service processes the payment-related request (e.g., verifying payment status) and sends
-the response back to AI Agent 1.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>AI Agent 2 (Tech - Arch):</dt><dd><ul>
-<li><p>Span 5: AI Agent 2, responsible for technical queries, processes a request forwarded from AI Agent 1 (e.g., checking for
-any account issues).</p></li>
-<li><p>Span 6: AI Agent 2 forwards the query to Internal Tech Support for further investigation.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>Internal Tech Support:</dt><dd><ul>
-<li><p>Span 7: Internal Tech Support processes the request (e.g., resolving account access issues) and responds to AI Agent 2.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>AI Agent 3 (Orders - Arch):</dt><dd><ul>
-<li><p>Span 8: AI Agent 3 handles order-related queries. AI Agent 1 forwards the request to AI Agent 3 after payment verification
-is completed.</p></li>
-<li><p>Span 9: AI Agent 3 forwards a request to the Inventory Management system to confirm product availability for a pending order.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>Inventory Management:</dt><dd><ul>
-<li><p>Span 10: The Inventory Management system checks stock and availability and returns the information to AI Agent 3.</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-</ul>
 </section>
 </section>
 </section>
@@ -461,10 +368,10 @@ is completed.</p></li>
 </section>
 <section id="langtrace">
 <h3>Langtrace<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#langtrace" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#langtrace'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h3>
-<p>Langtrace is an observability tool designed specifically for large language models (LLMs). It helps you capture, analyze, and understand how LLMs are used in your applications including those built using Arch.</p>
+<p>Langtrace is an observability tool designed specifically for large language models (LLMs). It helps you capture, analyze, and understand how LLMs are used in your applications including those built using Plano.</p>
 <p>To send tracing data to <a class="reference external" href="https://docs.langtrace.ai/supported-integrations/llm-tools/arch" rel="nofollow noopener">Langtrace<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>:</p>
 <ol class="arabic">
-<li><p><strong>Configure Arch</strong>: Make sure Arch is installed and setup correctly. For more information, refer to the <a class="reference external" href="https://github.com/katanemo/archgw?tab=readme-ov-file#prerequisites" rel="nofollow noopener">installation guide<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p></li>
+<li><p><strong>Configure Plano</strong>: Make sure Plano is installed and setup correctly. For more information, refer to the <a class="reference external" href="https://github.com/katanemo/archgw?tab=readme-ov-file#prerequisites" rel="nofollow noopener">installation guide<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p></li>
 <li><p><strong>Install Langtrace</strong>: Install the Langtrace SDK.:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>langtrace-python-sdk
 </span></code></pre></div>
@@ -512,7 +419,7 @@ is completed.</p></li>
 </section>
 <section id="summary">
 <h2>Summary<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#summary" x-intersect.margin.0%.0%.-70%.0%="activeSection = '#summary'"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h2>
-<p>By leveraging the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header for trace context propagation, Arch enables developers to implement
+<p>By leveraging the <code class="docutils literal notranslate"><span class="pre">traceparent</span></code> header for trace context propagation, Plano enables developers to implement
 tracing efficiently. This approach simplifies the process of collecting and analyzing tracing data in common
 tools like AWS X-Ray and Datadog, enhancing observability and facilitating faster debugging and optimization.</p>
 </section>
@@ -560,10 +467,6 @@ tools like AWS X-Ray and Datadog, enhancing observability and facilitating faste
 <li><a :data-current="activeSection === '#example-with-opentelemetry-in-python'" class="reference internal" href="#example-with-opentelemetry-in-python">Example with OpenTelemetry in Python</a></li>
 </ul>
 </li>
-<li><a :data-current="activeSection === '#ai-agent-tracing-visualization-example'" class="reference internal" href="#ai-agent-tracing-visualization-example">AI Agent Tracing Visualization Example</a><ul>
-<li><a :data-current="activeSection === '#trace-breakdown'" class="reference internal" href="#trace-breakdown">Trace Breakdown:</a></li>
-</ul>
-</li>
 </ul>
 </li>
 <li><a :data-current="activeSection === '#integrating-with-tracing-tools'" class="reference internal" href="#integrating-with-tracing-tools">Integrating with Tracing Tools</a><ul>
@@ -583,12 +486,12 @@ tools like AWS X-Ray and Datadog, enhancing observability and facilitating faste
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 23, 2025. </p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2025, Katanemo Labs, Inc Last updated: Dec 24, 2025. </p>
 </div>
 </div>
 </footer>
 </div>
-<script src="../../_static/documentation_options.js?v=3bad885e"></script>
+<script src="../../_static/documentation_options.js?v=8cf1ab6b"></script>
 <script src="../../_static/doctools.js?v=9bcbadda"></script>
 <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
 <script defer="defer" src="../../_static/theme.js?v=073f68d9"></script>

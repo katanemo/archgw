@@ -12,10 +12,10 @@ from sphinx.util.docfields import Field
 from sphinxawesome_theme import ThemeOptions
 from sphinxawesome_theme.postprocess import Icons
 
-project = "Arch Docs"
+project = "Plano Docs"
 copyright = "2025, Katanemo Labs, Inc"
 author = "Katanemo Labs, Inc"
-release = " v0.3.22"
+release = " v0.4.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

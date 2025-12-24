@@ -7,14 +7,14 @@ import sys
 import yaml
 from cli.utils import convert_legacy_listeners, getLogger
 from cli.consts import (
-    ARCHGW_DOCKER_IMAGE,
-    ARCHGW_DOCKER_NAME,
+    PLANO_DOCKER_IMAGE,
+    PLANO_DOCKER_NAME,
 )
 import subprocess
 from cli.docker_cli import (
     docker_container_status,
     docker_remove_container,
-    docker_start_archgw_detached,
+    docker_start_plano_detached,
     docker_stop_container,
     health_check_endpoint,
     stream_gateway_logs,
@@ -39,6 +39,9 @@ def _get_gateway_ports(arch_config_file: str) -> list[int]:
 
     all_ports = [listener.get("port") for listener in listeners]
 
+    # unique ports
+    all_ports = list(set(all_ports))
+
     return all_ports
 
 
@@ -51,27 +54,26 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
         log_timeout (int): Time in seconds to show logs before checking for healthy state.
     """
     log.info(
-        f"Starting arch gateway, image name: {ARCHGW_DOCKER_NAME}, tag: {ARCHGW_DOCKER_IMAGE}"
+        f"Starting arch gateway, image name: {PLANO_DOCKER_NAME}, tag: {PLANO_DOCKER_IMAGE}"
     )
 
     try:
-        archgw_container_status = docker_container_status(ARCHGW_DOCKER_NAME)
-        if archgw_container_status != "not found":
-            log.info("archgw found in docker, stopping and removing it")
-            docker_stop_container(ARCHGW_DOCKER_NAME)
-            docker_remove_container(ARCHGW_DOCKER_NAME)
+        plano_container_status = docker_container_status(PLANO_DOCKER_NAME)
+        if plano_container_status != "not found":
+            log.info("plano found in docker, stopping and removing it")
+            docker_stop_container(PLANO_DOCKER_NAME)
+            docker_remove_container(PLANO_DOCKER_NAME)
 
         gateway_ports = _get_gateway_ports(arch_config_file)
 
-        return_code, _, archgw_stderr = docker_start_archgw_detached(
+        return_code, _, plano_stderr = docker_start_plano_detached(
             arch_config_file,
-            os.path.expanduser("~/archgw_logs"),
             env,
             gateway_ports,
         )
         if return_code != 0:
-            log.info("Failed to start arch gateway: " + str(return_code))
-            log.info("stderr: " + archgw_stderr)
+            log.info("Failed to start plano gateway: " + str(return_code))
+            log.info("stderr: " + plano_stderr)
             sys.exit(1)
 
         start_time = time.time()
@@ -84,12 +86,12 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
                 if not health_check_status:
                     all_listeners_healthy = False
 
-            archgw_status = docker_container_status(ARCHGW_DOCKER_NAME)
+            plano_status = docker_container_status(PLANO_DOCKER_NAME)
             current_time = time.time()
             elapsed_time = current_time - start_time
 
-            if archgw_status == "exited":
-                log.info("archgw container exited unexpectedly.")
+            if plano_status == "exited":
+                log.info("plano container exited unexpectedly.")
                 stream_gateway_logs(follow=False)
                 sys.exit(1)
 
@@ -100,14 +102,14 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
                 sys.exit(1)
 
             if all_listeners_healthy:
-                log.info("archgw is running and is healthy!")
+                log.info("plano is running and is healthy!")
                 break
             else:
                 health_check_status_str = (
                     "healthy" if health_check_status else "not healthy"
                 )
                 log.info(
-                    f"archgw status: {archgw_status}, health status: {health_check_status_str}"
+                    f"plano status: {plano_status}, health status: {health_check_status_str}"
                 )
                 time.sleep(1)
 
@@ -119,7 +121,7 @@ def start_arch(arch_config_file, env, log_timeout=120, foreground=False):
         stop_docker_container()
 
 
-def stop_docker_container(service=ARCHGW_DOCKER_NAME):
+def stop_docker_container(service=PLANO_DOCKER_NAME):
     """
     Shutdown all Docker Compose services by running `docker-compose down`.
 

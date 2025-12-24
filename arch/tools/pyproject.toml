@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "archgw"
-version = "0.3.22"
-description = "Python-based CLI tool to manage Arch Gateway."
+name = "plano"
+version = "0.4.0"
+description = "Python-based CLI tool to manage Plano."
 authors = ["Katanemo Labs, Inc."]
 readme = "README.md"
 packages = [{ include = "cli" }]
@@ -18,7 +18,7 @@ requests = ">=2.31.0,<3.0.0"
 pytest = ">=8.4.1,<9.0.0"
 
 [tool.poetry.scripts]
-archgw = "cli.main:main"
+plano = "cli.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

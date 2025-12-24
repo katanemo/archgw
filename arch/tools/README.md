@@ -1,6 +1,6 @@
-## Setup Instructions(User): archgw CLI
+## Setup Instructions(User): plano CLI
 
-This guide will walk you through the steps to set up the archgw cli on your local machine
+This guide will walk you through the steps to set up the plano cli on your local machine
 
 ### Step 1: Create a Python virtual environment
 
@@ -19,17 +19,17 @@ source venv/bin/activate
 
 ### Step 3: Run the build script
 ```bash
-pip install archgw==0.3.22
+pip install plano==0.4.0
 ```
 
-## Uninstall Instructions: archgw CLI
+## Uninstall Instructions: plano CLI
 ```bash
-pip uninstall archgw
+pip uninstall plano
 ```
 
-## Setup Instructions (Dev): archgw CLI
+## Setup Instructions (Dev): plano CLI
 
-This guide will walk you through the steps to set up the archgw cli on your local machine when you want to develop the Archgw CLI
+This guide will walk you through the steps to set up the plano cli on your local machine when you want to develop the plano CLI
 
 ### Step 1: Create a Python virtual environment
 
@@ -53,16 +53,16 @@ poetry install
 
 ### Step 4: build Arch
 ```bash
-archgw build
+plano build
 ```
 
 ### Logs
-`archgw` command can also view logs from the gateway. Use following command to view logs,
+`plano` command can also view logs from the gateway. Use following command to view logs,
 
 ```bash
-archgw logs --follow
+plano logs --follow
 ```
 
-## Uninstall Instructions: archgw CLI
+## Uninstall Instructions: plano CLI
 ```bash
-pip uninstall archgw
+pip uninstall plano

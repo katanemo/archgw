@@ -1,5 +1,5 @@
 import os
 
-SERVICE_NAME_ARCHGW = "archgw"
-ARCHGW_DOCKER_NAME = "archgw"
-ARCHGW_DOCKER_IMAGE = os.getenv("ARCHGW_DOCKER_IMAGE", "katanemo/archgw:0.3.22")
+SERVICE_NAME_ARCHGW = "plano"
+PLANO_DOCKER_NAME = "plano"
+PLANO_DOCKER_IMAGE = os.getenv("PLANO_DOCKER_IMAGE", "katanemo/plano:0.4.0")

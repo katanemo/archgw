@@ -24,9 +24,9 @@ Create a ``docker-compose.yml`` file with the following configuration:
 
    # docker-compose.yml
    services:
-     archgw:
-       image: katanemo/archgw:0.3.22
-       container_name: archgw
+     plano:
+       image: katanemo/plano:0.4.0
+       container_name: plano
        ports:
          - "10000:10000" # ingress (client -> arch)
          - "12000:12000" # egress (arch -> upstream/llm proxy)

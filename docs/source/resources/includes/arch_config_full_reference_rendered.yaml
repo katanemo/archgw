@@ -1,15 +1,50 @@
+agents:
+- id: weather_agent
+  url: http://host.docker.internal:10510
+- id: flight_agent
+  url: http://host.docker.internal:10520
 endpoints:
   app_server:
     connect_timeout: 0.005s
     endpoint: 127.0.0.1
     port: 80
-  error_target:
-    endpoint: error_target_1
-    port: 80
+  flight_agent:
+    endpoint: host.docker.internal
+    port: 10520
+    protocol: http
+  input_guards:
+    endpoint: host.docker.internal
+    port: 10500
+    protocol: http
   mistral_local:
     endpoint: 127.0.0.1
     port: 8001
+  weather_agent:
+    endpoint: host.docker.internal
+    port: 10510
+    protocol: http
+filters:
+- id: input_guards
+  url: http://host.docker.internal:10500
 listeners:
+- address: 0.0.0.0
+  agents:
+  - description: virtual assistant for retrieval augmented generation tasks
+    filter_chain:
+    - input_guards
+    id: rag_agent
+  name: travel_booking_service
+  port: 8001
+  router: plano_orchestrator_v1
+  type: agent
+- address: 0.0.0.0
+  name: model_1
+  port: 12000
+  type: model
+- address: 0.0.0.0
+  name: prompt_function_listener
+  port: 10000
+  type: prompt
 - address: 0.0.0.0
   model_providers:
   - access_key: $OPENAI_API_KEY
@@ -17,49 +52,44 @@ listeners:
     model: gpt-4o
     name: openai/gpt-4o
     provider_interface: openai
+  - access_key: $OPENAI_API_KEY
+    model: gpt-4o-mini
+    name: openai/gpt-4o-mini
+    provider_interface: openai
+  - access_key: $ANTHROPIC_API_KEY
+    model: claude-sonnet-4-0
+    name: anthropic/claude-sonnet-4-0
+    provider_interface: anthropic
   - access_key: $MISTRAL_API_KEY
-    model: mistral-8x7b
-    name: mistral/mistral-8x7b
-    provider_interface: mistral
-  - base_url: http://mistral_local
-    cluster_name: mistral_mistral_local
-    endpoint: mistral_local
-    model: mistral-7b-instruct
-    name: mistral/mistral-7b-instruct
-    port: 80
-    protocol: http
+    model: ministral-3b-latest
+    name: mistral/ministral-3b-latest
     provider_interface: mistral
   name: egress_traffic
   port: 12000
-  timeout: 5s
+  timeout: 30s
   type: model_listener
-- address: 0.0.0.0
-  name: ingress_traffic
-  port: 10000
-  timeout: 5s
-  type: prompt_listener
 model_aliases:
-  arch.summarize.v1:
+  fast-llm:
+    target: gpt-4o-mini
+  smart-llm:
     target: gpt-4o
-  arch.v1:
-    target: mistral-8x7b
 model_providers:
 - access_key: $OPENAI_API_KEY
   default: true
   model: gpt-4o
   name: openai/gpt-4o
   provider_interface: openai
+- access_key: $OPENAI_API_KEY
+  model: gpt-4o-mini
+  name: openai/gpt-4o-mini
+  provider_interface: openai
+- access_key: $ANTHROPIC_API_KEY
+  model: claude-sonnet-4-0
+  name: anthropic/claude-sonnet-4-0
+  provider_interface: anthropic
 - access_key: $MISTRAL_API_KEY
-  model: mistral-8x7b
-  name: mistral/mistral-8x7b
-  provider_interface: mistral
-- base_url: http://mistral_local
-  cluster_name: mistral_mistral_local
-  endpoint: mistral_local
-  model: mistral-7b-instruct
-  name: mistral/mistral-7b-instruct
-  port: 80
-  protocol: http
+  model: ministral-3b-latest
+  name: mistral/ministral-3b-latest
   provider_interface: mistral
 - model: Arch-Function
   name: arch-function
@@ -67,45 +97,23 @@ model_providers:
 - model: Plano-Orchestrator
   name: plano-orchestrator
   provider_interface: arch
-overrides:
-  prompt_target_intent_matching_threshold: 0.6
-prompt_guards:
-  input_guards:
-    jailbreak:
-      on_exception:
-        message: Looks like you're curious about my abilities, but I can only provide
-          assistance within my programmed parameters.
 prompt_targets:
-- auto_llm_dispatch_on_response: true
-  default: true
-  description: handel all scenarios that are question and answer in nature. Like summarization,
-    information extraction, etc.
+- description: Get current weather at a location.
   endpoint:
     http_method: POST
     name: app_server
-    path: /agent/summary
-  name: information_extraction
-  system_prompt: You are a helpful information extraction assistant. Use the information
-    that is provided to you.
-- description: Reboot a specific network device
-  endpoint:
-    name: app_server
-    path: /agent/action
-  name: reboot_network_device
+    path: /weather
+  name: get_current_weather
   parameters:
-  - description: Identifier of the network device to reboot.
-    name: device_id
+  - description: The location to get the weather for
+    format: City, State
+    name: location
     required: true
-    type: str
-  - default: false
-    description: Confirmation flag to proceed with reboot.
-    enum:
-    - true
-    - false
-    name: confirmation
-    type: bool
-system_prompt: You are a network assistant that just offers facts; not advice on manufacturers
-  or purchasing decisions.
+    type: string
+  - description: the number of days for the request
+    name: days
+    required: true
+    type: int
 tracing:
-  sampling_rate: 0.1
-version: v0.1
+  random_sampling: 100
+version: v0.3.0

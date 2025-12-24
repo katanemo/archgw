@@ -4,7 +4,7 @@ use std::collections::HashMap;
 pub const JSON_RPC_VERSION: &str = "2.0";
 pub const TOOL_CALL_METHOD : &str = "tools/call";
 pub const MCP_INITIALIZE: &str = "initialize";
-pub const MCP_INITIALIZE_NOTIFICATION: &str = "initialize/notification";
+pub const MCP_INITIALIZE_NOTIFICATION: &str = "notifications/initialized";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]

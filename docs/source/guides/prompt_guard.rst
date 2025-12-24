@@ -1,66 +1,118 @@
 .. _prompt_guard:
 
-Prompt Guard
-=============
+Guardrails
+==========
 
-**Prompt guard** is a security and validation feature offered in Arch to protect agents, by filtering and analyzing prompts before they reach your application logic.
-In applications where prompts generate responses or execute specific actions based on user inputs, prompt guard minimizes risks like malicious inputs (or misaligned outputs).
-By adding a layer of input scrutiny, prompt guards ensures safer, more reliable, and accurate interactions with agents.
+**Guardrails** are Plano's way of applying safety and validation checks to prompts before they reach your application logic. They are typically implemented as
+filters in a :ref:`Filter Chain <filter_chain>` attached to an agent, so every request passes through a consistent processing layer.
 
-Why Prompt Guard
-----------------
+
+Why Guardrails
+--------------
+Guardrails are essential for maintaining control over AI-driven applications. They help enforce organizational policies, ensure compliance with regulations
+(like GDPR or HIPAA), and protect users from harmful or inappropriate content. In applications where prompts generate responses or trigger actions, guardrails
+minimize risks like malicious inputs, off-topic queries, or misaligned outputs—adding a consistent layer of input scrutiny that makes interactions safer,
+more reliable, and easier to reason about.
+
 
 .. vale Vale.Spelling = NO
 
-- **Prompt Sanitization via Arch-Guard**
-    - **Jailbreak Prevention**: Detects and filters inputs that might attempt jailbreak attacks, like alternating LLM intended behavior, exposing the system prompt, or bypassing ethnics safety.
-
-- **Dynamic Error Handling**
-    - **Automatic Correction**: Applies error-handling techniques to suggest corrections for minor input errors, such as typos or misformatted data.
-    - **Feedback Mechanism**: Provides informative error messages to users, helping them understand how to correct input mistakes or adhere to guidelines.
-
-.. Note::
-    Today, Arch offers support for jailbreak via Arch-Guard. We will be adding support for additional guards in Q1, 2025 (including response guardrails)
-
-What Is Arch-Guard
-~~~~~~~~~~~~~~~~~~
-`Arch-Guard <https://huggingface.co/collections/katanemo/arch-guard-6702bdc08b889e4bce8f446d>`_ is a robust classifier model specifically trained on a diverse corpus of prompt attacks.
-It excels at detecting explicitly malicious prompts, providing an essential layer of security for LLM applications.
-
-By embedding Arch-Guard within the Arch architecture, we empower developers to build robust, LLM-powered applications while prioritizing security and safety. With Arch-Guard, you can navigate the complexities of prompt management with confidence, knowing you have a reliable defense against malicious input.
+- **Jailbreak Prevention**: Detect and filter inputs that attempt to change LLM behavior, expose system prompts, or bypass safety policies.
+- **Domain and Topicality Enforcement**: Ensure that agents only respond to prompts within an approved domain (for example, finance-only or healthcare-only use cases) and reject unrelated queries.
+- **Dynamic Error Handling**: Provide clear error messages when requests violate policy, helping users correct their inputs.
 
 
-Example Configuration
-~~~~~~~~~~~~~~~~~~~~~
-Here is an example of using Arch-Guard in Arch:
+How Guardrails Work
+-------------------
 
-.. literalinclude:: includes/arch_config.yaml
-    :language: yaml
-    :linenos:
-    :lines: 22-26
-    :caption: Arch-Guard Example Configuration
+Guardrails can be implemented as either in-process MCP filters or as HTTP-based filters. HTTP filters are external services that receive the request over HTTP, validate it, and return a response to allow or reject the request. This makes it easy to use filters written in any language or run them as independent services.
 
-How Arch-Guard Works
-----------------------
+Each filter receives the chat messages, evaluates them against policy, and either lets the request continue or raises a ``ToolError`` (or returns an error response) to reject it with a helpful error message.
 
-#. **Pre-Processing Stage**
+The example below shows an input guard for TechCorp's customer support system that validates queries are within the company's domain:
 
-    As a request or prompt is received, Arch Guard first performs validation. If any violations are detected, the input is flagged, and a tailored error message may be returned.
+.. code-block:: python
+    :caption: Example domain validation guard using FastMCP
 
-#. **Error Handling and Feedback**
+    from typing import List
+    from fastmcp.exceptions import ToolError
+    from . import mcp
 
-    If the prompt contains errors or does not meet certain criteria, the user receives immediate feedback or correction suggestions, enhancing usability and reducing the chance of repeated input mistakes.
+    @mcp.tool
+    async def input_guards(messages: List[ChatMessage]) -> List[ChatMessage]:
+        """Validates queries are within TechCorp's domain."""
 
-Benefits of Using Arch Guard
-------------------------------
+        # Get the user's query
+        user_query = next(
+            (msg.content for msg in reversed(messages) if msg.role == "user"),
+            ""
+        )
 
-- **Enhanced Security**: Protects against injection attacks, harmful content, and misuse, securing both system and user data.
+        # Use an LLM to validate the query scope (simplified)
+        is_valid = await validate_with_llm(user_query)
 
-- **Better User Experience**: Clear feedback and error correction improve user interactions by guiding them to correct input formats and constraints.
+        if not is_valid:
+            raise ToolError(
+                "I can only assist with questions related to TechCorp and its services. "
+                "Please ask about TechCorp's products, pricing, SLAs, or technical support."
+            )
+
+        return messages
 
 
-Summary
--------
+To wire this guardrail into Plano, define the filter and add it to your agent's filter chain:
 
-Prompt guard is an essential tool for any prompt-based system that values security, accuracy, and compliance.
-By implementing Prompt Guard, developers can provide a robust layer of input validation and security, leading to better-performing, reliable, and safer applications.
+.. code-block:: yaml
+    :caption: Plano configuration with input guard filter
+
+    filters:
+      - id: input_guards
+        url: http://localhost:10500
+
+    listeners:
+      - type: agent
+        name: agent_1
+        port: 8001
+        router: plano_orchestrator_v1
+        agents:
+          - id: rag_agent
+            description: virtual assistant for retrieval augmented generation tasks
+            filter_chain:
+              - input_guards
+
+
+When a request arrives at ``agent_1``, Plano invokes the ``input_guards`` filter first. If validation passes, the request continues to
+the agent. If validation fails (``ToolError`` raised), Plano returns an error response to the caller.
+
+Testing the Guardrail
+---------------------
+
+Here's an example of the guardrail in action, rejecting a query about Apple Corporation (outside TechCorp's domain):
+
+.. code-block:: bash
+    :caption: Request that violates the guardrail policy
+
+    curl -X POST http://localhost:8001/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "gpt-4",
+        "messages": [
+          {
+            "role": "user",
+            "content": "what is sla for apple corporation?"
+          }
+        ],
+        "stream": false
+      }'
+
+.. code-block:: json
+    :caption: Error response from the guardrail
+
+    {
+      "error": "ClientError",
+      "agent": "input_guards",
+      "status": 400,
+      "agent_response": "I apologize, but I can only assist with questions related to TechCorp and its services. Your query appears to be outside this scope. The query is about SLA for Apple Corporation, which is unrelated to TechCorp.\n\nPlease ask me about TechCorp's products, services, pricing, SLAs, or technical support."
+    }
+
+This prevents out-of-scope queries from reaching your agent while providing clear feedback to users about why their request was rejected.

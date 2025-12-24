@@ -132,7 +132,7 @@ impl PipelineProcessor {
     }
 
     /// Record a span for MCP protocol interactions
-    fn record_mcp_span(
+    fn record_agent_filter_span(
         &self,
         collector: &std::sync::Arc<common::traces::TraceCollector>,
         operation: &str,
@@ -243,7 +243,7 @@ impl PipelineProcessor {
                     .await?;
             } else {
                 chat_history_updated = self
-                    .execute_rest_filter(
+                    .execute_http_filter(
                         &chat_history_updated,
                         agent,
                         request_headers,
@@ -489,7 +489,7 @@ impl PipelineProcessor {
             attrs.insert("mcp.session_id", mcp_session_id.clone());
             attrs.insert("http.status_code", http_status.as_u16().to_string());
 
-            self.record_mcp_span(
+            self.record_agent_filter_span(
                 collector,
                 "tool_call",
                 &agent.id,
@@ -551,7 +551,7 @@ impl PipelineProcessor {
 
             return Err(PipelineError::ClientError {
                 agent: agent.id.clone(),
-                status: http_status.as_u16(),
+                status: hyper::StatusCode::BAD_REQUEST.as_u16(),
                 body: error_message,
             });
         }
@@ -690,8 +690,8 @@ impl PipelineProcessor {
         session_id
     }
 
-    /// Execute a REST-based filter agent
-    async fn execute_rest_filter(
+    /// Execute a HTTP-based filter agent
+    async fn execute_http_filter(
         &mut self,
         messages: &[Message],
         agent: &Agent,
@@ -702,11 +702,11 @@ impl PipelineProcessor {
     ) -> Result<Vec<Message>, PipelineError> {
         let tool_name = agent.tool.as_deref().unwrap_or(&agent.id);
 
-        // Generate span ID for this REST call (child of filter span)
-        let rest_span_id = generate_random_span_id();
+        // Generate span ID for this HTTP call (child of filter span)
+        let http_span_id = generate_random_span_id();
 
         // Build headers
-        let trace_parent = format!("00-{}-{}-01", trace_id, rest_span_id);
+        let trace_parent = format!("00-{}-{}-01", trace_id, http_span_id);
         let mut agent_headers = request_headers.clone();
         agent_headers.remove(hyper::header::CONTENT_LENGTH);
 
@@ -742,7 +742,7 @@ impl PipelineProcessor {
         let start_instant = Instant::now();
 
         debug!(
-            "Sending REST request to agent {} at URL: {}",
+            "Sending HTTP request to agent {} at URL: {}",
             agent.id, agent.url
         );
 
@@ -761,16 +761,16 @@ impl PipelineProcessor {
         let end_time = SystemTime::now();
         let elapsed = start_instant.elapsed();
 
-        // Record REST call span
+        // Record HTTP call span
         if let Some(collector) = trace_collector {
             let mut attrs = HashMap::new();
-            attrs.insert("rest.tool_name", tool_name.to_string());
-            attrs.insert("rest.url", agent.url.clone());
+            attrs.insert("http.tool_name", tool_name.to_string());
+            attrs.insert("http.url", agent.url.clone());
             attrs.insert("http.status_code", http_status.as_u16().to_string());
 
-            self.record_mcp_span(
+            self.record_agent_filter_span(
                 collector,
-                "rest_call",
+                "http_call",
                 &agent.id,
                 start_time,
                 end_time,
@@ -778,7 +778,7 @@ impl PipelineProcessor {
                 Some(attrs),
                 trace_id.clone(),
                 filter_span_id.clone(),
-                Some(rest_span_id),
+                Some(http_span_id),
             );
         }
 
@@ -801,7 +801,7 @@ impl PipelineProcessor {
         }
 
         info!(
-            "Response from REST agent {}: {}",
+            "Response from HTTP agent {}: {}",
             agent.id,
             String::from_utf8_lossy(&response_bytes)
         );
@@ -1061,10 +1061,10 @@ mod tests {
             .await;
 
         match result {
-            Err(PipelineError::ClientError { status, body, .. }) => {
-                assert_eq!(status, 200);
-                assert_eq!(body, "bad tool call");
-            }
+                Err(PipelineError::ClientError { status, body, .. }) => {
+                    assert_eq!(status, 400);
+                    assert_eq!(body, "bad tool call");
+                }
             _ => panic!("Expected client error when isError flag is set"),
         }
     }

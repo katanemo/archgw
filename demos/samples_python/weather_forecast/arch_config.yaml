@@ -39,12 +39,6 @@ llm_providers:
 system_prompt: |
   You are a helpful assistant.
 
-prompt_guards:
-  input_guards:
-    jailbreak:
-      on_exception:
-        message: Looks like you're curious about my abilities, but I can only provide assistance for weather forecasting.
-
 prompt_targets:
   - name: get_current_weather
     description: Get current weather at a location.

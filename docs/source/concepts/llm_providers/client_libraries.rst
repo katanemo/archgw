@@ -3,7 +3,7 @@
 Client Libraries
 ================
 
-Arch provides a unified interface that works seamlessly with multiple client libraries and tools. You can use your preferred client library without changing your existing code - just point it to Arch's gateway endpoints.
+Plano provides a unified interface that works seamlessly with multiple client libraries and tools. You can use your preferred client library without changing your existing code - just point it to Plano's gateway endpoints.
 
 Supported Clients
 ------------------
@@ -16,7 +16,7 @@ Supported Clients
 Gateway Endpoints
 -----------------
 
-Arch exposes two main endpoints:
+Plano exposes three main endpoints:
 
 .. list-table::
    :header-rows: 1
@@ -26,13 +26,15 @@ Arch exposes two main endpoints:
      - Purpose
    * - ``http://127.0.0.1:12000/v1/chat/completions``
      - OpenAI-compatible chat completions (LLM Gateway)
+   * - ``http://127.0.0.1:12000/v1/responses``
+     - OpenAI Responses API with :ref:`conversational state management <managing_conversational_state>` (LLM Gateway)
    * - ``http://127.0.0.1:12000/v1/messages``
      - Anthropic-compatible messages (LLM Gateway)
 
 OpenAI (Python) SDK
 -------------------
 
-The OpenAI SDK works with any provider through Arch's OpenAI-compatible endpoint.
+The OpenAI SDK works with any provider through Plano's OpenAI-compatible endpoint.
 
 **Installation:**
 
@@ -46,7 +48,7 @@ The OpenAI SDK works with any provider through Arch's OpenAI-compatible endpoint
 
     from openai import OpenAI
 
-    # Point to Arch's LLM Gateway
+    # Point to Plano's LLM Gateway
     client = OpenAI(
         api_key="test-key",  # Can be any value for local testing
         base_url="http://127.0.0.1:12000/v1"
@@ -96,7 +98,7 @@ The OpenAI SDK works with any provider through Arch's OpenAI-compatible endpoint
 
 **Using with Non-OpenAI Models:**
 
-The OpenAI SDK can be used with any provider configured in Arch:
+The OpenAI SDK can be used with any provider configured in Plano:
 
 .. code-block:: python
 
@@ -124,10 +126,92 @@ The OpenAI SDK can be used with any provider configured in Arch:
         ]
     )
 
+OpenAI Responses API (Conversational State)
+-------------------------------------------
+
+The OpenAI Responses API (``v1/responses``) enables multi-turn conversations with automatic state management. Plano handles conversation history for you, so you don't need to manually include previous messages in each request.
+
+See :ref:`managing_conversational_state` for detailed configuration and storage backend options.
+
+**Installation:**
+
+.. code-block:: bash
+
+    pip install openai
+
+**Basic Multi-Turn Conversation:**
+
+.. code-block:: python
+
+    from openai import OpenAI
+
+    # Point to Plano's LLM Gateway
+    client = OpenAI(
+        api_key="test-key",
+        base_url="http://127.0.0.1:12000/v1"
+    )
+
+    # First turn - creates a new conversation
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": "My name is Alice"}
+        ]
+    )
+
+    # Extract response_id for conversation continuity
+    response_id = response.id
+    print(f"Assistant: {response.choices[0].message.content}")
+
+    # Second turn - continues the conversation
+    # Plano automatically retrieves and merges previous context
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": "What's my name?"}
+        ],
+        metadata={"response_id": response_id}  # Reference previous conversation
+    )
+
+    print(f"Assistant: {response.choices[0].message.content}")
+    # Output: "Your name is Alice"
+
+**Using with Any Provider:**
+
+The Responses API works with any LLM provider configured in Plano:
+
+.. code-block:: python
+
+    # Multi-turn conversation with Claude
+    response = client.chat.completions.create(
+        model="claude-3-5-sonnet-20241022",
+        messages=[
+            {"role": "user", "content": "Let's discuss quantum physics"}
+        ]
+    )
+
+    response_id = response.id
+
+    # Continue conversation - Plano manages state regardless of provider
+    response = client.chat.completions.create(
+        model="claude-3-5-sonnet-20241022",
+        messages=[
+            {"role": "user", "content": "Tell me more about entanglement"}
+        ],
+        metadata={"response_id": response_id}
+    )
+
+**Key Benefits:**
+
+* **Reduced payload size**: No need to send full conversation history in each request
+* **Provider flexibility**: Use any configured LLM provider with state management
+* **Automatic context merging**: Plano handles conversation continuity behind the scenes
+* **Production-ready storage**: Configure :ref:`PostgreSQL or memory storage <managing_conversational_state>` based on your needs
+
 Anthropic (Python) SDK
 ----------------------
 
-The Anthropic SDK works with any provider through Arch's Anthropic-compatible endpoint.
+The Anthropic SDK works with any provider through Plano's Anthropic-compatible endpoint.
 
 **Installation:**
 
@@ -141,7 +225,7 @@ The Anthropic SDK works with any provider through Arch's Anthropic-compatible en
 
     import anthropic
 
-    # Point to Arch's LLM Gateway
+    # Point to Plano's LLM Gateway
     client = anthropic.Anthropic(
         api_key="test-key",  # Can be any value for local testing
         base_url="http://127.0.0.1:12000"
@@ -192,7 +276,7 @@ The Anthropic SDK works with any provider through Arch's Anthropic-compatible en
 
 **Using with Non-Anthropic Models:**
 
-The Anthropic SDK can be used with any provider configured in Arch:
+The Anthropic SDK can be used with any provider configured in Plano:
 
 .. code-block:: python
 
@@ -284,7 +368,7 @@ For direct HTTP requests or integration with any programming language:
 Cross-Client Compatibility
 --------------------------
 
-One of Arch's key features is cross-client compatibility. You can:
+One of Plano's key features is cross-client compatibility. You can:
 
 **Use OpenAI SDK with Claude Models:**
 

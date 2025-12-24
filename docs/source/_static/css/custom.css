@@ -1,0 +1,6 @@
+/* Prevent sphinxawesome-theme's Tailwind utility `dark:invert` from inverting the header logo. */
+.dark header img[alt="Logo"],
+.dark #left-sidebar img[alt="Logo"] {
+  --tw-invert: invert(0%) !important;
+  filter: none !important;
+}

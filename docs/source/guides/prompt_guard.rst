@@ -21,11 +21,13 @@ more reliable, and easier to reason about.
 - **Domain and Topicality Enforcement**: Ensure that agents only respond to prompts within an approved domain (for example, finance-only or healthcare-only use cases) and reject unrelated queries.
 - **Dynamic Error Handling**: Provide clear error messages when requests violate policy, helping users correct their inputs.
 
+
 How Guardrails Work
 -------------------
 
-In Plano, guardrails are implemented as MCP filters that validate incoming requests. Each filter receives the chat messages, evaluates them
-against policy, and either lets the request continue or raises a ``ToolError`` to reject it with a helpful error message.
+Guardrails can be implemented as either in-process MCP filters or as HTTP-based filters. HTTP filters are external services that receive the request over HTTP, validate it, and return a response to allow or reject the request. This makes it easy to use filters written in any language or run them as independent services.
+
+Each filter receives the chat messages, evaluates them against policy, and either lets the request continue or raises a ``ToolError`` (or returns an error response) to reject it with a helpful error message.
 
 The example below shows an input guard for TechCorp's customer support system that validates queries are within the company's domain:
 

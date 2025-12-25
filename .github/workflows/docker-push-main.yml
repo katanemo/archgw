@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  # Build ARM64 image on native ARM64 runner
+  # Build ARM64 image on native ARM64 runner.
   build-arm64:
     runs-on: [linux-arm64]
     steps:

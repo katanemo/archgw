@@ -2,7 +2,7 @@ import json
 import pytest
 from unittest import mock
 import sys
-from cli.config_generator import validate_and_render_schema
+from planoai.config_generator import validate_and_render_schema
 
 # Patch sys.path to allow import from cli/
 import os
@@ -59,7 +59,7 @@ tracing:
   random_sampling: 100
 """
     arch_config_schema = ""
-    with open("../arch_config_schema.yaml", "r") as file:
+    with open("../../config/arch_config_schema.yaml", "r") as file:
         arch_config_schema = file.read()
 
     m_open = mock.mock_open()
@@ -132,7 +132,7 @@ listeners:
         model: openai/gpt-4o
 """
     arch_config_schema = ""
-    with open("../arch_config_schema.yaml", "r") as file:
+    with open("../../config/arch_config_schema.yaml", "r") as file:
         arch_config_schema = file.read()
 
     m_open = mock.mock_open()
@@ -151,7 +151,7 @@ listeners:
         mock.mock_open().return_value,  # ARCH_CONFIG_FILE_RENDERED (write)
     ]
     with mock.patch("builtins.open", m_open):
-        with mock.patch("cli.config_generator.Environment"):
+        with mock.patch("planoai.config_generator.Environment"):
             validate_and_render_schema()
 
 
@@ -319,7 +319,7 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
     expected_error = arch_config_test_case.get("expected_error")
 
     arch_config_schema = ""
-    with open("../arch_config_schema.yaml", "r") as file:
+    with open("../../config/arch_config_schema.yaml", "r") as file:
         arch_config_schema = file.read()
 
     m_open = mock.mock_open()
@@ -350,7 +350,7 @@ def test_validate_and_render_schema_tests(monkeypatch, arch_config_test_case):
 
 
 def test_convert_legacy_llm_providers():
-    from cli.utils import convert_legacy_listeners
+    from planoai.utils import convert_legacy_listeners
 
     listeners = {
         "ingress_traffic": {
@@ -420,7 +420,7 @@ def test_convert_legacy_llm_providers():
 
 
 def test_convert_legacy_llm_providers_no_prompt_gateway():
-    from cli.utils import convert_legacy_listeners
+    from planoai.utils import convert_legacy_listeners
 
     listeners = {
         "egress_traffic": {

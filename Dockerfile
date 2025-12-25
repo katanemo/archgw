@@ -30,12 +30,12 @@ COPY --from=builder /arch/target/release/brightstaff /app/brightstaff
 COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /app
-COPY arch/requirements.txt .
+COPY config/requirements.txt .
 RUN pip install -r requirements.txt
-COPY arch/tools .
-COPY arch/envoy.template.yaml .
-COPY arch/arch_config_schema.yaml .
-COPY arch/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY cli .
+COPY config/envoy.template.yaml .
+COPY config/arch_config_schema.yaml .
+COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN pip install requests
 RUN mkdir -p /var/log/supervisor && touch /var/log/envoy.log /var/log/supervisor/supervisord.log

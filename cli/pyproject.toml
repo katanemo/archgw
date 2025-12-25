@@ -4,7 +4,7 @@ version = "0.4.0"
 description = "Python-based CLI tool to manage Plano."
 authors = ["Katanemo Labs, Inc."]
 readme = "README.md"
-packages = [{ include = "cli" }]
+packages = [{ include = "planoai" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10"
@@ -18,7 +18,7 @@ requests = ">=2.31.0,<3.0.0"
 pytest = ">=8.4.1,<9.0.0"
 
 [tool.poetry.scripts]
-planoai = "cli.main:main"
+planoai = "planoai.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

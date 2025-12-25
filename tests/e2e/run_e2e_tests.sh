@@ -29,7 +29,7 @@ cd -
 
 log building and installing plano cli
 log ==================================
-cd ../../arch/tools
+cd ../../cli
 poetry install
 cd -
 

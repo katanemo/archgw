@@ -10,7 +10,7 @@
     },
     {
       "name": "archgw_cli",
-      "path": "arch/tools"
+      "path": "cli"
     },
     {
       "name": "tests_e2e",

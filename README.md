@@ -233,10 +233,10 @@ endpoints:
 
 ```sh
 $ planoai up plano_config.yaml
-2024-12-05 16:56:27,979 - cli.main - INFO - Starting plano cli version: 0.4.0
-2024-12-05 16:56:28,485 - cli.utils - INFO - Schema validation successful!
-2024-12-05 16:56:28,485 - cli.main - INFO - Starting plano model server and plano gateway
-2024-12-05 16:56:51,647 - cli.core - INFO - Container is healthy!
+2024-12-05 16:56:27,979 - planoai.main - INFO - Starting plano cli version: 0.4.0
+2024-12-05 16:56:28,485 - planoai.utils - INFO - Schema validation successful!
+2024-12-05 16:56:28,485 - planoai.main - INFO - Starting plano model server and plano gateway
+2024-12-05 16:56:51,647 - planoai.core - INFO - Container is healthy!
 ```
 
 Once the gateway is up you can start interacting with it at port `10000` using the OpenAI chat completion API.

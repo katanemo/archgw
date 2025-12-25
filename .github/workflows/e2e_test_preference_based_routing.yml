@@ -44,7 +44,7 @@ jobs:
         run: |
           source venv/bin/activate
           cd cli && echo "installing plano cli" && poetry install
-          cd ../../demos/shared/test_runner && echo "installing test dependencies" && poetry install
+          cd ../demos/shared/test_runner && echo "installing test dependencies" && poetry install
 
       - name: run demo tests
         env:

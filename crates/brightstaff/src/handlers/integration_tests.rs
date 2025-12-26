@@ -14,7 +14,7 @@ use crate::router::plano_orchestrator::OrchestratorService;
 /// 2. PipelineProcessor - executes the agent pipeline
 /// 3. ResponseHandler - handles response streaming
 #[cfg(test)]
-mod integration_tests {
+mod tests {
     use super::*;
     use common::configuration::{Agent, AgentFilterChain, Listener};
 

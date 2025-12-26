@@ -144,7 +144,7 @@ impl OrchestratorModelV1 {
         // Format routes: each route as JSON on its own line with standard spacing
         let agent_orchestration_json_str = agent_orchestration_values
             .iter()
-            .map(|pref| to_spaced_json(pref))
+            .map(to_spaced_json)
             .collect::<Vec<String>>()
             .join("\n");
         let agent_orchestration_to_model_map: HashMap<String, String> = agent_orchestrations
@@ -382,7 +382,7 @@ fn convert_to_orchestrator_preferences(
         // Format routes: each route as JSON on its own line with standard spacing
         let routes_str = orchestration_preferences
             .iter()
-            .map(|pref| to_spaced_json(pref))
+            .map(to_spaced_json)
             .collect::<Vec<String>>()
             .join("\n");
 

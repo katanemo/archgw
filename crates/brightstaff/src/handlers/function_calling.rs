@@ -741,7 +741,7 @@ impl ArchFunctionHandler {
         if let Some(instruction) = extra_instruction {
             if let Some(last) = processed_messages.last_mut() {
                 if let MessageContent::Text(content) = &mut last.content {
-                    content.push_str("\n");
+                    content.push('\n');
                     content.push_str(instruction);
                 }
             }
@@ -774,13 +774,11 @@ impl ArchFunctionHandler {
         for i in (conversation_idx..messages.len()).rev() {
             if let MessageContent::Text(content) = &messages[i].content {
                 num_tokens += content.len() / 4;
-                if num_tokens >= max_tokens {
-                    if messages[i].role == Role::User {
-                        // Set message_idx to current position and break
-                        // This matches Python's behavior where message_idx is set before break
-                        message_idx = i;
-                        break;
-                    }
+                if num_tokens >= max_tokens && messages[i].role == Role::User {
+                    // Set message_idx to current position and break
+                    // This matches Python's behavior where message_idx is set before break
+                    message_idx = i;
+                    break;
                 }
             }
             // Only update message_idx if we haven't hit the token limit yet
@@ -861,7 +859,7 @@ impl ArchFunctionHandler {
             .body(request_body)
             .send()
             .await
-            .map_err(|e| FunctionCallingError::HttpError(e))?;
+            .map_err(FunctionCallingError::HttpError)?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -916,7 +914,7 @@ impl ArchFunctionHandler {
             .body(request_body)
             .send()
             .await
-            .map_err(|e| FunctionCallingError::HttpError(e))?;
+            .map_err(FunctionCallingError::HttpError)?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -933,9 +931,9 @@ impl ArchFunctionHandler {
         let response_text = response
             .text()
             .await
-            .map_err(|e| FunctionCallingError::HttpError(e))?;
+            .map_err(FunctionCallingError::HttpError)?;
 
-        serde_json::from_str(&response_text).map_err(|e| FunctionCallingError::JsonParseError(e))
+        serde_json::from_str(&response_text).map_err(FunctionCallingError::JsonParseError)
     }
 
     pub async fn function_calling_chat(
@@ -977,8 +975,7 @@ impl ArchFunctionHandler {
 
         if use_agent_orchestrator {
             while let Some(chunk_result) = stream.next().await {
-                let chunk =
-                    chunk_result.map_err(|e| FunctionCallingError::InvalidModelResponse(e))?;
+                let chunk = chunk_result.map_err(FunctionCallingError::InvalidModelResponse)?;
                 // Extract content from JSON response
                 if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
                     if let Some(choice) = choices.first() {
@@ -993,90 +990,80 @@ impl ArchFunctionHandler {
                 }
             }
             info!("[Agent Orchestrator]: response received");
-        } else {
-            if let Some(tools) = request.tools.as_ref() {
-                let mut hallucination_state = HallucinationState::new(tools);
-                let mut has_tool_calls = None;
-                let mut has_hallucination = false;
+        } else if let Some(tools) = request.tools.as_ref() {
+            let mut hallucination_state = HallucinationState::new(tools);
+            let mut has_tool_calls = None;
+            let mut has_hallucination = false;
 
-                while let Some(chunk_result) = stream.next().await {
-                    let chunk =
-                        chunk_result.map_err(|e| FunctionCallingError::InvalidModelResponse(e))?;
+            while let Some(chunk_result) = stream.next().await {
+                let chunk = chunk_result.map_err(FunctionCallingError::InvalidModelResponse)?;
 
-                    // Extract content and logprobs from JSON response
-                    if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
-                        if let Some(choice) = choices.first() {
-                            if let Some(content) = choice
-                                .get("delta")
-                                .and_then(|d| d.get("content"))
-                                .and_then(|c| c.as_str())
+                // Extract content and logprobs from JSON response
+                if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
+                    if let Some(choice) = choices.first() {
+                        if let Some(content) = choice
+                            .get("delta")
+                            .and_then(|d| d.get("content"))
+                            .and_then(|c| c.as_str())
+                        {
+                            // Extract logprobs
+                            let logprobs: Vec<f64> = choice
+                                .get("logprobs")
+                                .and_then(|lp| lp.get("content"))
+                                .and_then(|c| c.as_array())
+                                .and_then(|arr| arr.first())
+                                .and_then(|token| token.get("top_logprobs"))
+                                .and_then(|tlp| tlp.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.get("logprob").and_then(|lp| lp.as_f64()))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
+                            if hallucination_state
+                                .append_and_check_token_hallucination(content.to_string(), logprobs)
                             {
-                                // Extract logprobs
-                                let logprobs: Vec<f64> = choice
-                                    .get("logprobs")
-                                    .and_then(|lp| lp.get("content"))
-                                    .and_then(|c| c.as_array())
-                                    .and_then(|arr| arr.first())
-                                    .and_then(|token| token.get("top_logprobs"))
-                                    .and_then(|tlp| tlp.as_array())
-                                    .map(|arr| {
-                                        arr.iter()
-                                            .filter_map(|v| {
-                                                v.get("logprob").and_then(|lp| lp.as_f64())
-                                            })
-                                            .collect()
-                                    })
-                                    .unwrap_or_default();
+                                has_hallucination = true;
+                                break;
+                            }
 
-                                if hallucination_state.append_and_check_token_hallucination(
-                                    content.to_string(),
-                                    logprobs,
-                                ) {
-                                    has_hallucination = true;
-                                    break;
-                                }
-
-                                if hallucination_state.tokens.len() > 5 && has_tool_calls.is_none()
-                                {
-                                    let collected_content = hallucination_state.tokens.join("");
-                                    has_tool_calls = Some(collected_content.contains("tool_calls"));
-                                }
+                            if hallucination_state.tokens.len() > 5 && has_tool_calls.is_none() {
+                                let collected_content = hallucination_state.tokens.join("");
+                                has_tool_calls = Some(collected_content.contains("tool_calls"));
                             }
                         }
                     }
                 }
+            }
 
-                if has_tool_calls == Some(true) && has_hallucination {
-                    info!("[Hallucination]: {}", hallucination_state.error_message);
+            if has_tool_calls == Some(true) && has_hallucination {
+                info!("[Hallucination]: {}", hallucination_state.error_message);
 
-                    let clarify_messages =
-                        self.prefill_message(messages.clone(), &self.clarify_prefix);
-                    let clarify_request =
-                        self.create_request_with_extra_body(clarify_messages, false);
+                let clarify_messages = self.prefill_message(messages.clone(), &self.clarify_prefix);
+                let clarify_request = self.create_request_with_extra_body(clarify_messages, false);
 
-                    let retry_response = self.make_non_streaming_request(clarify_request).await?;
+                let retry_response = self.make_non_streaming_request(clarify_request).await?;
 
-                    if let Some(choice) = retry_response.choices.first() {
-                        if let Some(content) = &choice.message.content {
-                            model_response = content.clone();
-                        }
+                if let Some(choice) = retry_response.choices.first() {
+                    if let Some(content) = &choice.message.content {
+                        model_response = content.clone();
                     }
-                } else {
-                    model_response = hallucination_state.tokens.join("");
                 }
             } else {
-                while let Some(chunk_result) = stream.next().await {
-                    let chunk =
-                        chunk_result.map_err(|e| FunctionCallingError::InvalidModelResponse(e))?;
-                    if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
-                        if let Some(choice) = choices.first() {
-                            if let Some(content) = choice
-                                .get("delta")
-                                .and_then(|d| d.get("content"))
-                                .and_then(|c| c.as_str())
-                            {
-                                model_response.push_str(content);
-                            }
+                model_response = hallucination_state.tokens.join("");
+            }
+        } else {
+            while let Some(chunk_result) = stream.next().await {
+                let chunk = chunk_result.map_err(FunctionCallingError::InvalidModelResponse)?;
+                if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
+                    if let Some(choice) = choices.first() {
+                        if let Some(content) = choice
+                            .get("delta")
+                            .and_then(|d| d.get("content"))
+                            .and_then(|c| c.as_str())
+                        {
+                            model_response.push_str(content);
                         }
                     }
                 }
@@ -2009,12 +1996,12 @@ mod hallucination_tests {
         // Test integer types
         assert!(handler.check_value_type(&json!(42), "integer"));
         assert!(handler.check_value_type(&json!(42), "int"));
-        assert!(!handler.check_value_type(&json!(3.14), "integer"));
+        assert!(!handler.check_value_type(&json!(3.15), "integer"));
 
         // Test number types (accepts both int and float)
-        assert!(handler.check_value_type(&json!(3.14), "number"));
+        assert!(handler.check_value_type(&json!(3.15), "number"));
         assert!(handler.check_value_type(&json!(42), "number"));
-        assert!(handler.check_value_type(&json!(3.14), "float"));
+        assert!(handler.check_value_type(&json!(3.15), "float"));
 
         // Test boolean
         assert!(handler.check_value_type(&json!(true), "boolean"));
@@ -2073,7 +2060,7 @@ mod hallucination_tests {
             .validate_or_convert_parameter(&json!(42), "number")
             .unwrap());
         assert!(handler
-            .validate_or_convert_parameter(&json!(3.14), "number")
+            .validate_or_convert_parameter(&json!(3.15), "number")
             .unwrap());
     }
 

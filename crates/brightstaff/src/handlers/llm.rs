@@ -348,6 +348,7 @@ fn resolve_model_alias(
 }
 
 /// Builds the LLM span with all required and optional attributes.
+#[allow(clippy::too_many_arguments)]
 async fn build_llm_span(
     traceparent: &str,
     request_path: &str,
@@ -378,7 +379,7 @@ async fn build_llm_span(
     let operation_name = if request_path != upstream_path {
         OperationNameBuilder::new()
             .with_method("POST")
-            .with_path(&format!("{} >> {}", request_path, upstream_path))
+            .with_path(format!("{} >> {}", request_path, upstream_path))
             .with_target(resolved_model)
             .build()
     } else {

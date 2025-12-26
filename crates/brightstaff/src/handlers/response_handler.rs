@@ -164,7 +164,7 @@ impl ResponseHandler {
                 match transformed_event.provider_response() {
                     Ok(provider_response) => {
                         if let Some(content) = provider_response.content_delta() {
-                            accumulated_text.push_str(&content);
+                            accumulated_text.push_str(content);
                         } else {
                             info!("No content delta in provider response");
                         }
@@ -174,7 +174,7 @@ impl ResponseHandler {
                     }
                 }
             }
-            return Ok(accumulated_text);
+            Ok(accumulated_text)
         } else {
             // If not SSE, treat as regular text response
             let response_text = String::from_utf8(response_bytes.to_vec()).map_err(|e| {

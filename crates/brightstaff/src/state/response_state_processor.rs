@@ -51,6 +51,7 @@ pub struct ResponsesStateProcessor<P: StreamProcessor> {
 }
 
 impl<P: StreamProcessor> ResponsesStateProcessor<P> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         inner: P,
         storage: Arc<dyn StateStorage>,
@@ -137,24 +138,19 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
             for event in sse_iter {
                 // Only process data lines (skip event-only lines)
                 if let Some(data_str) = &event.data {
-                    // Try to parse as ResponsesAPIStreamEvent
-                    if let Ok(stream_event) =
+                    // Try to parse as ResponsesAPIStreamEvent and check if it's a ResponseCompleted event
+                    if let Ok(ResponsesAPIStreamEvent::ResponseCompleted { response, .. }) =
                         serde_json::from_str::<ResponsesAPIStreamEvent>(data_str)
                     {
-                        // Check if this is a ResponseCompleted event
-                        if let ResponsesAPIStreamEvent::ResponseCompleted { response, .. } =
-                            stream_event
-                        {
-                            info!(
-                                "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured streaming response.completed: response_id={}, output_items={}",
-                                self.request_id,
-                                response.id,
-                                response.output.len()
-                            );
-                            self.response_id = Some(response.id.clone());
-                            self.output_items = Some(response.output.clone());
-                            return; // Found what we need, exit early
-                        }
+                        info!(
+                            "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured streaming response.completed: response_id={}, output_items={}",
+                            self.request_id,
+                            response.id,
+                            response.output.len()
+                        );
+                        self.response_id = Some(response.id.clone());
+                        self.output_items = Some(response.output.clone());
+                        return; // Found what we need, exit early
                     }
                 }
             }

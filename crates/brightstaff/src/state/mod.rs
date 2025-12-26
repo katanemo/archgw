@@ -108,7 +108,7 @@ pub enum StorageBackend {
 }
 
 impl StorageBackend {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_backend(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "memory" => Some(StorageBackend::Memory),
             "supabase" => Some(StorageBackend::Supabase),

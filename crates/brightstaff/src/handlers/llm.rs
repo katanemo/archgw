@@ -124,7 +124,11 @@ pub async fn llm_chat(
     // Only process state if state_storage is configured
     let mut should_manage_state = false;
     if is_responses_api_client {
-        if let (ProviderRequestType::ResponsesAPIRequest(ref mut responses_req), Some(ref state_store)) = (&mut client_request, &state_storage) {
+        if let (
+            ProviderRequestType::ResponsesAPIRequest(ref mut responses_req),
+            Some(ref state_store),
+        ) = (&mut client_request, &state_storage)
+        {
             // Extract original input once
             original_input_items = extract_input_items(&responses_req.input);
 
@@ -292,31 +296,34 @@ pub async fn llm_chat(
 
     // === v1/responses state management: Wrap with ResponsesStateProcessor ===
     // Only wrap if we need to manage state (client is ResponsesAPI AND upstream is NOT ResponsesAPI AND state_storage is configured)
-    let streaming_response =
-        if let (true, false, Some(state_store)) = (should_manage_state, original_input_items.is_empty(), state_storage) {
-            // Extract Content-Encoding header to handle decompression for state parsing
-            let content_encoding = response_headers
-                .get("content-encoding")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
+    let streaming_response = if let (true, false, Some(state_store)) = (
+        should_manage_state,
+        original_input_items.is_empty(),
+        state_storage,
+    ) {
+        // Extract Content-Encoding header to handle decompression for state parsing
+        let content_encoding = response_headers
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
 
-            // Wrap with state management processor to store state after response completes
-            let state_processor = ResponsesStateProcessor::new(
-                base_processor,
-                state_store,
-                original_input_items,
-                resolved_model.clone(),
-                model_name.clone(),
-                is_streaming_request,
-                false, // Not OpenAI upstream since should_manage_state is true
-                content_encoding,
-                request_id.clone(),
-            );
-            create_streaming_response(byte_stream, state_processor, 16)
-        } else {
-            // Use base processor without state management
-            create_streaming_response(byte_stream, base_processor, 16)
-        };
+        // Wrap with state management processor to store state after response completes
+        let state_processor = ResponsesStateProcessor::new(
+            base_processor,
+            state_store,
+            original_input_items,
+            resolved_model.clone(),
+            model_name.clone(),
+            is_streaming_request,
+            false, // Not OpenAI upstream since should_manage_state is true
+            content_encoding,
+            request_id.clone(),
+        );
+        create_streaming_response(byte_stream, state_processor, 16)
+    } else {
+        // Use base processor without state management
+        create_streaming_response(byte_stream, base_processor, 16)
+    };
 
     match response.body(streaming_response.body) {
         Ok(response) => Ok(response),

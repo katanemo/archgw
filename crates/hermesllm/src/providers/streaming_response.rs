@@ -80,9 +80,9 @@ impl TryFrom<(&SupportedAPIsFromClient, &SupportedUpstreamAPIs)> for SseStreamBu
             SupportedAPIsFromClient::AnthropicMessagesAPI(_) => Ok(
                 SseStreamBuffer::AnthropicMessages(AnthropicMessagesStreamBuffer::new()),
             ),
-            SupportedAPIsFromClient::OpenAIResponsesAPI(_) => Ok(SseStreamBuffer::OpenAIResponses(
-                Box::default(),
-            )),
+            SupportedAPIsFromClient::OpenAIResponsesAPI(_) => {
+                Ok(SseStreamBuffer::OpenAIResponses(Box::default()))
+            }
         }
     }
 }

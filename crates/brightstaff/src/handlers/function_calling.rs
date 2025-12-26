@@ -1081,7 +1081,7 @@ impl ArchFunctionHandler {
         let model_message = if response_dict
             .response
             .as_ref()
-            .map_or(false, |s| !s.is_empty())
+            .is_some_and(|s| !s.is_empty())
         {
             // When arch-fc returns a "response" field, it means no intent was matched
             // Return empty content and empty tool_calls so prompt_gateway routes to default target
@@ -1735,7 +1735,7 @@ impl HallucinationState {
         if self.state.as_deref() == Some("function_name") {
             if !FUNC_NAME_END_TOKEN
                 .iter()
-                .any(|&t| self.tokens.last().map_or(false, |tok| tok == t))
+                .any(|&t| self.tokens.last().is_some_and(|tok| tok == t))
             {
                 self.mask.push(MaskToken::FunctionName);
             } else {

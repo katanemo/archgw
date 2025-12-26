@@ -133,7 +133,7 @@ impl ResponseHandler {
         let response_headers = llm_response.headers();
         let is_sse_streaming = response_headers
             .get(hyper::header::CONTENT_TYPE)
-            .map_or(false, |v| {
+            .is_some_and(|v| {
                 v.to_str().unwrap_or("").contains("text/event-stream")
             });
 

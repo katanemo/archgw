@@ -630,10 +630,10 @@ impl StreamContext {
             }
         };
 
-        if system_prompt.is_some() {
+        if let Some(system_prompt_text) = system_prompt {
             let system_prompt_message = Message {
                 role: SYSTEM_ROLE.to_string(),
-                content: Some(ContentType::Text(system_prompt.unwrap())),
+                content: Some(ContentType::Text(system_prompt_text)),
                 model: None,
                 tool_calls: None,
                 tool_call_id: None,

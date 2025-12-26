@@ -141,9 +141,7 @@ impl HttpContext for StreamContext {
 
         let last_user_prompt = match deserialized_body
             .messages
-            .iter()
-            .filter(|msg| msg.role == USER_ROLE)
-            .last()
+            .iter().rfind(|msg| msg.role == USER_ROLE)
         {
             Some(content) => content,
             None => {
@@ -156,9 +154,7 @@ impl HttpContext for StreamContext {
 
         // convert prompt targets to ChatCompletionTool
         let tool_calls: Vec<ChatCompletionTool> = self
-            .prompt_targets
-            .iter()
-            .map(|(_, pt)| pt.into())
+            .prompt_targets.values().map(|pt| pt.into())
             .collect();
 
         let mut metadata = deserialized_body.metadata.clone();

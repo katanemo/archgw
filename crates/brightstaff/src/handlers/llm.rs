@@ -123,8 +123,8 @@ pub async fn llm_chat(
     // Do this BEFORE routing since routing consumes the request
     // Only process state if state_storage is configured
     let mut should_manage_state = false;
-    if is_responses_api_client && state_storage.is_some() {
-        if let ProviderRequestType::ResponsesAPIRequest(ref mut responses_req) = client_request {
+    if is_responses_api_client {
+        if let (ProviderRequestType::ResponsesAPIRequest(ref mut responses_req), Some(ref state_store)) = (&mut client_request, &state_storage) {
             // Extract original input once
             original_input_items = extract_input_items(&responses_req.input);
 
@@ -150,7 +150,7 @@ pub async fn llm_chat(
                 // Retrieve and combine conversation history if previous_response_id exists
                 if let Some(ref prev_resp_id) = responses_req.previous_response_id {
                     match retrieve_and_combine_input(
-                        state_storage.as_ref().unwrap().clone(),
+                        state_store.clone(),
                         prev_resp_id,
                         original_input_items, // Pass ownership instead of cloning
                     )
@@ -293,7 +293,7 @@ pub async fn llm_chat(
     // === v1/responses state management: Wrap with ResponsesStateProcessor ===
     // Only wrap if we need to manage state (client is ResponsesAPI AND upstream is NOT ResponsesAPI AND state_storage is configured)
     let streaming_response =
-        if should_manage_state && !original_input_items.is_empty() && state_storage.is_some() {
+        if let (true, false, Some(state_store)) = (should_manage_state, original_input_items.is_empty(), state_storage) {
             // Extract Content-Encoding header to handle decompression for state parsing
             let content_encoding = response_headers
                 .get("content-encoding")
@@ -303,7 +303,7 @@ pub async fn llm_chat(
             // Wrap with state management processor to store state after response completes
             let state_processor = ResponsesStateProcessor::new(
                 base_processor,
-                state_storage.unwrap(),
+                state_store,
                 original_input_items,
                 resolved_model.clone(),
                 model_name.clone(),

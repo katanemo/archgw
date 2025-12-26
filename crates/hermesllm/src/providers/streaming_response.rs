@@ -11,7 +11,6 @@ use crate::apis::streaming_shapes::{
     anthropic_streaming_buffer::AnthropicMessagesStreamBuffer,
     chat_completions_streaming_buffer::OpenAIChatCompletionsStreamBuffer,
     passthrough_streaming_buffer::PassthroughStreamBuffer,
-    responses_api_streaming_buffer::ResponsesAPIStreamBuffer,
 };
 
 use crate::clients::endpoints::SupportedAPIsFromClient;
@@ -82,7 +81,7 @@ impl TryFrom<(&SupportedAPIsFromClient, &SupportedUpstreamAPIs)> for SseStreamBu
                 SseStreamBuffer::AnthropicMessages(AnthropicMessagesStreamBuffer::new()),
             ),
             SupportedAPIsFromClient::OpenAIResponsesAPI(_) => Ok(SseStreamBuffer::OpenAIResponses(
-                Box::new(ResponsesAPIStreamBuffer::new()),
+                Box::default(),
             )),
         }
     }

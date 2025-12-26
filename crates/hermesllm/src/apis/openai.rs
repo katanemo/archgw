@@ -286,7 +286,6 @@ pub struct ImageUrl {
 }
 
 /// A single message in a chat conversation
-
 /// A tool call made by the assistant
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ToolCall {
@@ -569,7 +568,6 @@ pub enum OpenAIError {
 // ============================================================================
 /// Trait Implementations
 /// ===========================================================================
-
 /// Parameterized conversion for ChatCompletionsRequest
 impl TryFrom<&[u8]> for ChatCompletionsRequest {
     type Error = OpenAIStreamError;

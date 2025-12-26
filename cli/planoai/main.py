@@ -50,10 +50,16 @@ ARCHGW_DOCKERFILE = "./Dockerfile"
 
 def get_version():
     try:
+        # First try to get version from package metadata (for installed packages)
         version = importlib.metadata.version("planoai")
         return version
     except importlib.metadata.PackageNotFoundError:
-        return "version not found"
+        # Fallback to version defined in __init__.py (for development)
+        try:
+            from planoai import __version__
+            return __version__
+        except ImportError:
+            return "version not found"
 
 
 @click.group(invoke_without_command=True)

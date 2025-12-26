@@ -25,6 +25,9 @@ planoai = "planoai.main:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "planoai/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["planoai"]
 

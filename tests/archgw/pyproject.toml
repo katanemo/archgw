@@ -4,7 +4,6 @@ version = "0.0.1"
 description = "archgw mock tests"
 authors = [{name = "Katanemo Labs, Inc", email = "info@katanemo.com"}]
 license = {text = "Apache 2.0"}
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pytest>=8.3.3",
@@ -24,6 +23,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [tool.pytest.ini_options]
 python_files = ["test*.py"]

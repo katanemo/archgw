@@ -30,14 +30,21 @@ COPY --from=builder /arch/target/release/brightstaff /app/brightstaff
 COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /app
-COPY config/requirements.txt .
-RUN pip install -r requirements.txt
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy Python dependency files
+COPY cli/pyproject.toml cli/uv.lock ./
+
+# Install dependencies using uv
+RUN uv sync --frozen --no-dev
+
+# Copy the rest of the application
 COPY cli .
 COPY config/envoy.template.yaml .
 COPY config/arch_config_schema.yaml .
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-RUN pip install requests
 RUN mkdir -p /var/log/supervisor && touch /var/log/envoy.log /var/log/supervisor/supervisord.log
 
 RUN mkdir -p /var/log && \

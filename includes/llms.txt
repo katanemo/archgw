@@ -1,6 +1,6 @@
 Plano Docs v0.4.0
 llms.txt (auto-generated)
-Generated (UTC): 2025-12-26T05:09:01.933448+00:00
+Generated (UTC): 2025-12-26T19:22:12.217702+00:00
 
 Table of contents
 - Agents (concepts/agents)
@@ -2468,7 +2468,15 @@ Python (v3.10+)
 
 Plano’s CLI allows you to manage and interact with the Plano efficiently. To install the CLI, simply run the following command:
 
-We recommend that developers create a new Python virtual environment to isolate dependencies before installing Plano. This ensures that plano and its dependencies do not interfere with other packages on your system.
+We recommend using uv for fast, reliable Python package management. Install uv if you haven’t already:
+
+$ curl -LsSf https://astral.sh/uv/install.sh | sh
+
+Option 1: Install planoai with uv (Recommended)
+
+$ uv tool install planoai==0.4.0
+
+Option 2: Install with pip (Traditional)
 
 $ python -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
@@ -2533,6 +2541,8 @@ Step 2. Start your agents and Plano
 Run your flight_agent and hotel_agent services (see Orchestration for a full Travel Booking example), then start Plano with the config above:
 
 $ planoai up plano_config.yaml
+# Or if installed with uv tool:
+$ uvx planoai up plano_config.yaml
 
 Plano will start the orchestrator and expose an agent listener on port 8001.
 
@@ -2601,6 +2611,7 @@ listeners:
 Step 2. Start plano with currency conversion config
 
 $ planoai up plano_config.yaml
+# Or if installed with uv tool: uvx planoai up plano_config.yaml
 2024-12-05 16:56:27,979 - planoai.main - INFO - Starting plano cli version: 0.1.5
 ...
 2024-12-05 16:56:28,485 - planoai.utils - INFO - Schema validation successful!
@@ -2664,6 +2675,7 @@ Once the config file is created, ensure that you have environment variables set 
 Start Plano:
 
 $ planoai up plano_config.yaml
+# Or if installed with uv tool: uvx planoai up plano_config.yaml
 2024-12-05 11:24:51,288 - planoai.main - INFO - Starting plano cli version: 0.4.0
 2024-12-05 11:24:51,825 - planoai.utils - INFO - Schema validation successful!
 2024-12-05 11:24:51,825 - planoai.main - INFO - Starting plano

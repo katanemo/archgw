@@ -180,8 +180,16 @@
 <p>Plano’s CLI allows you to manage and interact with the Plano efficiently. To install the CLI, simply run the following command:</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>We recommend that developers create a new Python virtual environment to isolate dependencies before installing Plano. This ensures that <code class="docutils literal notranslate"><span class="pre">plano</span></code> and its dependencies do not interfere with other packages on your system.</p>
+<p>We recommend using <strong>uv</strong> for fast, reliable Python package management. Install uv if you haven’t already:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
+</span></code></pre></div>
 </div>
+</div>
+<p><strong>Option 1: Install planoai with uv (Recommended)</strong></p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="nv">planoai</span><span class="o">==</span><span class="m">0</span>.4.0
+</span></code></pre></div>
+</div>
+<p><strong>Option 2: Install with pip (Traditional)</strong></p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
 </span><span id="line-2"><span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w">   </span><span class="c1"># On Windows, use: venv\Scripts\activate</span>
 </span><span id="line-3"><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">planoai</span><span class="o">==</span><span class="m">0</span>.4.0
@@ -240,6 +248,8 @@
 <h4>Step 2. Start your agents and Plano<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-your-agents-and-plano"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
 <p>Run your <code class="docutils literal notranslate"><span class="pre">flight_agent</span></code> and <code class="docutils literal notranslate"><span class="pre">hotel_agent</span></code> services (see <a class="reference internal" href="../guides/orchestration.html#agent-routing"><span class="std std-ref">Orchestration</span></a> for a full Travel Booking example), then start Plano with the config above:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+</span><span id="line-2"><span class="gp"># </span>Or<span class="w"> </span><span class="k">if</span><span class="w"> </span>installed<span class="w"> </span>with<span class="w"> </span>uv<span class="w"> </span>tool:
+</span><span id="line-3"><span class="gp">$ </span>uvx<span class="w"> </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
 </span></code></pre></div>
 </div>
 <p>Plano will start the orchestrator and expose an agent listener on port <code class="docutils literal notranslate"><span class="pre">8001</span></code>.</p>
@@ -308,12 +318,13 @@
 <section id="step-2-start-plano-with-currency-conversion-config">
 <h4>Step 2. Start plano with currency conversion config<a @click.prevent="window.navigator.clipboard.writeText($el.href); $el.setAttribute('data-tooltip', 'Copied!'); setTimeout(() =&gt; $el.setAttribute('data-tooltip', 'Copy link to this element'), 2000)" aria-label="Copy link to this element" class="headerlink" data-tooltip="Copy link to this element" href="#step-2-start-plano-with-currency-conversion-config"><svg height="1em" viewbox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"></path></svg></a></h4>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><code><span id="line-1">$<span class="w"> </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
-</span><span id="line-2"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:27,979<span class="w"> </span>-<span class="w"> </span>planoai.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>cli<span class="w"> </span>version:<span class="w"> </span><span class="m">0</span>.1.5
-</span><span id="line-3">...
-</span><span id="line-4"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>planoai.utils<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Schema<span class="w"> </span>validation<span class="w"> </span>successful!
-</span><span id="line-5"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>planoai.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>model<span class="w"> </span>server<span class="w"> </span>and<span class="w"> </span>plano<span class="w"> </span>gateway
-</span><span id="line-6">...
-</span><span id="line-7"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:51,647<span class="w"> </span>-<span class="w"> </span>planoai.core<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Container<span class="w"> </span>is<span class="w"> </span>healthy!
+</span><span id="line-2"><span class="c1"># Or if installed with uv tool: uvx planoai up plano_config.yaml</span>
+</span><span id="line-3"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:27,979<span class="w"> </span>-<span class="w"> </span>planoai.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>cli<span class="w"> </span>version:<span class="w"> </span><span class="m">0</span>.1.5
+</span><span id="line-4">...
+</span><span id="line-5"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>planoai.utils<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Schema<span class="w"> </span>validation<span class="w"> </span>successful!
+</span><span id="line-6"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:28,485<span class="w"> </span>-<span class="w"> </span>planoai.main<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Starting<span class="w"> </span>plano<span class="w"> </span>model<span class="w"> </span>server<span class="w"> </span>and<span class="w"> </span>plano<span class="w"> </span>gateway
+</span><span id="line-7">...
+</span><span id="line-8"><span class="m">2024</span>-12-05<span class="w"> </span><span class="m">16</span>:56:51,647<span class="w"> </span>-<span class="w"> </span>planoai.core<span class="w"> </span>-<span class="w"> </span>INFO<span class="w"> </span>-<span class="w"> </span>Container<span class="w"> </span>is<span class="w"> </span>healthy!
 </span></code></pre></div>
 </div>
 <p>Once the gateway is up, you can start interacting with it at port 10000 using the OpenAI chat completion API.</p>
@@ -370,11 +381,12 @@
 <p>Once the config file is created, ensure that you have environment variables set up for <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> and <code class="docutils literal notranslate"><span class="pre">OPENAI_API_KEY</span></code> (or these are defined in a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file).</p>
 <p>Start Plano:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="gp">$ </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
-</span><span id="line-2"><span class="go">2024-12-05 11:24:51,288 - planoai.main - INFO - Starting plano cli version: 0.4.0</span>
-</span><span id="line-3"><span class="go">2024-12-05 11:24:51,825 - planoai.utils - INFO - Schema validation successful!</span>
-</span><span id="line-4"><span class="go">2024-12-05 11:24:51,825 - planoai.main - INFO - Starting plano</span>
-</span><span id="line-5"><span class="go">...</span>
-</span><span id="line-6"><span class="go">2024-12-05 11:25:16,131 - planoai.core - INFO - Container is healthy!</span>
+</span><span id="line-2"><span class="gp"># </span>Or<span class="w"> </span><span class="k">if</span><span class="w"> </span>installed<span class="w"> </span>with<span class="w"> </span>uv<span class="w"> </span>tool:<span class="w"> </span>uvx<span class="w"> </span>planoai<span class="w"> </span>up<span class="w"> </span>plano_config.yaml
+</span><span id="line-3"><span class="go">2024-12-05 11:24:51,288 - planoai.main - INFO - Starting plano cli version: 0.4.0</span>
+</span><span id="line-4"><span class="go">2024-12-05 11:24:51,825 - planoai.utils - INFO - Schema validation successful!</span>
+</span><span id="line-5"><span class="go">2024-12-05 11:24:51,825 - planoai.main - INFO - Starting plano</span>
+</span><span id="line-6"><span class="go">...</span>
+</span><span id="line-7"><span class="go">2024-12-05 11:25:16,131 - planoai.core - INFO - Container is healthy!</span>
 </span></code></pre></div>
 </div>
 </section>

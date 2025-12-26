@@ -31,12 +31,13 @@ COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv using pip
+RUN pip install --no-cache-dir uv
 
 # Copy Python dependency files
 COPY cli/pyproject.toml ./
 COPY cli/uv.lock ./
+COPY cli/README.md ./
 
 # Install dependencies using uv
 RUN uv sync --frozen --no-dev

@@ -41,7 +41,7 @@ jobs:
       - name: install arch gateway and test dependencies
         run: |
           source venv/bin/activate
-          cd cli && echo "installing plano cli" && uv sync
+          cd cli && echo "installing plano cli" && uv sync && uv tool install .
           cd ../demos/shared/test_runner && echo "installing test dependencies" && uv sync
 
       - name: run demo tests

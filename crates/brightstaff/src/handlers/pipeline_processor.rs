@@ -1061,10 +1061,10 @@ mod tests {
             .await;
 
         match result {
-                Err(PipelineError::ClientError { status, body, .. }) => {
-                    assert_eq!(status, 400);
-                    assert_eq!(body, "bad tool call");
-                }
+            Err(PipelineError::ClientError { status, body, .. }) => {
+                assert_eq!(status, 400);
+                assert_eq!(body, "bad tool call");
+            }
             _ => panic!("Expected client error when isError flag is set"),
         }
     }

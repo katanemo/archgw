@@ -1,13 +1,11 @@
 use bytes::Bytes;
 use flate2::read::GzDecoder;
-use hermesllm::apis::openai_responses::{
-    InputItem, OutputItem, ResponsesAPIStreamEvent,
-};
+use hermesllm::apis::openai_responses::{InputItem, OutputItem, ResponsesAPIStreamEvent};
 use hermesllm::apis::streaming_shapes::sse::SseStreamIter;
 use hermesllm::transforms::response::output_to_input::outputs_to_inputs;
 use std::io::Read;
 use std::sync::Arc;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 use crate::handlers::utils::StreamProcessor;
 use crate::state::{OpenAIConversationState, StateStorage};
@@ -140,9 +138,13 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
                 // Only process data lines (skip event-only lines)
                 if let Some(data_str) = &event.data {
                     // Try to parse as ResponsesAPIStreamEvent
-                    if let Ok(stream_event) = serde_json::from_str::<ResponsesAPIStreamEvent>(data_str) {
+                    if let Ok(stream_event) =
+                        serde_json::from_str::<ResponsesAPIStreamEvent>(data_str)
+                    {
                         // Check if this is a ResponseCompleted event
-                        if let ResponsesAPIStreamEvent::ResponseCompleted { response, .. } = stream_event {
+                        if let ResponsesAPIStreamEvent::ResponseCompleted { response, .. } =
+                            stream_event
+                        {
                             info!(
                                 "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured streaming response.completed: response_id={}, output_items={}",
                                 self.request_id,
@@ -172,7 +174,9 @@ impl<P: StreamProcessor> ResponsesStateProcessor<P> {
         let decompressed = self.decompress_buffer();
 
         // Parse complete JSON response
-        match serde_json::from_slice::<hermesllm::apis::openai_responses::ResponsesAPIResponse>(&decompressed) {
+        match serde_json::from_slice::<hermesllm::apis::openai_responses::ResponsesAPIResponse>(
+            &decompressed,
+        ) {
             Ok(response) => {
                 info!(
                     "[PLANO_REQ_ID:{}] | STATE_PROCESSOR | Captured non-streaming response: response_id={}, output_items={}",

@@ -388,7 +388,7 @@ pub enum StaticContentType {
 
 /// Chat completions API response
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ChatCompletionsResponse {
     pub id: String,
     pub object: Option<String>,
@@ -400,22 +400,6 @@ pub struct ChatCompletionsResponse {
     pub service_tier: Option<String>,
     // This isn't a standard OpenAI field, but we include it for extensibility
     pub metadata: Option<HashMap<String, Value>>,
-}
-
-impl Default for ChatCompletionsResponse {
-    fn default() -> Self {
-        ChatCompletionsResponse {
-            id: String::new(),
-            object: None,
-            created: 0,
-            model: String::new(),
-            choices: vec![],
-            usage: Usage::default(),
-            system_fingerprint: None,
-            service_tier: None,
-            metadata: None,
-        }
-    }
 }
 
 /// Finish reason for completion
@@ -431,25 +415,13 @@ pub enum FinishReason {
 
 /// Token usage information
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Usage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
     pub prompt_tokens_details: Option<PromptTokensDetails>,
     pub completion_tokens_details: Option<CompletionTokensDetails>,
-}
-
-impl Default for Usage {
-    fn default() -> Self {
-        Usage {
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-            prompt_tokens_details: None,
-            completion_tokens_details: None,
-        }
-    }
 }
 
 /// Detailed breakdown of prompt tokens
@@ -472,23 +444,12 @@ pub struct CompletionTokensDetails {
 
 /// A single choice in the response
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Choice {
     pub index: u32,
     pub message: ResponseMessage,
     pub finish_reason: Option<FinishReason>,
     pub logprobs: Option<Value>,
-}
-
-impl Default for Choice {
-    fn default() -> Self {
-        Choice {
-            index: 0,
-            message: ResponseMessage::default(),
-            finish_reason: None,
-            logprobs: None,
-        }
-    }
 }
 
 // ============================================================================
@@ -721,7 +682,7 @@ impl ProviderRequest for ChatCompletionsRequest {
     }
 
     fn metadata(&self) -> &Option<HashMap<String, Value>> {
-        return &self.metadata;
+        &self.metadata
     }
 
     fn remove_metadata_key(&mut self, key: &str) -> bool {

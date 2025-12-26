@@ -62,7 +62,10 @@ mod integration_tests {
 
         let agent_pipeline = AgentFilterChain {
             id: "terminal-agent".to_string(),
-            filter_chain: Some(vec!["filter-agent".to_string(), "terminal-agent".to_string()]),
+            filter_chain: Some(vec![
+                "filter-agent".to_string(),
+                "terminal-agent".to_string(),
+            ]),
             description: Some("Test pipeline".to_string()),
             default: Some(true),
         };

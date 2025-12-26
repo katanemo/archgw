@@ -39,8 +39,7 @@ COPY cli/pyproject.toml ./
 COPY cli/uv.lock ./
 COPY cli/README.md ./
 
-# Install dependencies using uv
-RUN uv sync --frozen --no-dev
+RUN uv run pip install --no-cache-dir .
 
 # Copy the rest of the application
 COPY cli .

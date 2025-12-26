@@ -31,6 +31,7 @@ log building and installing plano cli
 log ==================================
 cd ../../cli
 uv sync
+uv tool install .
 cd -
 
 log building docker image for arch gateway

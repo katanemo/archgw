@@ -30,7 +30,7 @@ cd -
 log building and installing plano cli
 log ==================================
 cd ../../cli
-poetry install
+uv sync
 cd -
 
 log building docker image for arch gateway
@@ -40,7 +40,7 @@ planoai build
 cd -
 
 # Once we build plano we have to install the dependencies again to a new virtual environment.
-poetry install
+uv sync
 
 log startup arch gateway with function calling demo
 cd ../../
@@ -50,7 +50,7 @@ cd -
 
 log running e2e tests for prompt gateway
 log ====================================
-poetry run pytest test_prompt_gateway.py
+uv run pytest test_prompt_gateway.py
 
 log shutting down the arch gateway service for prompt_gateway demo
 log ===============================================================
@@ -63,11 +63,11 @@ cd -
 
 log running e2e tests for model alias routing
 log ========================================
-poetry run pytest test_model_alias_routing.py
+uv run pytest test_model_alias_routing.py
 
 log running e2e tests for openai responses api client
 log ========================================
-poetry run pytest test_openai_responses_api_client.py
+uv run pytest test_openai_responses_api_client.py
 
 log startup arch gateway with state storage for openai responses api client demo
 planoai down
@@ -75,7 +75,7 @@ planoai up config_memory_state_v1_responses.yaml
 
 log running e2e tests for openai responses api client
 log ========================================
-poetry run pytest test_openai_responses_api_client_with_state.py
+uv run pytest test_openai_responses_api_client_with_state.py
 
 log shutting down the weather_forecast demo
 log =======================================

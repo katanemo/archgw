@@ -20,7 +20,7 @@ repos:
         name: cargo-clippy
         language: system
         types: [file, rust]
-        entry: bash -c "cd crates && cargo clippy --all-targets --all-features -- -D warnings"
+        entry: bash -c "cd crates && cargo clippy --locked --offline --all-targets --all-features -- -D warnings || cargo clippy --locked --all-targets --all-features -- -D warnings"
         pass_filenames: false
 
       - id: cargo-test

@@ -57,6 +57,7 @@ def get_version():
         # Fallback to version defined in __init__.py (for development)
         try:
             from planoai import __version__
+
             return __version__
         except ImportError:
             return "version not found"

@@ -248,6 +248,7 @@ dependencies = [
     { name = "click" },
     { name = "jinja2" },
     { name = "jsonschema" },
+    { name = "pytest" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -262,6 +263,7 @@ requires-dist = [
     { name = "click", specifier = "<9.0.0,>=8.1.7" },
     { name = "jinja2", specifier = "<4.0.0,>=3.1.4" },
     { name = "jsonschema", specifier = "<5.0.0,>=4.23.0" },
+    { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<9.0.0,>=8.4.1" },
     { name = "pyyaml", specifier = "<7.0.0,>=6.0.2" },
     { name = "requests", specifier = "<3.0.0,>=2.31.0" },

@@ -164,7 +164,7 @@ impl TryFrom<Message> for BedrockMessage {
                 let has_tool_calls = message
                     .tool_calls
                     .as_ref()
-                    .map_or(false, |calls| !calls.is_empty());
+                    .is_some_and(|calls| !calls.is_empty());
 
                 // Add text content if it's non-empty, or if we have no tool calls (to avoid empty content)
                 if !text_content.is_empty() {

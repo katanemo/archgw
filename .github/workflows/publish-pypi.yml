@@ -1,5 +1,8 @@
 name: Publish planoai to PyPI
 
+permissions:
+  contents: read
+
 on:
   release:
     types: [published]

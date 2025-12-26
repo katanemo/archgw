@@ -30,7 +30,7 @@ jobs:
 
       - name: install plano tools
         run: |
-          uv sync
+          uv sync --extra dev
 
       - name: run tests
         run: |

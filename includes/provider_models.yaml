@@ -183,6 +183,7 @@ providers:
   - mistralai/codestral-embed
   - mistralai/codestral-embed-2505
   moonshotai:
+  - moonshotai/kimi-k3
   - moonshotai/kimi-k2.5
   - moonshotai/kimi-k2.6
   - moonshotai/moonshot-v1-32k

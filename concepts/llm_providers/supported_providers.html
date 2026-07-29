@@ -611,7 +611,7 @@ Any provider that implements the OpenAI API interface can be configured using cu
 <p><strong>Provider Prefix:</strong> <code class="docutils literal notranslate"><span class="pre">moonshotai/</span></code></p>
 <p><strong>API Endpoint:</strong> <code class="docutils literal notranslate"><span class="pre">/v1/chat/completions</span></code></p>
 <p><strong>Authentication:</strong> API Key - Get your Moonshot AI API key from <a class="reference external" href="https://platform.moonshot.ai/" rel="nofollow noopener">Moonshot AI Platform<svg fill="currentColor" height="1em" stroke="none" viewbox="0 96 960 960" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M188 868q-11-11-11-28t11-28l436-436H400q-17 0-28.5-11.5T360 336q0-17 11.5-28.5T400 296h320q17 0 28.5 11.5T760 336v320q0 17-11.5 28.5T720 696q-17 0-28.5-11.5T680 656V432L244 868q-11 11-28 11t-28-11Z"></path></svg></a>.</p>
-<p><strong>Supported Chat Models:</strong> All Moonshot AI chat models including Kimi K2, Moonshot v1, and all future releases.</p>
+<p><strong>Supported Chat Models:</strong> All Moonshot AI chat models including Kimi K3, Kimi K2, Moonshot v1, and all future releases.</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 30.0%"/>
@@ -625,13 +625,21 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Kimi for Coding</p></td>
+<tr class="row-even"><td><p>Kimi K3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/kimi-k3</span></code></p></td>
+<td><p>Flagship multimodal reasoning model with a 1M-token context window</p></td>
+</tr>
+<tr class="row-odd"><td><p>Kimi for Coding</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/kimi-for-coding</span></code></p></td>
 <td><p>Kimi Code API model for agentic coding (use with <code class="docutils literal notranslate"><span class="pre">base_url:</span> <span class="pre">https://api.kimi.com/coding/v1</span></code>)</p></td>
 </tr>
-<tr class="row-odd"><td><p>Kimi K2 Preview</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/kimi-k2-0905-preview</span></code></p></td>
-<td><p>Foundation model optimized for agentic tasks with 32B activated parameters</p></td>
+<tr class="row-even"><td><p>Kimi K2.6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/kimi-k2.6</span></code></p></td>
+<td><p>Latest K2-line foundation model optimized for agentic tasks</p></td>
+</tr>
+<tr class="row-odd"><td><p>Kimi K2.5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/kimi-k2.5</span></code></p></td>
+<td><p>Previous K2-line foundation model optimized for agentic tasks</p></td>
 </tr>
 <tr class="row-even"><td><p>Moonshot v1 32K</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">moonshotai/moonshot-v1-32k</span></code></p></td>
@@ -645,24 +653,38 @@ Any provider that implements the OpenAI API interface can be configured using cu
 </table>
 <p><strong>Configuration Examples:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><code><span id="line-1"><span class="nt">llm_providers</span><span class="p">:</span>
-</span><span id="line-2"><span class="w">  </span><span class="c1"># Kimi Code API (Claude Code / agentic clients via Plano translation)</span>
-</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/kimi-for-coding</span>
+</span><span id="line-2"><span class="w">  </span><span class="c1"># Flagship reasoning model with a 1M-token context window</span>
+</span><span id="line-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/kimi-k3</span>
 </span><span id="line-4"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
-</span><span id="line-5"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://api.kimi.com/coding/v1</span>
-</span><span id="line-6"><span class="w">    </span><span class="nt">headers</span><span class="p">:</span>
-</span><span id="line-7"><span class="w">      </span><span class="nt">User-Agent</span><span class="p">:</span><span class="w"> </span><span class="s">"KimiCLI/1.3"</span>
-</span><span id="line-8">
-</span><span id="line-9"><span class="w">  </span><span class="c1"># Latest K2 models for agentic tasks</span>
-</span><span id="line-10"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/kimi-k2-0905-preview</span>
-</span><span id="line-11"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
+</span><span id="line-5">
+</span><span id="line-6"><span class="w">  </span><span class="c1"># Kimi Code API (Claude Code / agentic clients via Plano translation)</span>
+</span><span id="line-7"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/kimi-for-coding</span>
+</span><span id="line-8"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
+</span><span id="line-9"><span class="w">    </span><span class="nt">base_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://api.kimi.com/coding/v1</span>
+</span><span id="line-10"><span class="w">    </span><span class="nt">headers</span><span class="p">:</span>
+</span><span id="line-11"><span class="w">      </span><span class="nt">User-Agent</span><span class="p">:</span><span class="w"> </span><span class="s">"KimiCLI/1.3"</span>
 </span><span id="line-12">
-</span><span id="line-13"><span class="w">  </span><span class="c1"># V1 models with different context lengths</span>
-</span><span id="line-14"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/moonshot-v1-32k</span>
+</span><span id="line-13"><span class="w">  </span><span class="c1"># Latest K2 models for agentic tasks</span>
+</span><span id="line-14"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/kimi-k2.6</span>
 </span><span id="line-15"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
 </span><span id="line-16">
-</span><span id="line-17"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/moonshot-v1-128k</span>
-</span><span id="line-18"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
+</span><span id="line-17"><span class="w">  </span><span class="c1"># V1 models with different context lengths</span>
+</span><span id="line-18"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/moonshot-v1-32k</span>
+</span><span id="line-19"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
+</span><span id="line-20">
+</span><span id="line-21"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">moonshotai/moonshot-v1-128k</span>
+</span><span id="line-22"><span class="w">    </span><span class="nt">access_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$MOONSHOTAI_API_KEY</span>
 </span></code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Kimi K3 always runs in thinking mode and pins <code class="docutils literal notranslate"><span class="pre">temperature</span></code>, <code class="docutils literal notranslate"><span class="pre">top_p</span></code>, <code class="docutils literal notranslate"><span class="pre">n</span></code>,
+<code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code>, and <code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code> to fixed values. Plano strips these
+fields from requests sent to Moonshot’s API so clients that set them do not fail.
+Use the <code class="docutils literal notranslate"><span class="pre">reasoning_effort</span></code> field to control reasoning depth instead. K3 accepts
+<code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">high</span></code>, and <code class="docutils literal notranslate"><span class="pre">max</span></code> (default <code class="docutils literal notranslate"><span class="pre">max</span></code>); Plano maps other OpenAI-style
+values onto the nearest supported level, so <code class="docutils literal notranslate"><span class="pre">none</span></code> and <code class="docutils literal notranslate"><span class="pre">minimal</span></code> become <code class="docutils literal notranslate"><span class="pre">low</span></code>
+and <code class="docutils literal notranslate"><span class="pre">medium</span></code> becomes <code class="docutils literal notranslate"><span class="pre">high</span></code>.</p>
 </div>
 </section>
 <section id="zhipu-ai">

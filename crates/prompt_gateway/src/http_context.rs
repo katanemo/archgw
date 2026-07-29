@@ -290,13 +290,6 @@ impl HttpContext for StreamContext {
             );
         }
 
-        // A non-streaming response is a single JSON document that Envoy may deliver
-        // in several chunks. Pause so they accumulate in the response buffer; parsing
-        // a partial chunk below would fail and drop the arch state metadata.
-        if !self.streaming_response && !end_of_stream {
-            return Action::Pause;
-        }
-
         if end_of_stream && body_size == 0 {
             return Action::Continue;
         }

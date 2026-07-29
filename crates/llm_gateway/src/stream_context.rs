@@ -1176,14 +1176,6 @@ impl HttpContext for StreamContext {
             return Action::Continue;
         }
 
-        // A non-streaming response is a single JSON document, but Envoy can hand it
-        // to us in several chunks. Pause so the chunks accumulate in the response
-        // buffer and we only parse once the whole document is there; parsing a
-        // partial chunk would fail and surface as a spurious 400 to the client.
-        if !self.streaming_response && !end_of_stream {
-            return Action::Pause;
-        }
-
         let current_time = get_current_time().unwrap();
         if end_of_stream && body_size == 0 {
             debug!(

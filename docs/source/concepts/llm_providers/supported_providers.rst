@@ -422,7 +422,7 @@ Moonshot AI
 
 **Authentication:** API Key - Get your Moonshot AI API key from `Moonshot AI Platform <https://platform.moonshot.ai/>`_.
 
-**Supported Chat Models:** All Moonshot AI chat models including Kimi K2, Moonshot v1, and all future releases.
+**Supported Chat Models:** All Moonshot AI chat models including Kimi K3, Kimi K2, Moonshot v1, and all future releases.
 
 .. list-table::
    :header-rows: 1
@@ -431,6 +431,9 @@ Moonshot AI
    * - Model Name
      - Model ID for Config
      - Description
+   * - Kimi K3
+     - ``moonshotai/kimi-k3``
+     - Flagship multimodal reasoning model with a 1M-token context window
    * - Kimi for Coding
      - ``moonshotai/kimi-for-coding``
      - Kimi Code API model for agentic coding (use with ``base_url: https://api.kimi.com/coding/v1``)
@@ -449,6 +452,10 @@ Moonshot AI
 .. code-block:: yaml
 
     llm_providers:
+      # Flagship reasoning model with a 1M-token context window
+      - model: moonshotai/kimi-k3
+        access_key: $MOONSHOTAI_API_KEY
+
       # Kimi Code API (Claude Code / agentic clients via Plano translation)
       - model: moonshotai/kimi-for-coding
         access_key: $MOONSHOTAI_API_KEY
@@ -466,6 +473,16 @@ Moonshot AI
 
       - model: moonshotai/moonshot-v1-128k
         access_key: $MOONSHOTAI_API_KEY
+
+.. note::
+
+   Kimi K3 always runs in thinking mode and pins ``temperature``, ``top_p``, ``n``,
+   ``presence_penalty``, and ``frequency_penalty`` to fixed values. Plano strips these
+   fields from requests sent to Moonshot's API so clients that set them do not fail.
+   Use the ``reasoning_effort`` field to control reasoning depth instead. K3 accepts
+   ``low``, ``high``, and ``max`` (default ``max``); Plano maps other OpenAI-style
+   values onto the nearest supported level, so ``none`` and ``minimal`` become ``low``
+   and ``medium`` becomes ``high``.
 
 
 Zhipu AI

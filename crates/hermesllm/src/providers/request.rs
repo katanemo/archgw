@@ -1,5 +1,5 @@
 use crate::apis::anthropic::MessagesRequest;
-use crate::apis::openai::{is_kimi_code_model, ChatCompletionsRequest};
+use crate::apis::openai::{is_kimi_code_model, is_kimi_k3_model, ChatCompletionsRequest};
 use log::warn;
 
 use crate::apis::amazon_bedrock::{ConverseRequest, ConverseStreamRequest};
@@ -98,6 +98,11 @@ impl ProviderRequestType {
             if let Self::ChatCompletionsRequest(req) = self {
                 if is_kimi_code_model(req.model()) {
                     req.normalize_for_kimi_code_api();
+                }
+                // Moonshot's own API pins these sampling fields; aggregators that
+                // resell K3 still accept them, so only strip for the first party.
+                if provider_id == ProviderId::Moonshotai && is_kimi_k3_model(req.model()) {
+                    req.normalize_for_kimi_k3_api();
                 }
             } else if let Self::MessagesRequest(req) = self {
                 if is_kimi_code_model(req.model.as_str()) && req.thinking.is_some() {
@@ -932,6 +937,79 @@ mod tests {
         assert!(req.stream_options.is_none());
         assert!(req.reasoning_effort.is_none());
         assert!(req.web_search_options.is_none());
+    }
+
+    #[test]
+    fn test_normalize_for_upstream_kimi_k3_strips_fixed_sampling_fields() {
+        use crate::apis::openai::{Message, MessageContent, OpenAIApi, Role};
+
+        let mut request = ProviderRequestType::ChatCompletionsRequest(ChatCompletionsRequest {
+            model: "kimi-k3".to_string(),
+            messages: vec![Message {
+                role: Role::User,
+                content: Some(MessageContent::Text("hello".to_string())),
+                name: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            temperature: Some(0.2),
+            top_p: Some(0.1),
+            n: Some(2),
+            presence_penalty: Some(0.5),
+            frequency_penalty: Some(0.5),
+            reasoning_effort: Some("max".to_string()),
+            ..Default::default()
+        });
+
+        request
+            .normalize_for_upstream(
+                ProviderId::Moonshotai,
+                &SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            )
+            .unwrap();
+
+        let ProviderRequestType::ChatCompletionsRequest(req) = request else {
+            panic!("expected chat request");
+        };
+        assert!(req.temperature.is_none());
+        assert!(req.top_p.is_none());
+        assert!(req.n.is_none());
+        assert!(req.presence_penalty.is_none());
+        assert!(req.frequency_penalty.is_none());
+        // K3 is always thinking; reasoning_effort is the supported control.
+        assert_eq!(req.reasoning_effort.as_deref(), Some("max"));
+    }
+
+    #[test]
+    fn test_normalize_for_upstream_kimi_k3_via_aggregator_keeps_sampling_fields() {
+        use crate::apis::openai::{Message, MessageContent, OpenAIApi, Role};
+
+        let mut request = ProviderRequestType::ChatCompletionsRequest(ChatCompletionsRequest {
+            model: "moonshotai/kimi-k3".to_string(),
+            messages: vec![Message {
+                role: Role::User,
+                content: Some(MessageContent::Text("hello".to_string())),
+                name: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            temperature: Some(0.2),
+            top_p: Some(0.1),
+            ..Default::default()
+        });
+
+        request
+            .normalize_for_upstream(
+                ProviderId::OpenRouter,
+                &SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
+            )
+            .unwrap();
+
+        let ProviderRequestType::ChatCompletionsRequest(req) = request else {
+            panic!("expected chat request");
+        };
+        assert_eq!(req.temperature, Some(0.2));
+        assert_eq!(req.top_p, Some(0.1));
     }
 
     #[test]

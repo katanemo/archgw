@@ -757,6 +757,15 @@ mod tests {
     }
 
     #[test]
+    fn test_moonshotai_models_include_kimi_k3() {
+        let models = ProviderId::Moonshotai.models();
+        assert!(
+            models.iter().any(|m| m == "kimi-k3"),
+            "moonshotai models should include kimi-k3"
+        );
+    }
+
+    #[test]
     fn test_minimax_parsing_and_models() {
         assert_eq!(ProviderId::try_from("minimax"), Ok(ProviderId::Minimax));
         assert_eq!(ProviderId::Minimax.to_string(), "minimax");

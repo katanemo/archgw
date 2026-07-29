@@ -437,9 +437,12 @@ Moonshot AI
    * - Kimi for Coding
      - ``moonshotai/kimi-for-coding``
      - Kimi Code API model for agentic coding (use with ``base_url: https://api.kimi.com/coding/v1``)
-   * - Kimi K2 Preview
-     - ``moonshotai/kimi-k2-0905-preview``
-     - Foundation model optimized for agentic tasks with 32B activated parameters
+   * - Kimi K2.6
+     - ``moonshotai/kimi-k2.6``
+     - Latest K2-line foundation model optimized for agentic tasks
+   * - Kimi K2.5
+     - ``moonshotai/kimi-k2.5``
+     - Previous K2-line foundation model optimized for agentic tasks
    * - Moonshot v1 32K
      - ``moonshotai/moonshot-v1-32k``
      - Extended context model with 32K tokens
@@ -464,7 +467,7 @@ Moonshot AI
           User-Agent: "KimiCLI/1.3"
 
       # Latest K2 models for agentic tasks
-      - model: moonshotai/kimi-k2-0905-preview
+      - model: moonshotai/kimi-k2.6
         access_key: $MOONSHOTAI_API_KEY
 
       # V1 models with different context lengths

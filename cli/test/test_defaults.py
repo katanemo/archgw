@@ -30,6 +30,7 @@ def test_zero_env_vars_produces_pure_passthrough():
     assert "digitalocean" in names
     assert "vercel" in names
     assert "openrouter" in names
+    assert "edenai" in names
     assert "openai" in names
     assert "anthropic" in names
 
@@ -109,3 +110,18 @@ def test_openrouter_env_key_promotes_to_env_keyed():
     by_name = {p["name"]: p for p in cfg["model_providers"]}
     assert by_name["openrouter"].get("access_key") == "$OPENROUTER_API_KEY"
     assert by_name["openrouter"].get("passthrough_auth") is None
+
+
+def test_provider_defaults_edenai_is_configured():
+    by_name = {p.name: p for p in PROVIDER_DEFAULTS}
+    assert "edenai" in by_name
+    assert by_name["edenai"].env_var == "EDENAI_API_KEY"
+    assert by_name["edenai"].base_url == "https://api.edenai.run/v3"
+    assert by_name["edenai"].model_pattern == "edenai/*"
+
+
+def test_edenai_env_key_promotes_to_env_keyed():
+    cfg = synthesize_default_config(env={"EDENAI_API_KEY": "eden-1"})
+    by_name = {p["name"]: p for p in cfg["model_providers"]}
+    assert by_name["edenai"].get("access_key") == "$EDENAI_API_KEY"
+    assert by_name["edenai"].get("passthrough_auth") is None

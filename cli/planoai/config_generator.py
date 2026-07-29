@@ -33,6 +33,7 @@ SUPPORTED_PROVIDERS_WITHOUT_BASE_URL = [
     "digitalocean",
     "vercel",
     "openrouter",
+    "edenai",
 ]
 
 CHATGPT_API_BASE = "https://chatgpt.com/backend-api/codex"

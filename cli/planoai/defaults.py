@@ -96,6 +96,15 @@ PROVIDER_DEFAULTS: list[ProviderDefault] = [
         base_url="https://openrouter.ai/api/v1",
         model_pattern="openrouter/*",
     ),
+    # Eden AI is an EU-based, OpenAI-compatible gateway routing to many upstream
+    # providers behind one key — same treatment as OpenRouter, no
+    # provider_interface override needed.
+    ProviderDefault(
+        name="edenai",
+        env_var="EDENAI_API_KEY",
+        base_url="https://api.edenai.run/v3",
+        model_pattern="edenai/*",
+    ),
 ]
 
 

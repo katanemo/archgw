@@ -53,6 +53,7 @@ pub enum ProviderId {
     AstraflowCN,
     Meta,
     Minimax,
+    EdenAI,
 }
 
 impl TryFrom<&str> for ProviderId {
@@ -90,6 +91,7 @@ impl TryFrom<&str> for ProviderId {
             "astraflow_cn" => Ok(ProviderId::AstraflowCN),
             "meta" => Ok(ProviderId::Meta),
             "minimax" => Ok(ProviderId::Minimax),
+            "edenai" => Ok(ProviderId::EdenAI),
             _ => Err(format!("Unknown provider: {}", value)),
         }
     }
@@ -151,7 +153,10 @@ fn model_family(model_name: &str) -> ModelFamily {
 /// Whether a gateway accepts Anthropic-style `cache_control` on OpenAI content parts
 /// over its chat-completions endpoint.
 fn accepts_openai_content_part_cache_control(provider: ProviderId) -> bool {
-    matches!(provider, ProviderId::DigitalOcean | ProviderId::OpenRouter)
+    matches!(
+        provider,
+        ProviderId::DigitalOcean | ProviderId::OpenRouter | ProviderId::EdenAI
+    )
 }
 
 /// Whether a gateway/model relies on automatic prefix caching (no markers required)
@@ -169,6 +174,7 @@ fn is_automatic_cache_provider(provider: ProviderId) -> bool {
             | ProviderId::XAI
             | ProviderId::DigitalOcean
             | ProviderId::OpenRouter
+            | ProviderId::EdenAI
     )
 }
 
@@ -266,6 +272,7 @@ pub fn provider_cache_capability(provider: ProviderId) -> ProviderCacheCapabilit
         ProviderId::Anthropic
         | ProviderId::DigitalOcean
         | ProviderId::OpenRouter
+        | ProviderId::EdenAI
         | ProviderId::Vercel => ProviderCacheCapability::default(),
         // OpenAI-family automatic prefix caching also lives on the order of minutes;
         // the conservative default holds.
@@ -376,7 +383,8 @@ impl ProviderId {
                 | ProviderId::Astraflow
                 | ProviderId::AstraflowCN
                 | ProviderId::Meta
-                | ProviderId::Minimax,
+                | ProviderId::Minimax
+                | ProviderId::EdenAI,
                 SupportedAPIsFromClient::AnthropicMessagesAPI(_),
             ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
@@ -402,7 +410,8 @@ impl ProviderId {
                 | ProviderId::Astraflow
                 | ProviderId::AstraflowCN
                 | ProviderId::Meta
-                | ProviderId::Minimax,
+                | ProviderId::Minimax
+                | ProviderId::EdenAI,
                 SupportedAPIsFromClient::OpenAIChatCompletions(_),
             ) => SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions),
 
@@ -477,6 +486,7 @@ impl Display for ProviderId {
             ProviderId::AstraflowCN => write!(f, "astraflow_cn"),
             ProviderId::Meta => write!(f, "meta"),
             ProviderId::Minimax => write!(f, "minimax"),
+            ProviderId::EdenAI => write!(f, "edenai"),
         }
     }
 }
@@ -784,6 +794,62 @@ mod tests {
             matches!(upstream, SupportedUpstreamAPIs::OpenAIChatCompletions(_)),
             "minimax should translate Anthropic client to OpenAIChatCompletions upstream"
         );
+    }
+
+    #[test]
+    fn test_edenai_parsing() {
+        assert_eq!(ProviderId::try_from("edenai"), Ok(ProviderId::EdenAI));
+        assert_eq!(ProviderId::EdenAI.to_string(), "edenai");
+        assert!(ProviderId::try_from("eden_ai").is_err());
+    }
+
+    #[test]
+    fn test_edenai_empty_models() {
+        // Eden AI is a broad multi-vendor gateway, same as OpenRouter/Vercel: no
+        // static model list to keep, models() correctly falls through to empty.
+        assert!(ProviderId::EdenAI.models().is_empty());
+    }
+
+    #[test]
+    fn test_edenai_compatible_api() {
+        use crate::clients::endpoints::{SupportedAPIsFromClient, SupportedUpstreamAPIs};
+
+        let openai_client =
+            SupportedAPIsFromClient::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+        let upstream = ProviderId::EdenAI.compatible_api_for_client(&openai_client, false);
+        assert!(
+            matches!(upstream, SupportedUpstreamAPIs::OpenAIChatCompletions(_)),
+            "EdenAI should map OpenAI client to OpenAIChatCompletions upstream"
+        );
+
+        let anthropic_client =
+            SupportedAPIsFromClient::AnthropicMessagesAPI(AnthropicApi::Messages);
+        let upstream = ProviderId::EdenAI.compatible_api_for_client(&anthropic_client, false);
+        assert!(
+            matches!(upstream, SupportedUpstreamAPIs::OpenAIChatCompletions(_)),
+            "EdenAI should translate Anthropic client to OpenAIChatCompletions upstream"
+        );
+
+        let responses_client = SupportedAPIsFromClient::OpenAIResponsesAPI(OpenAIApi::Responses);
+        let upstream = ProviderId::EdenAI.compatible_api_for_client(&responses_client, false);
+        assert!(
+            matches!(upstream, SupportedUpstreamAPIs::OpenAIChatCompletions(_)),
+            "EdenAI should translate Responses API client to OpenAIChatCompletions upstream"
+        );
+    }
+
+    #[test]
+    fn edenai_anthropic_uses_openai_content_part_markers() {
+        // Eden AI uses slash-form model ids after the gateway prefix, same as OpenRouter.
+        let strategy = cache_marker_strategy(
+            ProviderId::EdenAI,
+            "anthropic/claude-3.5-sonnet",
+            &chat_completions(),
+        );
+        assert!(matches!(
+            strategy,
+            CacheMarkerStrategy::OpenAiContentPartCacheControl { .. }
+        ));
     }
 
     #[test]

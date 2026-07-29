@@ -1111,6 +1111,49 @@ mod test {
         }
     }
 
+    /// `plano_config_schema.yaml` decides which `provider_interface` values a user
+    /// may write, and brightstaff has to be able to deserialize every one of them or
+    /// it exits on startup with an "unknown variant" error. The schema listed a
+    /// stale `claude` for ~10 months after #558 renamed that variant to `anthropic`,
+    /// so assert the two stay reconciled.
+    ///
+    /// This is deliberately one-directional: `LlmProviderType` is a superset, since
+    /// for built-in providers the interface is inferred from the model prefix and the
+    /// config generator rejects setting `provider_interface` by hand.
+    #[test]
+    fn test_schema_provider_interfaces_are_all_known_variants() {
+        let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../config/plano_config_schema.yaml");
+        let schema: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(&schema_path)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", schema_path.display())),
+        )
+        .expect("schema should be valid yaml");
+
+        // Both `model_providers` and `llm_providers` carry their own copy of the enum.
+        let mut checked = 0;
+        for section in ["model_providers", "llm_providers"] {
+            let values = schema["properties"][section]["items"]["properties"]["provider_interface"]
+                ["enum"]
+                .as_sequence()
+                .unwrap_or_else(|| panic!("no provider_interface enum under {section}"));
+
+            for value in values {
+                let name = value.as_str().expect("enum entries should be strings");
+                let parsed: LlmProviderType = serde_yaml::from_str(name).unwrap_or_else(|e| {
+                    panic!(
+                        "schema allows provider_interface '{name}' under {section} but \
+                         LlmProviderType cannot deserialize it, so brightstaff would fail \
+                         to start: {e}"
+                    )
+                });
+                assert_eq!(parsed.to_string(), name);
+                checked += 1;
+            }
+        }
+        assert!(checked > 0, "provider_interface enums should not be empty");
+    }
+
     #[test]
     fn test_overrides_disable_signals_default_none() {
         let overrides = super::Overrides::default();

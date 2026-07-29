@@ -190,7 +190,6 @@ properties:
           type: string
           enum:
             - plano
-            - claude
             - deepseek
             - groq
             - mistral
@@ -250,7 +249,6 @@ properties:
           type: string
           enum:
             - plano
-            - claude
             - deepseek
             - groq
             - mistral

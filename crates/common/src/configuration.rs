@@ -626,6 +626,8 @@ pub enum LlmProviderType {
     Vercel,
     #[serde(rename = "openrouter")]
     OpenRouter,
+    #[serde(rename = "edenai")]
+    EdenAI,
     #[serde(rename = "astraflow")]
     Astraflow,
     #[serde(rename = "astraflow_cn")]
@@ -655,6 +657,7 @@ impl Display for LlmProviderType {
             LlmProviderType::DigitalOcean => write!(f, "digitalocean"),
             LlmProviderType::Vercel => write!(f, "vercel"),
             LlmProviderType::OpenRouter => write!(f, "openrouter"),
+            LlmProviderType::EdenAI => write!(f, "edenai"),
             LlmProviderType::Astraflow => write!(f, "astraflow"),
             LlmProviderType::AstraflowCN => write!(f, "astraflow_cn"),
         }
@@ -1044,14 +1047,15 @@ mod test {
     }
 
     #[test]
-    fn test_llm_provider_type_vercel_and_openrouter_roundtrip() {
+    fn test_llm_provider_type_gateway_provider_roundtrip() {
         // Regression: brightstaff used to reject `provider_interface: vercel`
-        // (and `openrouter`) because these variants were missing from
+        // (`openrouter`, then `edenai`) because these variants were missing from
         // `LlmProviderType`, causing `planoai up` with the synthesized default
         // config to crash on startup.
         for (yaml_value, expected) in [
             ("vercel", LlmProviderType::Vercel),
             ("openrouter", LlmProviderType::OpenRouter),
+            ("edenai", LlmProviderType::EdenAI),
         ] {
             let parsed: LlmProviderType =
                 serde_yaml::from_str(yaml_value).expect("variant should deserialize");
@@ -1059,6 +1063,50 @@ mod test {
             assert_eq!(parsed.to_string(), yaml_value);
             // to_provider_id() bridges into hermesllm; both providers must be
             // recognized there as well or this panics.
+            let _ = parsed.to_provider_id();
+        }
+    }
+
+    /// `planoai up` with no config synthesizes a `model_providers` entry for every
+    /// name in `cli/planoai/defaults.py::PROVIDER_DEFAULTS` and brightstaff parses
+    /// each one as a `provider_interface`. A name added there but not here makes
+    /// brightstaff exit on startup, which has broken the zero-config path three
+    /// times (vercel, openrouter, edenai). Read the Python list directly so the
+    /// drift is caught here instead of in the CI smoke test.
+    #[test]
+    fn test_zero_config_default_providers_all_deserialize() {
+        let defaults_py =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../cli/planoai/defaults.py");
+        let source = std::fs::read_to_string(&defaults_py)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", defaults_py.display()));
+
+        let list = source
+            .split_once("PROVIDER_DEFAULTS: list[ProviderDefault] = [")
+            .and_then(|(_, rest)| rest.split_once("\n]"))
+            .map(|(list, _)| list)
+            .expect("PROVIDER_DEFAULTS list not found in defaults.py");
+
+        let names: Vec<&str> = list
+            .match_indices("name=\"")
+            .map(|(i, m)| {
+                let value = &list[i + m.len()..];
+                value.split_once('"').expect("unterminated name= literal").0
+            })
+            .collect();
+        assert!(
+            names.len() >= 10,
+            "expected to parse the full provider list, got {names:?}"
+        );
+
+        for name in names {
+            let parsed: LlmProviderType = serde_yaml::from_str(name).unwrap_or_else(|e| {
+                panic!(
+                    "provider '{name}' from defaults.py has no LlmProviderType variant \
+                     (add it to the enum, its Display arm, and hermesllm's ProviderId): {e}"
+                )
+            });
+            assert_eq!(parsed.to_string(), name);
+            // Panics if hermesllm's ProviderId is missing the variant too.
             let _ = parsed.to_provider_id();
         }
     }

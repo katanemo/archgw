@@ -336,10 +336,14 @@ pub fn is_kimi_code_model(model: &str) -> bool {
     model == "kimi-for-coding"
 }
 
-/// True when the upstream model id is a Kimi K3 model, including dated and
-/// suffixed variants (e.g. `kimi-k3-0716`).
+/// True when the upstream model id is Moonshot's Kimi K3 model.
+///
+/// Matches the exact id only. Moonshot versions the Kimi line with dotted minor
+/// releases (`kimi-k2.5`, `kimi-k2.6`), so a future `kimi-k3.1` will need to be
+/// added here explicitly once its parameter constraints are known, rather than
+/// assumed to match K3's.
 pub fn is_kimi_k3_model(model: &str) -> bool {
-    model == "kimi-k3" || model.starts_with("kimi-k3-")
+    model == "kimi-k3"
 }
 
 // ============================================================================
@@ -1022,11 +1026,23 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_is_kimi_k3_model_matches_base_and_dated_variants() {
+    fn test_is_kimi_k3_model_matches_the_exact_id_only() {
         assert!(is_kimi_k3_model("kimi-k3"));
-        assert!(is_kimi_k3_model("kimi-k3-0716"));
+
+        // Moonshot versions the Kimi line with dotted minor releases, so these are
+        // the spellings a future K3 variant would plausibly use. They deliberately
+        // do not match: whoever adds one has to confirm it shares K3's pinned
+        // sampling params and reasoning_effort levels first.
+        assert!(!is_kimi_k3_model("kimi-k3.1"));
+        assert!(!is_kimi_k3_model("kimi-k3.5"));
+        assert!(!is_kimi_k3_model("kimi-k3-0716"));
+
+        // Neighbouring Kimi models must never be caught by a loosened matcher.
         assert!(!is_kimi_k3_model("kimi-k2.6"));
+        assert!(!is_kimi_k3_model("kimi-k2.5"));
         assert!(!is_kimi_k3_model("kimi-for-coding"));
+
+        // The provider prefix is stripped before normalization runs.
         assert!(!is_kimi_k3_model("moonshotai/kimi-k3"));
     }
 

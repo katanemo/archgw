@@ -1,6 +1,6 @@
-Plano Docs v0.4.29
+Plano Docs v0.4.30
 llms.txt (auto-generated)
-Generated (UTC): 2026-07-29T20:06:58.703363+00:00
+Generated (UTC): 2026-07-29T21:49:50.620968+00:00
 
 Table of contents
 - Agents (concepts/agents)
@@ -3569,13 +3569,13 @@ $ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Option 1: Install planoai with uv (Recommended)
 
-$ uv tool install planoai==0.4.29
+$ uv tool install planoai==0.4.30
 
 Option 2: Install with pip (Traditional)
 
 $ python -m venv venv
 $ source venv/bin/activate   # On Windows, use: venv\Scripts\activate
-$ pip install planoai==0.4.29
+$ pip install planoai==0.4.30
 
 
 
@@ -7558,7 +7558,7 @@ Create a docker-compose.yml file with the following configuration:
 # docker-compose.yml
 services:
   plano:
-    image: katanemo/plano:0.4.29
+    image: katanemo/plano:0.4.30
     container_name: plano
     ports:
       - "10000:10000" # ingress (client -> plano)
@@ -7628,7 +7628,7 @@ spec:
     spec:
       containers:
         - name: plano
-          image: katanemo/plano:0.4.29
+          image: katanemo/plano:0.4.30
           ports:
             - containerPort: 12000  # LLM gateway (chat completions, model routing)
               name: llm-gateway

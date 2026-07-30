@@ -92,6 +92,36 @@ def test_start_trace_server_raises_bind_error(monkeypatch):
     assert "planoai trace listen" in str(excinfo.value)
 
 
+def test_trace_store_keeps_root_trace_id_when_child_arrives_first():
+    store = trace_cmd._TraceStore()
+    root_trace_id = "a" * 32
+    child_trace_id = "b" * 32
+    root_span_id = "1" * 16
+
+    store.merge_spans(
+        child_trace_id,
+        [
+            {
+                "traceId": child_trace_id,
+                "spanId": "2" * 16,
+                "parentSpanId": root_span_id,
+            }
+        ],
+    )
+    store.merge_spans(
+        root_trace_id,
+        [
+            {
+                "traceId": root_trace_id,
+                "spanId": root_span_id,
+                "parentSpanId": "",
+            }
+        ],
+    )
+
+    assert store.snapshot()[0]["trace_id"] == root_trace_id
+
+
 def test_trace_listen_starts_listener_with_defaults(runner, monkeypatch):
     seen = {}
 

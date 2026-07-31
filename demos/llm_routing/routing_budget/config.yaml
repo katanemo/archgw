@@ -23,20 +23,6 @@ model_providers:
       - name: code generation
         description: generating new code snippets, functions, or boilerplate based on user prompts or requirements
 
-# Plano needs to know what each model costs (regular price + cached price) to
-# do the switch-cost math below.
-model_metrics_sources:
-  - type: cost
-    provider: models.dev
-    refresh_interval: 86400
-
-# Not required. The routing budget already tracks sessions and cached pricing
-# on its own. Only turn this on if you also want Plano to inject cache-control
-# markers on the full-proxy path, or want session stickiness without a budget
-# — see GUIDE.md §4.
-# prompt_caching:
-#   enabled: true
-
 routing:
   # Caps how much extra you'll pay to switch models mid-conversation. See
   # GUIDE.md for the full walkthrough.
@@ -58,6 +44,13 @@ routing:
     # (as `plano.switch.counterfactual_route` in traces) so you can see what
     # you're missing out on. Doesn't actually call that model. Default false.
     record_counterfactual: true
+  
+# Plano needs to know what each model costs (regular price + cached price) to
+# do the switch-cost math below.
+model_metrics_sources:
+  - type: cost
+    provider: models.dev
+    refresh_interval: 86400
 
 tracing:
   random_sampling: 100

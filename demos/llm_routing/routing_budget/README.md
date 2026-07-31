@@ -17,9 +17,9 @@ the cached rate you abandoned.
 The router runs every turn (routing stays cache-blind). When it proposes a model
 that differs from the session's warm anchor, Plano computes the **actual
 input-token cost** of abandoning the anchor's cache and only allows the switch
-while the session's cumulative switch spend stays within `max_overhead_pct`% of
+while the session's cumulative switch spend stays within `max_switch_spend_pct`% of
 what never-switching would have cost — otherwise it retains the warm anchor. The
-promise: the conversation bills at most `max_overhead_pct`% above never-switching.
+promise: the conversation bills at most `max_switch_spend_pct`% above never-switching.
 
 Quality and cost stay separate — the router still picks the best model; the
 budget only vetoes switches the session can't afford. Prompt caching

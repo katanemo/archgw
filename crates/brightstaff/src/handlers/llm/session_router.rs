@@ -7,13 +7,13 @@
 //! * **Cache warmth** — inferred structurally from how long ago the session was last
 //!   used vs. the provider's cache window ([`hermesllm::provider_cache_capability`]),
 //!   so it works on the decision path with no provider response in hand.
-//! * **A cumulative per-session overhead cap** — a paid switch (the candidate must
+//! * **A cumulative per-session spend cap** — a paid switch (the candidate must
 //!   re-ingest the context at its uncached rate) is allowed only while total switch
-//!   spend stays within `max_overhead_pct`% of the session's running *never-switch*
+//!   spend stays within `max_switch_spend_pct`% of the session's running *never-switch*
 //!   baseline (what staying on the session's `default_model` would have cost — priced
 //!   independently of the current anchor, which drifts as switches happen). An
 //!   outright-cheaper switch is free but never reduces that spend. The promise: this
-//!   conversation bills at most `max_overhead_pct`% above never-switching. A warm
+//!   conversation bills at most `max_switch_spend_pct`% above never-switching. A warm
 //!   anchor is priced at its *cached* rate and the switch pays the cache-loss delta:
 //!   provider caches are assumed real whenever the budget is active (most providers
 //!   cache automatically), independent of `prompt_caching.enabled`, which only
@@ -298,9 +298,9 @@ pub async fn route(
                 decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                 reason = metric_labels::SWITCH_REASON_SAME_ANCHOR;
             } else if let Some(cfg) = routing_budget {
-                // Ceiling: at most `max_overhead_pct`% of the cumulative baseline may be
+                // Ceiling: at most `max_switch_spend_pct`% of the cumulative baseline may be
                 // spent on switching over this warm episode.
-                let ceiling = (cfg.max_overhead_pct / 100.0) * baseline_usd;
+                let ceiling = (cfg.max_switch_spend_pct / 100.0) * baseline_usd;
                 ceiling_opt = Some(ceiling);
                 // Credit any context the candidate still has cached from an earlier visit
                 // this session: a return to a still-warm model re-reads only the tokens
@@ -453,7 +453,7 @@ pub async fn route(
         ));
         if routing_budget.is_some() {
             // Consumed overhead as a percentage of the never-switch baseline — directly
-            // comparable to the configured max_overhead_pct. Zero before any baseline.
+            // comparable to the configured max_switch_spend_pct. Zero before any baseline.
             let overhead_pct = if baseline_usd > 0.0 {
                 100.0 * switch_spend_usd / baseline_usd
             } else {
@@ -662,7 +662,7 @@ mod tests {
 
     fn routing_budget(pct: f64) -> EffectiveRoutingBudget {
         EffectiveRoutingBudget {
-            max_overhead_pct: pct,
+            max_switch_spend_pct: pct,
             replenish_on_rebind: true,
             cache_read_discount: 0.1,
             record_counterfactual: false,
@@ -888,7 +888,7 @@ mod tests {
 
     /// End-to-end cost validation over a full session lifetime: drive `route()` turn by
     /// turn through the real session cache and pricing math, and check the feature's core
-    /// promise at every turn — cumulative switch spend never exceeds `max_overhead_pct`%
+    /// promise at every turn — cumulative switch spend never exceeds `max_switch_spend_pct`%
     /// of the never-switch baseline.
     ///
     /// With a 100k context, each warm turn grows the baseline by 100k x $0.30/M = $0.03
@@ -932,7 +932,7 @@ mod tests {
                 d.switch_spend_usd <= cap_fraction * d.baseline_usd + 1e-9,
                 "turn {turn}: spend {} exceeds {}% of baseline {}",
                 d.switch_spend_usd,
-                st.max_overhead_pct,
+                st.max_switch_spend_pct,
                 d.baseline_usd
             );
             // Baseline must track the independently computed never-switch cost:
@@ -991,7 +991,7 @@ mod tests {
         );
 
         // Final end-to-end check of the promise: total switch overhead across the whole
-        // session is within max_overhead_pct% of the independently computed
+        // session is within max_switch_spend_pct% of the independently computed
         // never-switch baseline.
         let never_switch_cost = 0.03 * warm_turns as f64;
         assert!(
@@ -1003,7 +1003,7 @@ mod tests {
             d.switch_spend_usd <= cap_fraction * d.baseline_usd + 1e-9,
             "session overhead {} exceeds the promised {}% of {}",
             d.switch_spend_usd,
-            st.max_overhead_pct,
+            st.max_switch_spend_pct,
             d.baseline_usd
         );
     }

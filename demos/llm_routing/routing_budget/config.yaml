@@ -36,15 +36,11 @@ routing:
     # spent and start counting from zero. Default true.
     # replenish_on_rebind: true
 
-    # If we don't know a model's cached price, guess it's this fraction of its
-    # regular price. Default 0.1 (i.e. 10%).
-    # cache_read_discount: 0.1
-
     # When Plano blocks a switch, also log what it *would* have switched to
     # (as `plano.switch.counterfactual_route` in traces) so you can see what
     # you're missing out on. Doesn't actually call that model. Default false.
     record_counterfactual: true
-  
+
 # Plano needs to know what each model costs (regular price + cached price) to
 # do the switch-cost math below.
 model_metrics_sources:

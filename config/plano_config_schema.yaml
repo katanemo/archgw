@@ -558,17 +558,17 @@ properties:
           context_tokens x (candidate_uncached_input_rate - anchor_cached_input_rate),
           output cost deliberately excluded — accrues into the session's cumulative
           switch spend. A paid switch is allowed only while that spend stays within
-          max_overhead_pct percent of the session's running never-switch baseline (what
+          max_switch_spend_pct percent of the session's running never-switch baseline (what
           staying on the anchor would have cost). An outright-cheaper switch is free but
           never reduces the spend. Requires a cost source in model_metrics_sources.
         properties:
-          max_overhead_pct:
+          max_switch_spend_pct:
             type: number
             minimum: 0
             description: >
-              Cap on cumulative switching overhead, as a percentage of what the session
+              Cap on cumulative switching spend, as a percentage of what the session
               would have cost by never switching (a whole number: 20 = 20%). The promise
-              is "this conversation bills at most max_overhead_pct% above never-switching."
+              is "this conversation bills at most max_switch_spend_pct% above never-switching."
               0 means never pay to switch (only outright-cheaper switches are allowed);
               larger values buy more quality-driven switches. Typical range 10-30.
           replenish_on_rebind:
@@ -589,7 +589,7 @@ properties:
               the switch been allowed, as the plano.switch.counterfactual_route span
               attribute. Telemetry only — the counterfactual model is never dispatched.
               Useful for evals/benchmarks. Default false.
-        required: ["max_overhead_pct"]
+        required: ["max_switch_spend_pct"]
         additionalProperties: false
     additionalProperties: false
   state_storage:

@@ -291,7 +291,7 @@ pub struct PromptCaching {
 /// caching there is no warm cache to lose, so it is
 /// `context_tokens x (candidate_uncached_input_rate - anchor_uncached_input_rate)`. That
 /// input-token cost accrues into the session's cumulative switch spend. The gate allows a paid switch
-/// only while that spend stays within `max_overhead_pct` percent of the session's
+/// only while that spend stays within `max_switch_spend_pct` percent of the session's
 /// running *never-switch* baseline (the cost the session would have paid by staying
 /// on its anchor). A switch that is outright cheaper (negative cost) is free but
 /// never credits the spend back — the "saving" is vs a path we didn't take, not real
@@ -299,12 +299,12 @@ pub struct PromptCaching {
 /// rates are available. Presence of the block turns it on.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct RoutingBudget {
-    /// Cap on cumulative switching overhead, as a **percentage** of what the session
+    /// Cap on cumulative switching spend, as a **percentage** of what the session
     /// would have cost by never switching (a whole number: `20` = 20%). The promise
-    /// is "this conversation bills at most `max_overhead_pct`% above never-switching."
+    /// is "this conversation bills at most `max_switch_spend_pct`% above never-switching."
     /// `0` means "never pay to switch" (only outright-cheaper switches are ever
     /// allowed); larger values buy more quality-driven switches. Typical range 10–30.
-    pub max_overhead_pct: f64,
+    pub max_switch_spend_pct: f64,
     /// Reset the running baseline/spend totals when a session goes cold and re-binds
     /// (a fresh warm episode). Defaults to `true`.
     #[serde(default = "default_true")]
@@ -332,7 +332,7 @@ fn default_true() -> bool {
 pub struct EffectiveRoutingBudget {
     /// Cumulative switching-overhead cap, as a percentage of the never-switch
     /// baseline (a whole number: `20` = 20%).
-    pub max_overhead_pct: f64,
+    pub max_switch_spend_pct: f64,
     /// Reset the running baseline/spend totals on cold->warm re-bind.
     pub replenish_on_rebind: bool,
     pub cache_read_discount: f64,
@@ -346,10 +346,10 @@ impl RoutingBudget {
     /// Resolve to effective settings, validating the overhead cap and cache-read
     /// discount.
     pub fn resolve(&self) -> Result<EffectiveRoutingBudget, String> {
-        if !self.max_overhead_pct.is_finite() || self.max_overhead_pct < 0.0 {
+        if !self.max_switch_spend_pct.is_finite() || self.max_switch_spend_pct < 0.0 {
             return Err(format!(
-                "routing.routing_budget.max_overhead_pct: must be a non-negative number (percent, e.g. 20 for 20%), got {}",
-                self.max_overhead_pct
+                "routing.routing_budget.max_switch_spend_pct: must be a non-negative number (percent, e.g. 20 for 20%), got {}",
+                self.max_switch_spend_pct
             ));
         }
         let cache_read_discount = self
@@ -361,7 +361,7 @@ impl RoutingBudget {
             ));
         }
         Ok(EffectiveRoutingBudget {
-            max_overhead_pct: self.max_overhead_pct,
+            max_switch_spend_pct: self.max_switch_spend_pct,
             replenish_on_rebind: self.replenish_on_rebind,
             cache_read_discount,
             record_counterfactual: self.record_counterfactual,
@@ -1243,11 +1243,11 @@ inject_cache_control: true
     #[test]
     fn test_routing_budget_parses() {
         let yaml = r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
         let budget = cfg.resolve().unwrap();
-        assert_eq!(budget.max_overhead_pct, 20.0);
+        assert_eq!(budget.max_switch_spend_pct, 20.0);
         // Replenish defaults on.
         assert!(budget.replenish_on_rebind);
         assert_eq!(budget.cache_read_discount, DEFAULT_CACHE_READ_DISCOUNT);
@@ -1258,7 +1258,7 @@ max_overhead_pct: 20
     #[test]
     fn test_routing_budget_record_counterfactual_parses() {
         let yaml = r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 record_counterfactual: true
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
@@ -1269,13 +1269,13 @@ record_counterfactual: true
     #[test]
     fn test_routing_budget_flags_parse() {
         let yaml = r#"
-max_overhead_pct: 15
+max_switch_spend_pct: 15
 replenish_on_rebind: false
 cache_read_discount: 0.25
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
         let budget = cfg.resolve().unwrap();
-        assert_eq!(budget.max_overhead_pct, 15.0);
+        assert_eq!(budget.max_switch_spend_pct, 15.0);
         assert!(!budget.replenish_on_rebind);
         assert_eq!(budget.cache_read_discount, 0.25);
     }
@@ -1288,12 +1288,12 @@ cache_read_discount: 0.25
 
     #[test]
     fn test_routing_budget_invalid_values_rejected() {
-        let negative: RoutingBudget = serde_yaml::from_str("max_overhead_pct: -1.0").unwrap();
+        let negative: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: -1.0").unwrap();
         assert!(negative.resolve().is_err());
 
         let bad_discount: RoutingBudget = serde_yaml::from_str(
             r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 cache_read_discount: 1.5
 "#,
         )

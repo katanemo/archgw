@@ -8,7 +8,7 @@ There are two independent behaviors to observe:
   warm, so per-turn input cost drops sharply across a multi-turn conversation.
 2. **Routing budget** — the router still runs every turn, but when it proposes a
   *different* model while the session's cache is plausibly warm, Plano only switches
-  while the session's cumulative switch spend stays within `max_overhead_pct`% of what
+  while the session's cumulative switch spend stays within `max_switch_spend_pct`% of what
   staying put would have cost. This is a routing concern and is self-sufficient:
   it needs no `prompt_caching` config (it derives sessions and prices warm
   anchors at cached rates on its own).
@@ -56,7 +56,7 @@ model_metrics_sources:
 
 routing:
   routing_budget:                 # no default — presence turns it on
-    max_overhead_pct: 20          # bill at most 20% above never-switching
+    max_switch_spend_pct: 20          # bill at most 20% above never-switching
     # replenish_on_rebind: true   # reset running totals when a cold session re-binds
     # cache_read_discount: 0.1    # fallback when a feed omits cache_read
 ```
@@ -164,7 +164,7 @@ To observe it:
 
 - **Vetoed switch (paid, over cap):** with a warm session on an expensive model
 and a large context, a switch to a pricier candidate would push the session's total
-switch spend past `max_overhead_pct`% of its never-switch baseline → Plano **retains**
+switch spend past `max_switch_spend_pct`% of its never-switch baseline → Plano **retains**
 the anchor.
 - **Paid switch (within cap):** the same switch while the spend still fits under the
 cap → Plano **switches** and adds `switch_cost` to the session's cumulative spend.
@@ -263,7 +263,7 @@ switch vetoed — would exceed session overhead cap, retaining anchor
 ```
 
 The switch would cost ~$3.96e-5 to re-read the context on `gpt-4o`, but only
-~$1.08e-6 of overhead was affordable (`max_overhead_pct`% of the still-tiny
+~$1.08e-6 of overhead was affordable (`max_switch_spend_pct`% of the still-tiny
 one-turn baseline) — so `.models[0]` stays `anthropic/claude-sonnet-4-6`. Confirm
 it with the metric:
 
@@ -276,7 +276,7 @@ brightstaff_session_switch_decisions_total{decision="retained",reason="over_cap"
 ```
 
 To see the **other** side, remove the `routing_budget` block (or set
-`max_overhead_pct` very high), restart, and repeat — turn 2 now returns
+`max_switch_spend_pct` very high), restart, and repeat — turn 2 now returns
 `"model": "openai/gpt-4o"` and the metric reads `decision="allowed",reason="free"`.
 That before/after — same calls, one config line — is the whole point: the
 router's quality pick wins *unless* the budget says the warm cache it burns
@@ -297,7 +297,7 @@ Because this endpoint **shares the same session cache and the same
 `session_router::route()` logic** as the full-proxy path, the two are fully
 interoperable: a session pinned via `/routing` is honored by a later
 `/v1/chat/completions` call (and vice versa), including the exact same
-`max_overhead_pct` gating. This is also why warmth here is inferred purely
+`max_switch_spend_pct` gating. This is also why warmth here is inferred purely
 from idle-time vs. the provider's cache window rather than a cache-hit signal
 — this path never has a provider response to read one from.
 
@@ -328,9 +328,9 @@ curl -s localhost:9092/metrics | grep -E 'session_switch_decisions|prompt_cache_
 - `plano.cache.idle_ms` — how long since the session was last used
 - `plano.switch.cost_in_usd` — actual input-token cost of the proposed switch (output excluded)
 - `plano.switch.candidate_warm_tokens` — context the candidate still has cached from an earlier visit this session (a return to a warm model re-reads only the delta, so its `cost_in_usd` is far lower than a full re-ingest)
-- `plano.switch.overhead_ceiling_in_usd` — overhead ceiling (`max_overhead_pct`% x baseline) when the switch was evaluated
+- `plano.switch.overhead_ceiling_in_usd` — overhead ceiling (`max_switch_spend_pct`% x baseline) when the switch was evaluated
 - `plano.switch.decision` — `allowed` or `retained`
-- `plano.session.overhead_pct` — cumulative switching overhead consumed, as a % of the never-switch baseline (compare directly to `max_overhead_pct`)
+- `plano.session.overhead_pct` — cumulative switching overhead consumed, as a % of the never-switch baseline (compare directly to `max_switch_spend_pct`)
 - `plano.session.switch_spend_in_usd` — cumulative $ actually spent on switches this session
 - `plano.session.baseline_in_usd` — cumulative $ staying on the anchor would have cost (the denominator)
 - `plano.session.switches` — switches taken so far this session
@@ -393,7 +393,7 @@ curl -s localhost:12000/v1/chat/completions \
 
 | Setting                                          | Effect                                                                          |
 | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `routing.routing_budget.max_overhead_pct`        | Switching overhead cap as a % of never-switching (higher = quality-first, more switching) |
+| `routing.routing_budget.max_switch_spend_pct`        | Switching overhead cap as a % of never-switching (higher = quality-first, more switching) |
 | `routing.routing_budget.replenish_on_rebind`     | Reset the running baseline/spend totals when a cold session re-binds            |
 | `routing.routing_budget.cache_read_discount`     | Assumed cached rate for models whose feed entry omits a cached-read rate       |
 | `routing.routing_budget.record_counterfactual`   | Emit `plano.switch.counterfactual_route` on vetoed switches (the road not taken)|
@@ -414,4 +414,4 @@ the quality call; the overhead cap only vetoes a switch that the session can't a
 - The routing budget is independent of prompt caching (it lives under `routing`,
 needs no `prompt_caching` config, and always prices warm anchors at cached rates)
 and is fully opt-in with **no baked-in cap**: configuring it without a
-`max_overhead_pct` (or without a cost source) fails startup with a clear message.
+`max_switch_spend_pct` (or without a cost source) fails startup with a clear message.

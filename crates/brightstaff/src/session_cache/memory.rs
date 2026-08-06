@@ -9,7 +9,7 @@ use lru::LruCache;
 use tokio::sync::Mutex;
 use tracing::info;
 
-use super::{SessionBinding, SessionCache};
+use super::{SessionBinding, SessionCache, SessionCacheError};
 
 type CacheStore = Mutex<LruCache<String, (SessionBinding, Instant, Duration)>>;
 
@@ -61,24 +61,31 @@ impl MemorySessionCache {
 
 #[async_trait]
 impl SessionCache for MemorySessionCache {
-    async fn get(&self, key: &str) -> Option<SessionBinding> {
+    async fn get(&self, key: &str) -> Result<Option<SessionBinding>, SessionCacheError> {
         let mut cache = self.store.lock().await;
         if let Some((binding, inserted_at, ttl)) = cache.get(key) {
             if inserted_at.elapsed() < *ttl {
-                return Some(binding.clone());
+                return Ok(Some(binding.clone()));
             }
         }
-        None
+        Ok(None)
     }
 
-    async fn put(&self, key: &str, binding: SessionBinding, ttl: Duration) {
+    async fn put(
+        &self,
+        key: &str,
+        binding: SessionBinding,
+        ttl: Duration,
+    ) -> Result<(), SessionCacheError> {
         self.store
             .lock()
             .await
             .put(key.to_string(), (binding, Instant::now(), ttl));
+        Ok(())
     }
 
-    async fn remove(&self, key: &str) {
+    async fn remove(&self, key: &str) -> Result<(), SessionCacheError> {
         self.store.lock().await.pop(key);
+        Ok(())
     }
 }

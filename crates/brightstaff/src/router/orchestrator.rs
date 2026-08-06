@@ -9,7 +9,7 @@ use hyper::header;
 use opentelemetry::global;
 use opentelemetry_http::HeaderInjector;
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::http::{self, post_and_extract_content};
 use super::model_metrics::ModelMetricsService;
@@ -166,12 +166,28 @@ impl OrchestratorService {
         tenant_id: Option<&str>,
     ) -> Option<SessionBinding> {
         let cache = self.session_cache.as_ref()?;
-        let result = cache.get(&Self::session_key(tenant_id, session_id)).await;
-        bs_metrics::record_session_cache_event(match result {
-            Some(_) => metric_labels::SESSION_CACHE_HIT,
-            None => metric_labels::SESSION_CACHE_MISS,
-        });
-        result
+        match cache.get(&Self::session_key(tenant_id, session_id)).await {
+            Ok(Some(binding)) => {
+                bs_metrics::record_session_cache_event(metric_labels::SESSION_CACHE_HIT);
+                Some(binding)
+            }
+            Ok(None) => {
+                bs_metrics::record_session_cache_event(metric_labels::SESSION_CACHE_MISS);
+                None
+            }
+            // Fail open: route this turn without stickiness rather than reject it, but
+            // count and log it so a degraded cache is visible instead of looking like an
+            // endless run of cold sessions.
+            Err(err) => {
+                bs_metrics::record_session_cache_event(metric_labels::SESSION_CACHE_ERROR);
+                warn!(
+                    session_id = %session_id,
+                    error = %err,
+                    "session cache lookup failed; routing without affinity"
+                );
+                None
+            }
+        }
     }
 
     /// The GC bound for a session binding: the per-scope override when provided,
@@ -193,14 +209,28 @@ impl OrchestratorService {
         gc_ttl: Option<Duration>,
     ) {
         if let Some(ref cache) = self.session_cache {
-            cache
+            let result = cache
                 .put(
                     &Self::session_key(tenant_id, session_id),
                     binding,
                     gc_ttl.unwrap_or(self.session_ttl),
                 )
                 .await;
-            bs_metrics::record_session_cache_event(metric_labels::SESSION_CACHE_STORE);
+            match result {
+                Ok(()) => {
+                    bs_metrics::record_session_cache_event(metric_labels::SESSION_CACHE_STORE);
+                }
+                Err(err) => {
+                    bs_metrics::record_session_cache_event(
+                        metric_labels::SESSION_CACHE_STORE_ERROR,
+                    );
+                    warn!(
+                        session_id = %session_id,
+                        error = %err,
+                        "session cache store failed; next turn cannot pin"
+                    );
+                }
+            }
         }
     }
 
@@ -430,9 +460,16 @@ impl OrchestratorService {
 mod tests {
     use super::*;
     use crate::session_cache::memory::MemorySessionCache;
+    use crate::session_cache::SessionCacheError;
 
     fn make_orchestrator_service(ttl_seconds: u64, max_entries: usize) -> OrchestratorService {
-        let session_cache = Arc::new(MemorySessionCache::new(max_entries));
+        make_service_with_cache(ttl_seconds, Arc::new(MemorySessionCache::new(max_entries)))
+    }
+
+    fn make_service_with_cache(
+        ttl_seconds: u64,
+        session_cache: Arc<dyn SessionCache>,
+    ) -> OrchestratorService {
         OrchestratorService::with_routing(
             "http://localhost:12001/v1/chat/completions".to_string(),
             "Plano-Orchestrator".to_string(),
@@ -462,10 +499,46 @@ mod tests {
         }
     }
 
+    /// Stands in for an unreachable Redis: every operation fails.
+    struct FailingSessionCache;
+
+    #[async_trait::async_trait]
+    impl SessionCache for FailingSessionCache {
+        async fn get(
+            &self,
+            _key: &str,
+        ) -> std::result::Result<Option<SessionBinding>, SessionCacheError> {
+            Err(SessionCacheError::new("unreachable"))
+        }
+
+        async fn put(
+            &self,
+            _key: &str,
+            _binding: SessionBinding,
+            _ttl: Duration,
+        ) -> std::result::Result<(), SessionCacheError> {
+            Err(SessionCacheError::new("unreachable"))
+        }
+
+        async fn remove(&self, _key: &str) -> std::result::Result<(), SessionCacheError> {
+            Err(SessionCacheError::new("unreachable"))
+        }
+    }
+
     #[tokio::test]
     async fn test_cache_miss_returns_none() {
         let svc = make_orchestrator_service(600, 100);
         assert!(svc.get_binding("unknown-session", None).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_failing_cache_fails_open() {
+        let svc = make_service_with_cache(600, Arc::new(FailingSessionCache));
+        // A dead backend must not fail the turn, and must not surface a binding: the
+        // router would otherwise report a session as pinned against a cache that lost it.
+        svc.store_binding("s1", None, binding("gpt-4o", None), None)
+            .await;
+        assert!(svc.get_binding("s1", None).await.is_none());
     }
 
     #[tokio::test]

@@ -40,6 +40,13 @@ pub const ROUTING_SVC_POLICY_ERROR: &str = "policy_error";
 pub const SESSION_CACHE_HIT: &str = "hit";
 pub const SESSION_CACHE_MISS: &str = "miss";
 pub const SESSION_CACHE_STORE: &str = "store";
+/// Lookup failed in the backend. Kept apart from `miss` so an unreachable cache is never
+/// read as "cold session" — that looks identical to healthy traffic while stickiness is
+/// entirely off.
+pub const SESSION_CACHE_ERROR: &str = "error";
+/// Store failed in the backend: the binding was not persisted, so the next turn of this
+/// session cannot pin.
+pub const SESSION_CACHE_STORE_ERROR: &str = "store_error";
 
 // Prompt cache outcome values (brightstaff_prompt_cache_requests_total).
 pub const PROMPT_CACHE_HIT: &str = "hit";

@@ -124,9 +124,26 @@ routing_preferences:
 
 ---
 
+## Agentic Loops
+
+A coding agent answers one user turn with many LLM calls: the model replies with tool calls, the client runs them and posts the results back for the next step. Re-routing each of those steps would let a single turn drift across models mid-generation, which breaks the client — tool-call ids, reasoning state and the provider's prompt cache all belong to the model that started the turn.
+
+Plano detects these steps and replays the decision the loop already made instead of routing again. It works out of the box, with no client changes, for every supported client API — Anthropic `tool_result` blocks, OpenAI Chat `role: "tool"` messages, and Responses `function_call_output` items:
+
+```text
+user message      -> routing picks a model
+tool result       -> replays it (routing skipped)
+tool result       -> replays it (routing skipped)
+next user message -> routing runs again, free to pick a different model
+```
+
+Routing is skipped only while a loop is in flight. A new user message always re-routes, so intent-based selection keeps working turn to turn. A step also re-routes when the loop can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
+
+Skips are observable: the `plano.routing.skipped` span attribute and the `brightstaff_router_skips_total` counter.
+
 ## Model Affinity
 
-In agentic loops where the same session makes multiple LLM calls, send an `X-Model-Affinity` header to pin the routing decision. The first request routes normally and caches the result. All subsequent requests with the same affinity ID return the cached model without re-running routing.
+Loop detection covers a single turn. To keep a whole *conversation* on one model — across user turns, or when your client's requests don't look like a tool loop — send an `X-Model-Affinity` header. Without it, Plano derives an implicit session key from the stable prompt prefix (system + tools + first user message), which is what makes loop replay work header-free.
 
 ```json
 POST /v1/chat/completions
@@ -157,7 +174,9 @@ Response when pinned:
 }
 ```
 
-Without the header, routing runs fresh every time (no breaking change).
+`pinned` reports that the session was warm on its bound model, so callers can treat it as a signal to keep that provider's cache warm.
+
+The decision endpoint applies the same loop handling as the proxy, so a client polling it between tool calls gets a stable answer for the whole turn.
 
 Configure TTL and cache size:
 

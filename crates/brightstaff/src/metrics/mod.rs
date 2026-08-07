@@ -373,6 +373,15 @@ pub fn record_router_decision(
     .record(duration.as_secs_f64());
 }
 
+/// A request that bypassed quality routing and replayed an existing decision instead.
+pub fn record_routing_skip(reason: &'static str) {
+    counter!(
+        "brightstaff_router_skips_total",
+        "reason" => reason,
+    )
+    .increment(1);
+}
+
 pub fn record_routing_service_outcome(outcome: &'static str) {
     counter!(
         "brightstaff_routing_service_requests_total",

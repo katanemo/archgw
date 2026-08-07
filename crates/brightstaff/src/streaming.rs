@@ -211,6 +211,8 @@ pub struct SessionUpdateCtx {
     pub anchor_model: String,
     /// The session's never-switch model for this episode — preserved across the refresh.
     pub default_model: String,
+    /// The binding's model lane — preserved across the refresh.
+    pub requested_model: String,
     pub route_name: Option<String>,
     pub prefix_hash: Option<u64>,
     /// Cumulative never-switch baseline from the decision — preserved across the refresh.
@@ -318,6 +320,7 @@ impl ObservableStreamProcessor {
             tenant_id,
             anchor_model,
             default_model,
+            requested_model,
             route_name,
             prefix_hash,
             baseline_usd,
@@ -378,6 +381,7 @@ impl ObservableStreamProcessor {
         let binding = SessionBinding {
             anchor_model,
             default_model,
+            requested_model,
             route_name,
             prefix_hash,
             last_used: SystemTime::now(),

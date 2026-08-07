@@ -167,6 +167,11 @@ pub mod plano {
     /// (from the idle gap vs. the provider's cache window).
     pub const CACHE_WARM: &str = "plano.cache.warm";
 
+    /// Why quality routing was skipped for this request (e.g. the request continued an
+    /// agentic tool loop, so the loop's existing decision was replayed). Absent when the
+    /// router ran normally.
+    pub const ROUTING_SKIPPED: &str = "plano.routing.skipped";
+
     /// How long (ms) since the session was last used — the idle gap warmth is measured
     /// against.
     pub const CACHE_IDLE_MS: &str = "plano.cache.idle_ms";

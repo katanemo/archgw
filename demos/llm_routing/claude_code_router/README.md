@@ -29,6 +29,10 @@ Your Request → Plano → Suitable Model → Response
     [Task Analysis & Model Selection]
 ```
 
+Claude Code answers one request with a whole loop of LLM calls — it writes code, runs tools, reads the results and continues. Model selection happens once, on your message; the tool steps that follow stay on the model that started the turn, so a single answer is never split across models. Your next message is routed fresh.
+
+Claude Code's small/fast model (`ANTHROPIC_SMALL_FAST_MODEL`) is a separate lane and keeps routing on its own.
+
 **Supported Providers**: OpenAI-compatible, Anthropic, DeepSeek, Grok, Gemini, Llama, Mistral, local models via Ollama. See [full list of supported providers](https://docs.planoai.dev/concepts/llm_providers/supported_providers.html).
 
 

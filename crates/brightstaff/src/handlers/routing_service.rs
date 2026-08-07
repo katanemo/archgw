@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{debug, info, info_span, warn, Instrument};
 
 use super::extract_or_generate_traceparent;
-use crate::handlers::llm::model_selection::router_chat_get_upstream_model;
+use crate::handlers::llm::model_selection::{router_chat_get_upstream_model, RoutingResult};
 use crate::handlers::llm::session_router;
 use crate::metrics as bs_metrics;
 use crate::metrics::labels as metric_labels;
@@ -197,8 +197,12 @@ async fn routing_decision_inner(
     // Session key + prefix hash resolved identically to the LLM handler so pins
     // interoperate across the full-proxy and decision paths.
     // Derive the implicit session key when either prompt-caching affinity or the routing
-    // budget is active, so the budget works the same way with caching off.
-    let implicit_affinity_enabled = prompt_caching.session_affinity || routing_budget.is_some();
+    // budget is active, so the budget works the same way with caching off — and whenever
+    // routing preferences are in play, so an agentic tool loop can replay its decision.
+    let routing_can_override_model =
+        inline_routing_preferences.is_some() || orchestrator_service.has_routing_preferences();
+    let implicit_affinity_enabled =
+        prompt_caching.session_affinity || routing_budget.is_some() || routing_can_override_model;
     let session_router::SessionResolution {
         request_prefix_hash,
         session_id,
@@ -211,20 +215,54 @@ async fn routing_decision_inner(
         cache_off_for_request,
     );
 
+    let requested_model = client_request.model().to_string();
+
     let context_tokens: u64 = if session_id.is_some() && routing_budget.is_some() {
-        session_router::actual_context_tokens(&request_messages, client_request.model())
+        session_router::actual_context_tokens(&request_messages, &requested_model)
     } else {
         0
     };
 
-    let routing_result = router_chat_get_upstream_model(
-        Arc::clone(&orchestrator_service),
-        client_request,
-        &request_path,
-        &request_id,
-        inline_routing_preferences,
-    )
-    .await;
+    // Mirror the proxy path: a step of an agentic tool loop replays the decision the loop
+    // already made rather than re-running the router, so callers polling this endpoint
+    // between tool calls get a stable answer for the whole turn.
+    let loop_reuse = if session_router::is_tool_loop_continuation(&request_messages) {
+        session_router::reuse_for_tool_loop(
+            &orchestrator_service,
+            session_id.as_deref(),
+            tenant_id.as_deref(),
+            request_prefix_hash,
+            &requested_model,
+        )
+        .await
+    } else {
+        None
+    };
+
+    let routing_result = match loop_reuse {
+        Some(reuse) => {
+            debug!(
+                model = %reuse.model,
+                "tool-loop continuation — replaying this loop's model instead of re-routing"
+            );
+            bs_metrics::record_routing_skip(metric_labels::ROUTING_SKIP_TOOL_LOOP);
+            Ok(RoutingResult {
+                model_name: reuse.model.clone(),
+                models: vec![reuse.model],
+                route_name: reuse.route_name,
+            })
+        }
+        None => {
+            router_chat_get_upstream_model(
+                Arc::clone(&orchestrator_service),
+                client_request,
+                &request_path,
+                &request_id,
+                inline_routing_preferences,
+            )
+            .await
+        }
+    };
 
     match routing_result {
         Ok(result) => {
@@ -239,6 +277,7 @@ async fn routing_decision_inner(
                     context_tokens,
                     candidate_model: &candidate_model,
                     candidate_route: result.route_name.as_deref(),
+                    requested_model: &requested_model,
                 },
             )
             .await;

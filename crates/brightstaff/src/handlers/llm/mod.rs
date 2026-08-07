@@ -30,6 +30,7 @@ use crate::handlers::agents::pipeline::PipelineProcessor;
 use crate::handlers::extract_request_id;
 use crate::handlers::full;
 use crate::metrics as bs_metrics;
+use crate::metrics::labels as metric_labels;
 use crate::state::response_state_processor::ResponsesStateProcessor;
 use crate::state::{
     extract_input_items, retrieve_and_combine_input, StateStorage, StateStorageError,
@@ -312,7 +313,13 @@ async fn llm_chat_inner(
     let routing_budget = state.routing_budget;
     // Derive the implicit session key when either prompt-caching affinity or the
     // routing budget is active — the budget needs a session anchor even with caching off.
-    let implicit_affinity_enabled = prompt_caching.session_affinity || routing_budget.is_some();
+    // Routing preferences need one too: they let the router dispatch somewhere other than
+    // the model the client named, and the rest of an agentic tool loop has to be able to
+    // replay that choice (see `session_router::reuse_for_tool_loop`).
+    let routing_can_override_model = inline_routing_preferences.is_some()
+        || state.orchestrator_service.has_routing_preferences();
+    let implicit_affinity_enabled =
+        prompt_caching.session_affinity || routing_budget.is_some() || routing_can_override_model;
     let request_messages = client_request.get_messages();
     let session_router::SessionResolution {
         request_prefix_hash,
@@ -359,44 +366,79 @@ async fn llm_chat_inner(
     // --- Phase 3: Route the request (quality), then apply the session-cache decision ---
     // Routing stays cache-blind: the quality router always picks a candidate. The
     // session router then honors it or sticks to the warm anchor (see `session_router`).
-    let routing_span = info_span!(
-        "routing",
-        component = "routing",
-        http.method = "POST",
-        http.target = %request_path,
-        model.requested = %model_from_request,
-        model.alias_resolved = %alias_resolved_model,
-        route.selected_model = tracing::field::Empty,
-        routing.determination_ms = tracing::field::Empty,
-    );
-    let routing_result = match async {
-        set_service_name(operation_component::ROUTING);
-        router_chat_get_upstream_model(
-            Arc::clone(&state.orchestrator_service),
-            client_request,
-            &request_path,
-            &request_id,
-            inline_routing_preferences,
+    //
+    // A step of an agentic tool loop skips the router entirely and replays the model the
+    // loop is already running on, so a single user turn can't drift across models
+    // mid-generation. Fresh user turns always route.
+    let loop_reuse = if session_router::is_tool_loop_continuation(&request_messages) {
+        session_router::reuse_for_tool_loop(
+            &state.orchestrator_service,
+            session_id.as_deref(),
+            tenant_id.as_deref(),
+            request_prefix_hash,
+            &alias_resolved_model,
         )
         .await
-    }
-    .instrument(routing_span)
-    .await
-    {
-        Ok(result) => result,
-        Err(err) => {
-            let mut internal_error = Response::new(full(err.message));
-            *internal_error.status_mut() = err.status_code;
-            return Ok(internal_error);
-        }
+    } else {
+        None
     };
 
-    let candidate_model = if routing_result.model_name != "none" {
-        routing_result.model_name
-    } else {
-        alias_resolved_model.clone()
+    let (candidate_model, candidate_route) = match loop_reuse {
+        Some(reuse) => {
+            debug!(
+                model = %reuse.model,
+                "tool-loop continuation — replaying this loop's model instead of re-routing"
+            );
+            bs_metrics::record_routing_skip(metric_labels::ROUTING_SKIP_TOOL_LOOP);
+            get_active_span(|span| {
+                span.set_attribute(opentelemetry::KeyValue::new(
+                    tracing_plano::ROUTING_SKIPPED,
+                    metric_labels::ROUTING_SKIP_TOOL_LOOP,
+                ));
+            });
+            (reuse.model, reuse.route_name)
+        }
+        None => {
+            let routing_span = info_span!(
+                "routing",
+                component = "routing",
+                http.method = "POST",
+                http.target = %request_path,
+                model.requested = %model_from_request,
+                model.alias_resolved = %alias_resolved_model,
+                route.selected_model = tracing::field::Empty,
+                routing.determination_ms = tracing::field::Empty,
+            );
+            let routing_result = match async {
+                set_service_name(operation_component::ROUTING);
+                router_chat_get_upstream_model(
+                    Arc::clone(&state.orchestrator_service),
+                    client_request,
+                    &request_path,
+                    &request_id,
+                    inline_routing_preferences,
+                )
+                .await
+            }
+            .instrument(routing_span)
+            .await
+            {
+                Ok(result) => result,
+                Err(err) => {
+                    let mut internal_error = Response::new(full(err.message));
+                    *internal_error.status_mut() = err.status_code;
+                    return Ok(internal_error);
+                }
+            };
+
+            let candidate_model = if routing_result.model_name != "none" {
+                routing_result.model_name
+            } else {
+                alias_resolved_model.clone()
+            };
+            (candidate_model, routing_result.route_name)
+        }
     };
-    let candidate_route = routing_result.route_name;
 
     let decision = session_router::route(
         &state.orchestrator_service,
@@ -408,6 +450,7 @@ async fn llm_chat_inner(
             context_tokens,
             candidate_model: &candidate_model,
             candidate_route: candidate_route.as_deref(),
+            requested_model: &alias_resolved_model,
         },
     )
     .await;
@@ -468,6 +511,7 @@ async fn llm_chat_inner(
             tenant_id: tenant_id.clone(),
             anchor_model: resolved_model.clone(),
             default_model: decision.default_model.clone(),
+            requested_model: decision.requested_model.clone(),
             route_name: resolved_route_name.clone(),
             prefix_hash: request_prefix_hash,
             baseline_usd: decision.baseline_usd,

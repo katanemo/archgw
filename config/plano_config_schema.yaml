@@ -572,7 +572,7 @@ properties:
               0 means never pay to switch (only outright-cheaper switches are allowed);
               larger values buy more quality-driven switches. Typical range 10-30. When
               omitted, defaults to 20. Per-request overrides may be sent via the
-              x-plano-max-switch-spend-pct request header (alias max_switch_spend_pct).
+              x-routing-max-switch-spend-pct request header (alias max_switch_spend_pct).
           replenish_on_rebind:
             type: boolean
             description: "Reset the running baseline/spend totals when a cold session re-binds. Default true."

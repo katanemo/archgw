@@ -31,8 +31,8 @@ pub const PLANO_CACHE_HEADER: &str = "x-plano-cache";
 pub const PLANO_PREFIX_HASH_HEADER: &str = "x-plano-prefix-hash";
 /// Per-request override for `routing.routing_budget.max_switch_spend_pct` (whole number,
 /// e.g. `20` = 20%). When absent, the configured default applies.
-pub const PLANO_MAX_SWITCH_SPEND_PCT_HEADER: &str = "x-plano-max-switch-spend-pct";
-/// Alias for [`PLANO_MAX_SWITCH_SPEND_PCT_HEADER`] (field name forwarded by some proxies).
+pub const ROUTING_MAX_SWITCH_SPEND_PCT_HEADER: &str = "x-routing-max-switch-spend-pct";
+/// Alias (field name forwarded by some proxies).
 pub const MAX_SWITCH_SPEND_PCT_HEADER_ALIAS: &str = "max_switch_spend_pct";
 pub const ENVOY_ORIGINAL_PATH_HEADER: &str = "x-envoy-original-path";
 pub const TRACE_PARENT_HEADER: &str = "traceparent";

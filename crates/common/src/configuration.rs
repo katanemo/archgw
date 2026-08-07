@@ -305,7 +305,7 @@ pub struct RoutingBudget {
     /// `0` means "never pay to switch" (only outright-cheaper switches are ever
     /// allowed); larger values buy more quality-driven switches. Typical range 10–30.
     /// When omitted, defaults to [`DEFAULT_MAX_SWITCH_SPEND_PCT`]; per-request overrides
-    /// use [`crate::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER`].
+    /// use [`crate::consts::ROUTING_MAX_SWITCH_SPEND_PCT_HEADER`].
     #[serde(default)]
     pub max_switch_spend_pct: Option<f64>,
     /// Reset the running baseline/spend totals when a session goes cold and re-binds
@@ -929,7 +929,8 @@ mod test {
 
     use super::{
         EffectivePromptCaching, EffectiveRoutingBudget, IntoModels, LlmProvider, LlmProviderType,
-        PromptCaching, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT, DEFAULT_MIN_PREFIX_TOKENS,
+        PromptCaching, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT, DEFAULT_MAX_SWITCH_SPEND_PCT,
+        DEFAULT_MIN_PREFIX_TOKENS,
     };
     use crate::api::open_ai::ToolType;
 

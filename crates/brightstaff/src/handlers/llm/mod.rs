@@ -29,6 +29,7 @@ use crate::app_state::AppState;
 use crate::handlers::agents::pipeline::PipelineProcessor;
 use crate::handlers::extract_request_id;
 use crate::handlers::full;
+use crate::handlers::routing_budget_request;
 use crate::metrics as bs_metrics;
 use crate::state::response_state_processor::ResponsesStateProcessor;
 use crate::state::{
@@ -309,7 +310,8 @@ async fn llm_chat_inner(
     // the same bytes the provider's prompt cache is keyed on. The prefix hash is
     // derived even when caching is off, so the `x-plano-prefix-hash` RING_HASH
     // replica-stickiness header still works.
-    let routing_budget = state.routing_budget;
+    let routing_budget =
+        routing_budget_request::routing_budget_for_request(state.routing_budget, &request_headers);
     // Derive the implicit session key when either prompt-caching affinity or the
     // routing budget is active — the budget needs a session anchor even with caching off.
     let implicit_affinity_enabled = prompt_caching.session_affinity || routing_budget.is_some();
@@ -453,8 +455,7 @@ async fn llm_chat_inner(
     } else {
         None
     };
-    let cache_read_discount = state
-        .routing_budget
+    let cache_read_discount = routing_budget
         .as_ref()
         .map(|b| b.cache_read_discount)
         .unwrap_or(common::configuration::DEFAULT_CACHE_READ_DISCOUNT);

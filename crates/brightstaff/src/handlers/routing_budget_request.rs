@@ -1,29 +1,24 @@
 use common::configuration::EffectiveRoutingBudget;
-use common::consts::{MAX_SWITCH_SPEND_PCT_HEADER_ALIAS, ROUTING_MAX_SWITCH_SPEND_PCT_HEADER};
+use common::consts::ROUTING_MAX_SWITCH_SPEND_PCT_HEADER;
 use hyper::header::HeaderMap;
 use tracing::warn;
 
-/// Read `x-routing-max-switch-spend-pct` or the `max_switch_spend_pct` alias from request headers.
+/// Read `x-routing-max-switch-spend-pct` from request headers.
 pub fn max_switch_spend_pct_from_headers(headers: &HeaderMap) -> Option<f64> {
-    for name in [
-        ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
-        MAX_SWITCH_SPEND_PCT_HEADER_ALIAS,
-    ] {
-        let Some(raw) = headers.get(name).and_then(|h| h.to_str().ok()) else {
-            continue;
-        };
-        match EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value(raw) {
-            Some(pct) => return Some(pct),
-            None => {
-                warn!(
-                    header = name,
-                    value = raw,
-                    "ignoring invalid max_switch_spend_pct header value"
-                );
-            }
+    let raw = headers
+        .get(ROUTING_MAX_SWITCH_SPEND_PCT_HEADER)
+        .and_then(|h| h.to_str().ok())?;
+    match EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value(raw) {
+        Some(pct) => Some(pct),
+        None => {
+            warn!(
+                header = ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+                value = raw,
+                "ignoring invalid max_switch_spend_pct header value"
+            );
+            None
         }
     }
-    None
 }
 
 /// Instance routing budget with an optional per-request `max_switch_spend_pct` override.
@@ -37,6 +32,7 @@ pub fn routing_budget_for_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::consts::ROUTING_MAX_SWITCH_SPEND_PCT_HEADER;
     use hyper::header::HeaderValue;
 
     #[test]
@@ -47,16 +43,6 @@ mod tests {
             HeaderValue::from_static("15"),
         );
         assert_eq!(max_switch_spend_pct_from_headers(&headers), Some(15.0));
-    }
-
-    #[test]
-    fn parses_alias_header() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            MAX_SWITCH_SPEND_PCT_HEADER_ALIAS,
-            HeaderValue::from_static("12.5"),
-        );
-        assert_eq!(max_switch_spend_pct_from_headers(&headers), Some(12.5));
     }
 
     #[test]

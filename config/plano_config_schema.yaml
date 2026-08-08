@@ -572,8 +572,8 @@ properties:
               The promise is "this conversation bills at most max_switch_spend_pct% above
               never-switching." 0 means never pay to switch (only outright-cheaper switches
               are allowed); larger values buy more quality-driven switches. Typical range
-              10-30. When omitted, defaults to 20. Per-request overrides may be sent via
-              the x-plano-max-switch-spend-pct request header (same 0-100 range).
+              10-30. Per-request overrides may be sent via the x-plano-max-switch-spend-pct
+              request header (same 0-100 range).
           replenish_on_rebind:
             type: boolean
             description: "Reset the running baseline/spend totals when a cold session re-binds. Default true."
@@ -592,6 +592,7 @@ properties:
               the switch been allowed, as the plano.switch.counterfactual_route span
               attribute. Telemetry only — the counterfactual model is never dispatched.
               Useful for evals/benchmarks. Default false.
+        required: ["max_switch_spend_pct"]
         additionalProperties: false
     additionalProperties: false
   state_storage:

@@ -304,10 +304,8 @@ pub struct RoutingBudget {
     /// is "this conversation bills at most `max_switch_spend_pct`% above never-switching."
     /// `0` means "never pay to switch" (only outright-cheaper switches are ever
     /// allowed); larger values buy more quality-driven switches. Typical range 10–30.
-    /// When omitted, defaults to [`DEFAULT_MAX_SWITCH_SPEND_PCT`]; per-request overrides
-    /// use [`crate::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER`].
-    #[serde(default)]
-    pub max_switch_spend_pct: Option<f64>,
+    /// Per-request overrides use [`crate::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER`].
+    pub max_switch_spend_pct: f64,
     /// Reset the running baseline/spend totals when a session goes cold and re-binds
     /// (a fresh warm episode). Defaults to `true`.
     #[serde(default = "default_true")]
@@ -344,8 +342,6 @@ pub struct EffectiveRoutingBudget {
 }
 
 pub const DEFAULT_CACHE_READ_DISCOUNT: f64 = 0.1;
-/// Default overhead cap when `max_switch_spend_pct` is omitted from config (20%).
-pub const DEFAULT_MAX_SWITCH_SPEND_PCT: f64 = 20.0;
 /// Inclusive bounds for `max_switch_spend_pct` (percent of never-switch baseline).
 pub const MAX_SWITCH_SPEND_PCT_MIN: f64 = 0.0;
 pub const MAX_SWITCH_SPEND_PCT_MAX: f64 = 100.0;
@@ -368,9 +364,7 @@ impl RoutingBudget {
     /// Resolve to effective settings, validating the overhead cap and cache-read
     /// discount.
     pub fn resolve(&self) -> Result<EffectiveRoutingBudget, String> {
-        let max_switch_spend_pct = self
-            .max_switch_spend_pct
-            .unwrap_or(DEFAULT_MAX_SWITCH_SPEND_PCT);
+        let max_switch_spend_pct = self.max_switch_spend_pct;
         validate_max_switch_spend_pct(max_switch_spend_pct)
             .map_err(|msg| format!("routing.routing_budget.{msg}"))?;
         let cache_read_discount = self
@@ -938,8 +932,7 @@ mod test {
 
     use super::{
         EffectivePromptCaching, EffectiveRoutingBudget, IntoModels, LlmProvider, LlmProviderType,
-        PromptCaching, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT, DEFAULT_MAX_SWITCH_SPEND_PCT,
-        DEFAULT_MIN_PREFIX_TOKENS,
+        PromptCaching, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT, DEFAULT_MIN_PREFIX_TOKENS,
     };
     use crate::api::open_ai::ToolType;
 
@@ -1338,10 +1331,9 @@ cache_read_discount: 0.25
     }
 
     #[test]
-    fn test_routing_budget_empty_block_uses_default_pct() {
-        let cfg: RoutingBudget = serde_yaml::from_str("{}").unwrap();
-        let budget = cfg.resolve().unwrap();
-        assert_eq!(budget.max_switch_spend_pct, DEFAULT_MAX_SWITCH_SPEND_PCT);
+    fn test_routing_budget_missing_pct_rejected() {
+        let err = serde_yaml::from_str::<RoutingBudget>("{}");
+        assert!(err.is_err());
     }
 
     #[test]

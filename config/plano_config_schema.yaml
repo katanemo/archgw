@@ -565,14 +565,15 @@ properties:
           max_switch_spend_pct:
             type: number
             minimum: 0
+            maximum: 100
             description: >
               Cap on cumulative switching spend, as a percentage of what the session
-              would have cost by never switching (a whole number: 20 = 20%). The promise
-              is "this conversation bills at most max_switch_spend_pct% above never-switching."
-              0 means never pay to switch (only outright-cheaper switches are allowed);
-              larger values buy more quality-driven switches. Typical range 10-30. When
-              omitted, defaults to 20. Per-request overrides may be sent via the
-              x-routing-max-switch-spend-pct request header.
+              would have cost by never switching (e.g. 20 = 20%, max 100 = most permissive).
+              The promise is "this conversation bills at most max_switch_spend_pct% above
+              never-switching." 0 means never pay to switch (only outright-cheaper switches
+              are allowed); larger values buy more quality-driven switches. Typical range
+              10-30. When omitted, defaults to 20. Per-request overrides may be sent via
+              the x-routing-max-switch-spend-pct request header (same 0-100 range).
           replenish_on_rebind:
             type: boolean
             description: "Reset the running baseline/spend totals when a cold session re-binds. Default true."

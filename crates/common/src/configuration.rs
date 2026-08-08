@@ -346,6 +346,23 @@ pub struct EffectiveRoutingBudget {
 pub const DEFAULT_CACHE_READ_DISCOUNT: f64 = 0.1;
 /// Default overhead cap when `max_switch_spend_pct` is omitted from config (20%).
 pub const DEFAULT_MAX_SWITCH_SPEND_PCT: f64 = 20.0;
+/// Inclusive bounds for `max_switch_spend_pct` (percent of never-switch baseline).
+pub const MAX_SWITCH_SPEND_PCT_MIN: f64 = 0.0;
+pub const MAX_SWITCH_SPEND_PCT_MAX: f64 = 100.0;
+
+/// Returns `Ok(())` when `pct` is a finite percent in [`MAX_SWITCH_SPEND_PCT_MIN`],
+/// [`MAX_SWITCH_SPEND_PCT_MAX`].
+pub fn validate_max_switch_spend_pct(pct: f64) -> Result<(), String> {
+    if !pct.is_finite() || !(MAX_SWITCH_SPEND_PCT_MIN..=MAX_SWITCH_SPEND_PCT_MAX).contains(&pct) {
+        return Err(format!(
+            "max_switch_spend_pct: must be a number between {} and {} (percent, e.g. 20 for 20%), got {}",
+            MAX_SWITCH_SPEND_PCT_MIN,
+            MAX_SWITCH_SPEND_PCT_MAX,
+            pct
+        ));
+    }
+    Ok(())
+}
 
 impl RoutingBudget {
     /// Resolve to effective settings, validating the overhead cap and cache-read
@@ -354,12 +371,9 @@ impl RoutingBudget {
         let max_switch_spend_pct = self
             .max_switch_spend_pct
             .unwrap_or(DEFAULT_MAX_SWITCH_SPEND_PCT);
-        if !max_switch_spend_pct.is_finite() || max_switch_spend_pct < 0.0 {
-            return Err(format!(
-                "routing.routing_budget.max_switch_spend_pct: must be a non-negative number (percent, e.g. 20 for 20%), got {}",
-                max_switch_spend_pct
-            ));
-        }
+        validate_max_switch_spend_pct(max_switch_spend_pct).map_err(|msg| {
+            format!("routing.routing_budget.{msg}")
+        })?;
         let cache_read_discount = self
             .cache_read_discount
             .unwrap_or(DEFAULT_CACHE_READ_DISCOUNT);
@@ -383,14 +397,10 @@ impl EffectiveRoutingBudget {
         config.map(RoutingBudget::resolve).transpose()
     }
 
-    /// Parse a header value (whole-number percent, e.g. `20` = 20%).
+    /// Parse a header value (percent in [`MAX_SWITCH_SPEND_PCT_MIN`], [`MAX_SWITCH_SPEND_PCT_MAX`]).
     pub fn parse_max_switch_spend_pct_header_value(raw: &str) -> Option<f64> {
         let pct = raw.trim().parse::<f64>().ok()?;
-        if pct.is_finite() && pct >= 0.0 {
-            Some(pct)
-        } else {
-            None
-        }
+        validate_max_switch_spend_pct(pct).ok().map(|()| pct)
     }
 
     /// Apply the instance config and an optional per-request header override.
@@ -1356,9 +1366,20 @@ cache_read_discount: 0.25
     }
 
     #[test]
+    fn test_routing_budget_pct_at_bounds() {
+        let at_zero: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 0").unwrap();
+        assert_eq!(at_zero.resolve().unwrap().max_switch_spend_pct, 0.0);
+        let at_max: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 100").unwrap();
+        assert_eq!(at_max.resolve().unwrap().max_switch_spend_pct, 100.0);
+    }
+
+    #[test]
     fn test_routing_budget_invalid_values_rejected() {
         let negative: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: -1.0").unwrap();
         assert!(negative.resolve().is_err());
+
+        let over_max: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 100.1").unwrap();
+        assert!(over_max.resolve().is_err());
 
         let bad_discount: RoutingBudget = serde_yaml::from_str(
             r#"

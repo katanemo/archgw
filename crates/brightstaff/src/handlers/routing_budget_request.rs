@@ -46,6 +46,26 @@ mod tests {
     }
 
     #[test]
+    fn header_out_of_range_is_ignored() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            HeaderValue::from_static("101"),
+        );
+        assert_eq!(max_switch_spend_pct_from_headers(&headers), None);
+    }
+
+    #[test]
+    fn header_accepts_fraction_within_range() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            HeaderValue::from_static("12.5"),
+        );
+        assert_eq!(max_switch_spend_pct_from_headers(&headers), Some(12.5));
+    }
+
+    #[test]
     fn header_overrides_configured_budget() {
         let base = EffectiveRoutingBudget {
             max_switch_spend_pct: 20.0,

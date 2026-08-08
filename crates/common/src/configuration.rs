@@ -371,9 +371,8 @@ impl RoutingBudget {
         let max_switch_spend_pct = self
             .max_switch_spend_pct
             .unwrap_or(DEFAULT_MAX_SWITCH_SPEND_PCT);
-        validate_max_switch_spend_pct(max_switch_spend_pct).map_err(|msg| {
-            format!("routing.routing_budget.{msg}")
-        })?;
+        validate_max_switch_spend_pct(max_switch_spend_pct)
+            .map_err(|msg| format!("routing.routing_budget.{msg}"))?;
         let cache_read_discount = self
             .cache_read_discount
             .unwrap_or(DEFAULT_CACHE_READ_DISCOUNT);
@@ -1375,7 +1374,9 @@ cache_read_discount: 0.25
             EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100"),
             Some(100.0)
         );
-        assert!(EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100.01").is_none());
+        assert!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100.01").is_none()
+        );
     }
 
     #[test]

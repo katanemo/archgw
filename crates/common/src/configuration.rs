@@ -1366,6 +1366,19 @@ cache_read_discount: 0.25
     }
 
     #[test]
+    fn test_max_switch_spend_pct_header_parse_respects_range() {
+        assert_eq!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("0"),
+            Some(0.0)
+        );
+        assert_eq!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100"),
+            Some(100.0)
+        );
+        assert!(EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100.01").is_none());
+    }
+
+    #[test]
     fn test_routing_budget_pct_at_bounds() {
         let at_zero: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 0").unwrap();
         assert_eq!(at_zero.resolve().unwrap().max_switch_spend_pct, 0.0);

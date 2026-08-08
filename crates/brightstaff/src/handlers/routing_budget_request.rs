@@ -1,18 +1,18 @@
 use common::configuration::EffectiveRoutingBudget;
-use common::consts::ROUTING_MAX_SWITCH_SPEND_PCT_HEADER;
+use common::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER;
 use hyper::header::HeaderMap;
 use tracing::warn;
 
-/// Read `x-routing-max-switch-spend-pct` from request headers.
+/// Read `x-plano-max-switch-spend-pct` from request headers.
 pub fn max_switch_spend_pct_from_headers(headers: &HeaderMap) -> Option<f64> {
     let raw = headers
-        .get(ROUTING_MAX_SWITCH_SPEND_PCT_HEADER)
+        .get(PLANO_MAX_SWITCH_SPEND_PCT_HEADER)
         .and_then(|h| h.to_str().ok())?;
     match EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value(raw) {
         Some(pct) => Some(pct),
         None => {
             warn!(
-                header = ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+                header = PLANO_MAX_SWITCH_SPEND_PCT_HEADER,
                 value = raw,
                 "ignoring invalid max_switch_spend_pct header value"
             );
@@ -32,14 +32,14 @@ pub fn routing_budget_for_request(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::consts::ROUTING_MAX_SWITCH_SPEND_PCT_HEADER;
+    use common::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER;
     use hyper::header::HeaderValue;
 
     #[test]
     fn parses_canonical_header() {
         let mut headers = HeaderMap::new();
         headers.insert(
-            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            PLANO_MAX_SWITCH_SPEND_PCT_HEADER,
             HeaderValue::from_static("15"),
         );
         assert_eq!(max_switch_spend_pct_from_headers(&headers), Some(15.0));
@@ -49,7 +49,7 @@ mod tests {
     fn header_out_of_range_is_ignored() {
         let mut headers = HeaderMap::new();
         headers.insert(
-            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            PLANO_MAX_SWITCH_SPEND_PCT_HEADER,
             HeaderValue::from_static("101"),
         );
         assert_eq!(max_switch_spend_pct_from_headers(&headers), None);
@@ -59,7 +59,7 @@ mod tests {
     fn header_accepts_fraction_within_range() {
         let mut headers = HeaderMap::new();
         headers.insert(
-            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            PLANO_MAX_SWITCH_SPEND_PCT_HEADER,
             HeaderValue::from_static("12.5"),
         );
         assert_eq!(max_switch_spend_pct_from_headers(&headers), Some(12.5));
@@ -75,7 +75,7 @@ mod tests {
         };
         let mut headers = HeaderMap::new();
         headers.insert(
-            ROUTING_MAX_SWITCH_SPEND_PCT_HEADER,
+            PLANO_MAX_SWITCH_SPEND_PCT_HEADER,
             HeaderValue::from_static("5"),
         );
         let resolved = routing_budget_for_request(Some(base), &headers).unwrap();

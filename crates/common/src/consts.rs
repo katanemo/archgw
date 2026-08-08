@@ -29,9 +29,9 @@ pub const PLANO_CACHE_HEADER: &str = "x-plano-cache";
 /// Hash of the stable prompt prefix, forwarded upstream so self-hosted multi-replica
 /// backends can do KV-aware (consistent-hash) replica routing at the LB/Envoy layer.
 pub const PLANO_PREFIX_HASH_HEADER: &str = "x-plano-prefix-hash";
-/// Per-request override for `routing.routing_budget.max_switch_spend_pct` (whole number,
+/// Per-request override for `routing.routing_budget.max_switch_spend_pct` (0–100,
 /// e.g. `20` = 20%). When absent, the configured default applies.
-pub const ROUTING_MAX_SWITCH_SPEND_PCT_HEADER: &str = "x-routing-max-switch-spend-pct";
+pub const PLANO_MAX_SWITCH_SPEND_PCT_HEADER: &str = "x-plano-max-switch-spend-pct";
 pub const ENVOY_ORIGINAL_PATH_HEADER: &str = "x-envoy-original-path";
 pub const TRACE_PARENT_HEADER: &str = "traceparent";
 pub const ARCH_INTERNAL_CLUSTER_NAME: &str = "arch_internal";

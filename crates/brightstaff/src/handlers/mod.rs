@@ -4,6 +4,7 @@ pub mod function_calling;
 pub mod llm;
 pub mod models;
 pub mod response;
+pub mod routing_budget_request;
 pub mod routing_service;
 
 #[cfg(test)]

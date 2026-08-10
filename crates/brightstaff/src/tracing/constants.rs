@@ -178,7 +178,7 @@ pub mod plano {
 
     /// Cumulative switching overhead consumed this session, as a percentage of the
     /// never-switch baseline (`100 * switch_spend / baseline`). Directly comparable to
-    /// the configured `routing.routing_budget.max_overhead_pct`.
+    /// the configured `routing.routing_budget.max_switch_spend_pct`.
     pub const SESSION_OVERHEAD_PCT: &str = "plano.session.overhead_pct";
 
     /// Cumulative overhead (USD) actually spent on paid switches this session — the
@@ -210,7 +210,7 @@ pub mod plano {
     pub const SWITCH_CANDIDATE_WARM_TOKENS: &str = "plano.switch.candidate_warm_tokens";
 
     /// The overhead ceiling (USD) available when the switch was evaluated —
-    /// `max_overhead_pct% * baseline`. A paid switch is allowed while cumulative spend
+    /// `max_switch_spend_pct% * baseline`. A paid switch is allowed while cumulative spend
     /// plus this switch's cost stays under it. Directly comparable to `cost_in_usd`.
     pub const SWITCH_OVERHEAD_CEILING_IN_USD: &str = "plano.switch.overhead_ceiling_in_usd";
 

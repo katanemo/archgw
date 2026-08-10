@@ -153,19 +153,44 @@ mod epoch_secs {
     }
 }
 
+/// A backend failure from the session cache, reported separately from "nothing stored"
+/// so callers can tell a cold session apart from an unreachable cache.
+#[derive(Debug)]
+pub struct SessionCacheError(String);
+
+impl SessionCacheError {
+    pub fn new(err: impl std::fmt::Display) -> Self {
+        Self(err.to_string())
+    }
+}
+
+impl std::fmt::Display for SessionCacheError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for SessionCacheError {}
+
 #[async_trait]
 pub trait SessionCache: Send + Sync {
-    /// Look up a session binding by key. `None` when absent or GC-evicted. Warmth is
-    /// the caller's concern (time since `last_used`), not the cache's.
-    async fn get(&self, key: &str) -> Option<SessionBinding>;
+    /// Look up a session binding by key. `Ok(None)` when absent or GC-evicted, `Err` when
+    /// the backend itself failed. Warmth is the caller's concern (time since `last_used`),
+    /// not the cache's.
+    async fn get(&self, key: &str) -> Result<Option<SessionBinding>, SessionCacheError>;
 
     /// Store a session binding with the given GC TTL. The TTL is only a memory bound
     /// (keep the entry around at least as long as it could plausibly be warm); it does
     /// not define warmth.
-    async fn put(&self, key: &str, binding: SessionBinding, ttl: Duration);
+    async fn put(
+        &self,
+        key: &str,
+        binding: SessionBinding,
+        ttl: Duration,
+    ) -> Result<(), SessionCacheError>;
 
     /// Remove a session binding by key.
-    async fn remove(&self, key: &str);
+    async fn remove(&self, key: &str) -> Result<(), SessionCacheError>;
 }
 
 /// Initialize the session cache backend from config.

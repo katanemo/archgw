@@ -164,6 +164,66 @@ impl ChatCompletionsRequest {
         }
     }
 
+    /// Map an OpenAI-style `reasoning_effort` onto the values Kimi K3 accepts
+    /// (`low`, `high`, `max`). K3 cannot disable thinking, so the efforts below
+    /// `low` collapse onto it. Unrecognized values are dropped so that the
+    /// upstream default applies rather than the request being rejected.
+    fn normalize_kimi_k3_reasoning_effort(&mut self) {
+        let Some(effort) = self.reasoning_effort.as_deref() else {
+            return;
+        };
+        let mapped = match effort.to_ascii_lowercase().as_str() {
+            "none" | "minimal" | "low" => Some("low"),
+            "medium" | "high" => Some("high"),
+            "max" => Some("max"),
+            _ => None,
+        };
+        match mapped {
+            Some(mapped) if mapped == effort => {}
+            Some(mapped) => {
+                warn!(
+                    "kimi-k3: mapping reasoning_effort '{}' to supported value '{}'",
+                    effort, mapped
+                );
+                self.reasoning_effort = Some(mapped.to_string());
+            }
+            None => {
+                warn!(
+                    "kimi-k3: stripping unsupported reasoning_effort '{}' from upstream request",
+                    effort
+                );
+                self.reasoning_effort = None;
+            }
+        }
+    }
+
+    /// Strip sampling fields that the Kimi K3 API pins to fixed values and asks
+    /// callers to omit (`temperature`, `top_p`, `n`, `presence_penalty`,
+    /// `frequency_penalty`), and coerce `reasoning_effort` to a supported value.
+    pub fn normalize_for_kimi_k3_api(&mut self) {
+        if self.temperature.is_some() {
+            warn!("kimi-k3: stripping fixed temperature from upstream request");
+            self.temperature = None;
+        }
+        if self.top_p.is_some() {
+            warn!("kimi-k3: stripping fixed top_p from upstream request");
+            self.top_p = None;
+        }
+        if self.n.is_some() {
+            warn!("kimi-k3: stripping fixed n from upstream request");
+            self.n = None;
+        }
+        if self.presence_penalty.is_some() {
+            warn!("kimi-k3: stripping fixed presence_penalty from upstream request");
+            self.presence_penalty = None;
+        }
+        if self.frequency_penalty.is_some() {
+            warn!("kimi-k3: stripping fixed frequency_penalty from upstream request");
+            self.frequency_penalty = None;
+        }
+        self.normalize_kimi_k3_reasoning_effort();
+    }
+
     /// True when any message content part already carries a `cache_control` marker
     /// (client-supplied or previously injected).
     pub fn has_cache_control_markers(&self) -> bool {
@@ -274,6 +334,16 @@ fn attach_cache_control(message: &mut Message, marker: CacheControl) -> bool {
 /// True when the upstream model id is Moonshot's Kimi Code endpoint model.
 pub fn is_kimi_code_model(model: &str) -> bool {
     model == "kimi-for-coding"
+}
+
+/// True when the upstream model id is Moonshot's Kimi K3 model.
+///
+/// Matches the exact id only. Moonshot versions the Kimi line with dotted minor
+/// releases (`kimi-k2.5`, `kimi-k2.6`), so a future `kimi-k3.1` will need to be
+/// added here explicitly once its parameter constraints are known, rather than
+/// assumed to match K3's.
+pub fn is_kimi_k3_model(model: &str) -> bool {
+    model == "kimi-k3"
 }
 
 // ============================================================================
@@ -954,6 +1024,77 @@ impl ProviderStreamResponse for ChatCompletionsStreamResponse {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn test_is_kimi_k3_model_matches_the_exact_id_only() {
+        assert!(is_kimi_k3_model("kimi-k3"));
+
+        // Moonshot versions the Kimi line with dotted minor releases, so these are
+        // the spellings a future K3 variant would plausibly use. They deliberately
+        // do not match: whoever adds one has to confirm it shares K3's pinned
+        // sampling params and reasoning_effort levels first.
+        assert!(!is_kimi_k3_model("kimi-k3.1"));
+        assert!(!is_kimi_k3_model("kimi-k3.5"));
+        assert!(!is_kimi_k3_model("kimi-k3-0716"));
+
+        // Neighbouring Kimi models must never be caught by a loosened matcher.
+        assert!(!is_kimi_k3_model("kimi-k2.6"));
+        assert!(!is_kimi_k3_model("kimi-k2.5"));
+        assert!(!is_kimi_k3_model("kimi-for-coding"));
+
+        // The provider prefix is stripped before normalization runs.
+        assert!(!is_kimi_k3_model("moonshotai/kimi-k3"));
+    }
+
+    #[test]
+    fn test_normalize_for_kimi_k3_maps_reasoning_effort_to_supported_values() {
+        // K3 cannot disable thinking, so anything below `low` collapses onto it.
+        for effort in ["none", "minimal", "low"] {
+            let mut req = ChatCompletionsRequest {
+                model: "kimi-k3".to_string(),
+                reasoning_effort: Some(effort.to_string()),
+                ..Default::default()
+            };
+            req.normalize_for_kimi_k3_api();
+            assert_eq!(req.reasoning_effort.as_deref(), Some("low"), "{}", effort);
+        }
+
+        // OpenAI's `medium` has no K3 equivalent; `high` is the nearest level.
+        for effort in ["medium", "high", "HIGH"] {
+            let mut req = ChatCompletionsRequest {
+                model: "kimi-k3".to_string(),
+                reasoning_effort: Some(effort.to_string()),
+                ..Default::default()
+            };
+            req.normalize_for_kimi_k3_api();
+            assert_eq!(req.reasoning_effort.as_deref(), Some("high"), "{}", effort);
+        }
+
+        let mut req = ChatCompletionsRequest {
+            model: "kimi-k3".to_string(),
+            reasoning_effort: Some("max".to_string()),
+            ..Default::default()
+        };
+        req.normalize_for_kimi_k3_api();
+        assert_eq!(req.reasoning_effort.as_deref(), Some("max"));
+
+        // Unrecognized values are dropped so the upstream default applies.
+        let mut req = ChatCompletionsRequest {
+            model: "kimi-k3".to_string(),
+            reasoning_effort: Some("turbo".to_string()),
+            ..Default::default()
+        };
+        req.normalize_for_kimi_k3_api();
+        assert!(req.reasoning_effort.is_none());
+
+        // An absent value stays absent.
+        let mut req = ChatCompletionsRequest {
+            model: "kimi-k3".to_string(),
+            ..Default::default()
+        };
+        req.normalize_for_kimi_k3_api();
+        assert!(req.reasoning_effort.is_none());
+    }
 
     /// Build a request with a long system prompt (well over the token threshold) plus
     /// a short user turn.

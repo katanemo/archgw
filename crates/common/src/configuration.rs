@@ -291,7 +291,7 @@ pub struct PromptCaching {
 /// caching there is no warm cache to lose, so it is
 /// `context_tokens x (candidate_uncached_input_rate - anchor_uncached_input_rate)`. That
 /// input-token cost accrues into the session's cumulative switch spend. The gate allows a paid switch
-/// only while that spend stays within `max_overhead_pct` percent of the session's
+/// only while that spend stays within `max_switch_spend_pct` percent of the session's
 /// running *never-switch* baseline (the cost the session would have paid by staying
 /// on its anchor). A switch that is outright cheaper (negative cost) is free but
 /// never credits the spend back — the "saving" is vs a path we didn't take, not real
@@ -299,12 +299,13 @@ pub struct PromptCaching {
 /// rates are available. Presence of the block turns it on.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct RoutingBudget {
-    /// Cap on cumulative switching overhead, as a **percentage** of what the session
+    /// Cap on cumulative switching spend, as a **percentage** of what the session
     /// would have cost by never switching (a whole number: `20` = 20%). The promise
-    /// is "this conversation bills at most `max_overhead_pct`% above never-switching."
+    /// is "this conversation bills at most `max_switch_spend_pct`% above never-switching."
     /// `0` means "never pay to switch" (only outright-cheaper switches are ever
     /// allowed); larger values buy more quality-driven switches. Typical range 10–30.
-    pub max_overhead_pct: f64,
+    /// Per-request overrides use [`crate::consts::PLANO_MAX_SWITCH_SPEND_PCT_HEADER`].
+    pub max_switch_spend_pct: f64,
     /// Reset the running baseline/spend totals when a session goes cold and re-binds
     /// (a fresh warm episode). Defaults to `true`.
     #[serde(default = "default_true")]
@@ -332,7 +333,7 @@ fn default_true() -> bool {
 pub struct EffectiveRoutingBudget {
     /// Cumulative switching-overhead cap, as a percentage of the never-switch
     /// baseline (a whole number: `20` = 20%).
-    pub max_overhead_pct: f64,
+    pub max_switch_spend_pct: f64,
     /// Reset the running baseline/spend totals on cold->warm re-bind.
     pub replenish_on_rebind: bool,
     pub cache_read_discount: f64,
@@ -341,17 +342,31 @@ pub struct EffectiveRoutingBudget {
 }
 
 pub const DEFAULT_CACHE_READ_DISCOUNT: f64 = 0.1;
+/// Inclusive bounds for `max_switch_spend_pct` (percent of never-switch baseline).
+pub const MAX_SWITCH_SPEND_PCT_MIN: f64 = 0.0;
+pub const MAX_SWITCH_SPEND_PCT_MAX: f64 = 100.0;
+
+/// Returns `Ok(())` when `pct` is a finite percent in [`MAX_SWITCH_SPEND_PCT_MIN`],
+/// [`MAX_SWITCH_SPEND_PCT_MAX`].
+pub fn validate_max_switch_spend_pct(pct: f64) -> Result<(), String> {
+    if !pct.is_finite() || !(MAX_SWITCH_SPEND_PCT_MIN..=MAX_SWITCH_SPEND_PCT_MAX).contains(&pct) {
+        return Err(format!(
+            "max_switch_spend_pct: must be a number between {} and {} (percent, e.g. 20 for 20%), got {}",
+            MAX_SWITCH_SPEND_PCT_MIN,
+            MAX_SWITCH_SPEND_PCT_MAX,
+            pct
+        ));
+    }
+    Ok(())
+}
 
 impl RoutingBudget {
     /// Resolve to effective settings, validating the overhead cap and cache-read
     /// discount.
     pub fn resolve(&self) -> Result<EffectiveRoutingBudget, String> {
-        if !self.max_overhead_pct.is_finite() || self.max_overhead_pct < 0.0 {
-            return Err(format!(
-                "routing.routing_budget.max_overhead_pct: must be a non-negative number (percent, e.g. 20 for 20%), got {}",
-                self.max_overhead_pct
-            ));
-        }
+        let max_switch_spend_pct = self.max_switch_spend_pct;
+        validate_max_switch_spend_pct(max_switch_spend_pct)
+            .map_err(|msg| format!("routing.routing_budget.{msg}"))?;
         let cache_read_discount = self
             .cache_read_discount
             .unwrap_or(DEFAULT_CACHE_READ_DISCOUNT);
@@ -361,7 +376,7 @@ impl RoutingBudget {
             ));
         }
         Ok(EffectiveRoutingBudget {
-            max_overhead_pct: self.max_overhead_pct,
+            max_switch_spend_pct,
             replenish_on_rebind: self.replenish_on_rebind,
             cache_read_discount,
             record_counterfactual: self.record_counterfactual,
@@ -373,6 +388,35 @@ impl EffectiveRoutingBudget {
     /// Resolve from an optional config block; `None` means the gate is off.
     pub fn from_config(config: Option<&RoutingBudget>) -> Result<Option<Self>, String> {
         config.map(RoutingBudget::resolve).transpose()
+    }
+
+    /// Parse a header value (percent in [`MAX_SWITCH_SPEND_PCT_MIN`], [`MAX_SWITCH_SPEND_PCT_MAX`]).
+    pub fn parse_max_switch_spend_pct_header_value(raw: &str) -> Option<f64> {
+        let pct = raw.trim().parse::<f64>().ok()?;
+        validate_max_switch_spend_pct(pct).ok().map(|()| pct)
+    }
+
+    /// Apply the instance config and an optional per-request header override.
+    ///
+    /// When the header is present it wins over the configured `max_switch_spend_pct`.
+    /// When the gate is off in config but the header is set, a budget is synthesized
+    /// with the other fields at their defaults (requires a cost metrics source at
+    /// runtime for switch-cost gating to take effect).
+    pub fn for_request(base: Option<Self>, header_pct: Option<f64>) -> Option<Self> {
+        match (base, header_pct) {
+            (None, None) => None,
+            (Some(mut cfg), Some(pct)) => {
+                cfg.max_switch_spend_pct = pct;
+                Some(cfg)
+            }
+            (Some(cfg), None) => Some(cfg),
+            (None, Some(pct)) => Some(Self {
+                max_switch_spend_pct: pct,
+                replenish_on_rebind: true,
+                cache_read_discount: DEFAULT_CACHE_READ_DISCOUNT,
+                record_counterfactual: false,
+            }),
+        }
     }
 }
 
@@ -626,6 +670,8 @@ pub enum LlmProviderType {
     Vercel,
     #[serde(rename = "openrouter")]
     OpenRouter,
+    #[serde(rename = "edenai")]
+    EdenAI,
     #[serde(rename = "astraflow")]
     Astraflow,
     #[serde(rename = "astraflow_cn")]
@@ -655,6 +701,7 @@ impl Display for LlmProviderType {
             LlmProviderType::DigitalOcean => write!(f, "digitalocean"),
             LlmProviderType::Vercel => write!(f, "vercel"),
             LlmProviderType::OpenRouter => write!(f, "openrouter"),
+            LlmProviderType::EdenAI => write!(f, "edenai"),
             LlmProviderType::Astraflow => write!(f, "astraflow"),
             LlmProviderType::AstraflowCN => write!(f, "astraflow_cn"),
         }
@@ -1044,14 +1091,15 @@ mod test {
     }
 
     #[test]
-    fn test_llm_provider_type_vercel_and_openrouter_roundtrip() {
+    fn test_llm_provider_type_gateway_provider_roundtrip() {
         // Regression: brightstaff used to reject `provider_interface: vercel`
-        // (and `openrouter`) because these variants were missing from
+        // (`openrouter`, then `edenai`) because these variants were missing from
         // `LlmProviderType`, causing `planoai up` with the synthesized default
         // config to crash on startup.
         for (yaml_value, expected) in [
             ("vercel", LlmProviderType::Vercel),
             ("openrouter", LlmProviderType::OpenRouter),
+            ("edenai", LlmProviderType::EdenAI),
         ] {
             let parsed: LlmProviderType =
                 serde_yaml::from_str(yaml_value).expect("variant should deserialize");
@@ -1061,6 +1109,93 @@ mod test {
             // recognized there as well or this panics.
             let _ = parsed.to_provider_id();
         }
+    }
+
+    /// `planoai up` with no config synthesizes a `model_providers` entry for every
+    /// name in `cli/planoai/defaults.py::PROVIDER_DEFAULTS` and brightstaff parses
+    /// each one as a `provider_interface`. A name added there but not here makes
+    /// brightstaff exit on startup, which has broken the zero-config path three
+    /// times (vercel, openrouter, edenai). Read the Python list directly so the
+    /// drift is caught here instead of in the CI smoke test.
+    #[test]
+    fn test_zero_config_default_providers_all_deserialize() {
+        let defaults_py =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../cli/planoai/defaults.py");
+        let source = std::fs::read_to_string(&defaults_py)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", defaults_py.display()));
+
+        let list = source
+            .split_once("PROVIDER_DEFAULTS: list[ProviderDefault] = [")
+            .and_then(|(_, rest)| rest.split_once("\n]"))
+            .map(|(list, _)| list)
+            .expect("PROVIDER_DEFAULTS list not found in defaults.py");
+
+        let names: Vec<&str> = list
+            .match_indices("name=\"")
+            .map(|(i, m)| {
+                let value = &list[i + m.len()..];
+                value.split_once('"').expect("unterminated name= literal").0
+            })
+            .collect();
+        assert!(
+            names.len() >= 10,
+            "expected to parse the full provider list, got {names:?}"
+        );
+
+        for name in names {
+            let parsed: LlmProviderType = serde_yaml::from_str(name).unwrap_or_else(|e| {
+                panic!(
+                    "provider '{name}' from defaults.py has no LlmProviderType variant \
+                     (add it to the enum, its Display arm, and hermesllm's ProviderId): {e}"
+                )
+            });
+            assert_eq!(parsed.to_string(), name);
+            // Panics if hermesllm's ProviderId is missing the variant too.
+            let _ = parsed.to_provider_id();
+        }
+    }
+
+    /// `plano_config_schema.yaml` decides which `provider_interface` values a user
+    /// may write, and brightstaff has to be able to deserialize every one of them or
+    /// it exits on startup with an "unknown variant" error. The schema listed a
+    /// stale `claude` for ~10 months after #558 renamed that variant to `anthropic`,
+    /// so assert the two stay reconciled.
+    ///
+    /// This is deliberately one-directional: `LlmProviderType` is a superset, since
+    /// for built-in providers the interface is inferred from the model prefix and the
+    /// config generator rejects setting `provider_interface` by hand.
+    #[test]
+    fn test_schema_provider_interfaces_are_all_known_variants() {
+        let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../config/plano_config_schema.yaml");
+        let schema: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(&schema_path)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", schema_path.display())),
+        )
+        .expect("schema should be valid yaml");
+
+        // Both `model_providers` and `llm_providers` carry their own copy of the enum.
+        let mut checked = 0;
+        for section in ["model_providers", "llm_providers"] {
+            let values = schema["properties"][section]["items"]["properties"]["provider_interface"]
+                ["enum"]
+                .as_sequence()
+                .unwrap_or_else(|| panic!("no provider_interface enum under {section}"));
+
+            for value in values {
+                let name = value.as_str().expect("enum entries should be strings");
+                let parsed: LlmProviderType = serde_yaml::from_str(name).unwrap_or_else(|e| {
+                    panic!(
+                        "schema allows provider_interface '{name}' under {section} but \
+                         LlmProviderType cannot deserialize it, so brightstaff would fail \
+                         to start: {e}"
+                    )
+                });
+                assert_eq!(parsed.to_string(), name);
+                checked += 1;
+            }
+        }
+        assert!(checked > 0, "provider_interface enums should not be empty");
     }
 
     #[test]
@@ -1152,11 +1287,11 @@ inject_cache_control: true
     #[test]
     fn test_routing_budget_parses() {
         let yaml = r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
         let budget = cfg.resolve().unwrap();
-        assert_eq!(budget.max_overhead_pct, 20.0);
+        assert_eq!(budget.max_switch_spend_pct, 20.0);
         // Replenish defaults on.
         assert!(budget.replenish_on_rebind);
         assert_eq!(budget.cache_read_discount, DEFAULT_CACHE_READ_DISCOUNT);
@@ -1167,7 +1302,7 @@ max_overhead_pct: 20
     #[test]
     fn test_routing_budget_record_counterfactual_parses() {
         let yaml = r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 record_counterfactual: true
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
@@ -1178,13 +1313,13 @@ record_counterfactual: true
     #[test]
     fn test_routing_budget_flags_parse() {
         let yaml = r#"
-max_overhead_pct: 15
+max_switch_spend_pct: 15
 replenish_on_rebind: false
 cache_read_discount: 0.25
 "#;
         let cfg: RoutingBudget = serde_yaml::from_str(yaml).unwrap();
         let budget = cfg.resolve().unwrap();
-        assert_eq!(budget.max_overhead_pct, 15.0);
+        assert_eq!(budget.max_switch_spend_pct, 15.0);
         assert!(!budget.replenish_on_rebind);
         assert_eq!(budget.cache_read_discount, 0.25);
     }
@@ -1196,13 +1331,65 @@ cache_read_discount: 0.25
     }
 
     #[test]
+    fn test_routing_budget_missing_pct_rejected() {
+        let err = serde_yaml::from_str::<RoutingBudget>("{}");
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_routing_budget_for_request_header_override() {
+        let base = EffectiveRoutingBudget {
+            max_switch_spend_pct: 20.0,
+            replenish_on_rebind: true,
+            cache_read_discount: DEFAULT_CACHE_READ_DISCOUNT,
+            record_counterfactual: false,
+        };
+        let with_header = EffectiveRoutingBudget::for_request(Some(base), Some(7.0)).unwrap();
+        assert_eq!(with_header.max_switch_spend_pct, 7.0);
+    }
+
+    #[test]
+    fn test_routing_budget_header_only_synthesizes_defaults() {
+        let cfg = EffectiveRoutingBudget::for_request(None, Some(10.0)).unwrap();
+        assert_eq!(cfg.max_switch_spend_pct, 10.0);
+        assert!(cfg.replenish_on_rebind);
+        assert_eq!(cfg.cache_read_discount, DEFAULT_CACHE_READ_DISCOUNT);
+    }
+
+    #[test]
+    fn test_max_switch_spend_pct_header_parse_respects_range() {
+        assert_eq!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("0"),
+            Some(0.0)
+        );
+        assert_eq!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100"),
+            Some(100.0)
+        );
+        assert!(
+            EffectiveRoutingBudget::parse_max_switch_spend_pct_header_value("100.01").is_none()
+        );
+    }
+
+    #[test]
+    fn test_routing_budget_pct_at_bounds() {
+        let at_zero: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 0").unwrap();
+        assert_eq!(at_zero.resolve().unwrap().max_switch_spend_pct, 0.0);
+        let at_max: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 100").unwrap();
+        assert_eq!(at_max.resolve().unwrap().max_switch_spend_pct, 100.0);
+    }
+
+    #[test]
     fn test_routing_budget_invalid_values_rejected() {
-        let negative: RoutingBudget = serde_yaml::from_str("max_overhead_pct: -1.0").unwrap();
+        let negative: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: -1.0").unwrap();
         assert!(negative.resolve().is_err());
+
+        let over_max: RoutingBudget = serde_yaml::from_str("max_switch_spend_pct: 100.1").unwrap();
+        assert!(over_max.resolve().is_err());
 
         let bad_discount: RoutingBudget = serde_yaml::from_str(
             r#"
-max_overhead_pct: 20
+max_switch_spend_pct: 20
 cache_read_discount: 1.5
 "#,
         )

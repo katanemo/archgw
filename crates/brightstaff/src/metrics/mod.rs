@@ -173,7 +173,9 @@ fn describe_all() {
     );
     describe_counter!(
         "brightstaff_session_cache_events_total",
-        "Session affinity cache lookups and stores, by outcome."
+        "Session affinity cache lookups and stores, by outcome: hit, miss, store, error \
+         (lookup failed), store_error (binding not persisted). A rising store with no hit \
+         means bindings are not surviving between turns."
     );
     describe_counter!(
         "brightstaff_prompt_cache_requests_total",

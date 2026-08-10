@@ -15,6 +15,7 @@ use tracing::{debug, info, info_span, warn, Instrument};
 use super::extract_or_generate_traceparent;
 use crate::handlers::llm::model_selection::{router_chat_get_upstream_model, RoutingResult};
 use crate::handlers::llm::session_router;
+use crate::handlers::routing_budget_request;
 use crate::metrics as bs_metrics;
 use crate::metrics::labels as metric_labels;
 use crate::router::orchestrator::OrchestratorService;
@@ -130,6 +131,8 @@ async fn routing_decision_inner(
     routing_budget: Option<EffectiveRoutingBudget>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     set_service_name(operation_component::ROUTING);
+    let routing_budget =
+        routing_budget_request::routing_budget_for_request(routing_budget, &request_headers);
     opentelemetry::trace::get_active_span(|span| {
         for (key, value) in &custom_attrs {
             span.set_attribute(opentelemetry::KeyValue::new(key.clone(), value.clone()));

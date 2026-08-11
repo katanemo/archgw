@@ -359,6 +359,7 @@ class _TraceStore:
 
                 # Determine which group this span belongs to.
                 group_key: str | None = None
+                orphan_group: str | None = None
 
                 # 1. Does the parent already live in a group?
                 if parent_id and parent_id in self._span_to_group:
@@ -366,7 +367,10 @@ class _TraceStore:
 
                 # 2. Is this span already known as a parent of another group?
                 if group_key is None and span_id and span_id in self._parent_to_group:
-                    group_key = self._parent_to_group.pop(span_id)
+                    orphan_group = self._parent_to_group.pop(span_id)
+                    # A root arriving after its children still owns the
+                    # externally selectable trace ID.
+                    group_key = trace_id if not parent_id else orphan_group
 
                 # 3. Fall back to the wire trace_id.
                 if group_key is None:
@@ -374,12 +378,18 @@ class _TraceStore:
 
                 # Create the group if needed.
                 if group_key not in self._traces:
-                    if len(self._traces) >= self._max_traces:
+                    if (
+                        len(self._traces) >= self._max_traces
+                        and orphan_group not in self._traces
+                    ):
                         self._evict_oldest()
                     self._traces[group_key] = {"trace_id": group_key, "spans": []}
                     self._seen_spans[group_key] = set()
                 else:
                     self._traces.move_to_end(group_key)
+
+                if orphan_group and orphan_group != group_key:
+                    self._merge_groups(orphan_group, group_key)
 
                 # Insert span (deduplicate).
                 seen = self._seen_spans[group_key]

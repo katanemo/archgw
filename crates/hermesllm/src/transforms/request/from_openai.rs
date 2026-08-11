@@ -15,7 +15,7 @@ use crate::apis::openai::{
 };
 
 use crate::apis::openai_responses::{
-    InputContent, InputItem, InputParam, MessageRole, Modality, ReasoningEffort,
+    InputContent, InputItem, InputParam, MessageRole, Modality, NamespaceTool, ReasoningEffort,
     ResponsesAPIRequest, Tool as ResponsesTool, ToolChoice as ResponsesToolChoice,
 };
 use crate::clients::TransformError;
@@ -509,6 +509,36 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
             base
         }
 
+        // Custom tools have no strict ChatCompletions equivalent across providers, so
+        // they degrade to a permissive function tool. Shared by top-level custom tools
+        // and namespace members.
+        fn custom_tool_as_function(
+            name: Option<String>,
+            description: Option<String>,
+            format: Option<serde_json::Value>,
+            fallback_name: String,
+        ) -> Tool {
+            Tool {
+                tool_type: "function".to_string(),
+                function: crate::apis::openai::Function {
+                    name: name.unwrap_or(fallback_name),
+                    description,
+                    parameters: normalize_function_parameters(
+                        Some(serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "input": { "type": "string" }
+                            },
+                            "required": ["input"],
+                            "additionalProperties": true,
+                        })),
+                        format,
+                    ),
+                    strict: Some(false),
+                },
+            }
+        }
+
         let mut converted_chat_tools: Vec<Tool> = Vec::new();
         let mut web_search_options: Option<serde_json::Value> = None;
 
@@ -586,30 +616,48 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
                         description,
                         format,
                     } => {
-                        // Custom tools do not have a strict ChatCompletions equivalent for all
-                        // providers. Map them to a permissive function tool for compatibility.
-                        let tool_name = name.unwrap_or_else(|| format!("custom_tool_{}", idx + 1));
-                        let parameters = normalize_function_parameters(
-                            Some(serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "input": { "type": "string" }
-                                },
-                                "required": ["input"],
-                                "additionalProperties": true,
-                            })),
+                        converted_chat_tools.push(custom_tool_as_function(
+                            name,
+                            description,
                             format,
-                        );
-
-                        converted_chat_tools.push(Tool {
-                            tool_type: "function".to_string(),
-                            function: crate::apis::openai::Function {
-                                name: tool_name,
-                                description,
-                                parameters,
-                                strict: Some(false),
-                            },
-                        });
+                            format!("custom_tool_{}", idx + 1),
+                        ));
+                    }
+                    ResponsesTool::Namespace { tools: members, .. } => {
+                        // ChatCompletions has no grouping construct, so members are hoisted
+                        // to top-level function tools. Member names are kept verbatim: the
+                        // model answers with the same name the client registered, which is
+                        // what lets the tool call be matched when it is translated back.
+                        for (member_idx, member) in members.into_iter().enumerate() {
+                            let tool = match member {
+                                NamespaceTool::Function {
+                                    name,
+                                    description,
+                                    parameters,
+                                    strict,
+                                    ..
+                                } => Tool {
+                                    tool_type: "function".to_string(),
+                                    function: crate::apis::openai::Function {
+                                        name,
+                                        description,
+                                        parameters: normalize_function_parameters(parameters, None),
+                                        strict,
+                                    },
+                                },
+                                NamespaceTool::Custom {
+                                    name,
+                                    description,
+                                    format,
+                                } => custom_tool_as_function(
+                                    name,
+                                    description,
+                                    format,
+                                    format!("custom_tool_{}_{}", idx + 1, member_idx + 1),
+                                ),
+                            };
+                            converted_chat_tools.push(tool);
+                        }
                     }
                     ResponsesTool::FileSearch { .. } => {
                         return Err(TransformError::UnsupportedConversion(
@@ -1292,6 +1340,76 @@ mod tests {
             tools[0].function.description.as_deref(),
             Some("Apply structured patch")
         );
+    }
+
+    /// ChatCompletions has no namespace construct, so grouped tools have to arrive
+    /// upstream as ordinary function tools or the model cannot call them at all.
+    #[test]
+    fn test_responses_namespace_tool_flattens_to_function_tools_for_chat_completions() {
+        use crate::apis::openai_responses::{
+            InputParam, NamespaceTool, ResponsesAPIRequest, Tool as ResponsesTool,
+        };
+
+        let req = ResponsesAPIRequest {
+            model: "gpt-5.3-codex".to_string(),
+            input: InputParam::Text("look up a customer".to_string()),
+            tools: Some(vec![ResponsesTool::Namespace {
+                name: "crm".to_string(),
+                description: "CRM tools".to_string(),
+                tools: vec![
+                    NamespaceTool::Function {
+                        name: "get_customer_profile".to_string(),
+                        description: Some("Fetch a customer profile".to_string()),
+                        parameters: Some(serde_json::json!({
+                            "type": "object",
+                            "properties": { "customer_id": { "type": "string" } },
+                            "required": ["customer_id"]
+                        })),
+                        strict: Some(true),
+                        defer_loading: None,
+                        output_schema: None,
+                    },
+                    NamespaceTool::Custom {
+                        name: Some("run_patch".to_string()),
+                        description: Some("Apply structured patch".to_string()),
+                        format: None,
+                    },
+                ],
+            }]),
+            include: None,
+            parallel_tool_calls: None,
+            store: None,
+            instructions: None,
+            stream: None,
+            stream_options: None,
+            conversation: None,
+            tool_choice: None,
+            max_output_tokens: None,
+            temperature: None,
+            top_p: None,
+            metadata: None,
+            previous_response_id: None,
+            modalities: None,
+            audio: None,
+            text: None,
+            reasoning_effort: None,
+            truncation: None,
+            user: None,
+            max_tool_calls: None,
+            service_tier: None,
+            background: None,
+            top_logprobs: None,
+        };
+
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+        let tools = converted.tools.expect("tools should be present");
+        assert_eq!(tools.len(), 2);
+        // Names are kept verbatim so a tool call translated back is still recognizable
+        // to the client that registered it.
+        assert_eq!(tools[0].function.name, "get_customer_profile");
+        assert_eq!(tools[0].tool_type, "function");
+        assert_eq!(tools[1].function.name, "run_patch");
+        assert_eq!(tools[1].tool_type, "function");
     }
 
     #[test]

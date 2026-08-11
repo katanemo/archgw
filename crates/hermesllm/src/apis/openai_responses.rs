@@ -285,6 +285,11 @@ pub struct ConversationParam {
 }
 
 /// Tool definitions
+///
+/// Absent optionals must be omitted rather than emitted as `null`: the Responses
+/// upstream path re-serializes the parsed request, and providers reject a null for a
+/// parameter they do not define (e.g. `web_search` has no `domains`).
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Tool {
@@ -318,6 +323,38 @@ pub enum Tool {
         display_number: Option<i32>,
     },
     /// Custom tool (provider/SDK-specific tool contract)
+    Custom {
+        name: Option<String>,
+        description: Option<String>,
+        format: Option<serde_json::Value>,
+    },
+    /// Group of related tools addressed under a shared name, e.g. `crm` or `billing`.
+    /// Codex sends one of these per tool namespace, so it is on the default path for
+    /// every Codex session rather than an opt-in feature.
+    Namespace {
+        name: String,
+        description: String,
+        tools: Vec<NamespaceTool>,
+    },
+}
+
+/// Member of a [`Tool::Namespace`]. The spec restricts group members to function and
+/// custom tools — nested namespaces and hosted tools are not permitted — so this is a
+/// separate enum rather than a recursive `Tool`, which would accept both.
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NamespaceTool {
+    Function {
+        name: String,
+        description: Option<String>,
+        parameters: Option<serde_json::Value>,
+        strict: Option<bool>,
+        /// Withholds the schema until the model selects the namespace. Preserved because
+        /// dropping it would silently pull deferred tools into the initial prompt.
+        defer_loading: Option<bool>,
+        output_schema: Option<serde_json::Value>,
+    },
     Custom {
         name: Option<String>,
         description: Option<String>,
@@ -1454,6 +1491,139 @@ impl crate::providers::streaming_response::ProviderStreamResponse for ResponsesA
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// Codex sends namespaced tool groups on every session, so rejecting this shape
+    /// blocks the client outright rather than degrading one feature.
+    #[test]
+    fn test_namespace_tool_deserializes_with_function_and_custom_members() {
+        let json = r#"{
+            "type": "namespace",
+            "name": "crm",
+            "description": "CRM tools for customer lookup.",
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "get_customer_profile",
+                    "description": "Fetch a customer profile by ID.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": { "customer_id": { "type": "string" } },
+                        "required": ["customer_id"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "list_open_orders",
+                    "defer_loading": true,
+                    "parameters": { "type": "object", "properties": {} }
+                },
+                {
+                    "type": "custom",
+                    "name": "apply_patch",
+                    "description": "Apply a patch."
+                }
+            ]
+        }"#;
+
+        let tool: Tool = serde_json::from_str(json).expect("namespace tool should deserialize");
+        match tool {
+            Tool::Namespace {
+                name,
+                description,
+                tools,
+            } => {
+                assert_eq!(name, "crm");
+                assert_eq!(description, "CRM tools for customer lookup.");
+                assert_eq!(tools.len(), 3);
+                match &tools[1] {
+                    NamespaceTool::Function {
+                        name,
+                        defer_loading,
+                        ..
+                    } => {
+                        assert_eq!(name, "list_open_orders");
+                        assert_eq!(*defer_loading, Some(true));
+                    }
+                    other => panic!("expected deferred function member, got {other:?}"),
+                }
+                assert!(matches!(tools[2], NamespaceTool::Custom { .. }));
+            }
+            other => panic!("expected namespace tool, got {other:?}"),
+        }
+    }
+
+    /// Responses-to-Responses is a passthrough that re-serializes the parsed request,
+    /// so anything dropped here is silently dropped on the wire to the provider.
+    #[test]
+    fn test_namespace_tool_round_trips_without_losing_fields() {
+        let original = json!({
+            "type": "namespace",
+            "name": "crm",
+            "description": "CRM tools.",
+            "tools": [{
+                "type": "function",
+                "name": "list_open_orders",
+                "description": "List open orders.",
+                "parameters": { "type": "object", "properties": {} },
+                "strict": true,
+                "defer_loading": true,
+                "output_schema": { "type": "object" }
+            }]
+        });
+
+        let tool: Tool = serde_json::from_value(original.clone()).expect("should deserialize");
+        let reserialized = serde_json::to_value(&tool).expect("should serialize");
+        assert_eq!(reserialized, original);
+    }
+
+    /// Guards the actual passthrough path: parse a client body, then serialize it the
+    /// way the upstream request is built.
+    #[test]
+    fn test_web_search_tool_survives_full_request_round_trip_without_extra_keys() {
+        let body = br#"{"model":"gpt-5.3-codex","input":"hi","tools":[{"type":"web_search"}]}"#;
+        let request = ResponsesAPIRequest::try_from(&body[..]).expect("should parse");
+        let bytes = request.to_bytes().expect("should serialize");
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("valid json");
+        let tool = &value["tools"][0];
+        assert_eq!(tool["type"], "web_search");
+        assert!(
+            tool.get("domains").is_none(),
+            "web_search must not carry a `domains` key upstream, got: {tool}"
+        );
+    }
+
+    /// Providers reject an explicit null for a parameter they do not define, so absent
+    /// optionals must not survive the parse/re-serialize round trip on the passthrough.
+    #[test]
+    fn test_tool_omits_absent_optionals_instead_of_emitting_null() {
+        let tool: Tool = serde_json::from_str(r#"{"type":"web_search"}"#).expect("should parse");
+        let reserialized = serde_json::to_value(&tool).expect("should serialize");
+        assert_eq!(reserialized, json!({ "type": "web_search" }));
+
+        let function: Tool =
+            serde_json::from_str(r#"{"type":"function","name":"noop"}"#).expect("should parse");
+        let reserialized = serde_json::to_value(&function).expect("should serialize");
+        assert_eq!(reserialized, json!({ "type": "function", "name": "noop" }));
+    }
+
+    /// Strict translation: the group may only contain function and custom tools, so a
+    /// nested namespace has to be rejected rather than quietly dropped.
+    #[test]
+    fn test_namespace_tool_rejects_nested_namespace_member() {
+        let json = r#"{
+            "type": "namespace",
+            "name": "outer",
+            "description": "Outer group.",
+            "tools": [{
+                "type": "namespace",
+                "name": "inner",
+                "description": "Inner group.",
+                "tools": []
+            }]
+        }"#;
+
+        assert!(serde_json::from_str::<Tool>(json).is_err());
+    }
 
     /// Task C guard: a reasoning output item deserializes WITHOUT a `summary`
     /// field (now `#[serde(default)]`) and WITH optional `content`,

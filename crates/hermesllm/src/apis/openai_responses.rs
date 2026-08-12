@@ -120,33 +120,201 @@ pub enum InputParam {
     SingleItem(InputItem),
 }
 
-/// Input item - can be a message, item reference, function call output, etc.
+/// Input item. Typed items are dispatched on the `type` discriminator so a
+/// coincidental `id` field cannot steal `function_call` / `function_call_output`
+/// into [`InputItem::ItemReference`]. Easy-input messages (`{role, content}`
+/// with no `type`) fall through to [`InputItem::Message`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(from = "InputItemWire", into = "InputItemWire")]
 pub enum InputItem {
-    /// Input message (role + content)
+    /// Input message (role + content). Covers both easy-input (no `type`) and
+    /// `{ "type": "message", ... }`.
     Message(InputMessage),
-    /// Item reference
-    ItemReference {
-        #[serde(rename = "type")]
-        item_type: String,
-        id: String,
-    },
-    /// Function call emitted by model in prior turn
+    /// Item reference (`type: item_reference`)
+    ItemReference { id: String },
+    /// Function call emitted by the model in a prior turn
     FunctionCall {
-        #[serde(rename = "type")]
-        item_type: String,
         name: String,
         arguments: String,
         call_id: String,
+        id: Option<String>,
+        status: Option<String>,
     },
     /// Function call output
     FunctionCallOutput {
-        #[serde(rename = "type")]
-        item_type: String,
         call_id: String,
         output: serde_json::Value,
+        id: Option<String>,
+        status: Option<String>,
     },
+    /// Reasoning item from a prior turn. Not converted to Chat Completions.
+    Reasoning {
+        id: Option<String>,
+        summary: Vec<serde_json::Value>,
+        content: Vec<serde_json::Value>,
+        encrypted_content: Option<String>,
+        status: Option<String>,
+    },
+    /// Any other typed item (`custom_tool_call`, `computer_call`, …). The
+    /// original JSON is kept so Responses→Responses round-trips don't drop it.
+    Ignored(serde_json::Value),
+}
+
+/// Wire form: try internally-tagged known types first, then untyped messages,
+/// then preserve unknown typed items as raw JSON.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum InputItemWire {
+    Typed(TypedInputItem),
+    Message(InputMessage),
+    Ignored(serde_json::Value),
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum TypedInputItem {
+    Message {
+        role: MessageRole,
+        content: MessageContent,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    FunctionCall {
+        name: String,
+        arguments: String,
+        call_id: String,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    FunctionCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    ItemReference {
+        id: String,
+    },
+    Reasoning {
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        summary: Vec<serde_json::Value>,
+        #[serde(default)]
+        content: Vec<serde_json::Value>,
+        #[serde(default)]
+        encrypted_content: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+}
+
+impl From<InputItemWire> for InputItem {
+    fn from(wire: InputItemWire) -> Self {
+        match wire {
+            InputItemWire::Message(message) => InputItem::Message(message),
+            InputItemWire::Ignored(value) => InputItem::Ignored(value),
+            InputItemWire::Typed(TypedInputItem::Message { role, content, .. }) => {
+                InputItem::Message(InputMessage { role, content })
+            }
+            InputItemWire::Typed(TypedInputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            }) => InputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }) => InputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::ItemReference { id }) => {
+                InputItem::ItemReference { id }
+            }
+            InputItemWire::Typed(TypedInputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            }) => InputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            },
+        }
+    }
+}
+
+impl From<InputItem> for InputItemWire {
+    fn from(item: InputItem) -> Self {
+        match item {
+            InputItem::Message(message) => InputItemWire::Message(message),
+            InputItem::Ignored(value) => InputItemWire::Ignored(value),
+            InputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            }),
+            InputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }),
+            InputItem::ItemReference { id } => {
+                InputItemWire::Typed(TypedInputItem::ItemReference { id })
+            }
+            InputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            }),
+        }
+    }
 }
 
 /// Input message with role and content
@@ -1675,6 +1843,87 @@ mod tests {
             }
             _ => panic!("Expected OutputItem::Reasoning"),
         }
+    }
+
+    /// `type` is authoritative: a function_call that also carries `id` must not
+    /// be swallowed by ItemReference (the old untagged `{type, id}` variant).
+    #[test]
+    fn test_input_item_function_call_with_id_is_not_item_reference() {
+        let json = r#"{
+            "type": "function_call",
+            "id": "fc_1",
+            "call_id": "call_1",
+            "name": "exec_command",
+            "arguments": "{\"cmd\":\"pwd\"}",
+            "status": "completed"
+        }"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::FunctionCall {
+                name,
+                call_id,
+                id,
+                status,
+                ..
+            } => {
+                assert_eq!(name, "exec_command");
+                assert_eq!(call_id, "call_1");
+                assert_eq!(id.as_deref(), Some("fc_1"));
+                assert_eq!(status.as_deref(), Some("completed"));
+            }
+            other => panic!("expected FunctionCall, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_input_item_function_call_output_with_id_is_not_item_reference() {
+        let json = r#"{
+            "type": "function_call_output",
+            "id": "fc_out_1",
+            "call_id": "call_1",
+            "output": "ok"
+        }"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::FunctionCallOutput { call_id, id, .. } => {
+                assert_eq!(call_id, "call_1");
+                assert_eq!(id.as_deref(), Some("fc_out_1"));
+            }
+            other => panic!("expected FunctionCallOutput, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_input_item_reasoning_deserializes() {
+        let json = r#"{"type":"reasoning","id":"rs_1","summary":[]}"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::Reasoning { id, .. } => assert_eq!(id.as_deref(), Some("rs_1")),
+            other => panic!("expected Reasoning, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_input_item_unknown_type_is_preserved() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call",
+            "id": "ctc_1",
+            "call_id": "call_9",
+            "name": "browser.open"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::Ignored(value) => assert_eq!(value["type"], "custom_tool_call"),
+            other => panic!("expected Ignored, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    #[test]
+    fn test_input_item_easy_message_without_type() {
+        let json = r#"{"role":"user","content":"hello"}"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        assert!(matches!(item, InputItem::Message(_)));
     }
 
     /// Task C guard: output text delta/done deserialize with `logprobs` omitted

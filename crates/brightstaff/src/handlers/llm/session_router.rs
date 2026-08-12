@@ -1230,9 +1230,10 @@ mod tests {
                 "model": "gpt-5.3-codex",
                 "input": [
                     {"role": "user", "content": "fix the bug in main.rs"},
-                    {"type": "function_call", "call_id": "call_1", "name": "exec_command",
-                     "arguments": "{\"cmd\":\"cat main.rs\"}"},
-                    {"type": "function_call_output", "call_id": "call_1",
+                    {"type": "function_call", "id": "fc_1", "call_id": "call_1",
+                     "name": "exec_command", "arguments": "{\"cmd\":\"cat main.rs\"}",
+                     "status": "completed"},
+                    {"type": "function_call_output", "id": "fc_out_1", "call_id": "call_1",
                      "output": {"stdout": "fn main() {}"}}
                 ]
             }),

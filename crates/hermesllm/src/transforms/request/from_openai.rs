@@ -184,9 +184,7 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                             });
                         }
                         InputItem::FunctionCallOutput {
-                            item_type: _,
-                            call_id,
-                            output,
+                            call_id, output, ..
                         } => {
                             // Preserve tool result so upstream models do not re-issue the same tool call.
                             let output_text = match output {
@@ -202,10 +200,10 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                             });
                         }
                         InputItem::FunctionCall {
-                            item_type: _,
                             name,
                             arguments,
                             call_id,
+                            ..
                         } => {
                             let tool_call = OpenAIToolCall {
                                 id: call_id,
@@ -233,9 +231,11 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                                 tool_calls: Some(vec![tool_call]),
                             });
                         }
-                        InputItem::ItemReference { .. } => {
-                            // Item references/unknown entries are metadata-like and can be skipped
-                            // for chat-completions conversion.
+                        InputItem::ItemReference { .. }
+                        | InputItem::Reasoning { .. }
+                        | InputItem::Ignored(_) => {
+                            // Item references, reasoning, and other typed items are not
+                            // representable in Chat Completions and are skipped.
                         }
                     }
                 }
@@ -1470,9 +1470,10 @@ mod tests {
         let req = ResponsesAPIRequest {
             model: "gpt-5.3-codex".to_string(),
             input: InputParam::Items(vec![InputItem::FunctionCallOutput {
-                item_type: "function_call_output".to_string(),
                 call_id: "call_123".to_string(),
                 output: serde_json::json!({"status":"ok","stdout":"hello"}),
+                id: None,
+                status: None,
             }]),
             tools: Some(vec![ResponsesTool::Function {
                 name: "exec_command".to_string(),
@@ -1535,15 +1536,17 @@ mod tests {
                     content: ResponsesMessageContent::Items(vec![]),
                 }),
                 InputItem::FunctionCall {
-                    item_type: "function_call".to_string(),
                     name: "exec_command".to_string(),
                     arguments: "{\"cmd\":\"pwd\"}".to_string(),
                     call_id: "toolu_abc123".to_string(),
+                    id: None,
+                    status: None,
                 },
                 InputItem::FunctionCallOutput {
-                    item_type: "function_call_output".to_string(),
                     call_id: "toolu_abc123".to_string(),
                     output: serde_json::Value::String("ok".to_string()),
+                    id: None,
+                    status: None,
                 },
             ]),
             tools: None,
@@ -1587,6 +1590,56 @@ mod tests {
         assert_eq!(
             converted.messages[1].tool_call_id.as_deref(),
             Some("toolu_abc123")
+        );
+    }
+
+    /// Codex-shaped payload: function_call / function_call_output carry `id`,
+    /// and a reasoning item sits in the list. Conversion must keep the tool
+    /// call ↔ output link and skip reasoning.
+    #[test]
+    fn test_responses_function_call_with_id_converts_and_skips_reasoning() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "pwd"},
+                {
+                    "type": "reasoning",
+                    "id": "rs_1",
+                    "summary": []
+                },
+                {
+                    "type": "function_call",
+                    "id": "fc_1",
+                    "call_id": "call_1",
+                    "name": "exec_command",
+                    "arguments": "{\"cmd\":\"pwd\"}",
+                    "status": "completed"
+                },
+                {
+                    "type": "function_call_output",
+                    "id": "fc_out_1",
+                    "call_id": "call_1",
+                    "output": "/tmp"
+                }
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        assert_eq!(converted.messages.len(), 3);
+        assert!(matches!(converted.messages[0].role, Role::User));
+        assert!(matches!(converted.messages[1].role, Role::Assistant));
+        let tool_calls = converted.messages[1]
+            .tool_calls
+            .as_ref()
+            .expect("assistant tool_calls should be present");
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert!(matches!(converted.messages[2].role, Role::Tool));
+        assert_eq!(
+            converted.messages[2].tool_call_id.as_deref(),
+            Some("call_1")
         );
     }
 }

@@ -594,7 +594,7 @@ properties:
               Useful for evals/benchmarks. Default false.
         required: ["max_switch_spend_pct"]
         additionalProperties: false
-      route_on_user_turn:
+      auto_pin_tool_calls:
         type: boolean
         description: >
           Opt-in: run the quality router only when the last message is a user turn.

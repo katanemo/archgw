@@ -38,7 +38,7 @@ model_aliases:
     target: claude-haiku-4-5
 
 routing:
-  route_on_user_turn: true
+  auto_pin_tool_calls: true
 
 tracing:
   random_sampling: 100

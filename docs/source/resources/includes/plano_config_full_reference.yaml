@@ -223,7 +223,7 @@ routing:
   session_max_entries: 10000  # Max cached sessions before eviction (upper limit: 10000)
   # Opt-in: route only on a trailing user message; replay the prior decision on
   # tool results / assistant steps. Default false.
-  # route_on_user_turn: true
+  # auto_pin_tool_calls: true
   # session_cache controls the backend used to store affinity state.
   # "memory" (default) is in-process and works for single-instance deployments.
   # "redis" shares state across replicas — required for multi-replica / Kubernetes setups.

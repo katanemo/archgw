@@ -360,10 +360,10 @@ async fn init_app_state(
             .as_ref()
             .and_then(|r| r.routing_budget.as_ref()),
     )?;
-    let route_on_user_turn = config
+    let auto_pin_tool_calls = config
         .routing
         .as_ref()
-        .is_some_and(|r| r.route_on_user_turn);
+        .is_some_and(|r| r.auto_pin_tool_calls);
 
     // The routing-budget cost gate needs per-model pricing to compute switch cost.
     if routing_budget.is_some() {
@@ -388,7 +388,7 @@ async fn init_app_state(
     // Without a tenant header, sessions from different customers share one keyspace,
     // so identical prompts from different tenants would collide on the same binding.
     let session_state_in_use =
-        prompt_caching.session_affinity || routing_budget.is_some() || route_on_user_turn;
+        prompt_caching.session_affinity || routing_budget.is_some() || auto_pin_tool_calls;
     if session_state_in_use
         && config
             .routing
@@ -419,7 +419,7 @@ async fn init_app_state(
         signals_enabled,
         prompt_caching,
         routing_budget,
-        route_on_user_turn,
+        auto_pin_tool_calls,
     })
 }
 
@@ -593,7 +593,7 @@ async fn dispatch(
                 &state.span_attributes,
                 state.prompt_caching,
                 state.routing_budget,
-                state.route_on_user_turn,
+                state.auto_pin_tool_calls,
             )
             .with_context(parent_cx)
             .await;

@@ -72,7 +72,7 @@ pub async fn routing_decision(
     span_attributes: &Option<SpanAttributes>,
     prompt_caching: EffectivePromptCaching,
     routing_budget: Option<EffectiveRoutingBudget>,
-    route_on_user_turn: bool,
+    auto_pin_tool_calls: bool,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     let request_headers = request.headers().clone();
     let request_id: String = request_headers
@@ -113,7 +113,7 @@ pub async fn routing_decision(
         tenant_id,
         prompt_caching,
         routing_budget,
-        route_on_user_turn,
+        auto_pin_tool_calls,
     )
     .instrument(request_span)
     .await
@@ -131,7 +131,7 @@ async fn routing_decision_inner(
     tenant_id: Option<String>,
     prompt_caching: EffectivePromptCaching,
     routing_budget: Option<EffectiveRoutingBudget>,
-    route_on_user_turn: bool,
+    auto_pin_tool_calls: bool,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     set_service_name(operation_component::ROUTING);
     let routing_budget =
@@ -209,7 +209,7 @@ async fn routing_decision_inner(
         inline_routing_preferences.is_some() || orchestrator_service.has_routing_preferences();
     let implicit_affinity_enabled = prompt_caching.session_affinity
         || routing_budget.is_some()
-        || (route_on_user_turn && routing_can_override_model);
+        || (auto_pin_tool_calls && routing_can_override_model);
     let session_router::SessionResolution {
         request_prefix_hash,
         session_id,
@@ -230,10 +230,10 @@ async fn routing_decision_inner(
         0
     };
 
-    // Mirror the proxy path: opt-in (`routing.route_on_user_turn`) skips the router
+    // Mirror the proxy path: opt-in (`routing.auto_pin_tool_calls`) skips the router
     // on non-user tails and replays the prior decision.
     let loop_reuse =
-        if session_router::should_reuse_prior_decision(route_on_user_turn, &request_messages) {
+        if session_router::should_reuse_prior_decision(auto_pin_tool_calls, &request_messages) {
             session_router::reuse_prior_decision(
                 &orchestrator_service,
                 session_id.as_deref(),

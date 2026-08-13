@@ -41,7 +41,7 @@ pub struct Routing {
     /// When true, the quality router runs only on a trailing user message.
     /// Non-user turns replay the prior decision. Default false.
     #[serde(default)]
-    pub route_on_user_turn: bool,
+    pub auto_pin_tool_calls: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1336,21 +1336,21 @@ cache_read_discount: 0.25
     }
 
     #[test]
-    fn test_route_on_user_turn_absent_is_off() {
+    fn test_auto_pin_tool_calls_absent_is_off() {
         let routing: Routing = serde_yaml::from_str("model: gpt-4o").unwrap();
-        assert!(!routing.route_on_user_turn);
+        assert!(!routing.auto_pin_tool_calls);
     }
 
     #[test]
-    fn test_route_on_user_turn_true_enables() {
-        let routing: Routing = serde_yaml::from_str("route_on_user_turn: true").unwrap();
-        assert!(routing.route_on_user_turn);
+    fn test_auto_pin_tool_calls_true_enables() {
+        let routing: Routing = serde_yaml::from_str("auto_pin_tool_calls: true").unwrap();
+        assert!(routing.auto_pin_tool_calls);
     }
 
     #[test]
-    fn test_route_on_user_turn_false_is_off() {
-        let routing: Routing = serde_yaml::from_str("route_on_user_turn: false").unwrap();
-        assert!(!routing.route_on_user_turn);
+    fn test_auto_pin_tool_calls_false_is_off() {
+        let routing: Routing = serde_yaml::from_str("auto_pin_tool_calls: false").unwrap();
+        assert!(!routing.auto_pin_tool_calls);
     }
 
     #[test]

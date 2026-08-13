@@ -126,11 +126,11 @@ routing_preferences:
 
 ## When routing runs
 
-By default the quality router runs on every request. Set `routing.route_on_user_turn` to run it only when the last normalized message is a user turn. Tool results, assistant continuations, and anything else then replay the prior decision instead of asking the router again. That keeps a single user query from drifting across models mid-generation (tool-call ids, reasoning state, and the provider prompt cache all belong to the model that started the turn), while a new user message always re-routes so sequential tasks can pick a different model.
+By default the quality router runs on every request. Set `routing.auto_pin_tool_calls` to run it only when the last normalized message is a user turn. Tool results, assistant continuations, and anything else then replay the prior decision instead of asking the router again. That keeps a single user query from drifting across models mid-generation (tool-call ids, reasoning state, and the provider prompt cache all belong to the model that started the turn), while a new user message always re-routes so sequential tasks can pick a different model.
 
 ```yaml
 routing:
-  route_on_user_turn: true
+  auto_pin_tool_calls: true
 ```
 
 Omit the key (or set it `false`) to keep per-request routing. When enabled, it works with no client changes for every supported client API — Anthropic `tool_result` blocks, OpenAI Chat `role: "tool"` messages, and Responses `function_call_output` items all normalize to a non-user tail:

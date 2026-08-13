@@ -608,7 +608,7 @@ Without the header, routing runs fresh on every request — no behavior change f
       session_ttl_seconds: 600    # How long affinity lasts (default: 10 min)
       session_max_entries: 10000  # Max cached sessions (upper limit: 10000)
       # Opt-in: route only on a user turn; replay the prior model otherwise.
-      # route_on_user_turn: true
+      # auto_pin_tool_calls: true
 
 To start a new routing decision (e.g., when the agent's task changes), generate a new affinity ID.
 

@@ -41,7 +41,7 @@ pub struct Routing {
     /// When true, the quality router runs only on a trailing user message.
     /// Non-user turns replay the prior decision. Default false.
     #[serde(default)]
-    pub auto_pin_tool_calls: bool,
+    pub route_on_user_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1336,21 +1336,21 @@ cache_read_discount: 0.25
     }
 
     #[test]
-    fn test_auto_pin_tool_calls_absent_is_off() {
+    fn test_route_on_user_only_absent_is_off() {
         let routing: Routing = serde_yaml::from_str("model: gpt-4o").unwrap();
-        assert!(!routing.auto_pin_tool_calls);
+        assert!(!routing.route_on_user_only);
     }
 
     #[test]
-    fn test_auto_pin_tool_calls_true_enables() {
-        let routing: Routing = serde_yaml::from_str("auto_pin_tool_calls: true").unwrap();
-        assert!(routing.auto_pin_tool_calls);
+    fn test_route_on_user_only_true_enables() {
+        let routing: Routing = serde_yaml::from_str("route_on_user_only: true").unwrap();
+        assert!(routing.route_on_user_only);
     }
 
     #[test]
-    fn test_auto_pin_tool_calls_false_is_off() {
-        let routing: Routing = serde_yaml::from_str("auto_pin_tool_calls: false").unwrap();
-        assert!(!routing.auto_pin_tool_calls);
+    fn test_route_on_user_only_false_is_off() {
+        let routing: Routing = serde_yaml::from_str("route_on_user_only: false").unwrap();
+        assert!(!routing.route_on_user_only);
     }
 
     #[test]

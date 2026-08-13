@@ -100,7 +100,7 @@ pub fn is_user_turn(messages: &[Message]) -> bool {
 }
 
 /// Whether this request should skip the quality router and replay the prior decision.
-/// Off unless `routing.auto_pin_tool_calls` is enabled, and only then for non-user tails.
+/// Off unless `routing.route_on_user_only` is enabled, and only then for non-user tails.
 pub fn should_reuse_prior_decision(enabled: bool, messages: &[Message]) -> bool {
     enabled && !is_user_turn(messages)
 }
@@ -1247,7 +1247,7 @@ mod tests {
 
     /// An assistant-only tail is not a user turn, so routing is skipped.
     #[test]
-    fn reuse_is_off_unless_auto_pin_tool_calls_is_enabled() {
+    fn reuse_is_off_unless_route_on_user_only_is_enabled() {
         let tool_tail = messages_from(
             "/v1/chat/completions",
             serde_json::json!({

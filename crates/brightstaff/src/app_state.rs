@@ -41,6 +41,6 @@ pub struct AppState {
     /// Independent of prompt caching; `None` when not configured (off by default).
     pub routing_budget: Option<EffectiveRoutingBudget>,
     /// When true, the quality router runs only on a trailing user message.
-    /// Resolved from `routing.auto_pin_tool_calls`. Off by default.
-    pub auto_pin_tool_calls: bool,
+    /// Resolved from `routing.route_on_user_only`. Off by default.
+    pub route_on_user_only: bool,
 }

@@ -322,7 +322,7 @@ async fn llm_chat_inner(
         || state.orchestrator_service.has_routing_preferences();
     let implicit_affinity_enabled = prompt_caching.session_affinity
         || routing_budget.is_some()
-        || (state.auto_pin_tool_calls && routing_can_override_model);
+        || (state.route_on_user_only && routing_can_override_model);
     let request_messages = client_request.get_messages();
     let session_router::SessionResolution {
         request_prefix_hash,
@@ -370,23 +370,22 @@ async fn llm_chat_inner(
     // Routing stays cache-blind: the quality router always picks a candidate. The
     // session router then honors it or sticks to the warm anchor (see `session_router`).
     //
-    // Opt-in (`routing.auto_pin_tool_calls`): routing runs only on a trailing user
+    // Opt-in (`routing.route_on_user_only`): routing runs only on a trailing user
     // message. Tool results and other non-user tails replay the prior decision.
-    let loop_reuse = if session_router::should_reuse_prior_decision(
-        state.auto_pin_tool_calls,
-        &request_messages,
-    ) {
-        session_router::reuse_prior_decision(
-            &state.orchestrator_service,
-            session_id.as_deref(),
-            tenant_id.as_deref(),
-            request_prefix_hash,
-            &alias_resolved_model,
-        )
-        .await
-    } else {
-        None
-    };
+    let loop_reuse =
+        if session_router::should_reuse_prior_decision(state.route_on_user_only, &request_messages)
+        {
+            session_router::reuse_prior_decision(
+                &state.orchestrator_service,
+                session_id.as_deref(),
+                tenant_id.as_deref(),
+                request_prefix_hash,
+                &alias_resolved_model,
+            )
+            .await
+        } else {
+            None
+        };
 
     let (candidate_model, candidate_route) = match loop_reuse {
         Some(reuse) => {

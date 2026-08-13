@@ -88,50 +88,42 @@ pub fn resolve_session(
     }
 }
 
-/// Whether this request continues an agentic tool loop rather than opening a fresh user
-/// turn.
+/// Whether this request is a fresh user turn and should go through the quality router.
 ///
-/// Coding agents issue one LLM call per step of a single user turn — the model answers
-/// with tool calls, the client runs them and posts the results back for the next step.
-/// Every client shape lands on the same marker once normalized by
-/// [`hermesllm::ProviderRequest::get_messages`]: Anthropic `tool_result` blocks, OpenAI
-/// Chat `role: "tool"` messages, and Responses `function_call_output` items all become a
-/// trailing [`Role::Tool`] message.
-///
-/// Only the tail is examined. Earlier turns leave their tool traffic in the history, so
-/// "contains a tool message" would mark every later turn of a long conversation as a
-/// continuation. A request that ends in anything else — most importantly new user text
-/// packed alongside tool results — is a fresh turn and routes normally.
-pub fn is_tool_loop_continuation(messages: &[Message]) -> bool {
-    matches!(messages.last(), Some(m) if m.role == Role::Tool)
+/// Only the tail is examined. A trailing [`Role::User`] is a new utterance — including
+/// Anthropic packing new user text alongside `tool_result` blocks, which normalizes to
+/// a trailing user message. Anything else (tool results, assistant output, empty
+/// history) is not a user turn; routing is skipped and the prior decision is replayed
+/// when a warm binding exists.
+pub fn is_user_turn(messages: &[Message]) -> bool {
+    matches!(messages.last(), Some(m) if m.role == Role::User)
 }
 
-/// A routing decision carried over from an earlier step of the same tool loop.
+/// Whether this request should skip the quality router and replay the prior decision.
+/// Off unless `routing.route_on_user_turn` is enabled, and only then for non-user tails.
+pub fn should_reuse_prior_decision(enabled: bool, messages: &[Message]) -> bool {
+    enabled && !is_user_turn(messages)
+}
+
+/// A routing decision carried over from an earlier request in the same session.
 pub struct LoopReuse {
-    /// The model this loop is already running on.
+    /// The model this session is already running on.
     pub model: String,
     /// The route that picked it, replayed so telemetry stays attributed to it.
     pub route_name: Option<String>,
 }
 
-/// The decision to reuse for a tool-loop continuation, or `None` when this request must
+/// The decision to reuse when this is not a user turn, or `None` when the request must
 /// go through the quality router.
-///
-/// Re-running quality routing on every step of a loop lets one user turn drift across
-/// models mid-generation, which breaks the client: tool-call ids, reasoning state and
-/// provider prompt caches are all tied to the model that started the turn. So a
-/// continuation replays the model this loop already chose instead of asking the router
-/// again — which also skips the router call entirely.
 ///
 /// Reuse is deliberately conservative; anything unexpected falls through to a normal
 /// route rather than risk pinning a request to the wrong model:
 ///
 /// * no session key (nothing to reuse from, e.g. `X-Plano-Cache: off`),
-/// * no binding, or one whose cache went cold or whose prompt prefix drifted — the loop
-///   is no longer recognizable, so treat this as a fresh decision,
+/// * no binding, or one whose cache went cold or whose prompt prefix drifted,
 /// * a different model lane than the one that wrote the binding (see
 ///   [`SessionBinding::requested_model`]).
-pub async fn reuse_for_tool_loop(
+pub async fn reuse_prior_decision(
     orchestrator: &OrchestratorService,
     session_id: Option<&str>,
     tenant_id: Option<&str>,
@@ -145,7 +137,7 @@ pub async fn reuse_for_tool_loop(
         debug!(
             binding_lane = %binding.requested_model,
             request_lane = %requested_model,
-            "tool-loop reuse declined — request is on a different model lane"
+            "prior-decision reuse declined — request is on a different model lane"
         );
         return None;
     }
@@ -162,7 +154,7 @@ pub async fn reuse_for_tool_loop(
     if !warm || drifted {
         debug!(
             warm,
-            drifted, "tool-loop reuse declined — session is no longer warm on this prefix"
+            drifted, "prior-decision reuse declined — session is no longer warm on this prefix"
         );
         return None;
     }
@@ -195,7 +187,7 @@ pub struct RouteFacts<'a> {
     pub candidate_model: &'a str,
     pub candidate_route: Option<&'a str>,
     /// The model the client asked for, after alias resolution and before routing had a
-    /// say. Persisted as the binding's lane so a later tool-loop continuation on a
+    /// say. Persisted as the binding's lane so a later non-user turn on a
     /// different lane doesn't inherit this decision.
     pub requested_model: &'a str,
 }
@@ -1113,11 +1105,10 @@ mod tests {
         );
     }
 
-    // ---- is_tool_loop_continuation() ----
+    // ---- is_user_turn() ----
     //
     // Driven through the real client-API parsers rather than hand-built `Message`s: the
-    // predicate's whole premise is that every agent wire format collapses to a trailing
-    // `Role::Tool` once normalized, so the conversion is the part worth testing.
+    // gate is "last role is user", and every agent wire format has to normalize to that.
 
     use hermesllm::clients::SupportedAPIsFromClient;
     use hermesllm::{ProviderRequest, ProviderRequestType};
@@ -1150,7 +1141,7 @@ mod tests {
                 ]
             }),
         );
-        assert!(is_tool_loop_continuation(&msgs));
+        assert!(!is_user_turn(&msgs));
     }
 
     /// Anthropic packs a tool result and new user text into one message. The user spoke
@@ -1175,7 +1166,7 @@ mod tests {
                 ]
             }),
         );
-        assert!(!is_tool_loop_continuation(&msgs));
+        assert!(is_user_turn(&msgs));
     }
 
     /// Cline / Cursor on OpenAI Chat Completions.
@@ -1195,11 +1186,11 @@ mod tests {
                 ]
             }),
         );
-        assert!(is_tool_loop_continuation(&msgs));
+        assert!(!is_user_turn(&msgs));
     }
 
     /// Tool traffic from earlier turns stays in the history forever; only the tail marks
-    /// a continuation, otherwise every later turn of a long session would be pinned.
+    /// a user turn, otherwise every later turn of a long session would be pinned.
     #[test]
     fn chat_fresh_user_turn_after_earlier_tools_is_not_a_continuation() {
         let msgs = messages_from(
@@ -1218,7 +1209,7 @@ mod tests {
                 ]
             }),
         );
-        assert!(!is_tool_loop_continuation(&msgs));
+        assert!(is_user_turn(&msgs));
     }
 
     /// Codex / OpenCode on the Responses API.
@@ -1238,11 +1229,11 @@ mod tests {
                 ]
             }),
         );
-        assert!(is_tool_loop_continuation(&msgs));
+        assert!(!is_user_turn(&msgs));
     }
 
     #[test]
-    fn plain_user_turn_and_empty_history_are_not_continuations() {
+    fn plain_user_turn_routes_and_empty_history_does_not() {
         let msgs = messages_from(
             "/v1/chat/completions",
             serde_json::json!({
@@ -1250,11 +1241,55 @@ mod tests {
                 "messages": [{"role": "user", "content": "write a haiku"}]
             }),
         );
-        assert!(!is_tool_loop_continuation(&msgs));
-        assert!(!is_tool_loop_continuation(&[]));
+        assert!(is_user_turn(&msgs));
+        assert!(!is_user_turn(&[]));
     }
 
-    // ---- reuse_for_tool_loop() ----
+    /// An assistant-only tail is not a user turn, so routing is skipped.
+    #[test]
+    fn reuse_is_off_unless_route_on_user_turn_is_enabled() {
+        let tool_tail = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "tool_calls": [
+                        {"id": "call_1", "type": "function",
+                         "function": {"name": "read_file", "arguments": "{}"}}
+                    ]},
+                    {"role": "tool", "tool_call_id": "call_1", "content": "ok"}
+                ]
+            }),
+        );
+        let user_tail = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [{"role": "user", "content": "fix the bug"}]
+            }),
+        );
+        assert!(!should_reuse_prior_decision(false, &tool_tail));
+        assert!(should_reuse_prior_decision(true, &tool_tail));
+        assert!(!should_reuse_prior_decision(true, &user_tail));
+    }
+
+    #[test]
+    fn assistant_tail_is_not_a_user_turn() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Looking at main.rs"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    // ---- reuse_prior_decision() ----
 
     /// Seed the binding a first turn would have written: the client asked for
     /// `requested_model`, routing sent the turn to `anchor`.
@@ -1294,7 +1329,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
 
-        let reuse = reuse_for_tool_loop(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
             .await
             .expect("warm same-lane binding should be reused");
         assert_eq!(reuse.model, "openai/pricey");
@@ -1308,7 +1343,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, CLIENT_MODEL, None, 5).await;
 
-        let reuse = reuse_for_tool_loop(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
             .await
             .expect("an unrouted turn still anchors the loop");
         assert_eq!(reuse.model, CLIENT_MODEL);
@@ -1322,7 +1357,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
 
-        let reuse = reuse_for_tool_loop(
+        let reuse = reuse_prior_decision(
             &orch,
             Some("s1"),
             None,
@@ -1340,7 +1375,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", None, 24 * 3600).await;
 
-        let reuse = reuse_for_tool_loop(&orch, Some("s1"), None, Some(1), CLIENT_MODEL).await;
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL).await;
         assert!(reuse.is_none());
     }
 
@@ -1351,7 +1386,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", None, 5).await;
 
-        let reuse = reuse_for_tool_loop(&orch, Some("s1"), None, Some(999), CLIENT_MODEL).await;
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(999), CLIENT_MODEL).await;
         assert!(reuse.is_none());
     }
 
@@ -1361,12 +1396,12 @@ mod tests {
     async fn without_a_session_or_binding_there_is_nothing_to_reuse() {
         let orch = orch_with_rates();
         assert!(
-            reuse_for_tool_loop(&orch, None, None, Some(1), CLIENT_MODEL)
+            reuse_prior_decision(&orch, None, None, Some(1), CLIENT_MODEL)
                 .await
                 .is_none()
         );
         assert!(
-            reuse_for_tool_loop(&orch, Some("never-seen"), None, Some(1), CLIENT_MODEL)
+            reuse_prior_decision(&orch, Some("never-seen"), None, Some(1), CLIENT_MODEL)
                 .await
                 .is_none()
         );
@@ -1379,7 +1414,7 @@ mod tests {
         let orch = orch_with_rates();
         seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 30).await;
 
-        let reuse = reuse_for_tool_loop(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
             .await
             .unwrap();
         let d = route(&orch, None, facts_for(&reuse.model)).await;

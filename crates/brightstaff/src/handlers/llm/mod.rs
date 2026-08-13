@@ -316,12 +316,13 @@ async fn llm_chat_inner(
     // Derive the implicit session key when either prompt-caching affinity or the
     // routing budget is active — the budget needs a session anchor even with caching off.
     // Routing preferences need one too: they let the router dispatch somewhere other than
-    // the model the client named, and the rest of an agentic tool loop has to be able to
-    // replay that choice (see `session_router::reuse_for_tool_loop`).
+    // the model the client named, and later non-user turns have to be able to replay
+    // that choice (see `session_router::reuse_prior_decision`).
     let routing_can_override_model = inline_routing_preferences.is_some()
         || state.orchestrator_service.has_routing_preferences();
-    let implicit_affinity_enabled =
-        prompt_caching.session_affinity || routing_budget.is_some() || routing_can_override_model;
+    let implicit_affinity_enabled = prompt_caching.session_affinity
+        || routing_budget.is_some()
+        || (state.route_on_user_turn && routing_can_override_model);
     let request_messages = client_request.get_messages();
     let session_router::SessionResolution {
         request_prefix_hash,
@@ -369,33 +370,34 @@ async fn llm_chat_inner(
     // Routing stays cache-blind: the quality router always picks a candidate. The
     // session router then honors it or sticks to the warm anchor (see `session_router`).
     //
-    // A step of an agentic tool loop skips the router entirely and replays the model the
-    // loop is already running on, so a single user turn can't drift across models
-    // mid-generation. Fresh user turns always route.
-    let loop_reuse = if session_router::is_tool_loop_continuation(&request_messages) {
-        session_router::reuse_for_tool_loop(
-            &state.orchestrator_service,
-            session_id.as_deref(),
-            tenant_id.as_deref(),
-            request_prefix_hash,
-            &alias_resolved_model,
-        )
-        .await
-    } else {
-        None
-    };
+    // Opt-in (`routing.route_on_user_turn`): routing runs only on a trailing user
+    // message. Tool results and other non-user tails replay the prior decision.
+    let loop_reuse =
+        if session_router::should_reuse_prior_decision(state.route_on_user_turn, &request_messages)
+        {
+            session_router::reuse_prior_decision(
+                &state.orchestrator_service,
+                session_id.as_deref(),
+                tenant_id.as_deref(),
+                request_prefix_hash,
+                &alias_resolved_model,
+            )
+            .await
+        } else {
+            None
+        };
 
     let (candidate_model, candidate_route) = match loop_reuse {
         Some(reuse) => {
             debug!(
                 model = %reuse.model,
-                "tool-loop continuation — replaying this loop's model instead of re-routing"
+                "not a user turn — replaying the prior model instead of re-routing"
             );
-            bs_metrics::record_routing_skip(metric_labels::ROUTING_SKIP_TOOL_LOOP);
+            bs_metrics::record_routing_skip(metric_labels::ROUTING_SKIP_NOT_USER_TURN);
             get_active_span(|span| {
                 span.set_attribute(opentelemetry::KeyValue::new(
                     tracing_plano::ROUTING_SKIPPED,
-                    metric_labels::ROUTING_SKIP_TOOL_LOOP,
+                    metric_labels::ROUTING_SKIP_NOT_USER_TURN,
                 ));
             });
             (reuse.model, reuse.route_name)

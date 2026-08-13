@@ -33,7 +33,7 @@ pub struct SessionBinding {
     /// before routing overrode it). Agents run several model lanes over one prompt
     /// prefix — Claude Code's main loop plus its `ANTHROPIC_SMALL_FAST_MODEL` side
     /// calls — and those lanes must not inherit each other's routing decision, so the
-    /// tool-loop gate only reuses a binding whose lane matches the current request.
+    /// reuse gate only reuses a binding whose lane matches the current request.
     #[serde(default)]
     pub requested_model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

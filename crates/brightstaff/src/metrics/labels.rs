@@ -77,6 +77,6 @@ pub const SWITCH_REASON_OVER_CAP: &str = "over_cap";
 pub const SWITCH_REASON_NO_PRICING: &str = "no_pricing";
 
 // Quality-routing skips (brightstaff_router_skips_total).
-/// The request continued an agentic tool loop, so the decision the loop already made was
-/// replayed instead of re-running the router.
-pub const ROUTING_SKIP_TOOL_LOOP: &str = "tool_loop_continuation";
+/// The last message was not a user turn, so the prior routing decision was replayed
+/// instead of re-running the router.
+pub const ROUTING_SKIP_NOT_USER_TURN: &str = "not_user_turn";

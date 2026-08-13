@@ -594,6 +594,12 @@ properties:
               Useful for evals/benchmarks. Default false.
         required: ["max_switch_spend_pct"]
         additionalProperties: false
+      route_on_user_turn:
+        type: boolean
+        description: >
+          Opt-in: run the quality router only when the last message is a user turn.
+          Tool results, assistant continuations, and other non-user tails replay the
+          prior routing decision instead of re-selecting a model. Default false.
     additionalProperties: false
   state_storage:
     type: object

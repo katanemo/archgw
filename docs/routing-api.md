@@ -124,26 +124,31 @@ routing_preferences:
 
 ---
 
-## Agentic Loops
+## When routing runs
 
-A coding agent answers one user turn with many LLM calls: the model replies with tool calls, the client runs them and posts the results back for the next step. Re-routing each of those steps would let a single turn drift across models mid-generation, which breaks the client — tool-call ids, reasoning state and the provider's prompt cache all belong to the model that started the turn.
+By default the quality router runs on every request. Set `routing.route_on_user_turn` to run it only when the last normalized message is a user turn. Tool results, assistant continuations, and anything else then replay the prior decision instead of asking the router again. That keeps a single user query from drifting across models mid-generation (tool-call ids, reasoning state, and the provider prompt cache all belong to the model that started the turn), while a new user message always re-routes so sequential tasks can pick a different model.
 
-Plano detects these steps and replays the decision the loop already made instead of routing again. It works out of the box, with no client changes, for every supported client API — Anthropic `tool_result` blocks, OpenAI Chat `role: "tool"` messages, and Responses `function_call_output` items:
+```yaml
+routing:
+  route_on_user_turn: true
+```
+
+Omit the key (or set it `false`) to keep per-request routing. When enabled, it works with no client changes for every supported client API — Anthropic `tool_result` blocks, OpenAI Chat `role: "tool"` messages, and Responses `function_call_output` items all normalize to a non-user tail:
 
 ```text
 user message      -> routing picks a model
 tool result       -> replays it (routing skipped)
-tool result       -> replays it (routing skipped)
+assistant step    -> replays it (routing skipped)
 next user message -> routing runs again, free to pick a different model
 ```
 
-Routing is skipped only while a loop is in flight. A new user message always re-routes, so intent-based selection keeps working turn to turn. A step also re-routes when the loop can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
+A step also re-routes when the prior decision can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
 
 Skips are observable: the `plano.routing.skipped` span attribute and the `brightstaff_router_skips_total` counter.
 
 ## Model Affinity
 
-Loop detection covers a single turn. To keep a whole *conversation* on one model — across user turns, or when your client's requests don't look like a tool loop — send an `X-Model-Affinity` header. Without it, Plano derives an implicit session key from the stable prompt prefix (system + tools + first user message), which is what makes loop replay work header-free.
+The user-turn check covers a single query. To keep a whole *conversation* on one model — across user turns — send an `X-Model-Affinity` header. Without it, Plano derives an implicit session key from the stable prompt prefix (system + tools + first user message), which is what makes replay work header-free.
 
 ```json
 POST /v1/chat/completions

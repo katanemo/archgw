@@ -124,25 +124,54 @@ routing_preferences:
 
 ---
 
-## When routing runs
+## Per-request routing (default)
 
-By default the quality router runs on every request. Set `routing.route_on_user_only` to run it only when the last normalized message is a user turn. Tool results, assistant continuations, and anything else then replay the prior decision instead of asking the router again. That keeps a single user query from drifting across models mid-generation (tool-call ids, reasoning state, and the provider prompt cache all belong to the model that started the turn), while a new user message always re-routes so sequential tasks can pick a different model.
+Applies when `route_on_user_only` is `false` (the default). Every request is routed independently, including loop continuations. A single user turn may therefore be served by multiple models. For example, a lightweight model handling routine tool-orchestration iterations while a stronger model is selected for a complex reasoning step or the final synthesis.
+
+### When to use
+
+Use per-request routing for:
+
+- **Best model per step.** Each step in a turn is served by the model best matched to its difficulty or specialty.
+- **Cost efficiency.** Simple steps go to smaller models; only hard steps use expensive ones.
+- **Escalation on failure.** A struggling model can be swapped out for the remainder of the turn.
+- **Capacity flexibility.** Each request can be placed wherever capacity exists, with no pinning constraint.
+
+## Turn-level routing
+
+Applies when `route_on_user_only` is `true`. The router selects a model once per user turn and pins the remainder of the agentic loop to it.
 
 ```yaml
 routing:
   route_on_user_only: true
 ```
 
-Omit the key (or set it `false`) to keep per-request routing. When enabled, it works with no client changes for every supported client API — Anthropic `tool_result` blocks, OpenAI Chat `role: "tool"` messages, and Responses `function_call_output` items all normalize to a non-user tail:
+### When to use
 
-```text
-user message      -> routing picks a model
-tool result       -> replays it (routing skipped)
-assistant step    -> replays it (routing skipped)
-next user message -> routing runs again, free to pick a different model
-```
+Use turn-level routing for:
 
-A step also re-routes when the prior decision can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
+- **Plan consistency.** One model carries its own reasoning and plan through the entire loop.
+- **Cache locality.** Loop iterations reuse the shared prompt prefix cache; no switch-induced misses.
+- **No state translation.** Avoids stripping or converting model-specific artifacts (e.g., signed thinking blocks).
+- **Simpler parameter handling.** Engine-native parameters are resolved once per turn, not re-mapped per request.
+
+### When routing occurs
+
+A routing decision is made when the incoming request represents the **start of a new user turn**: the last normalized message has `role: "user"`. That is genuine user text, not a tool result being fed back into an in-flight loop.
+
+Across client APIs that means:
+
+- OpenAI Chat: the last message is `role: "user"`
+- Anthropic: the last content is user text (a `tool_result`-only turn normalizes to `role: "tool"`)
+- Responses: the last item is not a `function_call_output`
+
+A new user message always re-routes, including Anthropic packing new user text alongside a `tool_result`.
+
+### When routing is skipped (sticky)
+
+Routing is skipped and the previously selected model is reused when the request is a **continuation of an in-flight agentic loop** — the last normalized message is not a user turn (tool results, assistant steps, unresolved `tool_use`). The request is pinned to the model recorded for the current turn.
+
+A step still re-routes when that prior decision can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
 
 Skips are observable: the `plano.routing.skipped` span attribute and the `brightstaff_router_skips_total` counter.
 

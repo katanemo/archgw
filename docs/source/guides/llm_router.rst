@@ -573,6 +573,20 @@ For the canonical Plano Kubernetes deployment (ConfigMap, Secrets, Deployment YA
 `demo README <https://github.com/katanemo/plano/tree/main/demos/llm_routing/model_routing_service/README.md>`_.
 
 
+.. _route_on_user_only:
+
+Route on user turn only
+-----------------------
+
+When disabled (default), every LLM request is routed independently. When enabled, the router selects a model only at the start of a new user turn, and all subsequent requests within the same agentic loop are pinned to that model.
+
+.. code-block:: yaml
+
+    routing:
+      route_on_user_only: true
+
+Default: ``false``.
+
 .. _model_affinity:
 
 Model Affinity
@@ -607,8 +621,6 @@ Without the header, routing runs fresh on every request — no behavior change f
     routing:
       session_ttl_seconds: 600    # How long affinity lasts (default: 10 min)
       session_max_entries: 10000  # Max cached sessions (upper limit: 10000)
-      # Opt-in: route only on a user turn; replay the prior model otherwise.
-      # route_on_user_only: true
 
 To start a new routing decision (e.g., when the agent's task changes), generate a new affinity ID.
 

@@ -157,19 +157,24 @@ Use turn-level routing for:
 
 ### When routing occurs
 
-A routing decision is made when the incoming request represents the **start of a new user turn**: the last normalized message has `role: "user"`. That is genuine user text, not a tool result being fed back into an in-flight loop.
+A routing decision is made when the incoming request represents the **start of a new user turn**: the last normalized message has `role: "user"` and still carries text once harness-injected envelopes are removed. That is genuine user text, not a tool result being fed back into an in-flight loop.
 
 Across client APIs that means:
 
 - OpenAI Chat: the last message is `role: "user"`
 - Anthropic: the last content is user text (a `tool_result`-only turn normalizes to `role: "tool"`)
 - Responses: the last item is not a `function_call_output`
+- Bedrock Converse: the last message carries user text, not only `toolResult` blocks
 
 A new user message always re-routes, including Anthropic packing new user text alongside a `tool_result`.
 
+An empty user message, or one containing only Claude Code's `<system-reminder>` / `<user-prompt-submit-hook>` envelopes, is harness output rather than an utterance, so the loop stays pinned. An attachment with no caption (a pasted image) is user input and does route.
+
+**Known limitation.** Agent frameworks that feed tool output back as plain user prose — ReAct's `Observation: ...`, for example — are indistinguishable from a real user message on the wire, so each step re-routes. Send tool output as `role: "tool"` (or Anthropic `tool_result` / Responses `function_call_output`) to get turn-level pinning.
+
 ### When routing is skipped (sticky)
 
-Routing is skipped and the previously selected model is reused when the request is a **continuation of an in-flight agentic loop** — the last normalized message is not a user turn (tool results, assistant steps, unresolved `tool_use`). The request is pinned to the model recorded for the current turn.
+Routing is skipped and the previously selected model is reused when the request is a **continuation of an in-flight agentic loop** — the last normalized message is not a user turn (tool results, assistant steps, unresolved `tool_use`, or an empty / envelope-only user message). The request is pinned to the model recorded for the current turn.
 
 A step still re-routes when that prior decision can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
 

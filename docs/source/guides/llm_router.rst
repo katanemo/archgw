@@ -587,6 +587,15 @@ When disabled (default), every LLM request is routed independently. When enabled
 
 Default: ``false``.
 
+A turn starts when the last message is from the user and still has text after Claude Code's
+``<system-reminder>`` and ``<user-prompt-submit-hook>`` envelopes are stripped, or carries an
+attachment such as an image. Empty or envelope-only user messages keep the loop pinned.
+
+Tool output must be sent as a tool message (OpenAI ``role: "tool"``, Anthropic ``tool_result``,
+Responses ``function_call_output``, or Bedrock ``toolResult``). Frameworks that feed results back
+as plain user prose, such as ReAct's ``Observation: ...``, look like real user turns on the wire
+and re-route on every step.
+
 .. _model_affinity:
 
 Model Affinity

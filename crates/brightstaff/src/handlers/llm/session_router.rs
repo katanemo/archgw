@@ -27,7 +27,8 @@
 use std::time::{Duration, SystemTime};
 
 use common::configuration::EffectiveRoutingBudget;
-use hermesllm::apis::openai::{Message, Role};
+use hermesllm::apis::openai::{ContentPart, Message, MessageContent, Role};
+use hermesllm::transforms::lib::ExtractText;
 use hermesllm::{provider_cache_capability, ProviderCacheCapability, ProviderId};
 use opentelemetry::trace::get_active_span;
 use opentelemetry::KeyValue;
@@ -88,15 +89,64 @@ pub fn resolve_session(
     }
 }
 
+/// Envelopes Claude Code injects as user-role text next to tool results. They are
+/// written by the harness, not spoken by the user, so a tail made up only of these
+/// does not open a new turn.
+const INJECTED_USER_ENVELOPES: [(&str, &str); 2] = [
+    ("<system-reminder>", "</system-reminder>"),
+    ("<user-prompt-submit-hook>", "</user-prompt-submit-hook>"),
+];
+
+/// Remove every [`INJECTED_USER_ENVELOPES`] span, leaving whatever the user actually typed.
+/// An unterminated opening tag swallows the rest of the text — a truncated envelope is
+/// still harness output.
+fn strip_injected_envelopes(text: &str) -> String {
+    let mut remaining = text.to_string();
+
+    for (open, close) in INJECTED_USER_ENVELOPES {
+        while let Some(start) = remaining.find(open) {
+            let body_start = start + open.len();
+            let end = match remaining[body_start..].find(close) {
+                Some(offset) => body_start + offset + close.len(),
+                None => remaining.len(),
+            };
+            remaining.replace_range(start..end, "");
+        }
+    }
+
+    remaining
+}
+
+/// Whether the message carries user-supplied content that is not text — an image today.
+/// A pasted screenshot with no caption is still the user speaking, so it opens a turn
+/// even though there is no text to check.
+fn has_non_text_content(content: &Option<MessageContent>) -> bool {
+    matches!(content, Some(MessageContent::Parts(parts))
+        if parts.iter().any(|part| !matches!(part, ContentPart::Text { .. })))
+}
+
 /// Whether this request is a fresh user turn and should go through the quality router.
 ///
-/// Only the tail is examined. A trailing [`Role::User`] is a new utterance — including
-/// Anthropic packing new user text alongside `tool_result` blocks, which normalizes to
-/// a trailing user message. Anything else (tool results, assistant output, empty
-/// history) is not a user turn; routing is skipped and the prior decision is replayed
-/// when a warm binding exists.
+/// Only the tail is examined. A trailing [`Role::User`] is a new utterance when it
+/// carries an attachment, or text that survives stripping the harness envelopes —
+/// including Anthropic packing new user text alongside `tool_result` blocks, which
+/// normalizes to a trailing user message. Anything else (tool results, assistant
+/// output, an empty or reminder-only user tail, empty history) is not a user turn;
+/// routing is skipped and the prior decision is replayed when a warm binding exists.
 pub fn is_user_turn(messages: &[Message]) -> bool {
-    matches!(messages.last(), Some(m) if m.role == Role::User)
+    let Some(last) = messages.last() else {
+        return false;
+    };
+    if last.role != Role::User {
+        return false;
+    }
+    if has_non_text_content(&last.content) {
+        return true;
+    }
+
+    !strip_injected_envelopes(&last.content.extract_text())
+        .trim()
+        .is_empty()
 }
 
 /// Whether this request should skip the quality router and replay the prior decision.
@@ -1283,6 +1333,251 @@ mod tests {
                 "messages": [
                     {"role": "user", "content": "fix the bug"},
                     {"role": "assistant", "content": "Looking at main.rs"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    /// A user-role message with nothing in it is a harness artifact, not an utterance.
+    #[test]
+    fn empty_and_whitespace_user_tails_are_not_user_turns() {
+        for content in ["", "   \n\t "] {
+            let msgs = messages_from(
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": content}
+                    ]
+                }),
+            );
+            assert!(!is_user_turn(&msgs), "content {content:?} opened a turn");
+        }
+    }
+
+    /// Every client API can deliver a user-role message with nothing in it — a null or
+    /// missing `content`, an empty parts array, an empty text block. None of them open a
+    /// turn, whatever the wire format.
+    #[test]
+    fn empty_user_content_is_not_a_user_turn_on_any_client_api() {
+        let chat = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+        let anthropic = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+        let responses = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "gpt-5.3-codex",
+                "input": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+
+        let cases = [
+            ("/v1/chat/completions", chat(serde_json::Value::Null)),
+            ("/v1/chat/completions", chat(serde_json::json!(""))),
+            ("/v1/chat/completions", chat(serde_json::json!([]))),
+            (
+                "/v1/chat/completions",
+                chat(serde_json::json!([{"type": "text", "text": "  "}])),
+            ),
+            ("/v1/messages", anthropic(serde_json::json!(""))),
+            ("/v1/messages", anthropic(serde_json::json!([]))),
+            (
+                "/v1/messages",
+                anthropic(serde_json::json!([{"type": "text", "text": "\n"}])),
+            ),
+            ("/v1/responses", responses(serde_json::json!(""))),
+            ("/v1/responses", responses(serde_json::json!([]))),
+        ];
+
+        for (endpoint, body) in cases {
+            let msgs = messages_from(endpoint, body.clone());
+            assert!(
+                !is_user_turn(&msgs),
+                "{endpoint} opened a turn on {body}, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// A pasted screenshot with no caption has no text to check, but the user did speak.
+    #[test]
+    fn attachment_only_user_tail_is_a_user_turn() {
+        const PNG: &str = "data:image/png;base64,iVBORw0KGgo=";
+
+        let cases = [
+            (
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": PNG}}
+                        ]}
+                    ]
+                }),
+            ),
+            (
+                "/v1/messages",
+                serde_json::json!({
+                    "model": "claude-sonnet-4-6",
+                    "max_tokens": 1024,
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": [
+                            {"type": "image", "source": {
+                                "type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="
+                            }}
+                        ]}
+                    ]
+                }),
+            ),
+        ];
+
+        for (endpoint, body) in cases {
+            let msgs = messages_from(endpoint, body.clone());
+            assert!(
+                is_user_turn(&msgs),
+                "{endpoint} pinned an attachment-only turn, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// Bedrock reaches the same gate through the upstream shape rather than a client
+    /// endpoint, so cover its empty user messages directly.
+    #[test]
+    fn empty_bedrock_user_content_is_not_a_user_turn() {
+        use hermesllm::apis::amazon_bedrock::{
+            ContentBlock, ConversationRole, ConverseRequest, Message as BedrockMessage,
+        };
+
+        for tail in [
+            Vec::new(),
+            vec![ContentBlock::Text {
+                text: String::new(),
+            }],
+            vec![ContentBlock::Text {
+                text: "  \n".to_string(),
+            }],
+        ] {
+            let request = ConverseRequest {
+                model_id: "anthropic.claude-3-sonnet".to_string(),
+                messages: Some(vec![
+                    BedrockMessage {
+                        role: ConversationRole::User,
+                        content: vec![ContentBlock::Text {
+                            text: "fix the bug".to_string(),
+                        }],
+                    },
+                    BedrockMessage {
+                        role: ConversationRole::Assistant,
+                        content: vec![ContentBlock::Text {
+                            text: "Fixed it.".to_string(),
+                        }],
+                    },
+                    BedrockMessage {
+                        role: ConversationRole::User,
+                        content: tail.clone(),
+                    },
+                ]),
+                ..Default::default()
+            };
+
+            let msgs = ProviderRequestType::BedrockConverse(request).get_messages();
+            assert!(
+                !is_user_turn(&msgs),
+                "bedrock tail {tail:?} opened a turn, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// Claude Code injects reminders and hook output as user-role text. On their own they
+    /// are not a new utterance, so the loop stays pinned.
+    #[test]
+    fn envelope_only_user_tail_is_not_a_user_turn() {
+        for content in [
+            "<system-reminder>\nYour todo list is empty.\n</system-reminder>",
+            "<user-prompt-submit-hook>blocked by hook</user-prompt-submit-hook>\n",
+            "<system-reminder>a</system-reminder> <system-reminder>b</system-reminder>",
+            // Truncated envelope: still harness output, not user text.
+            "<system-reminder>\nYour todo list is empty.",
+        ] {
+            let msgs = messages_from(
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": content}
+                    ]
+                }),
+            );
+            assert!(!is_user_turn(&msgs), "content {content:?} opened a turn");
+        }
+    }
+
+    /// A reminder rides alongside real user text on genuine turns; that still routes.
+    #[test]
+    fn envelope_plus_user_text_is_a_user_turn() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": "<system-reminder>\nTodo list is empty.\n</system-reminder>\nnow write the tests"}
+                ]
+            }),
+        );
+        assert!(is_user_turn(&msgs));
+    }
+
+    /// Claude Code's usual continuation shape: a tool result packed with a reminder and
+    /// no user text. The reminder must not be mistaken for a new turn.
+    #[test]
+    fn anthropic_tool_result_with_reminder_only_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/messages",
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": "toolu_1", "name": "read_file",
+                         "input": {"path": "main.rs"}}
+                    ]},
+                    {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_1", "content": "fn main() {}"},
+                        {"type": "text", "text": "<system-reminder>\nYour todo list has changed.\n</system-reminder>"}
+                    ]}
                 ]
             }),
         );

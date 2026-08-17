@@ -254,6 +254,7 @@ pub async fn route(
     let baseline_usd;
     let mut switch_spend_usd;
     let mut switches;
+    let mut switched = false;
     let mut cost_opt: Option<f64> = None;
     let mut ceiling_opt: Option<f64> = None;
     let mut candidate_warm_tokens: u64 = 0;
@@ -333,6 +334,7 @@ pub async fn route(
                     // veto the router on guesswork.
                     None => {
                         switches += 1;
+                        switched = true;
                         decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                         reason = metric_labels::SWITCH_REASON_NO_PRICING;
                         debug!(
@@ -347,6 +349,7 @@ pub async fn route(
                             // Outright cheaper: allowed for free. Does NOT reduce spend —
                             // the "saving" is vs a path we didn't take, not real money.
                             switches += 1;
+                            switched = true;
                             decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                             reason = metric_labels::SWITCH_REASON_FREE;
                             info!(
@@ -358,6 +361,7 @@ pub async fn route(
                         } else if switch_spend_usd + cost <= ceiling {
                             switch_spend_usd += cost;
                             switches += 1;
+                            switched = true;
                             decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                             reason = metric_labels::SWITCH_REASON_WITHIN_CAP;
                             info!(
@@ -396,6 +400,7 @@ pub async fn route(
             } else {
                 // Warm but no budget configured — follow the router freely.
                 switches += 1;
+                switched = true;
                 decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                 reason = metric_labels::SWITCH_REASON_FREE;
             }
@@ -535,10 +540,6 @@ pub async fn route(
             Some(gc_ttl),
         )
         .await;
-
-    // Mirrors `plano.switch.decision` on the span: only emitted when a switch cost was
-    // evaluated, and "allowed" when the router's pick was honored.
-    let switched = cost_opt.is_some() && model == facts.candidate_model;
 
     RouteDecision {
         model,

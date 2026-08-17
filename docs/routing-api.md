@@ -153,7 +153,8 @@ Response when pinned:
   "route": "code generation",
   "trace_id": "...",
   "session_id": "a1b2c3d4-5678-...",
-  "pinned": true
+  "pinned": true,
+  "switched": false
 }
 ```
 

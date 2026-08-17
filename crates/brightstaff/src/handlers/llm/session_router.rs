@@ -121,6 +121,9 @@ pub struct RouteDecision {
     pub default_model: String,
     /// Whether the session's cache was inferred warm at decision time.
     pub warm: bool,
+    /// Whether a model switch was allowed this turn — mirrors `plano.switch.decision=allowed`
+    /// on the span when the routing budget evaluated a switch.
+    pub switched: bool,
     /// Cumulative never-switch baseline (USD) after this decision.
     pub baseline_usd: f64,
     /// Cumulative switch spend (USD) after this decision.
@@ -212,6 +215,7 @@ pub async fn route(
             route_name: facts.candidate_route.map(str::to_string),
             default_model: facts.candidate_model.to_string(),
             warm: false,
+            switched: false,
             baseline_usd: 0.0,
             switch_spend_usd: 0.0,
             session_cost_usd: 0.0,
@@ -532,11 +536,16 @@ pub async fn route(
         )
         .await;
 
+    // Mirrors `plano.switch.decision` on the span: only emitted when a switch cost was
+    // evaluated, and "allowed" when the router's pick was honored.
+    let switched = cost_opt.is_some() && model == facts.candidate_model;
+
     RouteDecision {
         model,
         route_name,
         default_model,
         warm: effective_warm,
+        switched,
         baseline_usd,
         switch_spend_usd,
         session_cost_usd,
@@ -721,6 +730,7 @@ mod tests {
 
         assert_eq!(d.model, "openai/pricey");
         assert!(d.warm);
+        assert!(d.switched);
         assert_eq!(d.switches, 1);
         assert!(
             (d.switch_spend_usd - 0.47).abs() < 1e-6,
@@ -744,6 +754,7 @@ mod tests {
 
         assert_eq!(d.model, "anthropic/expensive");
         assert!(d.warm);
+        assert!(!d.switched);
         assert_eq!(d.switches, 0);
         // Vetoed switch spends nothing.
         assert!((d.switch_spend_usd - 0.0).abs() < 1e-6);

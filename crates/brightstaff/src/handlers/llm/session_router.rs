@@ -121,6 +121,9 @@ pub struct RouteDecision {
     pub default_model: String,
     /// Whether the session's cache was inferred warm at decision time.
     pub warm: bool,
+    /// Whether a model switch was allowed this turn — mirrors `plano.switch.decision=allowed`
+    /// on the span when the routing budget evaluated a switch.
+    pub switched: bool,
     /// Cumulative never-switch baseline (USD) after this decision.
     pub baseline_usd: f64,
     /// Cumulative switch spend (USD) after this decision.
@@ -212,6 +215,7 @@ pub async fn route(
             route_name: facts.candidate_route.map(str::to_string),
             default_model: facts.candidate_model.to_string(),
             warm: false,
+            switched: false,
             baseline_usd: 0.0,
             switch_spend_usd: 0.0,
             session_cost_usd: 0.0,
@@ -250,6 +254,7 @@ pub async fn route(
     let baseline_usd;
     let mut switch_spend_usd;
     let mut switches;
+    let mut switched = false;
     let mut cost_opt: Option<f64> = None;
     let mut ceiling_opt: Option<f64> = None;
     let mut candidate_warm_tokens: u64 = 0;
@@ -329,6 +334,7 @@ pub async fn route(
                     // veto the router on guesswork.
                     None => {
                         switches += 1;
+                        switched = true;
                         decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                         reason = metric_labels::SWITCH_REASON_NO_PRICING;
                         debug!(
@@ -343,6 +349,7 @@ pub async fn route(
                             // Outright cheaper: allowed for free. Does NOT reduce spend —
                             // the "saving" is vs a path we didn't take, not real money.
                             switches += 1;
+                            switched = true;
                             decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                             reason = metric_labels::SWITCH_REASON_FREE;
                             info!(
@@ -354,6 +361,7 @@ pub async fn route(
                         } else if switch_spend_usd + cost <= ceiling {
                             switch_spend_usd += cost;
                             switches += 1;
+                            switched = true;
                             decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                             reason = metric_labels::SWITCH_REASON_WITHIN_CAP;
                             info!(
@@ -392,6 +400,7 @@ pub async fn route(
             } else {
                 // Warm but no budget configured — follow the router freely.
                 switches += 1;
+                switched = true;
                 decision_label = metric_labels::SWITCH_DECISION_ALLOWED;
                 reason = metric_labels::SWITCH_REASON_FREE;
             }
@@ -537,6 +546,7 @@ pub async fn route(
         route_name,
         default_model,
         warm: effective_warm,
+        switched,
         baseline_usd,
         switch_spend_usd,
         session_cost_usd,
@@ -721,6 +731,7 @@ mod tests {
 
         assert_eq!(d.model, "openai/pricey");
         assert!(d.warm);
+        assert!(d.switched);
         assert_eq!(d.switches, 1);
         assert!(
             (d.switch_spend_usd - 0.47).abs() < 1e-6,
@@ -744,6 +755,7 @@ mod tests {
 
         assert_eq!(d.model, "anthropic/expensive");
         assert!(d.warm);
+        assert!(!d.switched);
         assert_eq!(d.switches, 0);
         // Vetoed switch spends nothing.
         assert!((d.switch_spend_usd - 0.0).abs() < 1e-6);

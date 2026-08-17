@@ -62,6 +62,8 @@ struct RoutingDecisionResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     session_id: Option<String>,
     pinned: bool,
+    /// Whether the routing budget allowed a model switch this turn (`plano.switch.decision=allowed`).
+    switched: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -262,6 +264,7 @@ async fn routing_decision_inner(
                 // `pinned` signals a warm, stuck session — safe for callers to treat as
                 // "keep this provider's cache warm".
                 pinned: decision.warm,
+                switched: decision.switched,
             };
 
             // Distinguish "decision served" (a concrete model picked) from
@@ -280,6 +283,7 @@ async fn routing_decision_inner(
                 total_models = response.models.len(),
                 route = ?response.route,
                 pinned = response.pinned,
+                switched = response.switched,
                 "routing decision completed"
             );
 
@@ -439,6 +443,7 @@ mod tests {
             trace_id: "abc123".to_string(),
             session_id: Some("sess-abc".to_string()),
             pinned: true,
+            switched: true,
         };
         let json = serde_json::to_string(&response).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -448,6 +453,7 @@ mod tests {
         assert_eq!(parsed["trace_id"], "abc123");
         assert_eq!(parsed["session_id"], "sess-abc");
         assert_eq!(parsed["pinned"], true);
+        assert_eq!(parsed["switched"], true);
     }
 
     #[test]
@@ -458,6 +464,7 @@ mod tests {
             trace_id: "abc123".to_string(),
             session_id: None,
             pinned: false,
+            switched: false,
         };
         let json = serde_json::to_string(&response).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -465,5 +472,6 @@ mod tests {
         assert!(parsed["route"].is_null());
         assert!(parsed.get("session_id").is_none());
         assert_eq!(parsed["pinned"], false);
+        assert_eq!(parsed["switched"], false);
     }
 }

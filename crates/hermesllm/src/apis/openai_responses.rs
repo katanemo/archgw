@@ -147,6 +147,23 @@ pub enum InputItem {
         id: Option<String>,
         status: Option<String>,
     },
+    /// Custom tool call emitted by the model in a prior turn. Unlike a function call
+    /// the payload is free-form text rather than JSON arguments. Codex registers custom
+    /// tools by default, so its continuations carry these instead of `function_call`.
+    CustomToolCall {
+        name: String,
+        input: String,
+        call_id: String,
+        id: Option<String>,
+        status: Option<String>,
+    },
+    /// Custom tool call output, paired to its call by `call_id`.
+    CustomToolCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        id: Option<String>,
+        status: Option<String>,
+    },
     /// Reasoning item from a prior turn. Not converted to Chat Completions.
     Reasoning {
         id: Option<String>,
@@ -155,8 +172,8 @@ pub enum InputItem {
         encrypted_content: Option<String>,
         status: Option<String>,
     },
-    /// Any other typed item (`custom_tool_call`, `computer_call`, …). The
-    /// original JSON is kept so Responses→Responses round-trips don't drop it.
+    /// Any other typed item (`computer_call`, `local_shell_call`, …). The original
+    /// JSON is kept so Responses→Responses round-trips don't drop it.
     Ignored(serde_json::Value),
 }
 
@@ -192,6 +209,23 @@ enum TypedInputItem {
         status: Option<String>,
     },
     FunctionCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    CustomToolCall {
+        name: String,
+        input: String,
+        call_id: String,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    CustomToolCallOutput {
         call_id: String,
         output: serde_json::Value,
         #[serde(default)]
@@ -248,6 +282,30 @@ impl From<InputItemWire> for InputItem {
                 id,
                 status,
             },
+            InputItemWire::Typed(TypedInputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            }) => InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }) => InputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            },
             InputItemWire::Typed(TypedInputItem::ItemReference { id }) => {
                 InputItem::ItemReference { id }
             }
@@ -292,6 +350,30 @@ impl From<InputItem> for InputItemWire {
                 id,
                 status,
             } => InputItemWire::Typed(TypedInputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }),
+            InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            }),
+            InputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::CustomToolCallOutput {
                 call_id,
                 output,
                 id,
@@ -1906,16 +1988,80 @@ mod tests {
     #[test]
     fn test_input_item_unknown_type_is_preserved() {
         let json = serde_json::json!({
-            "type": "custom_tool_call",
-            "id": "ctc_1",
+            "type": "computer_call",
+            "id": "cc_1",
             "call_id": "call_9",
-            "name": "browser.open"
+            "action": {"type": "screenshot"}
         });
         let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
         match &item {
-            InputItem::Ignored(value) => assert_eq!(value["type"], "custom_tool_call"),
+            InputItem::Ignored(value) => assert_eq!(value["type"], "computer_call"),
             other => panic!("expected Ignored, got {:?}", other),
         }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    /// Codex's default tool contract. These must be typed, not `Ignored`, or a
+    /// custom-tool continuation normalizes to a trailing user message.
+    #[test]
+    fn test_input_item_custom_tool_call_round_trips() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call",
+            "id": "ctc_1",
+            "call_id": "call_9",
+            "name": "shell",
+            "input": "cat main.rs"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                ..
+            } => {
+                assert_eq!(name, "shell");
+                assert_eq!(input, "cat main.rs");
+                assert_eq!(call_id, "call_9");
+                assert_eq!(id.as_deref(), Some("ctc_1"));
+            }
+            other => panic!("expected CustomToolCall, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    #[test]
+    fn test_input_item_custom_tool_call_output_round_trips() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call_output",
+            "call_id": "call_9",
+            "output": "fn main() {}"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::CustomToolCallOutput {
+                call_id, output, ..
+            } => {
+                assert_eq!(call_id, "call_9");
+                assert_eq!(output, "fn main() {}");
+            }
+            other => panic!("expected CustomToolCallOutput, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    /// A malformed custom tool call (no `input`) must not be silently reshaped; it
+    /// degrades to a preserved raw item instead.
+    #[test]
+    fn test_input_item_custom_tool_call_without_input_is_preserved() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call",
+            "call_id": "call_9",
+            "name": "shell"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        assert!(matches!(item, InputItem::Ignored(_)));
         assert_eq!(serde_json::to_value(&item).unwrap(), json);
     }
 

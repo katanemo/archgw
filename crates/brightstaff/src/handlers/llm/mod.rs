@@ -1034,7 +1034,7 @@ async fn send_upstream(
 
 /// Resolves model aliases by looking up the requested model in the model_aliases map.
 /// Returns the target model if an alias is found, otherwise returns the original model.
-fn resolve_model_alias(
+pub(crate) fn resolve_model_alias(
     model_from_request: &str,
     model_aliases: &Option<HashMap<String, ModelAlias>>,
 ) -> String {

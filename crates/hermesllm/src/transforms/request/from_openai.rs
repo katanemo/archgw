@@ -34,6 +34,28 @@ pub struct ResponsesInputConverter {
     pub instructions: Option<String>,
 }
 
+/// Record a tool call in the message list, attaching it to the preceding assistant
+/// message when there is one so parallel calls stay on a single message.
+fn push_tool_call(messages: &mut Vec<Message>, tool_call: OpenAIToolCall) {
+    if let Some(last) = messages.last_mut() {
+        if matches!(last.role, Role::Assistant) {
+            match &mut last.tool_calls {
+                Some(existing) => existing.push(tool_call),
+                None => last.tool_calls = Some(vec![tool_call]),
+            }
+            return;
+        }
+    }
+
+    messages.push(Message {
+        role: Role::Assistant,
+        content: None,
+        name: None,
+        tool_call_id: None,
+        tool_calls: Some(vec![tool_call]),
+    });
+}
+
 impl TryFrom<ResponsesInputConverter> for Vec<Message> {
     type Error = TransformError;
 
@@ -185,6 +207,9 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                         }
                         InputItem::FunctionCallOutput {
                             call_id, output, ..
+                        }
+                        | InputItem::CustomToolCallOutput {
+                            call_id, output, ..
                         } => {
                             // Preserve tool result so upstream models do not re-issue the same tool call.
                             let output_text = match output {
@@ -205,31 +230,34 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                             call_id,
                             ..
                         } => {
-                            let tool_call = OpenAIToolCall {
-                                id: call_id,
-                                call_type: "function".to_string(),
-                                function: OpenAIFunctionCall { name, arguments },
-                            };
-
-                            // Prefer attaching tool_calls to the preceding assistant message when present.
-                            if let Some(last) = converted_messages.last_mut() {
-                                if matches!(last.role, Role::Assistant) {
-                                    if let Some(existing) = &mut last.tool_calls {
-                                        existing.push(tool_call);
-                                    } else {
-                                        last.tool_calls = Some(vec![tool_call]);
-                                    }
-                                    continue;
-                                }
-                            }
-
-                            converted_messages.push(Message {
-                                role: Role::Assistant,
-                                content: None,
-                                name: None,
-                                tool_call_id: None,
-                                tool_calls: Some(vec![tool_call]),
-                            });
+                            push_tool_call(
+                                &mut converted_messages,
+                                OpenAIToolCall {
+                                    id: call_id,
+                                    call_type: "function".to_string(),
+                                    function: OpenAIFunctionCall { name, arguments },
+                                },
+                            );
+                        }
+                        InputItem::CustomToolCall {
+                            name,
+                            input,
+                            call_id,
+                            ..
+                        } => {
+                            // Custom tool input is free-form text. Wrap it in the same
+                            // `{"input": ...}` envelope that `custom_tool_as_function`
+                            // advertises for the tool itself, so the replayed call matches
+                            // the schema the upstream was given.
+                            let arguments = serde_json::json!({ "input": input }).to_string();
+                            push_tool_call(
+                                &mut converted_messages,
+                                OpenAIToolCall {
+                                    id: call_id,
+                                    call_type: "function".to_string(),
+                                    function: OpenAIFunctionCall { name, arguments },
+                                },
+                            );
                         }
                         InputItem::ItemReference { .. }
                         | InputItem::Reasoning { .. }
@@ -1640,6 +1668,65 @@ mod tests {
         assert_eq!(
             converted.messages[2].tool_call_id.as_deref(),
             Some("call_1")
+        );
+    }
+
+    /// A Codex custom-tool step: the call becomes an assistant tool call carrying the
+    /// free-form input in the `{"input": ...}` envelope the tool was advertised with,
+    /// and the output becomes a tool message linked by `call_id`.
+    #[test]
+    fn test_responses_custom_tool_call_and_output_map_to_tool_messages() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "run the tests"},
+                {
+                    "type": "custom_tool_call",
+                    "id": "ctc_1",
+                    "call_id": "call_1",
+                    "name": "shell",
+                    "input": "cargo test",
+                    "status": "completed"
+                },
+                {
+                    "type": "custom_tool_call_output",
+                    "call_id": "call_1",
+                    "output": "test result: ok"
+                }
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        assert_eq!(converted.messages.len(), 3);
+        assert!(matches!(converted.messages[0].role, Role::User));
+
+        assert!(matches!(converted.messages[1].role, Role::Assistant));
+        let tool_calls = converted.messages[1]
+            .tool_calls
+            .as_ref()
+            .expect("assistant tool_calls should be present");
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].function.name, "shell");
+        assert_eq!(
+            tool_calls[0].function.arguments,
+            r#"{"input":"cargo test"}"#
+        );
+
+        assert!(matches!(converted.messages[2].role, Role::Tool));
+        assert_eq!(
+            converted.messages[2].tool_call_id.as_deref(),
+            Some("call_1")
+        );
+        assert_eq!(
+            converted.messages[2]
+                .content
+                .as_ref()
+                .map(|c| c.to_string()),
+            Some("test result: ok".to_string())
         );
     }
 }

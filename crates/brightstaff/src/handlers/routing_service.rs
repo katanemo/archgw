@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use common::configuration::{
-    EffectivePromptCaching, EffectiveRoutingBudget, SpanAttributes, TopLevelRoutingPreference,
+    EffectivePromptCaching, EffectiveRoutingBudget, ModelAlias, SpanAttributes,
+    TopLevelRoutingPreference,
 };
 use common::consts::{MODEL_AFFINITY_HEADER, REQUEST_ID_HEADER};
 use common::errors::BrightStaffError;
@@ -9,11 +10,13 @@ use hermesllm::{ProviderRequest, ProviderRequestType};
 use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response, StatusCode};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, info, info_span, warn, Instrument};
 
 use super::extract_or_generate_traceparent;
 use crate::handlers::llm::model_selection::{router_chat_get_upstream_model, RoutingResult};
+use crate::handlers::llm::resolve_model_alias;
 use crate::handlers::llm::session_router;
 use crate::handlers::routing_budget_request;
 use crate::metrics as bs_metrics;
@@ -73,6 +76,7 @@ pub async fn routing_decision(
     prompt_caching: EffectivePromptCaching,
     routing_budget: Option<EffectiveRoutingBudget>,
     route_on_user_only: bool,
+    model_aliases: &Option<HashMap<String, ModelAlias>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     let request_headers = request.headers().clone();
     let request_id: String = request_headers
@@ -114,6 +118,7 @@ pub async fn routing_decision(
         prompt_caching,
         routing_budget,
         route_on_user_only,
+        model_aliases,
     )
     .instrument(request_span)
     .await
@@ -132,6 +137,7 @@ async fn routing_decision_inner(
     prompt_caching: EffectivePromptCaching,
     routing_budget: Option<EffectiveRoutingBudget>,
     route_on_user_only: bool,
+    model_aliases: &Option<HashMap<String, ModelAlias>>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     set_service_name(operation_component::ROUTING);
     let routing_budget =
@@ -222,7 +228,10 @@ async fn routing_decision_inner(
         cache_off_for_request,
     );
 
-    let requested_model = client_request.model().to_string();
+    // Resolve the alias before it is used as the session's model lane: the proxy path
+    // stores bindings under the resolved model, so an unresolved alias here would look
+    // like a different lane and refuse every replay.
+    let requested_model = resolve_model_alias(client_request.model(), model_aliases);
 
     let context_tokens: u64 = if session_id.is_some() && routing_budget.is_some() {
         session_router::actual_context_tokens(&request_messages, &requested_model)
@@ -508,5 +517,32 @@ mod tests {
         assert!(parsed["route"].is_null());
         assert!(parsed.get("session_id").is_none());
         assert_eq!(parsed["pinned"], false);
+    }
+
+    /// The lane a decision is stored under must be the resolved model, matching the
+    /// proxy path. An unresolved alias reads as a different lane, so every
+    /// `route_on_user_only` replay would be refused and each step would re-route.
+    #[test]
+    fn alias_is_resolved_before_becoming_the_session_lane() {
+        let aliases = Some(HashMap::from([(
+            "arch.codex.default".to_string(),
+            ModelAlias {
+                target: "openai/gpt-5.4".to_string(),
+            },
+        )]));
+
+        let body = br#"{"model":"arch.codex.default","messages":[{"role":"user","content":"hi"}]}"#;
+        let (cleaned, _) = extract_routing_policy(body).unwrap();
+        let client_request = ProviderRequestType::try_from((
+            &cleaned[..],
+            &SupportedAPIsFromClient::from_endpoint("/v1/chat/completions").unwrap(),
+        ))
+        .unwrap();
+
+        assert_eq!(client_request.model(), "arch.codex.default");
+        assert_eq!(
+            resolve_model_alias(client_request.model(), &aliases),
+            "openai/gpt-5.4"
+        );
     }
 }

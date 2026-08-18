@@ -163,7 +163,7 @@ Across client APIs that means:
 
 - OpenAI Chat: the last message is `role: "user"`
 - Anthropic: the last content is user text (a `tool_result`-only turn normalizes to `role: "tool"`)
-- Responses: the last item is not a `function_call_output`
+- Responses: the last item is not a `function_call_output` or `custom_tool_call_output` (Codex registers custom tools by default, so its steps use the latter)
 - Bedrock Converse: the last message carries user text, not only `toolResult` blocks
 
 A new user message always re-routes, including Anthropic packing new user text alongside a `tool_result`.
@@ -183,6 +183,8 @@ Skips are observable: the `plano.routing.skipped` span attribute and the `bright
 ## Model Affinity
 
 The user-turn check covers a single query. To keep a whole *conversation* on one model — across user turns — send an `X-Model-Affinity` header. Without it, Plano derives an implicit session key from the stable prompt prefix (system + tools + first user message), which is what makes replay work header-free.
+
+**Use one id per conversation, not one per client session.** A session key holds a single binding, so if side calls (a side chat, a summarizer, a subagent) share the main loop's id, whichever ran last owns the binding. The lane and prefix guards keep the side call from being pinned to the main loop's model, but the loop's own pin is evicted, and its next continuation re-routes. Give side calls their own id, or omit the header and let implicit affinity separate them by prompt prefix.
 
 ```json
 POST /v1/chat/completions

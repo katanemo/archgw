@@ -594,6 +594,7 @@ async fn dispatch(
                 state.prompt_caching,
                 state.routing_budget,
                 state.route_on_user_only,
+                &state.model_aliases,
             )
             .with_context(parent_cx)
             .await;

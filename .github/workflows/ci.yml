@@ -185,6 +185,8 @@ jobs:
             ${{ env.PLANO_DOCKER_IMAGE }}
             ${{ env.DOCKER_IMAGE }}:0.4.34
             ${{ env.DOCKER_IMAGE }}:latest
+          build-args: |
+            DEBIAN_SECURITY_ASOF=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -1,8 +1,21 @@
 use crate::apis::amazon_bedrock::{
-    ContentBlock, ConversationRole, Message as BedrockMessage, ToolResultContentBlock,
+    ContentBlock, ConversationRole, ImageSource, Message as BedrockMessage, ToolResultContentBlock,
 };
-use crate::apis::openai::{FunctionCall, Message, MessageContent, Role, ToolCall};
+use crate::apis::openai::{
+    ContentPart, FunctionCall, ImageUrl, Message, MessageContent, Role, ToolCall,
+};
 use crate::clients::TransformError;
+use crate::transforms::request::from_anthropic::build_openai_content;
+
+/// Render a Bedrock image source as the data URL an OpenAI image part carries. The
+/// inverse of `parse_data_url` on the to-Bedrock side, so images round-trip.
+fn image_source_to_url(source: &ImageSource) -> String {
+    match source {
+        ImageSource::Base64 { media_type, data } => {
+            format!("data:{};base64,{}", media_type, data)
+        }
+    }
+}
 
 /// Flatten Bedrock tool result content blocks into the single text payload that an
 /// OpenAI `tool` message carries.
@@ -28,13 +41,22 @@ impl TryFrom<BedrockMessage> for Vec<Message> {
             ConversationRole::Assistant => Role::Assistant,
         };
 
-        let mut text_parts = Vec::new();
+        let mut content_parts = Vec::new();
         let mut tool_calls = Vec::new();
         let mut tool_results = Vec::new();
 
         for block in message.content {
             match block {
-                ContentBlock::Text { text } => text_parts.push(text),
+                ContentBlock::Text { text } => content_parts.push(ContentPart::Text {
+                    text,
+                    cache_control: None,
+                }),
+                ContentBlock::Image { image } => content_parts.push(ContentPart::ImageUrl {
+                    image_url: ImageUrl {
+                        url: image_source_to_url(&image.source),
+                        detail: None,
+                    },
+                }),
                 ContentBlock::ToolUse { tool_use } => {
                     tool_calls.push(ToolCall {
                         id: tool_use.tool_use_id,
@@ -51,9 +73,9 @@ impl TryFrom<BedrockMessage> for Vec<Message> {
                         flatten_tool_result_content(&tool_result.content),
                     ));
                 }
-                ContentBlock::Image { .. }
-                | ContentBlock::Document { .. }
-                | ContentBlock::GuardContent { .. } => continue,
+                // Documents have no OpenAI content-part equivalent, and guard content is
+                // Bedrock-side policy metadata rather than conversation content.
+                ContentBlock::Document { .. } | ContentBlock::GuardContent { .. } => continue,
             }
         }
 
@@ -70,11 +92,12 @@ impl TryFrom<BedrockMessage> for Vec<Message> {
             })
             .collect();
 
-        let text = text_parts.join("\n");
-        if !text.is_empty() || !tool_calls.is_empty() || result.is_empty() {
+        // Normalized through the same helper Anthropic uses, so a single text block
+        // collapses to plain text and an image survives as a content part on both.
+        if !content_parts.is_empty() || !tool_calls.is_empty() || result.is_empty() {
             result.push(Message {
                 role,
-                content: Some(MessageContent::Text(text)),
+                content: build_openai_content(content_parts, &tool_calls),
                 name: None,
                 tool_calls: if tool_calls.is_empty() {
                     None
@@ -183,6 +206,77 @@ mod tests {
         assert_eq!(tool_calls[0].id, "call_1");
         assert_eq!(tool_calls[0].function.name, "get_weather");
         assert_eq!(tool_calls[0].function.arguments, r#"{"city":"Seattle"}"#);
+    }
+
+    /// An uncaptioned screenshot must survive as an image part, not collapse to empty
+    /// text — otherwise it reads as an empty user message and Bedrock behaves
+    /// differently from OpenAI and Anthropic at the routing gate.
+    #[test]
+    fn test_bedrock_image_only_message_keeps_image_part() {
+        use crate::apis::amazon_bedrock::ImageBlock;
+
+        let bedrock_message = BedrockMessage {
+            role: ConversationRole::User,
+            content: vec![ContentBlock::Image {
+                image: ImageBlock {
+                    source: ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "iVBORw0KGgo=".to_string(),
+                    },
+                },
+            }],
+        };
+
+        let messages: Vec<Message> = bedrock_message.try_into().unwrap();
+
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].role, Role::User);
+        match messages[0].content.as_ref().expect("content") {
+            MessageContent::Parts(parts) => match &parts[0] {
+                ContentPart::ImageUrl { image_url } => {
+                    assert_eq!(image_url.url, "data:image/png;base64,iVBORw0KGgo=");
+                }
+                other => panic!("expected an image part, got {other:?}"),
+            },
+            other => panic!("expected parts, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_bedrock_image_survives_a_round_trip_to_bedrock() {
+        use crate::apis::amazon_bedrock::ImageBlock;
+
+        let bedrock_message = BedrockMessage {
+            role: ConversationRole::User,
+            content: vec![
+                ContentBlock::Text {
+                    text: "what is this?".to_string(),
+                },
+                ContentBlock::Image {
+                    image: ImageBlock {
+                        source: ImageSource::Base64 {
+                            media_type: "image/png".to_string(),
+                            data: "iVBORw0KGgo=".to_string(),
+                        },
+                    },
+                },
+            ],
+        };
+
+        let messages: Vec<Message> = bedrock_message.try_into().unwrap();
+        let back = BedrockMessage::try_from(messages[0].clone()).unwrap();
+
+        assert_eq!(back.content.len(), 2);
+        assert!(matches!(back.content[0], ContentBlock::Text { .. }));
+        match &back.content[1] {
+            ContentBlock::Image { image } => match &image.source {
+                ImageSource::Base64 { media_type, data } => {
+                    assert_eq!(media_type, "image/png");
+                    assert_eq!(data, "iVBORw0KGgo=");
+                }
+            },
+            other => panic!("expected an image block, got {other:?}"),
+        }
     }
 
     #[test]

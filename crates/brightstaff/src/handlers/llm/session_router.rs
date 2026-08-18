@@ -1282,6 +1282,26 @@ mod tests {
         assert!(!is_user_turn(&msgs));
     }
 
+    /// Codex registers custom tools by default, so most of its continuations carry
+    /// `custom_tool_call_output` rather than `function_call_output`.
+    #[test]
+    fn responses_custom_tool_call_output_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/responses",
+            serde_json::json!({
+                "model": "gpt-5.3-codex",
+                "input": [
+                    {"role": "user", "content": "run the tests"},
+                    {"type": "custom_tool_call", "id": "ctc_1", "call_id": "call_1",
+                     "name": "shell", "input": "cargo test", "status": "completed"},
+                    {"type": "custom_tool_call_output", "call_id": "call_1",
+                     "output": "test result: ok"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
     #[test]
     fn plain_user_turn_routes_and_empty_history_does_not() {
         let msgs = messages_from(
@@ -1516,6 +1536,52 @@ mod tests {
         }
     }
 
+    /// Companion to the OpenAI and Anthropic attachment cases above: a Bedrock image
+    /// with no caption is a real user turn and must open a route.
+    #[test]
+    fn attachment_only_bedrock_user_tail_is_a_user_turn() {
+        use hermesllm::apis::amazon_bedrock::{
+            ContentBlock, ConversationRole, ConverseRequest, ImageBlock, ImageSource,
+            Message as BedrockMessage,
+        };
+
+        let request = ConverseRequest {
+            model_id: "anthropic.claude-3-sonnet".to_string(),
+            messages: Some(vec![
+                BedrockMessage {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::Text {
+                        text: "fix the bug".to_string(),
+                    }],
+                },
+                BedrockMessage {
+                    role: ConversationRole::Assistant,
+                    content: vec![ContentBlock::Text {
+                        text: "Fixed it.".to_string(),
+                    }],
+                },
+                BedrockMessage {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::Image {
+                        image: ImageBlock {
+                            source: ImageSource::Base64 {
+                                media_type: "image/png".to_string(),
+                                data: "iVBORw0KGgo=".to_string(),
+                            },
+                        },
+                    }],
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let msgs = ProviderRequestType::BedrockConverse(request).get_messages();
+        assert!(
+            is_user_turn(&msgs),
+            "bedrock pinned an attachment-only turn, normalized to {msgs:?}"
+        );
+    }
+
     /// Claude Code injects reminders and hook output as user-role text. On their own they
     /// are not a new utterance, so the loop stays pinned.
     #[test]
@@ -1643,6 +1709,42 @@ mod tests {
             .expect("an unrouted turn still anchors the loop");
         assert_eq!(reuse.model, CLIENT_MODEL);
         assert!(reuse.route_name.is_none());
+    }
+
+    /// Known limitation of a *shared explicit* `X-Model-Affinity` id: one session key
+    /// holds one binding, so a side call (side chat, summarizer, subagent) overwrites the
+    /// main loop's lane and prefix. The guards keep the side call from being pinned to the
+    /// wrong model, but the loop's pin is evicted rather than kept alongside it, and the
+    /// next continuation re-routes. Implicit affinity does not have this problem: the side
+    /// call's different prompt prefix derives its own key.
+    #[tokio::test]
+    async fn a_side_call_on_a_shared_affinity_id_evicts_the_loop_pin() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
+
+        // Side call: same affinity header, different model lane and prompt prefix.
+        route(
+            &orch,
+            None,
+            RouteFacts {
+                session_id: Some("s1"),
+                tenant_id: None,
+                prefix_hash: Some(2),
+                context_tokens: 1_000,
+                candidate_model: "google/cheap",
+                candidate_route: Some("summarize"),
+                requested_model: "anthropic/small-fast",
+            },
+        )
+        .await;
+
+        // The main loop's next continuation can no longer find its decision.
+        assert!(
+            reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+                .await
+                .is_none(),
+            "side call should have overwritten the loop binding"
+        );
     }
 
     /// Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` side calls ride the same prompt prefix

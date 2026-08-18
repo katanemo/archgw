@@ -13,6 +13,7 @@ use crate::apis::openai::{
     ChatCompletionsRequest, FunctionCall as OpenAIFunctionCall, Message, MessageContent, Role,
     Tool, ToolCall as OpenAIToolCall, ToolChoice, ToolChoiceType,
 };
+use log::warn;
 
 use crate::apis::openai_responses::{
     InputContent, InputItem, InputParam, MessageRole, Modality, NamespaceTool, ReasoningEffort,
@@ -259,11 +260,26 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                                 },
                             );
                         }
-                        InputItem::ItemReference { .. }
-                        | InputItem::Reasoning { .. }
-                        | InputItem::Ignored(_) => {
-                            // Item references, reasoning, and other typed items are not
-                            // representable in Chat Completions and are skipped.
+                        InputItem::ItemReference { .. } | InputItem::Reasoning { .. } => {
+                            // Item references and reasoning are not representable in Chat
+                            // Completions and are skipped.
+                        }
+                        InputItem::Ignored(value) => {
+                            // Unknown typed items are preserved on a Responses passthrough
+                            // but have no Chat Completions form, so they are dropped here.
+                            // A *known* tool-call type that landed in `Ignored` is malformed
+                            // (e.g. a `function_call` missing `arguments`); dropping it
+                            // silently leaves its `function_call_output` orphaned upstream,
+                            // so make that visible rather than corrupting the context quietly.
+                            let item_type = value.get("type").and_then(|t| t.as_str());
+                            if matches!(item_type, Some("function_call") | Some("custom_tool_call"))
+                            {
+                                warn!(
+                                    "dropping malformed {} input item; its tool result will \
+                                     have no matching call upstream",
+                                    item_type.unwrap_or("tool call")
+                                );
+                            }
                         }
                     }
                 }
@@ -1727,6 +1743,40 @@ mod tests {
                 .as_ref()
                 .map(|c| c.to_string()),
             Some("test result: ok".to_string())
+        );
+    }
+
+    /// A `function_call` missing `arguments` is malformed, so it degrades to a preserved
+    /// raw item rather than failing the parse. Chat Completions has no form for it, so it
+    /// is dropped — documenting that the paired output is left orphaned upstream. The
+    /// drop is logged (see the `InputItem::Ignored` arm) instead of being silent.
+    #[test]
+    fn test_responses_malformed_function_call_is_dropped_leaving_output_orphaned() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "pwd"},
+                // No `arguments` — does not match the typed shape.
+                {"type": "function_call", "call_id": "call_1", "name": "exec_command"},
+                {"type": "function_call_output", "call_id": "call_1", "output": "/tmp"}
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        // The user message and the tool output survive; the malformed call does not.
+        assert_eq!(converted.messages.len(), 2);
+        assert!(matches!(converted.messages[0].role, Role::User));
+        assert!(matches!(converted.messages[1].role, Role::Tool));
+        assert_eq!(
+            converted.messages[1].tool_call_id.as_deref(),
+            Some("call_1")
+        );
+        assert!(
+            converted.messages.iter().all(|m| m.tool_calls.is_none()),
+            "the malformed call must not be synthesized into a tool call"
         );
     }
 }

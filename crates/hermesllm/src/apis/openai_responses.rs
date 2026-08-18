@@ -239,9 +239,12 @@ enum TypedInputItem {
     Reasoning {
         #[serde(default)]
         id: Option<String>,
-        #[serde(default)]
+        // Absent arrays must not come back as `[]`: a reasoning item is opaque provider
+        // state that the Responses passthrough re-serializes verbatim, so adding keys the
+        // client never sent can invalidate it. Mirrors `OutputItem::Reasoning`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         summary: Vec<serde_json::Value>,
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         content: Vec<serde_json::Value>,
         #[serde(default)]
         encrypted_content: Option<String>,
@@ -1983,6 +1986,43 @@ mod tests {
             InputItem::Reasoning { id, .. } => assert_eq!(id.as_deref(), Some("rs_1")),
             other => panic!("expected Reasoning, got {:?}", other),
         }
+    }
+
+    /// A reasoning item is opaque provider state that the Responses passthrough
+    /// re-serializes verbatim, so absent `summary` / `content` must stay absent rather
+    /// than reappear as `[]`.
+    #[test]
+    fn test_input_item_reasoning_does_not_invent_absent_arrays() {
+        for original in [
+            serde_json::json!({"type": "reasoning", "id": "rs_min"}),
+            serde_json::json!({
+                "type": "reasoning",
+                "id": "rs_1",
+                "encrypted_content": "XYZ",
+                "status": "completed"
+            }),
+            // Present-but-empty arrays are dropped too; the client sent no information
+            // by including them, and the passthrough should not re-assert it.
+            serde_json::json!({"type": "reasoning", "id": "rs_2", "summary": []}),
+        ] {
+            let item: InputItem = serde_json::from_value(original.clone()).expect("should parse");
+            let reserialized = serde_json::to_value(&item).expect("should serialize");
+            for key in ["summary", "content"] {
+                assert!(
+                    reserialized.get(key).is_none(),
+                    "{key} must not be emitted for {original}, got: {reserialized}"
+                );
+            }
+        }
+
+        // A populated array still round-trips.
+        let populated = serde_json::json!({
+            "type": "reasoning",
+            "id": "rs_3",
+            "summary": [{"type": "summary_text", "text": "thinking"}]
+        });
+        let item: InputItem = serde_json::from_value(populated.clone()).expect("should parse");
+        assert_eq!(serde_json::to_value(&item).unwrap(), populated);
     }
 
     #[test]

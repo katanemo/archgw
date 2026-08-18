@@ -40,4 +40,7 @@ pub struct AppState {
     /// Per-session model-switch cost gate, resolved from `routing.routing_budget`.
     /// Independent of prompt caching; `None` when not configured (off by default).
     pub routing_budget: Option<EffectiveRoutingBudget>,
+    /// When true, the quality router runs only on a trailing user message.
+    /// Resolved from `routing.route_on_user_only`. Off by default.
+    pub route_on_user_only: bool,
 }

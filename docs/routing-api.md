@@ -124,9 +124,67 @@ routing_preferences:
 
 ---
 
+## Per-request routing (default)
+
+Applies when `route_on_user_only` is `false` (the default). Every request is routed independently, including loop continuations. A single user turn may therefore be served by multiple models. For example, a lightweight model handling routine tool-orchestration iterations while a stronger model is selected for a complex reasoning step or the final synthesis.
+
+### When to use
+
+Use per-request routing for:
+
+- **Best model per step.** Each step in a turn is served by the model best matched to its difficulty or specialty.
+- **Cost efficiency.** Simple steps go to smaller models; only hard steps use expensive ones.
+- **Escalation on failure.** A struggling model can be swapped out for the remainder of the turn.
+- **Capacity flexibility.** Each request can be placed wherever capacity exists, with no pinning constraint.
+
+## Turn-level routing
+
+Applies when `route_on_user_only` is `true`. The router selects a model once per user turn and pins the remainder of the agentic loop to it.
+
+```yaml
+routing:
+  route_on_user_only: true
+```
+
+### When to use
+
+Use turn-level routing for:
+
+- **Plan consistency.** One model carries its own reasoning and plan through the entire loop.
+- **Cache locality.** Loop iterations reuse the shared prompt prefix cache; no switch-induced misses.
+- **No state translation.** Avoids stripping or converting model-specific artifacts (e.g., signed thinking blocks).
+- **Simpler parameter handling.** Engine-native parameters are resolved once per turn, not re-mapped per request.
+
+### When routing occurs
+
+A routing decision is made when the incoming request represents the **start of a new user turn**: the last normalized message has `role: "user"` and still carries text once harness-injected envelopes are removed. That is genuine user text, not a tool result being fed back into an in-flight loop.
+
+Across client APIs that means:
+
+- OpenAI Chat: the last message is `role: "user"`
+- Anthropic: the last content is user text (a `tool_result`-only turn normalizes to `role: "tool"`)
+- Responses: the last item is not a `function_call_output` or `custom_tool_call_output` (Codex registers custom tools by default, so its steps use the latter)
+- Bedrock Converse: the last message carries user text, not only `toolResult` blocks
+
+A new user message always re-routes, including Anthropic packing new user text alongside a `tool_result`.
+
+An empty user message, or one containing only Claude Code's `<system-reminder>` / `<user-prompt-submit-hook>` envelopes, is harness output rather than an utterance, so the loop stays pinned. An attachment with no caption (a pasted image) is user input and does route.
+
+**Known limitation.** Agent frameworks that feed tool output back as plain user prose — ReAct's `Observation: ...`, for example — are indistinguishable from a real user message on the wire, so each step re-routes. Send tool output as `role: "tool"` (or Anthropic `tool_result` / Responses `function_call_output`) to get turn-level pinning.
+
+### When routing is skipped (sticky)
+
+Routing is skipped and the previously selected model is reused when the request is a **continuation of an in-flight agentic loop** — the last normalized message is not a user turn (tool results, assistant steps, unresolved `tool_use`, or an empty / envelope-only user message). The request is pinned to the model recorded for the current turn.
+
+A step still re-routes when that prior decision can no longer be identified — the session went cold, the system prompt or tool set changed, or the request is on a different model (Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` calls route independently of the main loop).
+
+Skips are observable: the `plano.routing.skipped` span attribute and the `brightstaff_router_skips_total` counter.
+
 ## Model Affinity
 
-In agentic loops where the same session makes multiple LLM calls, send an `X-Model-Affinity` header to pin the routing decision. The first request routes normally and caches the result. All subsequent requests with the same affinity ID return the cached model without re-running routing.
+The user-turn check covers a single query. To keep a whole *conversation* on one model — across user turns — send an `X-Model-Affinity` header. Without it, Plano derives an implicit session key from the stable prompt prefix (system + tools + first user message), which is what makes replay work header-free.
+
+**Use one id per conversation, not one per client session.** A session key holds a single binding, so if side calls (a side chat, a summarizer, a subagent) share the main loop's id, whichever ran last owns the binding. The lane and prefix guards keep the side call from being pinned to the main loop's model, but the loop's own pin is evicted, and its next continuation re-routes. Give side calls their own id, or omit the header and let implicit affinity separate them by prompt prefix.
 
 ```json
 POST /v1/chat/completions
@@ -158,7 +216,9 @@ Response when pinned:
 }
 ```
 
-Without the header, routing runs fresh every time (no breaking change).
+`pinned` reports that the session was warm on its bound model, so callers can treat it as a signal to keep that provider's cache warm.
+
+The decision endpoint applies the same loop handling as the proxy, so a client polling it between tool calls gets a stable answer for the whole turn.
 
 Configure TTL and cache size:
 

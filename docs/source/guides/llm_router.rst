@@ -573,6 +573,29 @@ For the canonical Plano Kubernetes deployment (ConfigMap, Secrets, Deployment YA
 `demo README <https://github.com/katanemo/plano/tree/main/demos/llm_routing/model_routing_service/README.md>`_.
 
 
+.. _route_on_user_only:
+
+Route on user turn only
+-----------------------
+
+When disabled (default), every LLM request is routed independently. When enabled, the router selects a model only at the start of a new user turn, and all subsequent requests within the same agentic loop are pinned to that model.
+
+.. code-block:: yaml
+
+    routing:
+      route_on_user_only: true
+
+Default: ``false``.
+
+A turn starts when the last message is from the user and still has text after Claude Code's
+``<system-reminder>`` and ``<user-prompt-submit-hook>`` envelopes are stripped, or carries an
+attachment such as an image. Empty or envelope-only user messages keep the loop pinned.
+
+Tool output must be sent as a tool message (OpenAI ``role: "tool"``, Anthropic ``tool_result``,
+Responses ``function_call_output``, or Bedrock ``toolResult``). Frameworks that feed results back
+as plain user prose, such as ReAct's ``Observation: ...``, look like real user turns on the wire
+and re-route on every step.
+
 .. _model_affinity:
 
 Model Affinity

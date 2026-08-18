@@ -120,33 +120,286 @@ pub enum InputParam {
     SingleItem(InputItem),
 }
 
-/// Input item - can be a message, item reference, function call output, etc.
+/// Input item. Typed items are dispatched on the `type` discriminator so a
+/// coincidental `id` field cannot steal `function_call` / `function_call_output`
+/// into [`InputItem::ItemReference`]. Easy-input messages (`{role, content}`
+/// with no `type`) fall through to [`InputItem::Message`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(from = "InputItemWire", into = "InputItemWire")]
 pub enum InputItem {
-    /// Input message (role + content)
+    /// Input message (role + content). Covers both easy-input (no `type`) and
+    /// `{ "type": "message", ... }`.
     Message(InputMessage),
-    /// Item reference
-    ItemReference {
-        #[serde(rename = "type")]
-        item_type: String,
-        id: String,
-    },
-    /// Function call emitted by model in prior turn
+    /// Item reference (`type: item_reference`)
+    ItemReference { id: String },
+    /// Function call emitted by the model in a prior turn
     FunctionCall {
-        #[serde(rename = "type")]
-        item_type: String,
         name: String,
         arguments: String,
         call_id: String,
+        id: Option<String>,
+        status: Option<String>,
     },
     /// Function call output
     FunctionCallOutput {
-        #[serde(rename = "type")]
-        item_type: String,
         call_id: String,
         output: serde_json::Value,
+        id: Option<String>,
+        status: Option<String>,
     },
+    /// Custom tool call emitted by the model in a prior turn. Unlike a function call
+    /// the payload is free-form text rather than JSON arguments. Codex registers custom
+    /// tools by default, so its continuations carry these instead of `function_call`.
+    CustomToolCall {
+        name: String,
+        input: String,
+        call_id: String,
+        id: Option<String>,
+        status: Option<String>,
+    },
+    /// Custom tool call output, paired to its call by `call_id`.
+    CustomToolCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        id: Option<String>,
+        status: Option<String>,
+    },
+    /// Reasoning item from a prior turn. Not converted to Chat Completions.
+    Reasoning {
+        id: Option<String>,
+        summary: Vec<serde_json::Value>,
+        content: Vec<serde_json::Value>,
+        encrypted_content: Option<String>,
+        status: Option<String>,
+    },
+    /// Any other typed item (`computer_call`, `local_shell_call`, …). The original
+    /// JSON is kept so Responses→Responses round-trips don't drop it.
+    Ignored(serde_json::Value),
+}
+
+/// Wire form: try internally-tagged known types first, then untyped messages,
+/// then preserve unknown typed items as raw JSON.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum InputItemWire {
+    Typed(TypedInputItem),
+    Message(InputMessage),
+    Ignored(serde_json::Value),
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum TypedInputItem {
+    Message {
+        role: MessageRole,
+        content: MessageContent,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    FunctionCall {
+        name: String,
+        arguments: String,
+        call_id: String,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    FunctionCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    CustomToolCall {
+        name: String,
+        input: String,
+        call_id: String,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    CustomToolCallOutput {
+        call_id: String,
+        output: serde_json::Value,
+        #[serde(default)]
+        id: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+    ItemReference {
+        id: String,
+    },
+    Reasoning {
+        #[serde(default)]
+        id: Option<String>,
+        // Absent arrays must not come back as `[]`: a reasoning item is opaque provider
+        // state that the Responses passthrough re-serializes verbatim, so adding keys the
+        // client never sent can invalidate it. Mirrors `OutputItem::Reasoning`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        summary: Vec<serde_json::Value>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        content: Vec<serde_json::Value>,
+        #[serde(default)]
+        encrypted_content: Option<String>,
+        #[serde(default)]
+        status: Option<String>,
+    },
+}
+
+impl From<InputItemWire> for InputItem {
+    fn from(wire: InputItemWire) -> Self {
+        match wire {
+            InputItemWire::Message(message) => InputItem::Message(message),
+            InputItemWire::Ignored(value) => InputItem::Ignored(value),
+            InputItemWire::Typed(TypedInputItem::Message { role, content, .. }) => {
+                InputItem::Message(InputMessage { role, content })
+            }
+            InputItemWire::Typed(TypedInputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            }) => InputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }) => InputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            }) => InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }) => InputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            },
+            InputItemWire::Typed(TypedInputItem::ItemReference { id }) => {
+                InputItem::ItemReference { id }
+            }
+            InputItemWire::Typed(TypedInputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            }) => InputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            },
+        }
+    }
+}
+
+impl From<InputItem> for InputItemWire {
+    fn from(item: InputItem) -> Self {
+        match item {
+            InputItem::Message(message) => InputItemWire::Message(message),
+            InputItem::Ignored(value) => InputItemWire::Ignored(value),
+            InputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::FunctionCall {
+                name,
+                arguments,
+                call_id,
+                id,
+                status,
+            }),
+            InputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::FunctionCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }),
+            InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                status,
+            }),
+            InputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::CustomToolCallOutput {
+                call_id,
+                output,
+                id,
+                status,
+            }),
+            InputItem::ItemReference { id } => {
+                InputItemWire::Typed(TypedInputItem::ItemReference { id })
+            }
+            InputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            } => InputItemWire::Typed(TypedInputItem::Reasoning {
+                id,
+                summary,
+                content,
+                encrypted_content,
+                status,
+            }),
+        }
+    }
 }
 
 /// Input message with role and content
@@ -285,6 +538,11 @@ pub struct ConversationParam {
 }
 
 /// Tool definitions
+///
+/// Absent optionals must be omitted rather than emitted as `null`: the Responses
+/// upstream path re-serializes the parsed request, and providers reject a null for a
+/// parameter they do not define (e.g. `web_search` has no `domains`).
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Tool {
@@ -318,6 +576,38 @@ pub enum Tool {
         display_number: Option<i32>,
     },
     /// Custom tool (provider/SDK-specific tool contract)
+    Custom {
+        name: Option<String>,
+        description: Option<String>,
+        format: Option<serde_json::Value>,
+    },
+    /// Group of related tools addressed under a shared name, e.g. `crm` or `billing`.
+    /// Codex sends one of these per tool namespace, so it is on the default path for
+    /// every Codex session rather than an opt-in feature.
+    Namespace {
+        name: String,
+        description: String,
+        tools: Vec<NamespaceTool>,
+    },
+}
+
+/// Member of a [`Tool::Namespace`]. The spec restricts group members to function and
+/// custom tools — nested namespaces and hosted tools are not permitted — so this is a
+/// separate enum rather than a recursive `Tool`, which would accept both.
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NamespaceTool {
+    Function {
+        name: String,
+        description: Option<String>,
+        parameters: Option<serde_json::Value>,
+        strict: Option<bool>,
+        /// Withholds the schema until the model selects the namespace. Preserved because
+        /// dropping it would silently pull deferred tools into the initial prompt.
+        defer_loading: Option<bool>,
+        output_schema: Option<serde_json::Value>,
+    },
     Custom {
         name: Option<String>,
         description: Option<String>,
@@ -1455,6 +1745,139 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    /// Codex sends namespaced tool groups on every session, so rejecting this shape
+    /// blocks the client outright rather than degrading one feature.
+    #[test]
+    fn test_namespace_tool_deserializes_with_function_and_custom_members() {
+        let json = r#"{
+            "type": "namespace",
+            "name": "crm",
+            "description": "CRM tools for customer lookup.",
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "get_customer_profile",
+                    "description": "Fetch a customer profile by ID.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": { "customer_id": { "type": "string" } },
+                        "required": ["customer_id"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "list_open_orders",
+                    "defer_loading": true,
+                    "parameters": { "type": "object", "properties": {} }
+                },
+                {
+                    "type": "custom",
+                    "name": "apply_patch",
+                    "description": "Apply a patch."
+                }
+            ]
+        }"#;
+
+        let tool: Tool = serde_json::from_str(json).expect("namespace tool should deserialize");
+        match tool {
+            Tool::Namespace {
+                name,
+                description,
+                tools,
+            } => {
+                assert_eq!(name, "crm");
+                assert_eq!(description, "CRM tools for customer lookup.");
+                assert_eq!(tools.len(), 3);
+                match &tools[1] {
+                    NamespaceTool::Function {
+                        name,
+                        defer_loading,
+                        ..
+                    } => {
+                        assert_eq!(name, "list_open_orders");
+                        assert_eq!(*defer_loading, Some(true));
+                    }
+                    other => panic!("expected deferred function member, got {other:?}"),
+                }
+                assert!(matches!(tools[2], NamespaceTool::Custom { .. }));
+            }
+            other => panic!("expected namespace tool, got {other:?}"),
+        }
+    }
+
+    /// Responses-to-Responses is a passthrough that re-serializes the parsed request,
+    /// so anything dropped here is silently dropped on the wire to the provider.
+    #[test]
+    fn test_namespace_tool_round_trips_without_losing_fields() {
+        let original = json!({
+            "type": "namespace",
+            "name": "crm",
+            "description": "CRM tools.",
+            "tools": [{
+                "type": "function",
+                "name": "list_open_orders",
+                "description": "List open orders.",
+                "parameters": { "type": "object", "properties": {} },
+                "strict": true,
+                "defer_loading": true,
+                "output_schema": { "type": "object" }
+            }]
+        });
+
+        let tool: Tool = serde_json::from_value(original.clone()).expect("should deserialize");
+        let reserialized = serde_json::to_value(&tool).expect("should serialize");
+        assert_eq!(reserialized, original);
+    }
+
+    /// Guards the actual passthrough path: parse a client body, then serialize it the
+    /// way the upstream request is built.
+    #[test]
+    fn test_web_search_tool_survives_full_request_round_trip_without_extra_keys() {
+        let body = br#"{"model":"gpt-5.3-codex","input":"hi","tools":[{"type":"web_search"}]}"#;
+        let request = ResponsesAPIRequest::try_from(&body[..]).expect("should parse");
+        let bytes = request.to_bytes().expect("should serialize");
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("valid json");
+        let tool = &value["tools"][0];
+        assert_eq!(tool["type"], "web_search");
+        assert!(
+            tool.get("domains").is_none(),
+            "web_search must not carry a `domains` key upstream, got: {tool}"
+        );
+    }
+
+    /// Providers reject an explicit null for a parameter they do not define, so absent
+    /// optionals must not survive the parse/re-serialize round trip on the passthrough.
+    #[test]
+    fn test_tool_omits_absent_optionals_instead_of_emitting_null() {
+        let tool: Tool = serde_json::from_str(r#"{"type":"web_search"}"#).expect("should parse");
+        let reserialized = serde_json::to_value(&tool).expect("should serialize");
+        assert_eq!(reserialized, json!({ "type": "web_search" }));
+
+        let function: Tool =
+            serde_json::from_str(r#"{"type":"function","name":"noop"}"#).expect("should parse");
+        let reserialized = serde_json::to_value(&function).expect("should serialize");
+        assert_eq!(reserialized, json!({ "type": "function", "name": "noop" }));
+    }
+
+    /// Strict translation: the group may only contain function and custom tools, so a
+    /// nested namespace has to be rejected rather than quietly dropped.
+    #[test]
+    fn test_namespace_tool_rejects_nested_namespace_member() {
+        let json = r#"{
+            "type": "namespace",
+            "name": "outer",
+            "description": "Outer group.",
+            "tools": [{
+                "type": "namespace",
+                "name": "inner",
+                "description": "Inner group.",
+                "tools": []
+            }]
+        }"#;
+
+        assert!(serde_json::from_str::<Tool>(json).is_err());
+    }
+
     /// Task C guard: a reasoning output item deserializes WITHOUT a `summary`
     /// field (now `#[serde(default)]`) and WITH optional `content`,
     /// `encrypted_content`, and `status` fields.
@@ -1505,6 +1928,188 @@ mod tests {
             }
             _ => panic!("Expected OutputItem::Reasoning"),
         }
+    }
+
+    /// `type` is authoritative: a function_call that also carries `id` must not
+    /// be swallowed by ItemReference (the old untagged `{type, id}` variant).
+    #[test]
+    fn test_input_item_function_call_with_id_is_not_item_reference() {
+        let json = r#"{
+            "type": "function_call",
+            "id": "fc_1",
+            "call_id": "call_1",
+            "name": "exec_command",
+            "arguments": "{\"cmd\":\"pwd\"}",
+            "status": "completed"
+        }"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::FunctionCall {
+                name,
+                call_id,
+                id,
+                status,
+                ..
+            } => {
+                assert_eq!(name, "exec_command");
+                assert_eq!(call_id, "call_1");
+                assert_eq!(id.as_deref(), Some("fc_1"));
+                assert_eq!(status.as_deref(), Some("completed"));
+            }
+            other => panic!("expected FunctionCall, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_input_item_function_call_output_with_id_is_not_item_reference() {
+        let json = r#"{
+            "type": "function_call_output",
+            "id": "fc_out_1",
+            "call_id": "call_1",
+            "output": "ok"
+        }"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::FunctionCallOutput { call_id, id, .. } => {
+                assert_eq!(call_id, "call_1");
+                assert_eq!(id.as_deref(), Some("fc_out_1"));
+            }
+            other => panic!("expected FunctionCallOutput, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_input_item_reasoning_deserializes() {
+        let json = r#"{"type":"reasoning","id":"rs_1","summary":[]}"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        match item {
+            InputItem::Reasoning { id, .. } => assert_eq!(id.as_deref(), Some("rs_1")),
+            other => panic!("expected Reasoning, got {:?}", other),
+        }
+    }
+
+    /// A reasoning item is opaque provider state that the Responses passthrough
+    /// re-serializes verbatim, so absent `summary` / `content` must stay absent rather
+    /// than reappear as `[]`.
+    #[test]
+    fn test_input_item_reasoning_does_not_invent_absent_arrays() {
+        for original in [
+            serde_json::json!({"type": "reasoning", "id": "rs_min"}),
+            serde_json::json!({
+                "type": "reasoning",
+                "id": "rs_1",
+                "encrypted_content": "XYZ",
+                "status": "completed"
+            }),
+            // Present-but-empty arrays are dropped too; the client sent no information
+            // by including them, and the passthrough should not re-assert it.
+            serde_json::json!({"type": "reasoning", "id": "rs_2", "summary": []}),
+        ] {
+            let item: InputItem = serde_json::from_value(original.clone()).expect("should parse");
+            let reserialized = serde_json::to_value(&item).expect("should serialize");
+            for key in ["summary", "content"] {
+                assert!(
+                    reserialized.get(key).is_none(),
+                    "{key} must not be emitted for {original}, got: {reserialized}"
+                );
+            }
+        }
+
+        // A populated array still round-trips.
+        let populated = serde_json::json!({
+            "type": "reasoning",
+            "id": "rs_3",
+            "summary": [{"type": "summary_text", "text": "thinking"}]
+        });
+        let item: InputItem = serde_json::from_value(populated.clone()).expect("should parse");
+        assert_eq!(serde_json::to_value(&item).unwrap(), populated);
+    }
+
+    #[test]
+    fn test_input_item_unknown_type_is_preserved() {
+        let json = serde_json::json!({
+            "type": "computer_call",
+            "id": "cc_1",
+            "call_id": "call_9",
+            "action": {"type": "screenshot"}
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::Ignored(value) => assert_eq!(value["type"], "computer_call"),
+            other => panic!("expected Ignored, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    /// Codex's default tool contract. These must be typed, not `Ignored`, or a
+    /// custom-tool continuation normalizes to a trailing user message.
+    #[test]
+    fn test_input_item_custom_tool_call_round_trips() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call",
+            "id": "ctc_1",
+            "call_id": "call_9",
+            "name": "shell",
+            "input": "cat main.rs"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::CustomToolCall {
+                name,
+                input,
+                call_id,
+                id,
+                ..
+            } => {
+                assert_eq!(name, "shell");
+                assert_eq!(input, "cat main.rs");
+                assert_eq!(call_id, "call_9");
+                assert_eq!(id.as_deref(), Some("ctc_1"));
+            }
+            other => panic!("expected CustomToolCall, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    #[test]
+    fn test_input_item_custom_tool_call_output_round_trips() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call_output",
+            "call_id": "call_9",
+            "output": "fn main() {}"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        match &item {
+            InputItem::CustomToolCallOutput {
+                call_id, output, ..
+            } => {
+                assert_eq!(call_id, "call_9");
+                assert_eq!(output, "fn main() {}");
+            }
+            other => panic!("expected CustomToolCallOutput, got {:?}", other),
+        }
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    /// A malformed custom tool call (no `input`) must not be silently reshaped; it
+    /// degrades to a preserved raw item instead.
+    #[test]
+    fn test_input_item_custom_tool_call_without_input_is_preserved() {
+        let json = serde_json::json!({
+            "type": "custom_tool_call",
+            "call_id": "call_9",
+            "name": "shell"
+        });
+        let item: InputItem = serde_json::from_value(json.clone()).expect("should parse");
+        assert!(matches!(item, InputItem::Ignored(_)));
+        assert_eq!(serde_json::to_value(&item).unwrap(), json);
+    }
+
+    #[test]
+    fn test_input_item_easy_message_without_type() {
+        let json = r#"{"role":"user","content":"hello"}"#;
+        let item: InputItem = serde_json::from_str(json).expect("should parse");
+        assert!(matches!(item, InputItem::Message(_)));
     }
 
     /// Task C guard: output text delta/done deserialize with `logprobs` omitted

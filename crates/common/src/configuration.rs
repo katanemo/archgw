@@ -38,6 +38,10 @@ pub struct Routing {
     /// derived on its own, and warm anchors are always priced at cached rates —
     /// `prompt_caching` only controls marker injection and affinity-without-budget.
     pub routing_budget: Option<RoutingBudget>,
+    /// When true, the quality router runs only on a trailing user message.
+    /// Non-user turns replay the prior decision. Default false.
+    #[serde(default)]
+    pub route_on_user_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -932,7 +936,8 @@ mod test {
 
     use super::{
         EffectivePromptCaching, EffectiveRoutingBudget, IntoModels, LlmProvider, LlmProviderType,
-        PromptCaching, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT, DEFAULT_MIN_PREFIX_TOKENS,
+        PromptCaching, Routing, RoutingBudget, DEFAULT_CACHE_READ_DISCOUNT,
+        DEFAULT_MIN_PREFIX_TOKENS,
     };
     use crate::api::open_ai::ToolType;
 
@@ -1328,6 +1333,24 @@ cache_read_discount: 0.25
     fn test_routing_budget_absent_is_off() {
         // No block configured → gate is off.
         assert!(EffectiveRoutingBudget::from_config(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_route_on_user_only_absent_is_off() {
+        let routing: Routing = serde_yaml::from_str("model: gpt-4o").unwrap();
+        assert!(!routing.route_on_user_only);
+    }
+
+    #[test]
+    fn test_route_on_user_only_true_enables() {
+        let routing: Routing = serde_yaml::from_str("route_on_user_only: true").unwrap();
+        assert!(routing.route_on_user_only);
+    }
+
+    #[test]
+    fn test_route_on_user_only_false_is_off() {
+        let routing: Routing = serde_yaml::from_str("route_on_user_only: false").unwrap();
+        assert!(!routing.route_on_user_only);
     }
 
     #[test]

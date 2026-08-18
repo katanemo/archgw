@@ -27,7 +27,8 @@
 use std::time::{Duration, SystemTime};
 
 use common::configuration::EffectiveRoutingBudget;
-use hermesllm::apis::openai::Message;
+use hermesllm::apis::openai::{ContentPart, Message, MessageContent, Role};
+use hermesllm::transforms::lib::ExtractText;
 use hermesllm::{provider_cache_capability, ProviderCacheCapability, ProviderId};
 use opentelemetry::trace::get_active_span;
 use opentelemetry::KeyValue;
@@ -88,6 +89,132 @@ pub fn resolve_session(
     }
 }
 
+/// Envelopes Claude Code injects as user-role text next to tool results. They are
+/// written by the harness, not spoken by the user, so a tail made up only of these
+/// does not open a new turn.
+const INJECTED_USER_ENVELOPES: [(&str, &str); 2] = [
+    ("<system-reminder>", "</system-reminder>"),
+    ("<user-prompt-submit-hook>", "</user-prompt-submit-hook>"),
+];
+
+/// Remove every [`INJECTED_USER_ENVELOPES`] span, leaving whatever the user actually typed.
+/// An unterminated opening tag swallows the rest of the text — a truncated envelope is
+/// still harness output.
+fn strip_injected_envelopes(text: &str) -> String {
+    let mut remaining = text.to_string();
+
+    for (open, close) in INJECTED_USER_ENVELOPES {
+        while let Some(start) = remaining.find(open) {
+            let body_start = start + open.len();
+            let end = match remaining[body_start..].find(close) {
+                Some(offset) => body_start + offset + close.len(),
+                None => remaining.len(),
+            };
+            remaining.replace_range(start..end, "");
+        }
+    }
+
+    remaining
+}
+
+/// Whether the message carries user-supplied content that is not text — an image today.
+/// A pasted screenshot with no caption is still the user speaking, so it opens a turn
+/// even though there is no text to check.
+fn has_non_text_content(content: &Option<MessageContent>) -> bool {
+    matches!(content, Some(MessageContent::Parts(parts))
+        if parts.iter().any(|part| !matches!(part, ContentPart::Text { .. })))
+}
+
+/// Whether this request is a fresh user turn and should go through the quality router.
+///
+/// Only the tail is examined. A trailing [`Role::User`] is a new utterance when it
+/// carries an attachment, or text that survives stripping the harness envelopes —
+/// including Anthropic packing new user text alongside `tool_result` blocks, which
+/// normalizes to a trailing user message. Anything else (tool results, assistant
+/// output, an empty or reminder-only user tail, empty history) is not a user turn;
+/// routing is skipped and the prior decision is replayed when a warm binding exists.
+pub fn is_user_turn(messages: &[Message]) -> bool {
+    let Some(last) = messages.last() else {
+        return false;
+    };
+    if last.role != Role::User {
+        return false;
+    }
+    if has_non_text_content(&last.content) {
+        return true;
+    }
+
+    !strip_injected_envelopes(&last.content.extract_text())
+        .trim()
+        .is_empty()
+}
+
+/// Whether this request should skip the quality router and replay the prior decision.
+/// Off unless `routing.route_on_user_only` is enabled, and only then for non-user tails.
+pub fn should_reuse_prior_decision(enabled: bool, messages: &[Message]) -> bool {
+    enabled && !is_user_turn(messages)
+}
+
+/// A routing decision carried over from an earlier request in the same session.
+pub struct LoopReuse {
+    /// The model this session is already running on.
+    pub model: String,
+    /// The route that picked it, replayed so telemetry stays attributed to it.
+    pub route_name: Option<String>,
+}
+
+/// The decision to reuse when this is not a user turn, or `None` when the request must
+/// go through the quality router.
+///
+/// Reuse is deliberately conservative; anything unexpected falls through to a normal
+/// route rather than risk pinning a request to the wrong model:
+///
+/// * no session key (nothing to reuse from, e.g. `X-Plano-Cache: off`),
+/// * no binding, or one whose cache went cold or whose prompt prefix drifted,
+/// * a different model lane than the one that wrote the binding (see
+///   [`SessionBinding::requested_model`]).
+pub async fn reuse_prior_decision(
+    orchestrator: &OrchestratorService,
+    session_id: Option<&str>,
+    tenant_id: Option<&str>,
+    prefix_hash: Option<u64>,
+    requested_model: &str,
+) -> Option<LoopReuse> {
+    let session_id = session_id?;
+    let binding = orchestrator.peek_binding(session_id, tenant_id).await?;
+
+    if binding.requested_model != requested_model {
+        debug!(
+            binding_lane = %binding.requested_model,
+            request_lane = %requested_model,
+            "prior-decision reuse declined — request is on a different model lane"
+        );
+        return None;
+    }
+
+    let (warm, _) = warmth(
+        &binding,
+        &capability_for_model(&binding.anchor_model),
+        SystemTime::now(),
+    );
+    let drifted = matches!(
+        (binding.prefix_hash, prefix_hash),
+        (Some(stored), Some(current)) if stored != current
+    );
+    if !warm || drifted {
+        debug!(
+            warm,
+            drifted, "prior-decision reuse declined — session is no longer warm on this prefix"
+        );
+        return None;
+    }
+
+    Some(LoopReuse {
+        model: binding.anchor_model,
+        route_name: binding.route_name,
+    })
+}
+
 /// Extra memory retention beyond the warmth window, so a still-warm binding is never
 /// GC'd out from under the router before it could plausibly go cold.
 const GC_SLACK: Duration = Duration::from_secs(60);
@@ -109,6 +236,10 @@ pub struct RouteFacts<'a> {
     /// The model the quality router picked for this request.
     pub candidate_model: &'a str,
     pub candidate_route: Option<&'a str>,
+    /// The model the client asked for, after alias resolution and before routing had a
+    /// say. Persisted as the binding's lane so a later non-user turn on a
+    /// different lane doesn't inherit this decision.
+    pub requested_model: &'a str,
 }
 
 /// The routing decision plus the session state to carry into the response side.
@@ -119,6 +250,9 @@ pub struct RouteDecision {
     /// The session's never-switch model for this episode — carried to the response side
     /// so the usage-refresh preserves it on the binding.
     pub default_model: String,
+    /// The binding's model lane — carried to the response side so the usage-refresh
+    /// preserves it (see [`SessionBinding::requested_model`]).
+    pub requested_model: String,
     /// Whether the session's cache was inferred warm at decision time.
     pub warm: bool,
     /// Whether a model switch was allowed this turn — mirrors `plano.switch.decision=allowed`
@@ -214,6 +348,7 @@ pub async fn route(
             model: facts.candidate_model.to_string(),
             route_name: facts.candidate_route.map(str::to_string),
             default_model: facts.candidate_model.to_string(),
+            requested_model: facts.requested_model.to_string(),
             warm: false,
             switched: false,
             baseline_usd: 0.0,
@@ -527,6 +662,7 @@ pub async fn route(
             SessionBinding {
                 anchor_model: model.clone(),
                 default_model: default_model.clone(),
+                requested_model: facts.requested_model.to_string(),
                 route_name: route_name.clone(),
                 prefix_hash: facts.prefix_hash,
                 last_used: now,
@@ -545,6 +681,7 @@ pub async fn route(
         model,
         route_name,
         default_model,
+        requested_model: facts.requested_model.to_string(),
         warm: effective_warm,
         switched,
         baseline_usd,
@@ -570,10 +707,14 @@ mod tests {
         }
     }
 
+    /// The model lane test requests run on — what the client asked for, before routing.
+    const CLIENT_MODEL: &str = "anthropic/claude-sonnet-4-5";
+
     fn binding_used_ago(secs: u64) -> SessionBinding {
         SessionBinding {
             anchor_model: "anthropic/claude-sonnet-4-5".to_string(),
             default_model: "anthropic/claude-sonnet-4-5".to_string(),
+            requested_model: CLIENT_MODEL.to_string(),
             route_name: None,
             prefix_hash: Some(1),
             last_used: SystemTime::now() - Duration::from_secs(secs),
@@ -694,6 +835,7 @@ mod tests {
             SessionBinding {
                 anchor_model: "anthropic/expensive".to_string(),
                 default_model: "anthropic/expensive".to_string(),
+                requested_model: CLIENT_MODEL.to_string(),
                 route_name: None,
                 prefix_hash: Some(1),
                 last_used: SystemTime::now() - Duration::from_secs(idle_secs),
@@ -717,6 +859,7 @@ mod tests {
             context_tokens: 0,
             candidate_model: candidate,
             candidate_route: None,
+            requested_model: CLIENT_MODEL,
         }
     }
 
@@ -806,6 +949,7 @@ mod tests {
             context_tokens: 0,
             candidate_model: "openai/pricey",
             candidate_route: None,
+            requested_model: CLIENT_MODEL,
         };
         let d = route(&orch, Some(&st), facts).await;
         assert_eq!(d.model, "openai/pricey");
@@ -824,6 +968,7 @@ mod tests {
             SessionBinding {
                 anchor_model: "google/cheap".to_string(),
                 default_model: "anthropic/expensive".to_string(),
+                requested_model: CLIENT_MODEL.to_string(),
                 route_name: None,
                 prefix_hash: Some(1),
                 last_used: SystemTime::now(),
@@ -867,6 +1012,7 @@ mod tests {
             SessionBinding {
                 anchor_model: "anthropic/expensive".to_string(),
                 default_model: "anthropic/expensive".to_string(),
+                requested_model: CLIENT_MODEL.to_string(),
                 route_name: None,
                 prefix_hash: Some(1),
                 last_used: SystemTime::now() - Duration::from_secs(30),
@@ -920,6 +1066,7 @@ mod tests {
             context_tokens: 100_000,
             candidate_model: candidate,
             candidate_route: None,
+            requested_model: CLIENT_MODEL,
         };
 
         // Turn 1 — cold start: no binding yet, the candidate is honored and becomes both
@@ -1017,6 +1164,680 @@ mod tests {
             d.switch_spend_usd,
             st.max_switch_spend_pct,
             d.baseline_usd
+        );
+    }
+
+    // ---- is_user_turn() ----
+    //
+    // Driven through the real client-API parsers rather than hand-built `Message`s: the
+    // gate is "last role is user", and every agent wire format has to normalize to that.
+
+    use hermesllm::clients::SupportedAPIsFromClient;
+    use hermesllm::{ProviderRequest, ProviderRequestType};
+
+    fn messages_from(endpoint: &str, body: serde_json::Value) -> Vec<Message> {
+        let bytes = serde_json::to_vec(&body).unwrap();
+        let client_api = SupportedAPIsFromClient::from_endpoint(endpoint).unwrap();
+        ProviderRequestType::try_from((&bytes[..], &client_api))
+            .expect("request should parse")
+            .get_messages()
+    }
+
+    /// Claude Code posting a tool result back for the next step of the same turn.
+    #[test]
+    fn anthropic_tool_result_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/messages",
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": "toolu_1", "name": "read_file",
+                         "input": {"path": "main.rs"}}
+                    ]},
+                    {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_1", "content": "fn main() {}"}
+                    ]}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    /// Anthropic packs a tool result and new user text into one message. The user spoke
+    /// again, so this opens a fresh turn and must route normally.
+    #[test]
+    fn anthropic_tool_result_with_new_user_text_is_a_fresh_turn() {
+        let msgs = messages_from(
+            "/v1/messages",
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": "toolu_1", "name": "read_file",
+                         "input": {"path": "main.rs"}}
+                    ]},
+                    {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_1", "content": "fn main() {}"},
+                        {"type": "text", "text": "actually, explain the error handling too"}
+                    ]}
+                ]
+            }),
+        );
+        assert!(is_user_turn(&msgs));
+    }
+
+    /// Cline / Cursor on OpenAI Chat Completions.
+    #[test]
+    fn chat_tool_role_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "tool_calls": [
+                        {"id": "call_1", "type": "function",
+                         "function": {"name": "read_file", "arguments": "{\"path\":\"main.rs\"}"}}
+                    ]},
+                    {"role": "tool", "tool_call_id": "call_1", "content": "fn main() {}"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    /// Tool traffic from earlier turns stays in the history forever; only the tail marks
+    /// a user turn, otherwise every later turn of a long session would be pinned.
+    #[test]
+    fn chat_fresh_user_turn_after_earlier_tools_is_not_a_continuation() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "tool_calls": [
+                        {"id": "call_1", "type": "function",
+                         "function": {"name": "read_file", "arguments": "{}"}}
+                    ]},
+                    {"role": "tool", "tool_call_id": "call_1", "content": "fn main() {}"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": "now write the tests"}
+                ]
+            }),
+        );
+        assert!(is_user_turn(&msgs));
+    }
+
+    /// Codex / OpenCode on the Responses API.
+    #[test]
+    fn responses_function_call_output_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/responses",
+            serde_json::json!({
+                "model": "gpt-5.3-codex",
+                "input": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"type": "function_call", "id": "fc_1", "call_id": "call_1",
+                     "name": "exec_command", "arguments": "{\"cmd\":\"cat main.rs\"}",
+                     "status": "completed"},
+                    {"type": "function_call_output", "id": "fc_out_1", "call_id": "call_1",
+                     "output": {"stdout": "fn main() {}"}}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    /// Codex registers custom tools by default, so most of its continuations carry
+    /// `custom_tool_call_output` rather than `function_call_output`.
+    #[test]
+    fn responses_custom_tool_call_output_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/responses",
+            serde_json::json!({
+                "model": "gpt-5.3-codex",
+                "input": [
+                    {"role": "user", "content": "run the tests"},
+                    {"type": "custom_tool_call", "id": "ctc_1", "call_id": "call_1",
+                     "name": "shell", "input": "cargo test", "status": "completed"},
+                    {"type": "custom_tool_call_output", "call_id": "call_1",
+                     "output": "test result: ok"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    #[test]
+    fn plain_user_turn_routes_and_empty_history_does_not() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [{"role": "user", "content": "write a haiku"}]
+            }),
+        );
+        assert!(is_user_turn(&msgs));
+        assert!(!is_user_turn(&[]));
+    }
+
+    /// An assistant-only tail is not a user turn, so routing is skipped.
+    #[test]
+    fn reuse_is_off_unless_route_on_user_only_is_enabled() {
+        let tool_tail = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "tool_calls": [
+                        {"id": "call_1", "type": "function",
+                         "function": {"name": "read_file", "arguments": "{}"}}
+                    ]},
+                    {"role": "tool", "tool_call_id": "call_1", "content": "ok"}
+                ]
+            }),
+        );
+        let user_tail = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [{"role": "user", "content": "fix the bug"}]
+            }),
+        );
+        assert!(!should_reuse_prior_decision(false, &tool_tail));
+        assert!(should_reuse_prior_decision(true, &tool_tail));
+        assert!(!should_reuse_prior_decision(true, &user_tail));
+    }
+
+    #[test]
+    fn assistant_tail_is_not_a_user_turn() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Looking at main.rs"}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    /// A user-role message with nothing in it is a harness artifact, not an utterance.
+    #[test]
+    fn empty_and_whitespace_user_tails_are_not_user_turns() {
+        for content in ["", "   \n\t "] {
+            let msgs = messages_from(
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": content}
+                    ]
+                }),
+            );
+            assert!(!is_user_turn(&msgs), "content {content:?} opened a turn");
+        }
+    }
+
+    /// Every client API can deliver a user-role message with nothing in it — a null or
+    /// missing `content`, an empty parts array, an empty text block. None of them open a
+    /// turn, whatever the wire format.
+    #[test]
+    fn empty_user_content_is_not_a_user_turn_on_any_client_api() {
+        let chat = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+        let anthropic = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+        let responses = |content: serde_json::Value| {
+            serde_json::json!({
+                "model": "gpt-5.3-codex",
+                "input": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": content}
+                ]
+            })
+        };
+
+        let cases = [
+            ("/v1/chat/completions", chat(serde_json::Value::Null)),
+            ("/v1/chat/completions", chat(serde_json::json!(""))),
+            ("/v1/chat/completions", chat(serde_json::json!([]))),
+            (
+                "/v1/chat/completions",
+                chat(serde_json::json!([{"type": "text", "text": "  "}])),
+            ),
+            ("/v1/messages", anthropic(serde_json::json!(""))),
+            ("/v1/messages", anthropic(serde_json::json!([]))),
+            (
+                "/v1/messages",
+                anthropic(serde_json::json!([{"type": "text", "text": "\n"}])),
+            ),
+            ("/v1/responses", responses(serde_json::json!(""))),
+            ("/v1/responses", responses(serde_json::json!([]))),
+        ];
+
+        for (endpoint, body) in cases {
+            let msgs = messages_from(endpoint, body.clone());
+            assert!(
+                !is_user_turn(&msgs),
+                "{endpoint} opened a turn on {body}, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// A pasted screenshot with no caption has no text to check, but the user did speak.
+    #[test]
+    fn attachment_only_user_tail_is_a_user_turn() {
+        const PNG: &str = "data:image/png;base64,iVBORw0KGgo=";
+
+        let cases = [
+            (
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": PNG}}
+                        ]}
+                    ]
+                }),
+            ),
+            (
+                "/v1/messages",
+                serde_json::json!({
+                    "model": "claude-sonnet-4-6",
+                    "max_tokens": 1024,
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": [
+                            {"type": "image", "source": {
+                                "type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="
+                            }}
+                        ]}
+                    ]
+                }),
+            ),
+        ];
+
+        for (endpoint, body) in cases {
+            let msgs = messages_from(endpoint, body.clone());
+            assert!(
+                is_user_turn(&msgs),
+                "{endpoint} pinned an attachment-only turn, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// Bedrock reaches the same gate through the upstream shape rather than a client
+    /// endpoint, so cover its empty user messages directly.
+    #[test]
+    fn empty_bedrock_user_content_is_not_a_user_turn() {
+        use hermesllm::apis::amazon_bedrock::{
+            ContentBlock, ConversationRole, ConverseRequest, Message as BedrockMessage,
+        };
+
+        for tail in [
+            Vec::new(),
+            vec![ContentBlock::Text {
+                text: String::new(),
+            }],
+            vec![ContentBlock::Text {
+                text: "  \n".to_string(),
+            }],
+        ] {
+            let request = ConverseRequest {
+                model_id: "anthropic.claude-3-sonnet".to_string(),
+                messages: Some(vec![
+                    BedrockMessage {
+                        role: ConversationRole::User,
+                        content: vec![ContentBlock::Text {
+                            text: "fix the bug".to_string(),
+                        }],
+                    },
+                    BedrockMessage {
+                        role: ConversationRole::Assistant,
+                        content: vec![ContentBlock::Text {
+                            text: "Fixed it.".to_string(),
+                        }],
+                    },
+                    BedrockMessage {
+                        role: ConversationRole::User,
+                        content: tail.clone(),
+                    },
+                ]),
+                ..Default::default()
+            };
+
+            let msgs = ProviderRequestType::BedrockConverse(request).get_messages();
+            assert!(
+                !is_user_turn(&msgs),
+                "bedrock tail {tail:?} opened a turn, normalized to {msgs:?}"
+            );
+        }
+    }
+
+    /// Companion to the OpenAI and Anthropic attachment cases above: a Bedrock image
+    /// with no caption is a real user turn and must open a route.
+    #[test]
+    fn attachment_only_bedrock_user_tail_is_a_user_turn() {
+        use hermesllm::apis::amazon_bedrock::{
+            ContentBlock, ConversationRole, ConverseRequest, ImageBlock, ImageSource,
+            Message as BedrockMessage,
+        };
+
+        let request = ConverseRequest {
+            model_id: "anthropic.claude-3-sonnet".to_string(),
+            messages: Some(vec![
+                BedrockMessage {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::Text {
+                        text: "fix the bug".to_string(),
+                    }],
+                },
+                BedrockMessage {
+                    role: ConversationRole::Assistant,
+                    content: vec![ContentBlock::Text {
+                        text: "Fixed it.".to_string(),
+                    }],
+                },
+                BedrockMessage {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::Image {
+                        image: ImageBlock {
+                            source: ImageSource::Base64 {
+                                media_type: "image/png".to_string(),
+                                data: "iVBORw0KGgo=".to_string(),
+                            },
+                        },
+                    }],
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let msgs = ProviderRequestType::BedrockConverse(request).get_messages();
+        assert!(
+            is_user_turn(&msgs),
+            "bedrock pinned an attachment-only turn, normalized to {msgs:?}"
+        );
+    }
+
+    /// Claude Code injects reminders and hook output as user-role text. On their own they
+    /// are not a new utterance, so the loop stays pinned.
+    #[test]
+    fn envelope_only_user_tail_is_not_a_user_turn() {
+        for content in [
+            "<system-reminder>\nYour todo list is empty.\n</system-reminder>",
+            "<user-prompt-submit-hook>blocked by hook</user-prompt-submit-hook>\n",
+            "<system-reminder>a</system-reminder> <system-reminder>b</system-reminder>",
+            // Truncated envelope: still harness output, not user text.
+            "<system-reminder>\nYour todo list is empty.",
+        ] {
+            let msgs = messages_from(
+                "/v1/chat/completions",
+                serde_json::json!({
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "user", "content": "fix the bug"},
+                        {"role": "assistant", "content": "Fixed it."},
+                        {"role": "user", "content": content}
+                    ]
+                }),
+            );
+            assert!(!is_user_turn(&msgs), "content {content:?} opened a turn");
+        }
+    }
+
+    /// A reminder rides alongside real user text on genuine turns; that still routes.
+    #[test]
+    fn envelope_plus_user_text_is_a_user_turn() {
+        let msgs = messages_from(
+            "/v1/chat/completions",
+            serde_json::json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "user", "content": "fix the bug"},
+                    {"role": "assistant", "content": "Fixed it."},
+                    {"role": "user", "content": "<system-reminder>\nTodo list is empty.\n</system-reminder>\nnow write the tests"}
+                ]
+            }),
+        );
+        assert!(is_user_turn(&msgs));
+    }
+
+    /// Claude Code's usual continuation shape: a tool result packed with a reminder and
+    /// no user text. The reminder must not be mistaken for a new turn.
+    #[test]
+    fn anthropic_tool_result_with_reminder_only_is_a_continuation() {
+        let msgs = messages_from(
+            "/v1/messages",
+            serde_json::json!({
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [
+                    {"role": "user", "content": "fix the bug in main.rs"},
+                    {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": "toolu_1", "name": "read_file",
+                         "input": {"path": "main.rs"}}
+                    ]},
+                    {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_1", "content": "fn main() {}"},
+                        {"type": "text", "text": "<system-reminder>\nYour todo list has changed.\n</system-reminder>"}
+                    ]}
+                ]
+            }),
+        );
+        assert!(!is_user_turn(&msgs));
+    }
+
+    // ---- reuse_prior_decision() ----
+
+    /// Seed the binding a first turn would have written: the client asked for
+    /// `requested_model`, routing sent the turn to `anchor`.
+    async fn seed_lane_binding(
+        orch: &OrchestratorService,
+        requested_model: &str,
+        anchor: &str,
+        route_name: Option<&str>,
+        idle_secs: u64,
+    ) {
+        orch.store_binding(
+            "s1",
+            None,
+            SessionBinding {
+                anchor_model: anchor.to_string(),
+                default_model: anchor.to_string(),
+                requested_model: requested_model.to_string(),
+                route_name: route_name.map(str::to_string),
+                prefix_hash: Some(1),
+                last_used: SystemTime::now() - Duration::from_secs(idle_secs),
+                cached_tokens: 100_000,
+                baseline_usd: 0.0,
+                switch_spend_usd: 0.0,
+                switches: 0,
+                session_cost_usd: 0.0,
+                history: Vec::new(),
+            },
+            Some(Duration::from_secs(3600)),
+        )
+        .await;
+    }
+
+    /// The core case: the client keeps asking for Sonnet, routing sent turn 1 to a
+    /// different model, and the rest of the loop replays that model instead of re-routing.
+    #[tokio::test]
+    async fn warm_binding_on_the_same_lane_is_reused() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
+
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+            .await
+            .expect("warm same-lane binding should be reused");
+        assert_eq!(reuse.model, "openai/pricey");
+        assert_eq!(reuse.route_name.as_deref(), Some("code gen"));
+    }
+
+    /// When no route matched, the first turn dispatches the client's own model and stores
+    /// it as the anchor — continuations must replay that too.
+    #[tokio::test]
+    async fn unrouted_first_turn_is_reused() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, CLIENT_MODEL, None, 5).await;
+
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+            .await
+            .expect("an unrouted turn still anchors the loop");
+        assert_eq!(reuse.model, CLIENT_MODEL);
+        assert!(reuse.route_name.is_none());
+    }
+
+    /// Known limitation of a *shared explicit* `X-Model-Affinity` id: one session key
+    /// holds one binding, so a side call (side chat, summarizer, subagent) overwrites the
+    /// main loop's lane and prefix. The guards keep the side call from being pinned to the
+    /// wrong model, but the loop's pin is evicted rather than kept alongside it, and the
+    /// next continuation re-routes. Implicit affinity does not have this problem: the side
+    /// call's different prompt prefix derives its own key.
+    #[tokio::test]
+    async fn a_side_call_on_a_shared_affinity_id_evicts_the_loop_pin() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
+
+        // Side call: same affinity header, different model lane and prompt prefix.
+        route(
+            &orch,
+            None,
+            RouteFacts {
+                session_id: Some("s1"),
+                tenant_id: None,
+                prefix_hash: Some(2),
+                context_tokens: 1_000,
+                candidate_model: "google/cheap",
+                candidate_route: Some("summarize"),
+                requested_model: "anthropic/small-fast",
+            },
+        )
+        .await;
+
+        // The main loop's next continuation can no longer find its decision.
+        assert!(
+            reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+                .await
+                .is_none(),
+            "side call should have overwritten the loop binding"
+        );
+    }
+
+    /// Claude Code's `ANTHROPIC_SMALL_FAST_MODEL` side calls ride the same prompt prefix
+    /// as the main loop. They must not inherit the main loop's model.
+    #[tokio::test]
+    async fn a_different_model_lane_is_not_reused() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 5).await;
+
+        let reuse = reuse_prior_decision(
+            &orch,
+            Some("s1"),
+            None,
+            Some(1),
+            "anthropic/claude-haiku-4-5",
+        )
+        .await;
+        assert!(reuse.is_none(), "the small-fast lane must route on its own");
+    }
+
+    /// The loop paused long enough for the provider cache to lapse: the binding no longer
+    /// describes a live loop, so fall back to a fresh routing decision.
+    #[tokio::test]
+    async fn a_cold_binding_is_not_reused() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", None, 24 * 3600).await;
+
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL).await;
+        assert!(reuse.is_none());
+    }
+
+    /// A changed system prompt or tool set means this is a different conversation that
+    /// merely collided on the session key.
+    #[tokio::test]
+    async fn a_drifted_prefix_is_not_reused() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", None, 5).await;
+
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(999), CLIENT_MODEL).await;
+        assert!(reuse.is_none());
+    }
+
+    /// No session key (`X-Plano-Cache: off`, or nothing to anchor on) and no binding both
+    /// mean there is nothing to replay.
+    #[tokio::test]
+    async fn without_a_session_or_binding_there_is_nothing_to_reuse() {
+        let orch = orch_with_rates();
+        assert!(
+            reuse_prior_decision(&orch, None, None, Some(1), CLIENT_MODEL)
+                .await
+                .is_none()
+        );
+        assert!(
+            reuse_prior_decision(&orch, Some("never-seen"), None, Some(1), CLIENT_MODEL)
+                .await
+                .is_none()
+        );
+    }
+
+    /// Skipping the router must not skip session bookkeeping: feeding the replayed model
+    /// back through `route()` keeps the session on it and refreshes the binding.
+    #[tokio::test]
+    async fn replaying_the_loop_model_refreshes_the_binding_without_switching() {
+        let orch = orch_with_rates();
+        seed_lane_binding(&orch, CLIENT_MODEL, "openai/pricey", Some("code gen"), 30).await;
+
+        let reuse = reuse_prior_decision(&orch, Some("s1"), None, Some(1), CLIENT_MODEL)
+            .await
+            .unwrap();
+        let d = route(&orch, None, facts_for(&reuse.model)).await;
+
+        assert_eq!(d.model, "openai/pricey");
+        assert_eq!(d.switches, 0, "replaying the anchor is not a switch");
+        assert!(d.warm);
+
+        let stored = orch.get_binding("s1", None).await.unwrap();
+        assert_eq!(stored.anchor_model, "openai/pricey");
+        assert_eq!(stored.requested_model, CLIENT_MODEL);
+        assert!(
+            stored.last_used.elapsed().unwrap() < Duration::from_secs(5),
+            "the binding should have been refreshed"
         );
     }
 }

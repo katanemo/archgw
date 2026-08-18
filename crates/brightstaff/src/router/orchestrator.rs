@@ -158,6 +158,23 @@ impl OrchestratorService {
         }
     }
 
+    /// Look up a session binding without recording a cache event. For callers that
+    /// inspect a binding ahead of the routing decision that will look it up again, so a
+    /// single request still counts as one hit or miss. A cache error is indistinguishable
+    /// from a miss here; `get_binding` reports it on the second lookup.
+    pub async fn peek_binding(
+        &self,
+        session_id: &str,
+        tenant_id: Option<&str>,
+    ) -> Option<SessionBinding> {
+        let cache = self.session_cache.as_ref()?;
+        cache
+            .get(&Self::session_key(tenant_id, session_id))
+            .await
+            .ok()
+            .flatten()
+    }
+
     /// Look up a session binding. Warmth is the caller's concern (time since
     /// `last_used`); this only reports whether a binding exists.
     pub async fn get_binding(
@@ -188,6 +205,13 @@ impl OrchestratorService {
                 None
             }
         }
+    }
+
+    /// Whether any routing preferences are registered, i.e. whether quality routing can
+    /// send a request to a model other than the one the client asked for.
+    #[must_use]
+    pub fn has_routing_preferences(&self) -> bool {
+        !self.top_level_preferences.is_empty()
     }
 
     /// The GC bound for a session binding: the per-scope override when provided,
@@ -487,6 +511,7 @@ mod tests {
         SessionBinding {
             anchor_model: model.to_string(),
             default_model: model.to_string(),
+            requested_model: model.to_string(),
             route_name: route_name.map(|r| r.to_string()),
             prefix_hash: None,
             last_used: std::time::SystemTime::now(),

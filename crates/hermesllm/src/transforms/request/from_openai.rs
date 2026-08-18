@@ -13,9 +13,10 @@ use crate::apis::openai::{
     ChatCompletionsRequest, FunctionCall as OpenAIFunctionCall, Message, MessageContent, Role,
     Tool, ToolCall as OpenAIToolCall, ToolChoice, ToolChoiceType,
 };
+use log::warn;
 
 use crate::apis::openai_responses::{
-    InputContent, InputItem, InputParam, MessageRole, Modality, ReasoningEffort,
+    InputContent, InputItem, InputParam, MessageRole, Modality, NamespaceTool, ReasoningEffort,
     ResponsesAPIRequest, Tool as ResponsesTool, ToolChoice as ResponsesToolChoice,
 };
 use crate::clients::TransformError;
@@ -32,6 +33,28 @@ type AnthropicMessagesRequest = MessagesRequest;
 pub struct ResponsesInputConverter {
     pub input: InputParam,
     pub instructions: Option<String>,
+}
+
+/// Record a tool call in the message list, attaching it to the preceding assistant
+/// message when there is one so parallel calls stay on a single message.
+fn push_tool_call(messages: &mut Vec<Message>, tool_call: OpenAIToolCall) {
+    if let Some(last) = messages.last_mut() {
+        if matches!(last.role, Role::Assistant) {
+            match &mut last.tool_calls {
+                Some(existing) => existing.push(tool_call),
+                None => last.tool_calls = Some(vec![tool_call]),
+            }
+            return;
+        }
+    }
+
+    messages.push(Message {
+        role: Role::Assistant,
+        content: None,
+        name: None,
+        tool_call_id: None,
+        tool_calls: Some(vec![tool_call]),
+    });
 }
 
 impl TryFrom<ResponsesInputConverter> for Vec<Message> {
@@ -184,9 +207,10 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                             });
                         }
                         InputItem::FunctionCallOutput {
-                            item_type: _,
-                            call_id,
-                            output,
+                            call_id, output, ..
+                        }
+                        | InputItem::CustomToolCallOutput {
+                            call_id, output, ..
                         } => {
                             // Preserve tool result so upstream models do not re-issue the same tool call.
                             let output_text = match output {
@@ -202,40 +226,60 @@ impl TryFrom<ResponsesInputConverter> for Vec<Message> {
                             });
                         }
                         InputItem::FunctionCall {
-                            item_type: _,
                             name,
                             arguments,
                             call_id,
+                            ..
                         } => {
-                            let tool_call = OpenAIToolCall {
-                                id: call_id,
-                                call_type: "function".to_string(),
-                                function: OpenAIFunctionCall { name, arguments },
-                            };
-
-                            // Prefer attaching tool_calls to the preceding assistant message when present.
-                            if let Some(last) = converted_messages.last_mut() {
-                                if matches!(last.role, Role::Assistant) {
-                                    if let Some(existing) = &mut last.tool_calls {
-                                        existing.push(tool_call);
-                                    } else {
-                                        last.tool_calls = Some(vec![tool_call]);
-                                    }
-                                    continue;
-                                }
-                            }
-
-                            converted_messages.push(Message {
-                                role: Role::Assistant,
-                                content: None,
-                                name: None,
-                                tool_call_id: None,
-                                tool_calls: Some(vec![tool_call]),
-                            });
+                            push_tool_call(
+                                &mut converted_messages,
+                                OpenAIToolCall {
+                                    id: call_id,
+                                    call_type: "function".to_string(),
+                                    function: OpenAIFunctionCall { name, arguments },
+                                },
+                            );
                         }
-                        InputItem::ItemReference { .. } => {
-                            // Item references/unknown entries are metadata-like and can be skipped
-                            // for chat-completions conversion.
+                        InputItem::CustomToolCall {
+                            name,
+                            input,
+                            call_id,
+                            ..
+                        } => {
+                            // Custom tool input is free-form text. Wrap it in the same
+                            // `{"input": ...}` envelope that `custom_tool_as_function`
+                            // advertises for the tool itself, so the replayed call matches
+                            // the schema the upstream was given.
+                            let arguments = serde_json::json!({ "input": input }).to_string();
+                            push_tool_call(
+                                &mut converted_messages,
+                                OpenAIToolCall {
+                                    id: call_id,
+                                    call_type: "function".to_string(),
+                                    function: OpenAIFunctionCall { name, arguments },
+                                },
+                            );
+                        }
+                        InputItem::ItemReference { .. } | InputItem::Reasoning { .. } => {
+                            // Item references and reasoning are not representable in Chat
+                            // Completions and are skipped.
+                        }
+                        InputItem::Ignored(value) => {
+                            // Unknown typed items are preserved on a Responses passthrough
+                            // but have no Chat Completions form, so they are dropped here.
+                            // A *known* tool-call type that landed in `Ignored` is malformed
+                            // (e.g. a `function_call` missing `arguments`); dropping it
+                            // silently leaves its `function_call_output` orphaned upstream,
+                            // so make that visible rather than corrupting the context quietly.
+                            let item_type = value.get("type").and_then(|t| t.as_str());
+                            if matches!(item_type, Some("function_call") | Some("custom_tool_call"))
+                            {
+                                warn!(
+                                    "dropping malformed {} input item; its tool result will \
+                                     have no matching call upstream",
+                                    item_type.unwrap_or("tool call")
+                                );
+                            }
                         }
                     }
                 }
@@ -509,6 +553,36 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
             base
         }
 
+        // Custom tools have no strict ChatCompletions equivalent across providers, so
+        // they degrade to a permissive function tool. Shared by top-level custom tools
+        // and namespace members.
+        fn custom_tool_as_function(
+            name: Option<String>,
+            description: Option<String>,
+            format: Option<serde_json::Value>,
+            fallback_name: String,
+        ) -> Tool {
+            Tool {
+                tool_type: "function".to_string(),
+                function: crate::apis::openai::Function {
+                    name: name.unwrap_or(fallback_name),
+                    description,
+                    parameters: normalize_function_parameters(
+                        Some(serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "input": { "type": "string" }
+                            },
+                            "required": ["input"],
+                            "additionalProperties": true,
+                        })),
+                        format,
+                    ),
+                    strict: Some(false),
+                },
+            }
+        }
+
         let mut converted_chat_tools: Vec<Tool> = Vec::new();
         let mut web_search_options: Option<serde_json::Value> = None;
 
@@ -586,30 +660,48 @@ impl TryFrom<ResponsesAPIRequest> for ChatCompletionsRequest {
                         description,
                         format,
                     } => {
-                        // Custom tools do not have a strict ChatCompletions equivalent for all
-                        // providers. Map them to a permissive function tool for compatibility.
-                        let tool_name = name.unwrap_or_else(|| format!("custom_tool_{}", idx + 1));
-                        let parameters = normalize_function_parameters(
-                            Some(serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "input": { "type": "string" }
-                                },
-                                "required": ["input"],
-                                "additionalProperties": true,
-                            })),
+                        converted_chat_tools.push(custom_tool_as_function(
+                            name,
+                            description,
                             format,
-                        );
-
-                        converted_chat_tools.push(Tool {
-                            tool_type: "function".to_string(),
-                            function: crate::apis::openai::Function {
-                                name: tool_name,
-                                description,
-                                parameters,
-                                strict: Some(false),
-                            },
-                        });
+                            format!("custom_tool_{}", idx + 1),
+                        ));
+                    }
+                    ResponsesTool::Namespace { tools: members, .. } => {
+                        // ChatCompletions has no grouping construct, so members are hoisted
+                        // to top-level function tools. Member names are kept verbatim: the
+                        // model answers with the same name the client registered, which is
+                        // what lets the tool call be matched when it is translated back.
+                        for (member_idx, member) in members.into_iter().enumerate() {
+                            let tool = match member {
+                                NamespaceTool::Function {
+                                    name,
+                                    description,
+                                    parameters,
+                                    strict,
+                                    ..
+                                } => Tool {
+                                    tool_type: "function".to_string(),
+                                    function: crate::apis::openai::Function {
+                                        name,
+                                        description,
+                                        parameters: normalize_function_parameters(parameters, None),
+                                        strict,
+                                    },
+                                },
+                                NamespaceTool::Custom {
+                                    name,
+                                    description,
+                                    format,
+                                } => custom_tool_as_function(
+                                    name,
+                                    description,
+                                    format,
+                                    format!("custom_tool_{}_{}", idx + 1, member_idx + 1),
+                                ),
+                            };
+                            converted_chat_tools.push(tool);
+                        }
                     }
                     ResponsesTool::FileSearch { .. } => {
                         return Err(TransformError::UnsupportedConversion(
@@ -1294,6 +1386,76 @@ mod tests {
         );
     }
 
+    /// ChatCompletions has no namespace construct, so grouped tools have to arrive
+    /// upstream as ordinary function tools or the model cannot call them at all.
+    #[test]
+    fn test_responses_namespace_tool_flattens_to_function_tools_for_chat_completions() {
+        use crate::apis::openai_responses::{
+            InputParam, NamespaceTool, ResponsesAPIRequest, Tool as ResponsesTool,
+        };
+
+        let req = ResponsesAPIRequest {
+            model: "gpt-5.3-codex".to_string(),
+            input: InputParam::Text("look up a customer".to_string()),
+            tools: Some(vec![ResponsesTool::Namespace {
+                name: "crm".to_string(),
+                description: "CRM tools".to_string(),
+                tools: vec![
+                    NamespaceTool::Function {
+                        name: "get_customer_profile".to_string(),
+                        description: Some("Fetch a customer profile".to_string()),
+                        parameters: Some(serde_json::json!({
+                            "type": "object",
+                            "properties": { "customer_id": { "type": "string" } },
+                            "required": ["customer_id"]
+                        })),
+                        strict: Some(true),
+                        defer_loading: None,
+                        output_schema: None,
+                    },
+                    NamespaceTool::Custom {
+                        name: Some("run_patch".to_string()),
+                        description: Some("Apply structured patch".to_string()),
+                        format: None,
+                    },
+                ],
+            }]),
+            include: None,
+            parallel_tool_calls: None,
+            store: None,
+            instructions: None,
+            stream: None,
+            stream_options: None,
+            conversation: None,
+            tool_choice: None,
+            max_output_tokens: None,
+            temperature: None,
+            top_p: None,
+            metadata: None,
+            previous_response_id: None,
+            modalities: None,
+            audio: None,
+            text: None,
+            reasoning_effort: None,
+            truncation: None,
+            user: None,
+            max_tool_calls: None,
+            service_tier: None,
+            background: None,
+            top_logprobs: None,
+        };
+
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+        let tools = converted.tools.expect("tools should be present");
+        assert_eq!(tools.len(), 2);
+        // Names are kept verbatim so a tool call translated back is still recognizable
+        // to the client that registered it.
+        assert_eq!(tools[0].function.name, "get_customer_profile");
+        assert_eq!(tools[0].tool_type, "function");
+        assert_eq!(tools[1].function.name, "run_patch");
+        assert_eq!(tools[1].tool_type, "function");
+    }
+
     #[test]
     fn test_responses_web_search_maps_to_chat_web_search_options() {
         use crate::apis::openai_responses::{
@@ -1352,9 +1514,10 @@ mod tests {
         let req = ResponsesAPIRequest {
             model: "gpt-5.3-codex".to_string(),
             input: InputParam::Items(vec![InputItem::FunctionCallOutput {
-                item_type: "function_call_output".to_string(),
                 call_id: "call_123".to_string(),
                 output: serde_json::json!({"status":"ok","stdout":"hello"}),
+                id: None,
+                status: None,
             }]),
             tools: Some(vec![ResponsesTool::Function {
                 name: "exec_command".to_string(),
@@ -1417,15 +1580,17 @@ mod tests {
                     content: ResponsesMessageContent::Items(vec![]),
                 }),
                 InputItem::FunctionCall {
-                    item_type: "function_call".to_string(),
                     name: "exec_command".to_string(),
                     arguments: "{\"cmd\":\"pwd\"}".to_string(),
                     call_id: "toolu_abc123".to_string(),
+                    id: None,
+                    status: None,
                 },
                 InputItem::FunctionCallOutput {
-                    item_type: "function_call_output".to_string(),
                     call_id: "toolu_abc123".to_string(),
                     output: serde_json::Value::String("ok".to_string()),
+                    id: None,
+                    status: None,
                 },
             ]),
             tools: None,
@@ -1469,6 +1634,149 @@ mod tests {
         assert_eq!(
             converted.messages[1].tool_call_id.as_deref(),
             Some("toolu_abc123")
+        );
+    }
+
+    /// Codex-shaped payload: function_call / function_call_output carry `id`,
+    /// and a reasoning item sits in the list. Conversion must keep the tool
+    /// call ↔ output link and skip reasoning.
+    #[test]
+    fn test_responses_function_call_with_id_converts_and_skips_reasoning() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "pwd"},
+                {
+                    "type": "reasoning",
+                    "id": "rs_1",
+                    "summary": []
+                },
+                {
+                    "type": "function_call",
+                    "id": "fc_1",
+                    "call_id": "call_1",
+                    "name": "exec_command",
+                    "arguments": "{\"cmd\":\"pwd\"}",
+                    "status": "completed"
+                },
+                {
+                    "type": "function_call_output",
+                    "id": "fc_out_1",
+                    "call_id": "call_1",
+                    "output": "/tmp"
+                }
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        assert_eq!(converted.messages.len(), 3);
+        assert!(matches!(converted.messages[0].role, Role::User));
+        assert!(matches!(converted.messages[1].role, Role::Assistant));
+        let tool_calls = converted.messages[1]
+            .tool_calls
+            .as_ref()
+            .expect("assistant tool_calls should be present");
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert!(matches!(converted.messages[2].role, Role::Tool));
+        assert_eq!(
+            converted.messages[2].tool_call_id.as_deref(),
+            Some("call_1")
+        );
+    }
+
+    /// A Codex custom-tool step: the call becomes an assistant tool call carrying the
+    /// free-form input in the `{"input": ...}` envelope the tool was advertised with,
+    /// and the output becomes a tool message linked by `call_id`.
+    #[test]
+    fn test_responses_custom_tool_call_and_output_map_to_tool_messages() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "run the tests"},
+                {
+                    "type": "custom_tool_call",
+                    "id": "ctc_1",
+                    "call_id": "call_1",
+                    "name": "shell",
+                    "input": "cargo test",
+                    "status": "completed"
+                },
+                {
+                    "type": "custom_tool_call_output",
+                    "call_id": "call_1",
+                    "output": "test result: ok"
+                }
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        assert_eq!(converted.messages.len(), 3);
+        assert!(matches!(converted.messages[0].role, Role::User));
+
+        assert!(matches!(converted.messages[1].role, Role::Assistant));
+        let tool_calls = converted.messages[1]
+            .tool_calls
+            .as_ref()
+            .expect("assistant tool_calls should be present");
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].id, "call_1");
+        assert_eq!(tool_calls[0].function.name, "shell");
+        assert_eq!(
+            tool_calls[0].function.arguments,
+            r#"{"input":"cargo test"}"#
+        );
+
+        assert!(matches!(converted.messages[2].role, Role::Tool));
+        assert_eq!(
+            converted.messages[2].tool_call_id.as_deref(),
+            Some("call_1")
+        );
+        assert_eq!(
+            converted.messages[2]
+                .content
+                .as_ref()
+                .map(|c| c.to_string()),
+            Some("test result: ok".to_string())
+        );
+    }
+
+    /// A `function_call` missing `arguments` is malformed, so it degrades to a preserved
+    /// raw item rather than failing the parse. Chat Completions has no form for it, so it
+    /// is dropped — documenting that the paired output is left orphaned upstream. The
+    /// drop is logged (see the `InputItem::Ignored` arm) instead of being silent.
+    #[test]
+    fn test_responses_malformed_function_call_is_dropped_leaving_output_orphaned() {
+        use crate::apis::openai_responses::ResponsesAPIRequest;
+
+        let json = serde_json::json!({
+            "model": "gpt-5.3-codex",
+            "input": [
+                {"role": "user", "content": "pwd"},
+                // No `arguments` — does not match the typed shape.
+                {"type": "function_call", "call_id": "call_1", "name": "exec_command"},
+                {"type": "function_call_output", "call_id": "call_1", "output": "/tmp"}
+            ]
+        });
+        let req: ResponsesAPIRequest = serde_json::from_value(json).expect("should parse");
+        let converted = ChatCompletionsRequest::try_from(req).expect("conversion should succeed");
+
+        // The user message and the tool output survive; the malformed call does not.
+        assert_eq!(converted.messages.len(), 2);
+        assert!(matches!(converted.messages[0].role, Role::User));
+        assert!(matches!(converted.messages[1].role, Role::Tool));
+        assert_eq!(
+            converted.messages[1].tool_call_id.as_deref(),
+            Some("call_1")
+        );
+        assert!(
+            converted.messages.iter().all(|m| m.tool_calls.is_none()),
+            "the malformed call must not be synthesized into a tool call"
         );
     }
 }

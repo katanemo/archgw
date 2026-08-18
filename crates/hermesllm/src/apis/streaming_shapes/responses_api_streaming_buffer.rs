@@ -279,7 +279,6 @@ impl ResponsesAPIStreamBuffer {
                         .unwrap()
                         .as_secs() as i64,
                 );
-                self.model = Some("unknown".to_string());
             }
             events.push(self.create_response_created_event());
             self.created_emitted = true;
@@ -451,6 +450,24 @@ impl SseStreamBufferTrait for ResponsesAPIStreamBuffer {
             return;
         }
 
+        // Capture the served model from the raw upstream chunk before the
+        // transform to Responses events drops it. Chat Completions carries it
+        // top-level, Anthropic nests it under `message`. Upstreams that speak
+        // Responses natively are handled below via response.created metadata.
+        if self.model.is_none() {
+            if let Some(data) = &event.data {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                    if let Some(model) = json
+                        .get("model")
+                        .or_else(|| json.pointer("/message/model"))
+                        .and_then(|m| m.as_str())
+                    {
+                        self.model = Some(model.to_string());
+                    }
+                }
+            }
+        }
+
         // Handle [DONE] marker - trigger finalization
         if event.is_done() {
             self.finalize();
@@ -515,7 +532,6 @@ impl SseStreamBufferTrait for ResponsesAPIStreamBuffer {
                         .unwrap()
                         .as_secs() as i64,
                 );
-                self.model = Some("unknown".to_string()); // Will be set by caller if available
             }
 
             events.push(self.create_response_created_event());
@@ -851,6 +867,86 @@ data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890
         assert_eq!(
             completed_count, 1,
             "response.completed should be emitted exactly once"
+        );
+    }
+
+    /// Cross-API streams synthesize their own lifecycle events, so the served
+    /// model has to be recovered from the upstream chunks. Regression test for
+    /// `"model": "unknown"` leaking to Responses clients such as Codex.
+    #[test]
+    fn test_streaming_echoes_upstream_model_in_lifecycle_events() {
+        let raw_input = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"openai-gpt-5.4","choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"openai-gpt-5.4","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]"#;
+
+        let client_api = SupportedAPIsFromClient::OpenAIResponsesAPI(OpenAIApi::Responses);
+        let upstream_api = SupportedUpstreamAPIs::OpenAIChatCompletions(OpenAIApi::ChatCompletions);
+
+        let stream_iter = SseStreamIter::try_from(raw_input.as_bytes()).unwrap();
+        let mut buffer = ResponsesAPIStreamBuffer::new();
+
+        for raw_event in stream_iter {
+            let transformed_event =
+                SseEvent::try_from((raw_event, &client_api, &upstream_api)).unwrap();
+            buffer.add_transformed_event(transformed_event);
+        }
+
+        let output = String::from_utf8_lossy(&buffer.to_bytes()).to_string();
+
+        assert!(
+            !output.contains(r#""model":"unknown""#),
+            "no lifecycle event should report an unknown model, got:\n{}",
+            output
+        );
+        for event in [
+            "response.created",
+            "response.in_progress",
+            "response.completed",
+        ] {
+            let payload = output
+                .split("event: ")
+                .find(|block| block.starts_with(event))
+                .unwrap_or_else(|| panic!("missing {} in:\n{}", event, output));
+            assert!(
+                payload.contains(r#""model":"openai-gpt-5.4""#),
+                "{} should echo the served model, got:\n{}",
+                event,
+                payload
+            );
+        }
+
+        assert_eq!(
+            buffer
+                .get_completed_response()
+                .map(|resp| resp.model.as_str()),
+            Some("openai-gpt-5.4"),
+            "completed response should retain the served model for tracing"
+        );
+    }
+
+    /// Anthropic upstreams nest the model under `message` on `message_start`.
+    #[test]
+    fn test_streaming_echoes_anthropic_upstream_model() {
+        let mut buffer = ResponsesAPIStreamBuffer::new();
+        buffer.add_transformed_event(SseEvent {
+            data: Some(
+                r#"{"type":"message_start","message":{"id":"msg_1","model":"claude-sonnet-4-5","role":"assistant"}}"#
+                    .to_string(),
+            ),
+            event: Some("message_start".to_string()),
+            raw_line: String::new(),
+            sse_transformed_lines: String::new(),
+            provider_stream_response: None,
+        });
+        buffer.finalize();
+
+        let output = String::from_utf8_lossy(&buffer.to_bytes()).to_string();
+        assert!(
+            output.contains(r#""model":"claude-sonnet-4-5""#),
+            "should echo the nested Anthropic model, got:\n{}",
+            output
         );
     }
 }

@@ -37,5 +37,8 @@ model_aliases:
   arch.claude.code.small.fast:
     target: claude-haiku-4-5
 
+routing:
+  route_on_user_only: true
+
 tracing:
   random_sampling: 100

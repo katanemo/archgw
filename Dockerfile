@@ -47,10 +47,14 @@ FROM docker.io/envoyproxy/envoy:${ENVOY_VERSION} AS envoy
 
 FROM python:3.14-slim AS arch
 
+# Bump (or pass --build-arg) so layer cache does not pin stale Debian security packages.
+ARG DEBIAN_SECURITY_ASOF=2026-08-18
+
 # Install runtime deps first, then upgrade — so security patches also land on
 # packages pulled in transitively by the install, not just those already present
-# in the base image.
+# in the base image (util-linux CVE-2026-53615 → 2.41.5-0+deb13u1).
 RUN set -eux; \
+  echo "debian security as of ${DEBIAN_SECURITY_ASOF}"; \
   apt-get update; \
   apt-get install -y --no-install-recommends gettext-base procps; \
   apt-get upgrade -y; \
@@ -92,5 +96,11 @@ RUN mkdir -p /var/log/supervisor && \
     touch /var/log/envoy.log /var/log/supervisor/supervisord.log \
           /var/log/access_ingress.log /var/log/access_ingress_prompt.log \
           /var/log/access_internal.log /var/log/access_llm.log /var/log/access_agent.log
+
+# Runtime uses uv + installed planoai, not pip. Dropping pip also clears Trivy HIGH
+# findings from its vendored msgpack 1.1.2 (GHSA-6v7p-g79w-8964) and setuptools
+# 70.3.0 (CVE-2025-47273 / pip vendor.txt).
+RUN pip uninstall -y setuptools wheel pip && \
+    rm -rf /usr/local/lib/python*/ensurepip
 
 ENTRYPOINT ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

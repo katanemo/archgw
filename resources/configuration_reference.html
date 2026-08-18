@@ -408,59 +408,62 @@ credentials.</p>
 </span><span id="line-221"><span class="linenos">221</span><span class="nt">routing</span><span class="p">:</span>
 </span><span id="line-222"><span class="linenos">222</span><span class="w">  </span><span class="nt">session_ttl_seconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">600</span><span class="w">    </span><span class="c1"># How long a pinned session lasts (default: 600s / 10 min)</span>
 </span><span id="line-223"><span class="linenos">223</span><span class="w">  </span><span class="nt">session_max_entries</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span><span class="w">  </span><span class="c1"># Max cached sessions before eviction (upper limit: 10000)</span>
-</span><span id="line-224"><span class="linenos">224</span><span class="w">  </span><span class="c1"># session_cache controls the backend used to store affinity state.</span>
-</span><span id="line-225"><span class="linenos">225</span><span class="w">  </span><span class="c1"># "memory" (default) is in-process and works for single-instance deployments.</span>
-</span><span id="line-226"><span class="linenos">226</span><span class="w">  </span><span class="c1"># "redis" shares state across replicas — required for multi-replica / Kubernetes setups.</span>
-</span><span id="line-227"><span class="linenos">227</span><span class="w">  </span><span class="nt">session_cache</span><span class="p">:</span>
-</span><span id="line-228"><span class="linenos">228</span><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w">              </span><span class="c1"># "memory" (default) or "redis"</span>
-</span><span id="line-229"><span class="linenos">229</span><span class="w">    </span><span class="c1"># url is required when type is "redis". Supports redis:// and rediss:// (TLS).</span>
-</span><span id="line-230"><span class="linenos">230</span><span class="w">    </span><span class="c1"># url: redis://localhost:6379</span>
-</span><span id="line-231"><span class="linenos">231</span><span class="w">    </span><span class="c1"># tenant_header: x-org-id  # optional; when set, keys are scoped as plano:affinity:{tenant_id}:{session_id}</span>
-</span><span id="line-232"><span class="linenos">232</span>
-</span><span id="line-233"><span class="linenos">233</span><span class="c1"># State storage for multi-turn conversation history</span>
-</span><span id="line-234"><span class="linenos">234</span><span class="nt">state_storage</span><span class="p">:</span>
-</span><span id="line-235"><span class="linenos">235</span><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w">            </span><span class="c1"># "memory" (in-process) or "postgres" (persistent)</span>
-</span><span id="line-236"><span class="linenos">236</span><span class="w">  </span><span class="c1"># connection_string is required when type is postgres.</span>
-</span><span id="line-237"><span class="linenos">237</span><span class="w">  </span><span class="c1"># Supports environment variable substitution: $VAR or ${VAR}</span>
-</span><span id="line-238"><span class="linenos">238</span><span class="w">  </span><span class="c1"># connection_string: postgresql://user:$DB_PASS@localhost:5432/plano</span>
-</span><span id="line-239"><span class="linenos">239</span>
-</span><span id="line-240"><span class="linenos">240</span><span class="c1"># Input guardrails applied globally to all incoming requests</span>
-</span><span id="line-241"><span class="linenos">241</span><span class="nt">prompt_guards</span><span class="p">:</span>
-</span><span id="line-242"><span class="linenos">242</span><span class="w">  </span><span class="nt">input_guards</span><span class="p">:</span>
-</span><span id="line-243"><span class="linenos">243</span><span class="w">    </span><span class="nt">jailbreak</span><span class="p">:</span>
-</span><span id="line-244"><span class="linenos">244</span><span class="w">      </span><span class="nt">on_exception</span><span class="p">:</span>
-</span><span id="line-245"><span class="linenos">245</span><span class="w">        </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s">"I'm</span><span class="nv"> </span><span class="s">sorry,</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">can't</span><span class="nv"> </span><span class="s">help</span><span class="nv"> </span><span class="s">with</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">request."</span>
-</span><span id="line-246"><span class="linenos">246</span>
-</span><span id="line-247"><span class="linenos">247</span><span class="c1"># OpenTelemetry tracing configuration</span>
-</span><span id="line-248"><span class="linenos">248</span><span class="nt">tracing</span><span class="p">:</span>
-</span><span id="line-249"><span class="linenos">249</span><span class="w">  </span><span class="c1"># Random sampling percentage (1-100)</span>
-</span><span id="line-250"><span class="linenos">250</span><span class="w">  </span><span class="nt">random_sampling</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
-</span><span id="line-251"><span class="linenos">251</span><span class="w">  </span><span class="c1"># Include internal Plano spans in traces</span>
-</span><span id="line-252"><span class="linenos">252</span><span class="w">  </span><span class="nt">trace_arch_internal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-</span><span id="line-253"><span class="linenos">253</span><span class="w">  </span><span class="c1"># gRPC endpoint for OpenTelemetry collector (e.g., Jaeger, Tempo)</span>
-</span><span id="line-254"><span class="linenos">254</span><span class="w">  </span><span class="nt">opentracing_grpc_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:4317</span>
-</span><span id="line-255"><span class="linenos">255</span><span class="w">  </span><span class="nt">span_attributes</span><span class="p">:</span>
-</span><span id="line-256"><span class="linenos">256</span><span class="w">    </span><span class="c1"># Propagate request headers whose names start with these prefixes as span attributes</span>
-</span><span id="line-257"><span class="linenos">257</span><span class="w">    </span><span class="nt">header_prefixes</span><span class="p">:</span>
-</span><span id="line-258"><span class="linenos">258</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-user-</span>
-</span><span id="line-259"><span class="linenos">259</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-org-</span>
-</span><span id="line-260"><span class="linenos">260</span><span class="w">    </span><span class="c1"># Static key/value pairs added to every span</span>
-</span><span id="line-261"><span class="linenos">261</span><span class="w">    </span><span class="nt">static</span><span class="p">:</span>
-</span><span id="line-262"><span class="linenos">262</span><span class="w">      </span><span class="nt">environment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
-</span><span id="line-263"><span class="linenos">263</span><span class="w">      </span><span class="nt">service.team</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">platform</span>
-</span><span id="line-264"><span class="linenos">264</span><span class="w">  </span><span class="c1"># Provider-agnostic export destinations. LLM spans are streamed to each of</span>
-</span><span id="line-265"><span class="linenos">265</span><span class="w">  </span><span class="c1"># these in addition to any opentracing_grpc_endpoint above.</span>
-</span><span id="line-266"><span class="linenos">266</span><span class="w">  </span><span class="nt">exporters</span><span class="p">:</span>
-</span><span id="line-267"><span class="linenos">267</span><span class="w">    </span><span class="c1"># PostHog AI observability: each LLM call is captured as an $ai_generation event.</span>
-</span><span id="line-268"><span class="linenos">268</span><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">posthog</span>
-</span><span id="line-269"><span class="linenos">269</span><span class="w">      </span><span class="c1"># PostHog host. The /batch/ capture path is appended automatically.</span>
-</span><span id="line-270"><span class="linenos">270</span><span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://us.i.posthog.com</span>
-</span><span id="line-271"><span class="linenos">271</span><span class="w">      </span><span class="c1"># PostHog project API key (token). Supports $ENV_VAR expansion.</span>
-</span><span id="line-272"><span class="linenos">272</span><span class="w">      </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$POSTHOG_API_KEY</span>
-</span><span id="line-273"><span class="linenos">273</span><span class="w">      </span><span class="c1"># Optional: request header used as the PostHog distinct_id. Omit for anonymous capture.</span>
-</span><span id="line-274"><span class="linenos">274</span><span class="w">      </span><span class="nt">distinct_id_header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-user-id</span>
-</span><span id="line-275"><span class="linenos">275</span><span class="w">      </span><span class="c1"># Optional: include the (truncated) user message as $ai_input. Defaults to false.</span>
-</span><span id="line-276"><span class="linenos">276</span><span class="w">      </span><span class="nt">capture_messages</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</span><span id="line-224"><span class="linenos">224</span><span class="w">  </span><span class="c1"># Opt-in: route only on a trailing user message; replay the prior decision on</span>
+</span><span id="line-225"><span class="linenos">225</span><span class="w">  </span><span class="c1"># tool results / assistant steps. Default false.</span>
+</span><span id="line-226"><span class="linenos">226</span><span class="w">  </span><span class="c1"># route_on_user_only: true</span>
+</span><span id="line-227"><span class="linenos">227</span><span class="w">  </span><span class="c1"># session_cache controls the backend used to store affinity state.</span>
+</span><span id="line-228"><span class="linenos">228</span><span class="w">  </span><span class="c1"># "memory" (default) is in-process and works for single-instance deployments.</span>
+</span><span id="line-229"><span class="linenos">229</span><span class="w">  </span><span class="c1"># "redis" shares state across replicas — required for multi-replica / Kubernetes setups.</span>
+</span><span id="line-230"><span class="linenos">230</span><span class="w">  </span><span class="nt">session_cache</span><span class="p">:</span>
+</span><span id="line-231"><span class="linenos">231</span><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w">              </span><span class="c1"># "memory" (default) or "redis"</span>
+</span><span id="line-232"><span class="linenos">232</span><span class="w">    </span><span class="c1"># url is required when type is "redis". Supports redis:// and rediss:// (TLS).</span>
+</span><span id="line-233"><span class="linenos">233</span><span class="w">    </span><span class="c1"># url: redis://localhost:6379</span>
+</span><span id="line-234"><span class="linenos">234</span><span class="w">    </span><span class="c1"># tenant_header: x-org-id  # optional; when set, keys are scoped as plano:affinity:{tenant_id}:{session_id}</span>
+</span><span id="line-235"><span class="linenos">235</span>
+</span><span id="line-236"><span class="linenos">236</span><span class="c1"># State storage for multi-turn conversation history</span>
+</span><span id="line-237"><span class="linenos">237</span><span class="nt">state_storage</span><span class="p">:</span>
+</span><span id="line-238"><span class="linenos">238</span><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w">            </span><span class="c1"># "memory" (in-process) or "postgres" (persistent)</span>
+</span><span id="line-239"><span class="linenos">239</span><span class="w">  </span><span class="c1"># connection_string is required when type is postgres.</span>
+</span><span id="line-240"><span class="linenos">240</span><span class="w">  </span><span class="c1"># Supports environment variable substitution: $VAR or ${VAR}</span>
+</span><span id="line-241"><span class="linenos">241</span><span class="w">  </span><span class="c1"># connection_string: postgresql://user:$DB_PASS@localhost:5432/plano</span>
+</span><span id="line-242"><span class="linenos">242</span>
+</span><span id="line-243"><span class="linenos">243</span><span class="c1"># Input guardrails applied globally to all incoming requests</span>
+</span><span id="line-244"><span class="linenos">244</span><span class="nt">prompt_guards</span><span class="p">:</span>
+</span><span id="line-245"><span class="linenos">245</span><span class="w">  </span><span class="nt">input_guards</span><span class="p">:</span>
+</span><span id="line-246"><span class="linenos">246</span><span class="w">    </span><span class="nt">jailbreak</span><span class="p">:</span>
+</span><span id="line-247"><span class="linenos">247</span><span class="w">      </span><span class="nt">on_exception</span><span class="p">:</span>
+</span><span id="line-248"><span class="linenos">248</span><span class="w">        </span><span class="nt">message</span><span class="p">:</span><span class="w"> </span><span class="s">"I'm</span><span class="nv"> </span><span class="s">sorry,</span><span class="nv"> </span><span class="s">I</span><span class="nv"> </span><span class="s">can't</span><span class="nv"> </span><span class="s">help</span><span class="nv"> </span><span class="s">with</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">request."</span>
+</span><span id="line-249"><span class="linenos">249</span>
+</span><span id="line-250"><span class="linenos">250</span><span class="c1"># OpenTelemetry tracing configuration</span>
+</span><span id="line-251"><span class="linenos">251</span><span class="nt">tracing</span><span class="p">:</span>
+</span><span id="line-252"><span class="linenos">252</span><span class="w">  </span><span class="c1"># Random sampling percentage (1-100)</span>
+</span><span id="line-253"><span class="linenos">253</span><span class="w">  </span><span class="nt">random_sampling</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+</span><span id="line-254"><span class="linenos">254</span><span class="w">  </span><span class="c1"># Include internal Plano spans in traces</span>
+</span><span id="line-255"><span class="linenos">255</span><span class="w">  </span><span class="nt">trace_arch_internal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</span><span id="line-256"><span class="linenos">256</span><span class="w">  </span><span class="c1"># gRPC endpoint for OpenTelemetry collector (e.g., Jaeger, Tempo)</span>
+</span><span id="line-257"><span class="linenos">257</span><span class="w">  </span><span class="nt">opentracing_grpc_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:4317</span>
+</span><span id="line-258"><span class="linenos">258</span><span class="w">  </span><span class="nt">span_attributes</span><span class="p">:</span>
+</span><span id="line-259"><span class="linenos">259</span><span class="w">    </span><span class="c1"># Propagate request headers whose names start with these prefixes as span attributes</span>
+</span><span id="line-260"><span class="linenos">260</span><span class="w">    </span><span class="nt">header_prefixes</span><span class="p">:</span>
+</span><span id="line-261"><span class="linenos">261</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-user-</span>
+</span><span id="line-262"><span class="linenos">262</span><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-org-</span>
+</span><span id="line-263"><span class="linenos">263</span><span class="w">    </span><span class="c1"># Static key/value pairs added to every span</span>
+</span><span id="line-264"><span class="linenos">264</span><span class="w">    </span><span class="nt">static</span><span class="p">:</span>
+</span><span id="line-265"><span class="linenos">265</span><span class="w">      </span><span class="nt">environment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+</span><span id="line-266"><span class="linenos">266</span><span class="w">      </span><span class="nt">service.team</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">platform</span>
+</span><span id="line-267"><span class="linenos">267</span><span class="w">  </span><span class="c1"># Provider-agnostic export destinations. LLM spans are streamed to each of</span>
+</span><span id="line-268"><span class="linenos">268</span><span class="w">  </span><span class="c1"># these in addition to any opentracing_grpc_endpoint above.</span>
+</span><span id="line-269"><span class="linenos">269</span><span class="w">  </span><span class="nt">exporters</span><span class="p">:</span>
+</span><span id="line-270"><span class="linenos">270</span><span class="w">    </span><span class="c1"># PostHog AI observability: each LLM call is captured as an $ai_generation event.</span>
+</span><span id="line-271"><span class="linenos">271</span><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">posthog</span>
+</span><span id="line-272"><span class="linenos">272</span><span class="w">      </span><span class="c1"># PostHog host. The /batch/ capture path is appended automatically.</span>
+</span><span id="line-273"><span class="linenos">273</span><span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://us.i.posthog.com</span>
+</span><span id="line-274"><span class="linenos">274</span><span class="w">      </span><span class="c1"># PostHog project API key (token). Supports $ENV_VAR expansion.</span>
+</span><span id="line-275"><span class="linenos">275</span><span class="w">      </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$POSTHOG_API_KEY</span>
+</span><span id="line-276"><span class="linenos">276</span><span class="w">      </span><span class="c1"># Optional: request header used as the PostHog distinct_id. Omit for anonymous capture.</span>
+</span><span id="line-277"><span class="linenos">277</span><span class="w">      </span><span class="nt">distinct_id_header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x-user-id</span>
+</span><span id="line-278"><span class="linenos">278</span><span class="w">      </span><span class="c1"># Optional: include the (truncated) user message as $ai_input. Defaults to false.</span>
+</span><span id="line-279"><span class="linenos">279</span><span class="w">      </span><span class="nt">capture_messages</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -495,7 +498,7 @@ credentials.</p>
 </div><footer class="py-6 border-t border-border md:py-0">
 <div class="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
 <div class="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2026, Katanemo Labs, a DigitalOcean Company Last updated: Aug 17, 2026. </p>
+<p class="text-sm leading-loose text-center text-muted-foreground md:text-left">© 2026, Katanemo Labs, a DigitalOcean Company Last updated: Aug 18, 2026. </p>
 </div>
 </div>
 </footer>

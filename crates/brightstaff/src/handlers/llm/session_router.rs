@@ -215,10 +215,6 @@ pub async fn reuse_prior_decision(
     })
 }
 
-/// Extra memory retention beyond the warmth window, so a still-warm binding is never
-/// GC'd out from under the router before it could plausibly go cold.
-const GC_SLACK: Duration = Duration::from_secs(60);
-
 /// Stable request facts the router reasons about. Independent of the transport (full
 /// proxy vs. decision endpoint) so both paths route identically.
 pub struct RouteFacts<'a> {
@@ -340,7 +336,7 @@ pub async fn route(
     facts: RouteFacts<'_>,
 ) -> RouteDecision {
     let now = SystemTime::now();
-    let candidate_gc_ttl = warmth_window(&capability_for_model(facts.candidate_model)) + GC_SLACK;
+    let candidate_gc_ttl = warmth_window(&capability_for_model(facts.candidate_model));
 
     // No session to anchor to: honor the candidate, persist nothing.
     let Some(session_id) = facts.session_id else {
@@ -573,7 +569,7 @@ pub async fn route(
     } else {
         existing.as_ref().map(|b| b.cached_tokens).unwrap_or(0)
     };
-    let gc_ttl = warmth_window(&capability_for_model(&model)) + GC_SLACK;
+    let gc_ttl = warmth_window(&capability_for_model(&model));
 
     // Route history: a drifted prefix invalidates every model's cache, so start fresh;
     // otherwise carry it forward. Record this turn's dispatched model (refined with the

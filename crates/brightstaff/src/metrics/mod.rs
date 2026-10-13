@@ -152,7 +152,7 @@ fn describe_all() {
     );
     describe_counter!(
         "brightstaff_llm_tokens_total",
-        "Tokens reported in the provider `usage` field, by provider, model and kind (prompt/completion)."
+        "Tokens reported in the provider `usage` field, by provider, model, org (from tracing.attribution_header, or `unattributed`) and kind (prompt/completion/cache_read/cache_write)."
     );
     describe_counter!(
         "brightstaff_llm_tokens_usage_missing_total",
@@ -332,21 +332,25 @@ pub fn record_llm_ttft(provider: &str, model: &str, ttft: Duration) {
     .record(ttft.as_secs_f64());
 }
 
-pub fn record_llm_tokens(provider: &str, model: &str, kind: &'static str, count: u64) {
+/// `org` must already be normalized with [`labels::normalize_org`]; it is the
+/// only label whose value originates from a request.
+pub fn record_llm_tokens(provider: &str, model: &str, org: &str, kind: &'static str, count: u64) {
     counter!(
         "brightstaff_llm_tokens_total",
         "provider" => provider.to_string(),
         "model" => model.to_string(),
+        "org" => org.to_string(),
         "kind" => kind,
     )
     .increment(count);
 }
 
-pub fn record_llm_tokens_usage_missing(provider: &str, model: &str) {
+pub fn record_llm_tokens_usage_missing(provider: &str, model: &str, org: &str) {
     counter!(
         "brightstaff_llm_tokens_usage_missing_total",
         "provider" => provider.to_string(),
         "model" => model.to_string(),
+        "org" => org.to_string(),
     )
     .increment(1);
 }

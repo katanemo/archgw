@@ -15,6 +15,55 @@ pub const ROUTE_AGENT: &str = "agent";
 pub const ROUTE_ROUTING: &str = "routing";
 pub const ROUTE_LLM: &str = "llm";
 
+// Org label on the token counters (tracing.attribution_header). Values come
+// from a request header, so they are normalized to a bounded alphabet here;
+// anything else collapses to one of these two constants.
+pub const ORG_UNATTRIBUTED: &str = "unattributed";
+pub const ORG_INVALID: &str = "invalid";
+pub const ORG_MAX_LEN: usize = 64;
+
+/// Map a raw attribution-header value to a safe metric label value.
+pub fn normalize_org(raw: Option<&str>) -> String {
+    let Some(value) = raw.map(str::trim).filter(|v| !v.is_empty()) else {
+        return ORG_UNATTRIBUTED.to_string();
+    };
+    let ok = value.len() <= ORG_MAX_LEN
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'));
+    if ok {
+        value.to_string()
+    } else {
+        ORG_INVALID.to_string()
+    }
+}
+
+#[cfg(test)]
+mod org_tests {
+    use super::*;
+
+    #[test]
+    fn missing_or_blank_is_unattributed() {
+        assert_eq!(normalize_org(None), ORG_UNATTRIBUTED);
+        assert_eq!(normalize_org(Some("")), ORG_UNATTRIBUTED);
+        assert_eq!(normalize_org(Some("   ")), ORG_UNATTRIBUTED);
+    }
+
+    #[test]
+    fn plain_ids_pass_through_trimmed() {
+        assert_eq!(normalize_org(Some(" 3 ")), "3");
+        assert_eq!(normalize_org(Some("org_4.a-b")), "org_4.a-b");
+    }
+
+    #[test]
+    fn malformed_values_collapse_to_invalid() {
+        assert_eq!(normalize_org(Some("a b")), ORG_INVALID);
+        assert_eq!(normalize_org(Some("x".repeat(65).as_str())), ORG_INVALID);
+        assert_eq!(normalize_org(Some("3;drop")), ORG_INVALID);
+        assert_eq!(normalize_org(Some("org{id}")), ORG_INVALID);
+    }
+}
+
 // Token kind for brightstaff_llm_tokens_total.
 pub const TOKEN_KIND_PROMPT: &str = "prompt";
 pub const TOKEN_KIND_COMPLETION: &str = "completion";

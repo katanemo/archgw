@@ -334,6 +334,13 @@ async fn init_app_state(
         .as_ref()
         .and_then(|tracing| tracing.span_attributes.clone());
 
+    let attribution_header = config
+        .tracing
+        .as_ref()
+        .and_then(|tracing| tracing.attribution_header.clone())
+        .map(|h| h.trim().to_ascii_lowercase())
+        .filter(|h| !h.is_empty());
+
     // Resolve the distinct_id header from the first PostHog exporter that
     // declares one, so the LLM handler can stamp `plano.distinct_id` on spans.
     let distinct_id_header = config
@@ -414,6 +421,7 @@ async fn init_app_state(
         llm_provider_url,
         span_attributes,
         distinct_id_header,
+        attribution_header,
         http_client: reqwest::Client::new(),
         filter_pipeline,
         signals_enabled,

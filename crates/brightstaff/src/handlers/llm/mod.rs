@@ -119,6 +119,25 @@ async fn llm_chat_inner(
         }
     }
 
+    // Caller organization for metering: validated, stamped on the span, then
+    // removed so the provider never sees it.
+    let org = metric_labels::normalize_org(
+        state
+            .attribution_header
+            .as_deref()
+            .and_then(|h| request_headers.get(h))
+            .and_then(|v| v.to_str().ok()),
+    );
+    if let Some(header_name) = state.attribution_header.as_deref() {
+        request_headers.remove(header_name);
+        get_active_span(|span| {
+            span.set_attribute(opentelemetry::KeyValue::new(
+                tracing_plano::ORG,
+                org.clone(),
+            ));
+        });
+    }
+
     let explicit_session_id: Option<String> = request_headers
         .get(MODEL_AFFINITY_HEADER)
         .and_then(|h| h.to_str().ok())
@@ -558,6 +577,7 @@ async fn llm_chat_inner(
         request_id,
         &state.filter_pipeline,
         session_update_ctx,
+        &org,
     )
     .await
 }
@@ -679,6 +699,9 @@ async fn parse_and_validate_request(
 
     // Set the upstream model name and strip routing metadata
     client_request.set_model(model_name_only.clone());
+    if client_request.ensure_stream_usage() {
+        debug!("stream_options.include_usage set so the final usage chunk is metered");
+    }
     if client_request.remove_metadata_key("archgw_preference_config") {
         debug!("removed archgw_preference_config from metadata");
     }
@@ -836,6 +859,7 @@ async fn send_upstream(
     request_id: String,
     filter_pipeline: &Arc<FilterPipeline>,
     session_update_ctx: Option<SessionUpdateCtx>,
+    org: &str,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     let span_name = if model_from_request == resolved_model {
         format!("POST {} {}", request_path, resolved_model)
@@ -868,6 +892,12 @@ async fn send_upstream(
         }),
     );
     request_headers.remove(header::CONTENT_LENGTH);
+    // Providers gzip non-streaming bodies when allowed to; the usage extractor
+    // reads the raw buffered bytes, so ask for an identity body instead.
+    request_headers.insert(
+        header::ACCEPT_ENCODING,
+        header::HeaderValue::from_static("identity"),
+    );
 
     // Inject current span's trace context so upstream spans are children of plano(llm)
     global::get_text_map_propagator(|propagator| {
@@ -960,6 +990,7 @@ async fn send_upstream(
     .with_llm_metrics(LlmMetricsCtx {
         provider: metric_provider.clone(),
         model: metric_model.clone(),
+        org: org.to_string(),
         upstream_status: upstream_status.as_u16(),
     });
     // Only refresh the session binding for successful responses — errors carry no

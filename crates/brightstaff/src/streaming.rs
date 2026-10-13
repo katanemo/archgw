@@ -193,6 +193,8 @@ impl StreamProcessor for Box<dyn StreamProcessor> {
 pub struct LlmMetricsCtx {
     pub provider: String,
     pub model: String,
+    /// Normalized caller organization for the `org` label (see `labels::normalize_org`).
+    pub org: String,
     /// HTTP status of the upstream response. Used to pick `status_class` and
     /// `error_class` on `on_complete`.
     pub upstream_status: u16,
@@ -497,6 +499,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 bs_metrics::record_llm_tokens(
                     &ctx.provider,
                     &ctx.model,
+                    &ctx.org,
                     metric_labels::TOKEN_KIND_PROMPT,
                     v.max(0) as u64,
                 );
@@ -505,6 +508,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 bs_metrics::record_llm_tokens(
                     &ctx.provider,
                     &ctx.model,
+                    &ctx.org,
                     metric_labels::TOKEN_KIND_COMPLETION,
                     v.max(0) as u64,
                 );
@@ -516,6 +520,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 bs_metrics::record_llm_tokens(
                     &ctx.provider,
                     &ctx.model,
+                    &ctx.org,
                     metric_labels::TOKEN_KIND_CACHE_READ,
                     v.max(0) as u64,
                 );
@@ -524,6 +529,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 bs_metrics::record_llm_tokens(
                     &ctx.provider,
                     &ctx.model,
+                    &ctx.org,
                     metric_labels::TOKEN_KIND_CACHE_WRITE,
                     v.max(0) as u64,
                 );
@@ -542,7 +548,7 @@ impl StreamProcessor for ObservableStreamProcessor {
                 );
             }
             if usage.prompt_tokens.is_none() && usage.completion_tokens.is_none() {
-                bs_metrics::record_llm_tokens_usage_missing(&ctx.provider, &ctx.model);
+                bs_metrics::record_llm_tokens_usage_missing(&ctx.provider, &ctx.model, &ctx.org);
             }
             self.metrics_recorded = true;
         }

@@ -28,6 +28,9 @@ pub struct AppState {
     /// (e.g. PostHog). Sourced from `tracing.exporters[].distinct_id_header`.
     /// `None` means LLM events are captured anonymously.
     pub distinct_id_header: Option<String>,
+    /// Request header carrying the caller's organization for metering
+    /// (`tracing.attribution_header`). `None` disables the `org` label.
+    pub attribution_header: Option<String>,
     /// Shared HTTP client for upstream LLM requests (connection pooling / keep-alive).
     pub http_client: reqwest::Client,
     pub filter_pipeline: Arc<FilterPipeline>,

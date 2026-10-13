@@ -38,32 +38,6 @@ pub fn normalize_org(raw: Option<&str>) -> String {
     }
 }
 
-#[cfg(test)]
-mod org_tests {
-    use super::*;
-
-    #[test]
-    fn missing_or_blank_is_unattributed() {
-        assert_eq!(normalize_org(None), ORG_UNATTRIBUTED);
-        assert_eq!(normalize_org(Some("")), ORG_UNATTRIBUTED);
-        assert_eq!(normalize_org(Some("   ")), ORG_UNATTRIBUTED);
-    }
-
-    #[test]
-    fn plain_ids_pass_through_trimmed() {
-        assert_eq!(normalize_org(Some(" 3 ")), "3");
-        assert_eq!(normalize_org(Some("org_4.a-b")), "org_4.a-b");
-    }
-
-    #[test]
-    fn malformed_values_collapse_to_invalid() {
-        assert_eq!(normalize_org(Some("a b")), ORG_INVALID);
-        assert_eq!(normalize_org(Some("x".repeat(65).as_str())), ORG_INVALID);
-        assert_eq!(normalize_org(Some("3;drop")), ORG_INVALID);
-        assert_eq!(normalize_org(Some("org{id}")), ORG_INVALID);
-    }
-}
-
 // Token kind for brightstaff_llm_tokens_total.
 pub const TOKEN_KIND_PROMPT: &str = "prompt";
 pub const TOKEN_KIND_COMPLETION: &str = "completion";
@@ -129,3 +103,29 @@ pub const SWITCH_REASON_NO_PRICING: &str = "no_pricing";
 /// The last message was not a user turn, so the prior routing decision was replayed
 /// instead of re-running the router.
 pub const ROUTING_SKIP_NOT_USER_TURN: &str = "not_user_turn";
+
+#[cfg(test)]
+mod org_tests {
+    use super::*;
+
+    #[test]
+    fn missing_or_blank_is_unattributed() {
+        assert_eq!(normalize_org(None), ORG_UNATTRIBUTED);
+        assert_eq!(normalize_org(Some("")), ORG_UNATTRIBUTED);
+        assert_eq!(normalize_org(Some("   ")), ORG_UNATTRIBUTED);
+    }
+
+    #[test]
+    fn plain_ids_pass_through_trimmed() {
+        assert_eq!(normalize_org(Some(" 3 ")), "3");
+        assert_eq!(normalize_org(Some("org_4.a-b")), "org_4.a-b");
+    }
+
+    #[test]
+    fn malformed_values_collapse_to_invalid() {
+        assert_eq!(normalize_org(Some("a b")), ORG_INVALID);
+        assert_eq!(normalize_org(Some("x".repeat(65).as_str())), ORG_INVALID);
+        assert_eq!(normalize_org(Some("3;drop")), ORG_INVALID);
+        assert_eq!(normalize_org(Some("org{id}")), ORG_INVALID);
+    }
+}

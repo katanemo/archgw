@@ -959,7 +959,8 @@ mod tests {
 
     #[test]
     fn ensure_stream_usage_sets_include_usage_only_for_streaming_chat() {
-        let streaming = br#"{"model":"m","stream":true,"messages":[{"role":"user","content":"hi"}]}"#;
+        let streaming =
+            br#"{"model":"m","stream":true,"messages":[{"role":"user","content":"hi"}]}"#;
         let mut req = ProviderRequestType::try_from((
             &streaming[..],
             &SupportedAPIsFromClient::OpenAIChatCompletions(ChatCompletions),

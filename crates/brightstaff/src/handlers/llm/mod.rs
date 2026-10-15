@@ -30,6 +30,7 @@ use crate::handlers::agents::pipeline::PipelineProcessor;
 use crate::handlers::extract_request_id;
 use crate::handlers::full;
 use crate::handlers::routing_budget_request;
+use crate::handlers::take_org_from_headers;
 use crate::metrics as bs_metrics;
 use crate::metrics::labels as metric_labels;
 use crate::state::response_state_processor::ResponsesStateProcessor;
@@ -121,22 +122,7 @@ async fn llm_chat_inner(
 
     // Caller organization for metering: validated, stamped on the span, then
     // removed so the provider never sees it.
-    let org = metric_labels::normalize_org(
-        state
-            .attribution_header
-            .as_deref()
-            .and_then(|h| request_headers.get(h))
-            .and_then(|v| v.to_str().ok()),
-    );
-    if let Some(header_name) = state.attribution_header.as_deref() {
-        request_headers.remove(header_name);
-        get_active_span(|span| {
-            span.set_attribute(opentelemetry::KeyValue::new(
-                tracing_plano::ORG,
-                org.clone(),
-            ));
-        });
-    }
+    let org = take_org_from_headers(&mut request_headers, state.attribution_header.as_deref());
 
     let explicit_session_id: Option<String> = request_headers
         .get(MODEL_AFFINITY_HEADER)

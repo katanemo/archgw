@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod debug;
+pub mod embeddings;
 pub mod function_calling;
 pub mod llm;
 pub mod models;
@@ -56,4 +57,33 @@ pub fn extract_or_generate_traceparent(headers: &hyper::HeaderMap) -> String {
             );
             tp
         })
+}
+
+/// Resolve the caller's organization for metering from the configured attribution
+/// header: validate it into a safe label value ([`normalize_org`]), stamp it on the
+/// active span (`plano.org`), and remove the header so the provider never sees it.
+///
+/// When no attribution header is configured the header map is untouched, no span
+/// attribute is set, and the returned org is the "unattributed" label.
+///
+/// [`normalize_org`]: crate::metrics::labels::normalize_org
+pub fn take_org_from_headers(
+    headers: &mut hyper::HeaderMap,
+    attribution_header: Option<&str>,
+) -> String {
+    let org = crate::metrics::labels::normalize_org(
+        attribution_header
+            .and_then(|h| headers.get(h))
+            .and_then(|v| v.to_str().ok()),
+    );
+    if let Some(header_name) = attribution_header {
+        headers.remove(header_name);
+        opentelemetry::trace::get_active_span(|span| {
+            span.set_attribute(opentelemetry::KeyValue::new(
+                crate::tracing::plano::ORG,
+                org.clone(),
+            ));
+        });
+    }
+    org
 }

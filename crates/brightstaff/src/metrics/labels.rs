@@ -5,6 +5,7 @@
 pub const HANDLER_AGENT_CHAT: &str = "agent_chat";
 pub const HANDLER_ROUTING_DECISION: &str = "routing_decision";
 pub const HANDLER_LLM_CHAT: &str = "llm_chat";
+pub const HANDLER_EMBEDDINGS: &str = "embeddings";
 pub const HANDLER_FUNCTION_CALLING: &str = "function_calling";
 pub const HANDLER_LIST_MODELS: &str = "list_models";
 pub const HANDLER_CORS_PREFLIGHT: &str = "cors_preflight";

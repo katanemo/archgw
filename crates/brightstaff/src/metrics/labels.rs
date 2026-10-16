@@ -39,6 +39,58 @@ pub fn normalize_org(raw: Option<&str>) -> String {
     }
 }
 
+/// Service label value for a missing or blank `X-Fikar-Service`.
+pub const SERVICE_UNATTRIBUTED: &str = "unattributed";
+/// Label value for a present header whose value fails validation.
+pub const ATTR_INVALID: &str = "invalid";
+
+/// `^[a-z][a-z0-9-]{1,31}$`; missing or blank is `unattributed`, a mismatch is `invalid`.
+pub fn normalize_service(raw: Option<&str>) -> String {
+    let Some(v) = raw.map(str::trim).filter(|v| !v.is_empty()) else {
+        return SERVICE_UNATTRIBUTED.to_string();
+    };
+    let b = v.as_bytes();
+    let ok = (2..=32).contains(&b.len())
+        && b[0].is_ascii_lowercase()
+        && b[1..]
+            .iter()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-');
+    if ok {
+        v.to_string()
+    } else {
+        ATTR_INVALID.to_string()
+    }
+}
+
+/// `^([0-9]{1,12}|system)$`; missing or blank is `""`, a mismatch is `invalid`.
+pub fn normalize_user(raw: Option<&str>) -> String {
+    let Some(v) = raw.map(str::trim).filter(|v| !v.is_empty()) else {
+        return String::new();
+    };
+    let ok =
+        v == "system" || ((1..=12).contains(&v.len()) && v.bytes().all(|c| c.is_ascii_digit()));
+    if ok {
+        v.to_string()
+    } else {
+        ATTR_INVALID.to_string()
+    }
+}
+
+/// `^[A-Za-z0-9._:-]{1,64}$`; missing or blank is `""`, a mismatch is `invalid`.
+pub fn normalize_execution(raw: Option<&str>) -> String {
+    let Some(v) = raw.map(str::trim).filter(|v| !v.is_empty()) else {
+        return String::new();
+    };
+    let ok = v.len() <= 64
+        && v.bytes()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'_' | b':' | b'-'));
+    if ok {
+        v.to_string()
+    } else {
+        ATTR_INVALID.to_string()
+    }
+}
+
 // Token kind for brightstaff_llm_tokens_total.
 pub const TOKEN_KIND_PROMPT: &str = "prompt";
 pub const TOKEN_KIND_COMPLETION: &str = "completion";
@@ -128,5 +180,46 @@ mod org_tests {
         assert_eq!(normalize_org(Some("x".repeat(65).as_str())), ORG_INVALID);
         assert_eq!(normalize_org(Some("3;drop")), ORG_INVALID);
         assert_eq!(normalize_org(Some("org{id}")), ORG_INVALID);
+    }
+}
+
+#[cfg(test)]
+mod attribution_tests {
+    use super::*;
+
+    #[test]
+    fn service_rules() {
+        assert_eq!(normalize_service(None), "unattributed");
+        assert_eq!(normalize_service(Some("  ")), "unattributed");
+        assert_eq!(normalize_service(Some(" chat ")), "chat");
+        assert_eq!(normalize_service(Some("chat-backend2")), "chat-backend2");
+        for bad in ["a", "Chat", "1abc", "-ab", "a_b", "a b", &"a".repeat(33)] {
+            assert_eq!(normalize_service(Some(bad)), "invalid", "{bad}");
+        }
+        assert_eq!(normalize_service(Some(&"a".repeat(32))), "a".repeat(32));
+    }
+
+    #[test]
+    fn user_rules() {
+        assert_eq!(normalize_user(None), "");
+        assert_eq!(normalize_user(Some(" ")), "");
+        assert_eq!(normalize_user(Some("42")), "42");
+        assert_eq!(normalize_user(Some("system")), "system");
+        assert_eq!(normalize_user(Some("123456789012")), "123456789012");
+        for bad in ["1234567890123", "-1", "4 2", "System", "bob", "1.5"] {
+            assert_eq!(normalize_user(Some(bad)), "invalid", "{bad}");
+        }
+    }
+
+    #[test]
+    fn execution_rules() {
+        assert_eq!(normalize_execution(None), "");
+        assert_eq!(normalize_execution(Some("")), "");
+        assert_eq!(normalize_execution(Some("turn-8c1d2e")), "turn-8c1d2e");
+        assert_eq!(normalize_execution(Some("A.b_c:d-1")), "A.b_c:d-1");
+        assert_eq!(normalize_execution(Some(&"x".repeat(64))), "x".repeat(64));
+        for bad in ["a b", "a/b", "é", &"x".repeat(65)] {
+            assert_eq!(normalize_execution(Some(bad)), "invalid", "{bad}");
+        }
     }
 }

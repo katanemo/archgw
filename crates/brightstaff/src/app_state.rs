@@ -31,6 +31,8 @@ pub struct AppState {
     /// Request header carrying the caller's organization for metering
     /// (`tracing.attribution_header`). `None` disables the `org` label.
     pub attribution_header: Option<String>,
+    /// Per-response usage log (`FIKAR_USAGE_LOG_DIR`); `None` when disabled.
+    pub usage_log: Option<crate::usage_log::UsageLog>,
     /// Shared HTTP client for upstream LLM requests (connection pooling / keep-alive).
     pub http_client: reqwest::Client,
     pub filter_pipeline: Arc<FilterPipeline>,

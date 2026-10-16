@@ -423,6 +423,7 @@ async fn init_app_state(
         span_attributes,
         distinct_id_header,
         attribution_header,
+        usage_log: brightstaff::usage_log::UsageLog::from_env(),
         http_client: reqwest::Client::new(),
         filter_pipeline,
         signals_enabled,

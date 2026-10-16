@@ -24,7 +24,7 @@ use tracing::{info_span, warn, Instrument};
 
 use crate::app_state::AppState;
 use crate::handlers::llm::resolve_model_alias;
-use crate::handlers::{extract_request_id, full, take_org_from_headers};
+use crate::handlers::{extract_request_id, full, take_attribution_from_headers, Attribution};
 use crate::metrics as bs_metrics;
 use crate::metrics::labels as metric_labels;
 use crate::tracing::{llm as tracing_llm, operation_component, set_service_name};
@@ -262,12 +262,43 @@ pub fn prompt_tokens_from_response(body: &[u8]) -> Option<u64> {
 }
 
 /// Meter a successful embeddings response: prompt tokens, or the usage-missing counter.
-pub fn record_embeddings_usage(provider: &str, model: &str, org: &str, response_body: &[u8]) {
+/// With a usage log, a response that reports prompt tokens also writes one usage line.
+pub fn record_embeddings_usage(
+    provider: &str,
+    model: &str,
+    attribution: &Attribution,
+    usage_log: Option<&crate::usage_log::UsageLog>,
+    response_body: &[u8],
+) {
     match prompt_tokens_from_response(response_body) {
         Some(n) => {
-            bs_metrics::record_llm_tokens(provider, model, org, metric_labels::TOKEN_KIND_PROMPT, n)
+            bs_metrics::record_llm_tokens(
+                provider,
+                model,
+                &attribution.org,
+                &attribution.service,
+                metric_labels::TOKEN_KIND_PROMPT,
+                n,
+            );
+            if let Some(log) = usage_log {
+                log.record(
+                    crate::usage_log::ENDPOINT_EMBEDDINGS,
+                    attribution,
+                    provider,
+                    model,
+                    &crate::usage_log::TokenCounts {
+                        prompt: Some(n),
+                        ..Default::default()
+                    },
+                );
+            }
         }
-        None => bs_metrics::record_llm_tokens_usage_missing(provider, model, org),
+        None => bs_metrics::record_llm_tokens_usage_missing(
+            provider,
+            model,
+            &attribution.org,
+            &attribution.service,
+        ),
     }
 }
 
@@ -296,7 +327,8 @@ async fn embeddings_inner(
     set_service_name(operation_component::LLM);
 
     let mut client_headers = request.headers().clone();
-    let org = take_org_from_headers(&mut client_headers, state.attribution_header.as_deref());
+    let attribution =
+        take_attribution_from_headers(&mut client_headers, state.attribution_header.as_deref());
 
     let body = request.into_body().collect().await?.to_bytes();
 
@@ -390,7 +422,8 @@ async fn embeddings_inner(
         record_embeddings_usage(
             &upstream.provider_label,
             &upstream.model_label,
-            &org,
+            &attribution,
+            state.usage_log.as_ref(),
             &response_body,
         );
         if let Some(n) = prompt_tokens_from_response(&response_body) {
@@ -409,8 +442,8 @@ async fn embeddings_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
-    use std::sync::Mutex;
+    use crate::metrics::capture::Capture;
+    use crate::usage_log::UsageLog;
 
     fn azure() -> LlmProvider {
         LlmProvider {
@@ -560,25 +593,82 @@ mod tests {
         let mut h = HeaderMap::new();
         h.insert("x-fikar-org", HeaderValue::from_static("acme"));
         h.insert("authorization", HeaderValue::from_static("Bearer client"));
-        let org = take_org_from_headers(&mut h, Some("x-fikar-org"));
-        assert_eq!(org, "acme");
+        let a = take_attribution_from_headers(&mut h, Some("x-fikar-org"));
+        assert_eq!(a.org, "acme");
+        assert_eq!(a.service, metric_labels::SERVICE_UNATTRIBUTED);
+        assert_eq!((a.user.as_str(), a.execution.as_str()), ("", ""));
         assert!(h.get("x-fikar-org").is_none());
         assert!(h.get("authorization").is_some());
 
         let mut h = HeaderMap::new();
         h.insert("x-fikar-org", HeaderValue::from_static("bad org!"));
         assert_eq!(
-            take_org_from_headers(&mut h, Some("x-fikar-org")),
+            take_attribution_from_headers(&mut h, Some("x-fikar-org")).org,
             metric_labels::ORG_INVALID
         );
-        // No attribution header configured: untouched, unattributed.
+    }
+
+    #[test]
+    fn every_x_fikar_header_is_stripped_even_without_attribution_header() {
+        let mut h = HeaderMap::new();
+        for (k, v) in [
+            ("x-fikar-org", "acme"),
+            ("X-Fikar-Service", "chat"),
+            ("x-fikar-user", "42"),
+            ("X-FIKAR-EXECUTION", "turn-1"),
+            ("x-fikar-anything-else", "z"),
+            ("x-other", "keep"),
+        ] {
+            h.insert(
+                hyper::header::HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                HeaderValue::from_static(v),
+            );
+        }
+        let a = take_attribution_from_headers(&mut h, None);
+        assert_eq!(a.org, metric_labels::ORG_UNATTRIBUTED);
+        assert_eq!(
+            (a.service.as_str(), a.user.as_str(), a.execution.as_str()),
+            ("chat", "42", "turn-1")
+        );
+        assert_eq!(h.len(), 1);
+        assert!(h.get("x-other").is_some());
+    }
+
+    /// Wire check: the headers left after `take_attribution_from_headers` are what the
+    /// handlers forward, and none of the four attribution headers reaches the provider.
+    #[tokio::test]
+    async fn attribution_headers_never_reach_the_provider() {
+        let mut server = mockito::Server::new_async().await;
+        let mut mock = server.mock("POST", "/x");
+        for name in [
+            "x-fikar-org",
+            "x-fikar-service",
+            "x-fikar-user",
+            "x-fikar-execution",
+        ] {
+            mock = mock.match_header(name, mockito::Matcher::Missing);
+        }
+        let mock = mock
+            .match_header("x-extra", "1")
+            .with_status(200)
+            .create_async()
+            .await;
+
         let mut h = HeaderMap::new();
         h.insert("x-fikar-org", HeaderValue::from_static("acme"));
-        assert_eq!(
-            take_org_from_headers(&mut h, None),
-            metric_labels::ORG_UNATTRIBUTED
-        );
-        assert!(h.get("x-fikar-org").is_some());
+        h.insert("x-fikar-service", HeaderValue::from_static("chat"));
+        h.insert("x-fikar-user", HeaderValue::from_static("42"));
+        h.insert("x-fikar-execution", HeaderValue::from_static("turn-1"));
+        h.insert("x-extra", HeaderValue::from_static("1"));
+        take_attribution_from_headers(&mut h, Some("x-fikar-org"));
+        let resp = reqwest::Client::new()
+            .post(format!("{}/x", server.url()))
+            .headers(h)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 200);
+        mock.assert_async().await;
     }
 
     #[test]
@@ -631,93 +721,113 @@ mod tests {
         assert_eq!(prompt_tokens_from_response(b"garbage"), None);
     }
 
-    /// Minimal recorder capturing counter increments keyed by `name{labels}`.
-    #[derive(Default, Clone)]
-    struct Capture(Arc<Mutex<BTreeMap<String, u64>>>);
-
-    struct Cell(Arc<Mutex<BTreeMap<String, u64>>>, String);
-    impl metrics::CounterFn for Cell {
-        fn increment(&self, v: u64) {
-            *self.0.lock().unwrap().entry(self.1.clone()).or_default() += v;
-        }
-        fn absolute(&self, v: u64) {
-            self.0.lock().unwrap().insert(self.1.clone(), v);
-        }
-    }
-
-    impl metrics::Recorder for Capture {
-        fn describe_counter(
-            &self,
-            _: metrics::KeyName,
-            _: Option<metrics::Unit>,
-            _: metrics::SharedString,
-        ) {
-        }
-        fn describe_gauge(
-            &self,
-            _: metrics::KeyName,
-            _: Option<metrics::Unit>,
-            _: metrics::SharedString,
-        ) {
-        }
-        fn describe_histogram(
-            &self,
-            _: metrics::KeyName,
-            _: Option<metrics::Unit>,
-            _: metrics::SharedString,
-        ) {
-        }
-        fn register_counter(
-            &self,
-            key: &metrics::Key,
-            _: &metrics::Metadata<'_>,
-        ) -> metrics::Counter {
-            let mut labels: Vec<String> = key
-                .labels()
-                .map(|l| format!("{}={}", l.key(), l.value()))
-                .collect();
-            labels.sort();
-            let id = format!("{}{{{}}}", key.name(), labels.join(","));
-            metrics::Counter::from_arc(Arc::new(Cell(self.0.clone(), id)))
-        }
-        fn register_gauge(&self, _: &metrics::Key, _: &metrics::Metadata<'_>) -> metrics::Gauge {
-            metrics::Gauge::noop()
-        }
-        fn register_histogram(
-            &self,
-            _: &metrics::Key,
-            _: &metrics::Metadata<'_>,
-        ) -> metrics::Histogram {
-            metrics::Histogram::noop()
+    fn attribution(org: &str, service: &str) -> Attribution {
+        Attribution {
+            org: org.into(),
+            service: service.into(),
+            user: "42".into(),
+            execution: "turn-1".into(),
         }
     }
 
     #[test]
     fn usage_is_metered_or_flagged_missing() {
         let cap = Capture::default();
+        let acme = attribution("acme", "chat");
         metrics::with_local_recorder(&cap, || {
             record_embeddings_usage(
                 "azure_openai",
                 "text-embedding-3-small",
-                "acme",
+                &acme,
+                None,
                 AZURE_RESPONSE.as_bytes(),
             );
             record_embeddings_usage(
                 "azure_openai",
                 "text-embedding-3-small",
-                "acme",
+                &acme,
+                None,
                 br#"{"data":[]}"#,
             );
         });
         let got = cap.0.lock().unwrap().clone();
         assert_eq!(
-            got.get("brightstaff_llm_tokens_total{kind=prompt,model=text-embedding-3-small,org=acme,provider=azure_openai}"),
+            got.get("brightstaff_llm_tokens_total{kind=prompt,model=text-embedding-3-small,org=acme,provider=azure_openai,service=chat}"),
             Some(&7)
         );
         assert_eq!(
-            got.get("brightstaff_llm_tokens_usage_missing_total{model=text-embedding-3-small,org=acme,provider=azure_openai}"),
+            got.get("brightstaff_llm_tokens_usage_missing_total{model=text-embedding-3-small,org=acme,provider=azure_openai,service=chat}"),
             Some(&1)
         );
+    }
+
+    #[test]
+    fn service_label_defaults_and_invalid() {
+        let cap = Capture::default();
+        metrics::with_local_recorder(&cap, || {
+            for raw in [None, Some("Bad Service!")] {
+                let mut h = HeaderMap::new();
+                if let Some(v) = raw {
+                    h.insert("x-fikar-service", HeaderValue::from_str(v).unwrap());
+                }
+                let a = take_attribution_from_headers(&mut h, Some("x-fikar-org"));
+                record_embeddings_usage("p", "m", &a, None, AZURE_RESPONSE.as_bytes());
+            }
+        });
+        let got = cap.0.lock().unwrap().clone();
+        for svc in ["unattributed", "invalid"] {
+            assert_eq!(
+                got.get(&format!(
+                    "brightstaff_llm_tokens_total{{kind=prompt,model=m,org=unattributed,provider=p,service={svc}}}"
+                )),
+                Some(&7),
+                "{svc}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn metered_embeddings_write_exactly_one_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = UsageLog::start(dir.path().to_path_buf(), "pinned");
+        let a = attribution("3", "dictionary");
+        record_embeddings_usage(
+            "azure_openai",
+            "te3",
+            &a,
+            Some(&log),
+            AZURE_RESPONSE.as_bytes(),
+        );
+        // No usage in the response: counter only, no line.
+        record_embeddings_usage("azure_openai", "te3", &a, Some(&log), br#"{"data":[]}"#);
+        log.flush().await;
+        let files: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+        assert_eq!(files.len(), 1);
+        let text = std::fs::read_to_string(files[0].as_ref().unwrap().path()).unwrap();
+        assert_eq!(text.lines().count(), 1);
+        let v: serde_json::Value = serde_json::from_str(text.trim_end()).unwrap();
+        assert_eq!(v["v"], 1);
+        assert_eq!(v["endpoint"], "embeddings");
+        assert_eq!(v["instance"], "pinned");
+        assert_eq!(v["org"], "3");
+        assert_eq!(v["service"], "dictionary");
+        assert_eq!(v["user"], "42");
+        assert_eq!(v["execution"], "turn-1");
+        assert_eq!(v["provider"], "azure_openai");
+        assert_eq!(v["model"], "te3");
+        assert_eq!(v["prompt"], 7);
+        assert_eq!(v["completion"], 0);
+        assert_eq!(v["cache_read"], 0);
+        assert_eq!(v["cache_write"], 0);
+    }
+
+    #[tokio::test]
+    async fn no_log_directory_writes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = attribution("3", "chat");
+        // Disabled log is `None`: metering still works and no file appears.
+        record_embeddings_usage("p", "m", &a, None, AZURE_RESPONSE.as_bytes());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
     }
 
     /// Wire-level check against a local mock provider: the request the handler would

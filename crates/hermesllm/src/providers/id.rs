@@ -770,15 +770,9 @@ mod tests {
         assert_eq!(ProviderId::try_from("minimax"), Ok(ProviderId::Minimax));
         assert_eq!(ProviderId::Minimax.to_string(), "minimax");
 
-        let models = ProviderId::Minimax.models();
-        assert!(
-            models.iter().any(|m| m == "MiniMax-M3"),
-            "minimax models should include MiniMax-M3"
-        );
-        assert!(
-            models.iter().any(|m| m == "MiniMax-M2.7"),
-            "minimax models should include MiniMax-M2.7"
-        );
+        let mut models = ProviderId::Minimax.models();
+        models.sort();
+        assert_eq!(models, vec!["MiniMax-M3", "MiniMax-M3.1-Flash"]);
         for model in &models {
             assert!(
                 !model.contains('/'),

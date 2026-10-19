@@ -78,7 +78,6 @@ providers:
   - digitalocean/glm-5
   - digitalocean/kimi-k2.5
   - digitalocean/llama3.3-70b-instruct
-  - digitalocean/minimax-m2.5
   - digitalocean/nvidia-nemotron-3-super-120b
   - digitalocean/qwen3-coder-flash
   - digitalocean/qwen3.5-397b-a17b
@@ -129,7 +128,7 @@ providers:
   - meta/muse-spark-1.1
   minimax:
   - minimax/MiniMax-M3
-  - minimax/MiniMax-M2.7
+  - minimax/MiniMax-M3.1-Flash
   mistralai:
   - mistralai/mistral-medium-2505
   - mistralai/mistral-medium-2508
@@ -400,5 +399,5 @@ providers:
   - z-ai/glm-5.1
 metadata:
   total_providers: 15
-  total_models: 380
+  total_models: 381
   last_updated: 2026-07-09T19:48:06.553850+00:00

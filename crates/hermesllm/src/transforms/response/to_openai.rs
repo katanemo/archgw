@@ -357,6 +357,7 @@ fn convert_bedrock_message_to_openai(
 ) -> Result<(Option<String>, Option<Vec<crate::apis::openai::ToolCall>>), TransformError> {
     use crate::apis::amazon_bedrock::ContentBlock;
     use crate::apis::openai::{FunctionCall, ToolCall};
+    use crate::transforms::request::from_bedrock::flatten_tool_result_content;
 
     let mut text_content = String::new();
     let mut tool_calls = Vec::new();
@@ -375,6 +376,12 @@ fn convert_bedrock_message_to_openai(
                         arguments: serde_json::to_string(&tool_use.input).unwrap_or_default(),
                     },
                 });
+            }
+            ContentBlock::ToolResult { tool_result } => {
+                // A model turn normally carries toolUse, not toolResult, but some Bedrock
+                // models echo results back. Fold the payload into the text so it is not lost;
+                // the response shape has no place for a separate tool message.
+                text_content.push_str(&flatten_tool_result_content(&tool_result.content));
             }
             _ => continue,
         }
@@ -783,6 +790,29 @@ mod tests {
         let args: serde_json::Value =
             serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
         assert_eq!(args["param"], "value");
+    }
+
+    #[test]
+    fn test_convert_bedrock_message_to_openai_keeps_tool_result_text() {
+        use crate::apis::amazon_bedrock::{ToolResultBlock, ToolResultContentBlock};
+
+        let bedrock_message = BedrockMessage {
+            role: ConversationRole::Assistant,
+            content: vec![ContentBlock::ToolResult {
+                tool_result: ToolResultBlock {
+                    tool_use_id: "test_tool".to_string(),
+                    content: vec![ToolResultContentBlock::Text {
+                        text: "72F".to_string(),
+                    }],
+                    status: None,
+                },
+            }],
+        };
+
+        let (content, tool_calls) = convert_bedrock_message_to_openai(&bedrock_message).unwrap();
+
+        assert_eq!(content, Some("72F".to_string()));
+        assert!(tool_calls.is_none());
     }
 
     #[test]

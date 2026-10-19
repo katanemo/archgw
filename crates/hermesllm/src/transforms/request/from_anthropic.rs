@@ -315,7 +315,7 @@ fn convert_anthropic_tool_choice(
 }
 
 /// Build OpenAI message content from parts and tool calls
-fn build_openai_content(
+pub(crate) fn build_openai_content(
     content_parts: Vec<ContentPart>,
     tool_calls: &[ToolCall],
 ) -> Option<MessageContent> {

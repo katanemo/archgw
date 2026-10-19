@@ -31,6 +31,7 @@ use crate::handlers::extract_request_id;
 use crate::handlers::full;
 use crate::handlers::routing_budget_request;
 use crate::metrics as bs_metrics;
+use crate::metrics::labels as metric_labels;
 use crate::state::response_state_processor::ResponsesStateProcessor;
 use crate::state::{
     extract_input_items, retrieve_and_combine_input, StateStorage, StateStorageError,
@@ -149,7 +150,7 @@ async fn llm_chat_inner(
     .await
     {
         Ok(p) => p,
-        Err(response) => return Ok(response),
+        Err(response) => return Ok(*response),
     };
 
     let PreparedRequest {
@@ -300,7 +301,7 @@ async fn llm_chat_inner(
     .await
     {
         Ok(ctx) => ctx,
-        Err(response) => return Ok(response),
+        Err(response) => return Ok(*response),
     };
 
     // --- Phase 2a: Session affinity (see `session_router`) ---
@@ -314,7 +315,14 @@ async fn llm_chat_inner(
         routing_budget_request::routing_budget_for_request(state.routing_budget, &request_headers);
     // Derive the implicit session key when either prompt-caching affinity or the
     // routing budget is active — the budget needs a session anchor even with caching off.
-    let implicit_affinity_enabled = prompt_caching.session_affinity || routing_budget.is_some();
+    // Routing preferences need one too: they let the router dispatch somewhere other than
+    // the model the client named, and later non-user turns have to be able to replay
+    // that choice (see `session_router::reuse_prior_decision`).
+    let routing_can_override_model = inline_routing_preferences.is_some()
+        || state.orchestrator_service.has_routing_preferences();
+    let implicit_affinity_enabled = prompt_caching.session_affinity
+        || routing_budget.is_some()
+        || (state.route_on_user_only && routing_can_override_model);
     let request_messages = client_request.get_messages();
     let session_router::SessionResolution {
         request_prefix_hash,
@@ -361,44 +369,80 @@ async fn llm_chat_inner(
     // --- Phase 3: Route the request (quality), then apply the session-cache decision ---
     // Routing stays cache-blind: the quality router always picks a candidate. The
     // session router then honors it or sticks to the warm anchor (see `session_router`).
-    let routing_span = info_span!(
-        "routing",
-        component = "routing",
-        http.method = "POST",
-        http.target = %request_path,
-        model.requested = %model_from_request,
-        model.alias_resolved = %alias_resolved_model,
-        route.selected_model = tracing::field::Empty,
-        routing.determination_ms = tracing::field::Empty,
-    );
-    let routing_result = match async {
-        set_service_name(operation_component::ROUTING);
-        router_chat_get_upstream_model(
-            Arc::clone(&state.orchestrator_service),
-            client_request,
-            &request_path,
-            &request_id,
-            inline_routing_preferences,
-        )
-        .await
-    }
-    .instrument(routing_span)
-    .await
-    {
-        Ok(result) => result,
-        Err(err) => {
-            let mut internal_error = Response::new(full(err.message));
-            *internal_error.status_mut() = err.status_code;
-            return Ok(internal_error);
+    //
+    // Opt-in (`routing.route_on_user_only`): routing runs only on a trailing user
+    // message. Tool results and other non-user tails replay the prior decision.
+    let loop_reuse =
+        if session_router::should_reuse_prior_decision(state.route_on_user_only, &request_messages)
+        {
+            session_router::reuse_prior_decision(
+                &state.orchestrator_service,
+                session_id.as_deref(),
+                tenant_id.as_deref(),
+                request_prefix_hash,
+                &alias_resolved_model,
+            )
+            .await
+        } else {
+            None
+        };
+
+    let (candidate_model, candidate_route) = match loop_reuse {
+        Some(reuse) => {
+            debug!(
+                model = %reuse.model,
+                "not a user turn — replaying the prior model instead of re-routing"
+            );
+            bs_metrics::record_routing_skip(metric_labels::ROUTING_SKIP_NOT_USER_TURN);
+            get_active_span(|span| {
+                span.set_attribute(opentelemetry::KeyValue::new(
+                    tracing_plano::ROUTING_SKIPPED,
+                    metric_labels::ROUTING_SKIP_NOT_USER_TURN,
+                ));
+            });
+            (reuse.model, reuse.route_name)
+        }
+        None => {
+            let routing_span = info_span!(
+                "routing",
+                component = "routing",
+                http.method = "POST",
+                http.target = %request_path,
+                model.requested = %model_from_request,
+                model.alias_resolved = %alias_resolved_model,
+                route.selected_model = tracing::field::Empty,
+                routing.determination_ms = tracing::field::Empty,
+            );
+            let routing_result = match async {
+                set_service_name(operation_component::ROUTING);
+                router_chat_get_upstream_model(
+                    Arc::clone(&state.orchestrator_service),
+                    client_request,
+                    &request_path,
+                    &request_id,
+                    inline_routing_preferences,
+                )
+                .await
+            }
+            .instrument(routing_span)
+            .await
+            {
+                Ok(result) => result,
+                Err(err) => {
+                    let mut internal_error = Response::new(full(err.message));
+                    *internal_error.status_mut() = err.status_code;
+                    return Ok(internal_error);
+                }
+            };
+
+            let candidate_model = if routing_result.model_name != "none" {
+                routing_result.model_name
+            } else {
+                alias_resolved_model.clone()
+            };
+            (candidate_model, routing_result.route_name)
         }
     };
-
-    let candidate_model = if routing_result.model_name != "none" {
-        routing_result.model_name
-    } else {
-        alias_resolved_model.clone()
-    };
-    let candidate_route = routing_result.route_name;
 
     let decision = session_router::route(
         &state.orchestrator_service,
@@ -410,6 +454,7 @@ async fn llm_chat_inner(
             context_tokens,
             candidate_model: &candidate_model,
             candidate_route: candidate_route.as_deref(),
+            requested_model: &alias_resolved_model,
         },
     )
     .await;
@@ -469,6 +514,7 @@ async fn llm_chat_inner(
             tenant_id: tenant_id.clone(),
             anchor_model: resolved_model.clone(),
             default_model: decision.default_model.clone(),
+            requested_model: decision.requested_model.clone(),
             route_name: resolved_route_name.clone(),
             prefix_hash: request_prefix_hash,
             baseline_usd: decision.baseline_usd,
@@ -547,14 +593,14 @@ async fn parse_and_validate_request(
     model_aliases: &Option<HashMap<String, ModelAlias>>,
     llm_providers: &Arc<RwLock<LlmProviders>>,
     signals_enabled: bool,
-) -> Result<PreparedRequest, Response<BoxBody<Bytes, hyper::Error>>> {
+) -> Result<PreparedRequest, Box<Response<BoxBody<Bytes, hyper::Error>>>> {
     let raw_bytes = request
         .collect()
         .await
         .map_err(|_| {
             let mut r = Response::new(full("Failed to read request body"));
             *r.status_mut() = StatusCode::BAD_REQUEST;
-            r
+            Box::new(r)
         })?
         .to_bytes();
 
@@ -569,14 +615,14 @@ async fn parse_and_validate_request(
             warn!(error = %err, "failed to parse request JSON");
             let mut r = Response::new(full(format!("Failed to parse request: {}", err)));
             *r.status_mut() = StatusCode::BAD_REQUEST;
-            r
+            Box::new(r)
         })?;
 
     let api_type = SupportedAPIsFromClient::from_endpoint(request_path).ok_or_else(|| {
         warn!(path = %request_path, "unsupported endpoint");
         let mut r = Response::new(full(format!("Unsupported endpoint: {}", request_path)));
         *r.status_mut() = StatusCode::BAD_REQUEST;
-        r
+        Box::new(r)
     })?;
 
     let mut client_request = ProviderRequestType::try_from((&chat_request_bytes[..], &api_type))
@@ -584,7 +630,7 @@ async fn parse_and_validate_request(
             warn!(error = %err, "failed to parse request as ProviderRequestType");
             let mut r = Response::new(full(format!("Failed to parse request: {}", err)));
             *r.status_mut() = StatusCode::BAD_REQUEST;
-            r
+            Box::new(r)
         })?;
 
     let is_responses_api_client =
@@ -611,7 +657,7 @@ async fn parse_and_validate_request(
         warn!(model = %alias_resolved_model, "model not found in configured providers");
         let mut r = Response::new(full(err_msg));
         *r.status_mut() = StatusCode::BAD_REQUEST;
-        return Err(r);
+        return Err(Box::new(r));
     }
 
     // Strip provider prefix for upstream (e.g. "openai/gpt-4" → "gpt-4")
@@ -683,7 +729,7 @@ async fn resolve_conversation_state(
     alias_resolved_model: &str,
     request_path: &str,
     is_streaming_request: bool,
-) -> Result<ConversationStateContext, Response<BoxBody<Bytes, hyper::Error>>> {
+) -> Result<ConversationStateContext, Box<Response<BoxBody<Bytes, hyper::Error>>>> {
     if !is_responses_api_client {
         return Ok(ConversationStateContext {
             should_manage_state: false,
@@ -748,7 +794,7 @@ async fn resolve_conversation_state(
                 );
                 let mut r = Response::new(full(err_msg));
                 *r.status_mut() = StatusCode::CONFLICT;
-                return Err(r);
+                return Err(Box::new(r));
             }
             Err(e) => {
                 warn!(
@@ -988,7 +1034,7 @@ async fn send_upstream(
 
 /// Resolves model aliases by looking up the requested model in the model_aliases map.
 /// Returns the target model if an alias is found, otherwise returns the original model.
-fn resolve_model_alias(
+pub(crate) fn resolve_model_alias(
     model_from_request: &str,
     model_aliases: &Option<HashMap<String, ModelAlias>>,
 ) -> String {

@@ -234,35 +234,13 @@ impl ProviderRequest for ConverseRequest {
             }
         }
 
-        // Convert conversation messages
+        // Convert conversation messages. Tool use and tool result blocks are split out
+        // into their own OpenAI messages, so callers see the full tool history.
         if let Some(messages) = &self.messages {
             for msg in messages {
-                let role = match msg.role {
-                    ConversationRole::User => Role::User,
-                    ConversationRole::Assistant => Role::Assistant,
-                };
-
-                // Extract text from content blocks
-                let content = msg
-                    .content
-                    .iter()
-                    .filter_map(|block| {
-                        if let ContentBlock::Text { text } = block {
-                            Some(text.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                openai_messages.push(Message {
-                    role,
-                    content: Some(MessageContent::Text(content)),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                });
+                if let Ok(converted) = TryInto::<Vec<Message>>::try_into(msg.clone()) {
+                    openai_messages.extend(converted);
+                }
             }
         }
 
@@ -271,36 +249,26 @@ impl ProviderRequest for ConverseRequest {
 
     fn set_messages(&mut self, messages: &[crate::apis::openai::Message]) {
         // Convert OpenAI messages to Bedrock format
-        use crate::apis::amazon_bedrock::{ContentBlock, ConversationRole, SystemContentBlock};
+        use crate::apis::amazon_bedrock::SystemContentBlock;
+        use crate::transforms::lib::ExtractText;
 
         let mut system_blocks = Vec::new();
         let mut bedrock_messages = Vec::new();
 
         for msg in messages {
             match msg.role {
-                crate::apis::openai::Role::System => {
-                    if let Some(crate::apis::openai::MessageContent::Text(text)) = &msg.content {
-                        system_blocks.push(SystemContentBlock::Text { text: text.clone() });
+                crate::apis::openai::Role::System | crate::apis::openai::Role::Developer => {
+                    system_blocks.push(SystemContentBlock::Text {
+                        text: msg.content.extract_text(),
+                    });
+                }
+                _ => {
+                    if let Ok(bedrock_message) =
+                        crate::apis::amazon_bedrock::Message::try_from(msg.clone())
+                    {
+                        bedrock_messages.push(bedrock_message);
                     }
                 }
-                crate::apis::openai::Role::User | crate::apis::openai::Role::Assistant => {
-                    let role = match msg.role {
-                        crate::apis::openai::Role::User => ConversationRole::User,
-                        crate::apis::openai::Role::Assistant => ConversationRole::Assistant,
-                        _ => continue,
-                    };
-
-                    let content = if let Some(crate::apis::openai::MessageContent::Text(text)) =
-                        &msg.content
-                    {
-                        vec![ContentBlock::Text { text: text.clone() }]
-                    } else {
-                        vec![]
-                    };
-
-                    bedrock_messages.push(crate::apis::amazon_bedrock::Message { role, content });
-                }
-                _ => {}
             }
         }
 
@@ -1236,5 +1204,117 @@ mod tests {
 
         let tool_spec = serialized.get("tool").unwrap();
         assert_eq!(tool_spec.get("name").unwrap(), "get_weather");
+    }
+
+    #[test]
+    fn test_get_messages_exposes_tool_use_and_tool_result() {
+        use crate::apis::openai::Role as OpenAIRole;
+
+        let request = ConverseRequest {
+            model_id: "anthropic.claude-3-sonnet".to_string(),
+            system: Some(vec![SystemContentBlock::Text {
+                text: "You are helpful".to_string(),
+            }]),
+            messages: Some(vec![
+                Message {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::Text {
+                        text: "weather in Seattle?".to_string(),
+                    }],
+                },
+                Message {
+                    role: ConversationRole::Assistant,
+                    content: vec![ContentBlock::ToolUse {
+                        tool_use: ToolUseBlock {
+                            tool_use_id: "call_1".to_string(),
+                            name: "get_weather".to_string(),
+                            input: json!({"city": "Seattle"}),
+                        },
+                    }],
+                },
+                Message {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::ToolResult {
+                        tool_result: ToolResultBlock {
+                            tool_use_id: "call_1".to_string(),
+                            content: vec![ToolResultContentBlock::Text {
+                                text: "72F".to_string(),
+                            }],
+                            status: Some(ToolResultStatus::Success),
+                        },
+                    }],
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let messages = request.get_messages();
+
+        let roles: Vec<_> = messages.iter().map(|m| m.role.clone()).collect();
+        assert_eq!(
+            roles,
+            vec![
+                OpenAIRole::System,
+                OpenAIRole::User,
+                OpenAIRole::Assistant,
+                OpenAIRole::Tool,
+            ]
+        );
+        assert_eq!(
+            messages[2].tool_calls.as_ref().unwrap()[0].function.name,
+            "get_weather"
+        );
+        assert_eq!(messages[3].tool_call_id, Some("call_1".to_string()));
+    }
+
+    #[test]
+    fn test_get_messages_set_messages_round_trip_keeps_tools() {
+        let request = ConverseRequest {
+            model_id: "anthropic.claude-3-sonnet".to_string(),
+            system: Some(vec![SystemContentBlock::Text {
+                text: "You are helpful".to_string(),
+            }]),
+            messages: Some(vec![
+                Message {
+                    role: ConversationRole::Assistant,
+                    content: vec![ContentBlock::ToolUse {
+                        tool_use: ToolUseBlock {
+                            tool_use_id: "call_1".to_string(),
+                            name: "get_weather".to_string(),
+                            input: json!({"city": "Seattle"}),
+                        },
+                    }],
+                },
+                Message {
+                    role: ConversationRole::User,
+                    content: vec![ContentBlock::ToolResult {
+                        tool_result: ToolResultBlock {
+                            tool_use_id: "call_1".to_string(),
+                            content: vec![ToolResultContentBlock::Text {
+                                text: "72F".to_string(),
+                            }],
+                            status: Some(ToolResultStatus::Success),
+                        },
+                    }],
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let messages = request.get_messages();
+        let mut round_tripped = request.clone();
+        round_tripped.set_messages(&messages);
+
+        let bedrock_messages = round_tripped.messages.unwrap();
+        assert_eq!(bedrock_messages.len(), 2);
+        assert!(matches!(
+            bedrock_messages[0].content[0],
+            ContentBlock::ToolUse { .. }
+        ));
+        assert!(matches!(
+            bedrock_messages[1].content[0],
+            ContentBlock::ToolResult { .. }
+        ));
+        assert_eq!(round_tripped.system.unwrap().len(), 1);
     }
 }

@@ -80,6 +80,7 @@ mod tests {
         SessionBinding {
             anchor_model: "gpt-4o".to_string(),
             default_model: "gpt-4o".to_string(),
+            requested_model: "gpt-4o".to_string(),
             route_name: None,
             prefix_hash: None,
             last_used: std::time::SystemTime::now(),

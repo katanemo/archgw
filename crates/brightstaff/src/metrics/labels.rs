@@ -75,3 +75,8 @@ pub const SWITCH_REASON_WITHIN_CAP: &str = "within_cap";
 pub const SWITCH_REASON_OVER_CAP: &str = "over_cap";
 /// Pricing was missing for one side, so the switch was allowed without a cost gate.
 pub const SWITCH_REASON_NO_PRICING: &str = "no_pricing";
+
+// Quality-routing skips (brightstaff_router_skips_total).
+/// The last message was not a user turn, so the prior routing decision was replayed
+/// instead of re-running the router.
+pub const ROUTING_SKIP_NOT_USER_TURN: &str = "not_user_turn";

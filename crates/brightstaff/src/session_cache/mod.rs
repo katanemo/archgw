@@ -29,6 +29,13 @@ pub struct SessionBinding {
     /// episode begins and preserved across its turns.
     #[serde(default)]
     pub default_model: String,
+    /// Model the *client* asked for when this binding was last written (alias-resolved,
+    /// before routing overrode it). Agents run several model lanes over one prompt
+    /// prefix — Claude Code's main loop plus its `ANTHROPIC_SMALL_FAST_MODEL` side
+    /// calls — and those lanes must not inherit each other's routing decision, so the
+    /// reuse gate only reuses a binding whose lane matches the current request.
+    #[serde(default)]
+    pub requested_model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub route_name: Option<String>,
     /// Hash of the stable prompt prefix (system + tools) observed when the binding was

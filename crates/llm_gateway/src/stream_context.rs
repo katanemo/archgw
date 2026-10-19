@@ -374,20 +374,30 @@ impl StreamContext {
                 self.metrics.request_latency.record(duration_ms as u64);
 
                 if self.response_tokens > 0 {
-                    // Compute the time per output token
-                    let tpot = duration_ms as u64 / self.response_tokens as u64;
+                    let (tpot, tokens_per_second) =
+                        compute_token_throughput(duration_ms as u64, self.response_tokens as u64);
 
-                    // Record the time per output token
                     self.metrics.time_per_output_token.record(tpot);
 
-                    info!(
-                        "request_id={}: token throughput, time_per_token={}ms tokens_per_second={}",
-                        self.request_identifier(),
-                        tpot,
-                        1000 / tpot
-                    );
-                    // Record the tokens per second
-                    self.metrics.tokens_per_second.record(1000 / tpot);
+                    match tokens_per_second {
+                        Some(tokens_per_second) => {
+                            info!(
+                                "request_id={}: token throughput, time_per_token={}ms tokens_per_second={}",
+                                self.request_identifier(),
+                                tpot,
+                                tokens_per_second
+                            );
+                            self.metrics.tokens_per_second.record(tokens_per_second);
+                        }
+                        None => {
+                            // See compute_token_throughput: tpot==0 means we skip
+                            // tokens_per_second rather than divide by zero.
+                            debug!(
+                                "request_id={}: token throughput, time_per_token=0ms, tokens_per_second skipped (tpot==0)",
+                                self.request_identifier()
+                            );
+                        }
+                    }
                 }
             }
             Err(e) => {
@@ -1304,9 +1314,21 @@ fn extract_client_credential(
         .map(|s| s.to_string())
 }
 
+/// Computes time-per-output-token (`tpot`, ms/token) and tokens-per-second for a
+/// completed streaming response.
+///
+/// `tpot` is always returned, defaulting to `0` if `response_tokens` is `0`.
+/// `tokens_per_second` is only meaningful when `tpot > 0`; a fast response can make
+/// `tpot` round down to `0` (see GitHub issue #999), where `1000 / tpot` would
+/// divide by zero, so `checked_div` returns `None` for that case instead.
+fn compute_token_throughput(duration_ms: u64, response_tokens: u64) -> (u64, Option<u64>) {
+    let tpot = duration_ms.checked_div(response_tokens).unwrap_or(0);
+    (tpot, 1000u64.checked_div(tpot))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::extract_client_credential;
+    use super::{compute_token_throughput, extract_client_credential};
 
     #[test]
     fn authorization_bearer_strips_prefix() {
@@ -1353,5 +1375,38 @@ mod tests {
         assert!(extract_client_credential(Some(""), None).is_none());
         assert!(extract_client_credential(Some("Bearer "), None).is_none());
         assert!(extract_client_credential(Some("   "), Some("   ")).is_none());
+    }
+
+    #[test]
+    fn token_throughput_happy_path() {
+        // Normal, slower-than-1-token-per-ms case: unchanged arithmetic.
+        assert_eq!(compute_token_throughput(1000, 10), (100, Some(10)));
+    }
+
+    #[test]
+    fn token_throughput_regression_issue_999() {
+        // The exact divide-by-zero regression from GitHub issue #999: a fast
+        // streaming response produces more tokens than elapsed milliseconds,
+        // so tpot truncates to 0. Must not panic, and tpot (0) is still
+        // returned so time_per_output_token can still be recorded.
+        assert_eq!(compute_token_throughput(790, 982), (0, None));
+    }
+
+    #[test]
+    fn token_throughput_boundary_tpot_exactly_one() {
+        assert_eq!(compute_token_throughput(1, 1), (1, Some(1000)));
+    }
+
+    #[test]
+    fn token_throughput_zero_duration_does_not_panic() {
+        assert_eq!(compute_token_throughput(0, 5), (0, None));
+    }
+
+    #[test]
+    fn token_throughput_zero_response_tokens_does_not_panic() {
+        // Not reachable via the current caller (guarded by response_tokens > 0
+        // before the call), but the helper itself must not panic if invoked
+        // directly with response_tokens == 0.
+        assert_eq!(compute_token_throughput(1000, 0), (0, None));
     }
 }
